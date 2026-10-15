@@ -28,6 +28,9 @@ use crate::tree::Tree;
 pub const MIN_SIM_LEN: u32 = 10;
 /// Longest simulation the engine accepts (spec §4.2).
 pub const MAX_SIM_LEN: u32 = 100_000;
+/// Largest seed the engine accepts: 2^53 - 1, the largest integer that
+/// survives a round trip through a JS `number` unchanged.
+pub const MAX_SEED: u64 = 9_007_199_254_740_991;
 
 /// Alphabetical DNA base order used for root draws and outcome ordering.
 const BASES: [u8; 4] = *b"ACGT";
@@ -51,6 +54,7 @@ pub enum SimModel {
 pub struct SimSpec {
     pub model: SimModel,
     pub length: u32,
+    #[ts(type = "number")]
     pub seed: u64,
 }
 
@@ -61,6 +65,12 @@ pub(crate) fn check_spec(spec: &SimSpec) -> Result<(), NeoError> {
         return Err(NeoError::InvalidExercise {
             field: "sim.length".to_string(),
             msg: format!("length must be in {MIN_SIM_LEN}..={MAX_SIM_LEN}"),
+        });
+    }
+    if spec.seed > MAX_SEED {
+        return Err(NeoError::InvalidExercise {
+            field: "sim.seed".to_string(),
+            msg: "seed must be at most 2^53 - 1".to_string(),
         });
     }
     if let SimModel::K80 { kappa } = spec.model {
