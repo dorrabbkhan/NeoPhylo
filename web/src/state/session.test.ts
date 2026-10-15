@@ -4,7 +4,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 
 import { engine } from "../engine/index";
-import { reducer } from "./session";
+import { initialSession, reducer } from "./session";
 import type { Session } from "./session";
 
 // The spec §7 example exercise file.
@@ -47,22 +47,7 @@ function exercise(json: string): Exercise {
 // Minimal placeholder session; `load`/`recompute` replace everything that
 // matters, so only the view-state fields need to be sensible here.
 function emptySession(ex: Exercise): Session {
-  return {
-    exercise: ex,
-    trueTree: null,
-    alignment: null,
-    matrix: null,
-    result: null,
-    rf: null,
-    error: null,
-    step: 0,
-    mode: "concept",
-    clampNegative: false,
-    matrixView: "distance",
-    branchScale: 1,
-    hover: null,
-    source: "sandbox",
-  };
+  return initialSession(ex);
 }
 
 describe("session reducer", () => {
@@ -107,6 +92,63 @@ describe("session reducer", () => {
     // 5-taxon NJ: 2 join steps + the final three-way join.
     expect(s.result?.trace).not.toBeNull();
     expect(s.step).toBe(3);
+  });
+
+  it("setSim leaves an imported alignment unchanged", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const alignment: Alignment = {
+      labels: ["x1", "x2", "x3", "x4"],
+      seqs: [
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+      ],
+    };
+    const imported = reducer(loaded, { type: "importAlignment", alignment });
+    expect(imported.alignmentOrigin).toBe("imported");
+    const s = reducer(imported, { type: "setSim", patch: { seed: 99 } });
+    // Sim controls are a no-op while alignmentOrigin is "imported".
+    expect(s).toBe(imported);
+    expect(s.alignment).toBe(alignment);
+    expect(s.exercise.sim.seed).toBe(ex.sim.seed);
+  });
+
+  it("importTree re-simulates the alignment from the new tree", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const alignment: Alignment = {
+      labels: ["x1", "x2", "x3", "x4"],
+      seqs: [
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+      ],
+    };
+    const imported = reducer(loaded, { type: "importAlignment", alignment });
+    const parsed = engine.parseNewick("((P:0.2,Q:0.2):0.1,R:0.3);");
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const s = reducer(imported, { type: "importTree", tree: parsed.value });
+    expect(s.alignmentOrigin).toBe("simulated");
+    expect(s.error).toBeNull();
+    expect(s.trueTree).toBe(parsed.value);
+    // Deterministic seed: the alignment equals a fresh simulation.
+    const want = engine.simulate(parsed.value, ex.sim);
+    expect(want.ok).toBe(true);
+    if (!want.ok) throw new Error("unreachable");
+    expect(s.alignment).toEqual(want.value);
+    expect(s.alignment?.labels.slice().sort()).toEqual(["P", "Q", "R"]);
   });
 
   it("an alignment of 60 taxa builds without a trace", () => {
