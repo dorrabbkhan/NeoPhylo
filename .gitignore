@@ -1,0 +1,23 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# wasm build output (generated)
+web/src/engine/pkg/
+
+# Node / web
+node_modules/
+web/dist/
+*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Fuzzing
+crates/neophylo-core/fuzz/target/
