@@ -1,0 +1,34 @@
+[package]
+name = "neophylo-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+neophylo-core = { path = ".." }
+
+# Standalone workspace so the fuzz crate does not join the main one.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fasta"
+path = "fuzz_targets/fasta.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "newick"
+path = "fuzz_targets/newick.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "exercise"
+path = "fuzz_targets/exercise.rs"
+test = false
+doc = false
