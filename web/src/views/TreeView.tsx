@@ -135,6 +135,17 @@ export function TreeView({
               r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
               fill="currentColor"
             />
+            {hasVisibleParent && tree.branches[n.id].length === 0 && (
+              <text
+                className="zero-len"
+                x={(tx(n.parentX) + tx(n.x)) / 2}
+                y={ty(n.y) - 4}
+                fontSize={FONT_SIZE - 3}
+                textAnchor="middle"
+              >
+                0
+              </text>
+            )}
             {n.leaf ? (
               <text
                 x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
