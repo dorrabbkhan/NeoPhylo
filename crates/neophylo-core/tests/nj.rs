@@ -213,6 +213,28 @@ fn negative_lengths_kept() {
     assert_eq!(res.tree.branch_length(NodeId(0)), Some(-1.5));
 }
 
+#[test]
+fn step_counts() {
+    // Every NJ run records n-3 pairwise joins plus the final three-way
+    // join (spec §4.5). Additive matrices come from grown trees via
+    // `path_matrix`, so they are additive by construction.
+    for n in 3..=6usize {
+        let picks = vec![(0u32, 1u32); n];
+        let lens = vec![0.5f64; 40];
+        let tree = grow_tree(n, &picks, &lens);
+        let m = path_matrix(&tree);
+        let res = build_tree(&m, Method::Nj, BuildOptions { trace: true }).unwrap();
+        let Some(Trace::Nj { steps, final_join }) = res.trace else {
+            panic!("n={n}: trace missing")
+        };
+        assert_eq!(steps.len(), n - 3, "n={n}: expected n-3 join steps");
+        assert!(
+            final_join.la.is_finite() && final_join.lb.is_finite() && final_join.lc.is_finite(),
+            "n={n}: final_join must be present"
+        );
+    }
+}
+
 // --- additive recovery -----------------------------------------------------
 
 /// Grow a random unrooted binary tree by repeatedly joining two pool
