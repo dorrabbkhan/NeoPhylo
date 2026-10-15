@@ -5,6 +5,7 @@
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod algos;
 pub mod dist;
 pub mod error;
 pub mod matrix;
@@ -12,6 +13,7 @@ pub mod newick;
 pub mod seq;
 pub mod tree;
 
+pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, Trace, UpgmaStep};
 pub use dist::{compute, Cell, DistModel, DistanceMatrix};
 pub use error::NeoError;
 pub use matrix::Matrix;
