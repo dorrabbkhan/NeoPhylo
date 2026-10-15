@@ -1,5 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -73,12 +75,20 @@ describe("layout", () => {
   it("stable_positions: stepping reveals nodes without moving them", () => {
     // Wikipedia 5-taxon NJ worked example (fixtures/worked). Build through
     // the real engine so node ids match the trace records.
-    const fx = JSON.parse(
-      readFileSync(
-        new URL("../../../fixtures/worked/nj_wikipedia5.json", import.meta.url),
-        "utf8",
-      ),
-    ) as { labels: string[]; matrix: { data: number[] } };
+    // Under jsdom import.meta.url is an http URL, so fall back to a
+    // cwd-relative path (vitest runs with cwd = web/).
+    const fxUrl = new URL(
+      "../../../fixtures/worked/nj_wikipedia5.json",
+      import.meta.url,
+    );
+    const fxPath =
+      fxUrl.protocol === "file:"
+        ? fileURLToPath(fxUrl)
+        : resolve("../fixtures/worked/nj_wikipedia5.json");
+    const fx = JSON.parse(readFileSync(fxPath, "utf8")) as {
+      labels: string[];
+      matrix: { data: number[] };
+    };
     const r = engine.buildTree(
       {
         labels: fx.labels,
