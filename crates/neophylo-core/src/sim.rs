@@ -9,8 +9,7 @@
 //! version.
 //!
 //! Outcomes for a site draw are ordered `[same, transition, transversion
-//! targets in alphabetical order]`; under JC69 the three non-same targets
-//! are alphabetical and share one probability. The draw is compared
+//! targets in alphabetical order]` for both models. The draw is compared
 //! against the cumulative probabilities, so a draw that lands past the
 //! last cumulative value (rounding, NaN lengths) picks the final outcome
 //! rather than panicking.
@@ -23,7 +22,7 @@ use ts_rs::TS;
 
 use crate::error::NeoError;
 use crate::seq::Alignment;
-use crate::tree::{NodeId, Tree};
+use crate::tree::Tree;
 
 /// Shortest simulation the engine accepts (spec §4.2).
 pub const MIN_SIM_LEN: u32 = 10;
@@ -97,7 +96,7 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
     check_spec(spec)?;
     check_branch_lengths(tree)?;
 
-    let order = preorder_pairs(tree);
+    let order = tree.preorder();
     if order.is_empty() {
         return Err(NeoError::InvalidExercise {
             field: "true_tree".to_string(),
@@ -119,8 +118,10 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
 
     // 2. Branches in preorder, children in stored order, one uniform draw
     //    per site per branch.
-    for (id, parent) in order.iter().copied().skip(1) {
-        let Some(parent) = parent else { continue };
+    for &id in order.iter().skip(1) {
+        let Some(parent) = tree.nodes[id.0 as usize].parent else {
+            continue;
+        };
         let len_edge = tree.branch_length(id).unwrap_or(0.0);
         let src = seqs[parent.0 as usize].clone();
         seqs[id.0 as usize] = evolve(&src, len_edge, spec.model, &mut rng);
@@ -128,8 +129,8 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
 
     let mut labels = Vec::new();
     let mut out = Vec::new();
-    for (id, _) in &order {
-        if tree.is_leaf(*id) {
+    for &id in &order {
+        if tree.is_leaf(id) {
             labels.push(tree.nodes[id.0 as usize].label.clone().unwrap_or_default());
             out.push(std::mem::take(&mut seqs[id.0 as usize]));
         }
@@ -140,30 +141,6 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
 /// One uniform draw on [0, 1): `next_u64 / 2^64`.
 fn uniform(rng: &mut ChaCha8Rng) -> f64 {
     rng.next_u64() as f64 / TWO_POW_64
-}
-
-/// Preorder node ids paired with the parent each was reached from. A
-/// cycle guard and the `Option` parent keep hand-built trees from
-/// panicking or hanging.
-fn preorder_pairs(tree: &Tree) -> Vec<(NodeId, Option<NodeId>)> {
-    let mut out = Vec::with_capacity(tree.nodes.len());
-    let mut seen = vec![false; tree.nodes.len()];
-    let mut stack = vec![(tree.root, None)];
-    while let Some((id, parent)) = stack.pop() {
-        let i = id.0 as usize;
-        let Some(node) = tree.nodes.get(i) else {
-            continue;
-        };
-        if seen[i] {
-            continue;
-        }
-        seen[i] = true;
-        out.push((id, parent));
-        for &c in node.children.iter().rev() {
-            stack.push((c, Some(id)));
-        }
-    }
-    out
 }
 
 /// Apply the mutations of a branch of length `d` to `parent`, consuming
@@ -196,30 +173,17 @@ fn transition_target(base: u8) -> u8 {
 }
 
 /// The four outcomes of a site draw, in spec order: same, transition,
-/// transversions in alphabetical order (under JC69 the three non-same
-/// bases, alphabetical).
-fn outcomes(base: u8, model: SimModel) -> [u8; 4] {
-    match model {
-        SimModel::Jc69 => {
-            let mut rest = BASES.iter().copied().filter(|&b| b != base);
-            [
-                base,
-                rest.next().unwrap_or(base),
-                rest.next().unwrap_or(base),
-                rest.next().unwrap_or(base),
-            ]
-        }
-        SimModel::K80 { .. } => {
-            let ti = transition_target(base);
-            let mut rest = BASES.iter().copied().filter(|&b| b != base && b != ti);
-            [
-                base,
-                ti,
-                rest.next().unwrap_or(base),
-                rest.next().unwrap_or(base),
-            ]
-        }
-    }
+/// transversions in alphabetical order. One order for both models
+/// (spec §4.2).
+fn outcomes(base: u8) -> [u8; 4] {
+    let ti = transition_target(base);
+    let mut rest = BASES.iter().copied().filter(|&b| b != base && b != ti);
+    [
+        base,
+        ti,
+        rest.next().unwrap_or(base),
+        rest.next().unwrap_or(base),
+    ]
 }
 
 /// One site on one branch: pick the outcome `u` lands in over the
@@ -247,7 +211,7 @@ fn mutate(base: u8, d: f64, model: SimModel, u: f64) -> u8 {
             [1.0 - p_ti - 2.0 * p_tv, p_ti, p_tv, p_tv]
         }
     };
-    let outs = outcomes(base, model);
+    let outs = outcomes(base);
     let mut cum = 0.0;
     for (p, &t) in probs.iter().zip(outs.iter()) {
         cum += p;
