@@ -29,6 +29,8 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 
 - One task per branch. Name the branch `m<milestone>/<short-task>`, e.g. `m1/nj-trace`.
 - Final summary: the spec sections implemented, the tests added, and anything ambiguous you resolved, so the reviewer can check it.
+- Record any deviation from the task's Files block, interfaces or spec in `docs/decisions.md`
+  (one entry per task) in the same commit. There are no PRs; this file is the record reviewers check.
 - There is **no GitHub CI** in this project. Wherever the plan says to add a job or step to `.github/workflows/ci.yml`, add the equivalent command to `scripts/check.sh` instead. Skip `CODEOWNERS` and the deploy workflow until told otherwise.
 - `./scripts/check.sh` must pass before committing. Do not disable, skip or loosen tests to make it pass.
 - Commit on the task branch, but do not push or merge. The human reviews and merges.
