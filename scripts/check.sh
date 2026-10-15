@@ -62,9 +62,10 @@ fi
 
 if [ -d crates/neophylo-core/fuzz/fuzz_targets ] && [ "${FUZZ:-0}" = "1" ]; then
   step "fuzz: smoke, 60 s per target (FUZZ=1, nightly)"
-  for target in fasta newick exercise; do
-    cargo +nightly fuzz run "$target" --manifest-path crates/neophylo-core/fuzz/Cargo.toml \
-      -- -max_total_time=60
+  for t in fasta newick exercise; do
+    # corpus/ is gitignored; seeds/ is committed.
+    mkdir -p "crates/neophylo-core/fuzz/corpus/$t"
+    ( cd crates/neophylo-core/fuzz && cargo +nightly fuzz run "$t" "corpus/$t" "seeds/$t" -- -max_total_time=60 )
   done
 fi
 

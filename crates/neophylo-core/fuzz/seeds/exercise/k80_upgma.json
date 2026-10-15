@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "nj-basics",
+  "title": "How Neighbor-Joining works",
+  "true_tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+  "sim": { "model": "K80", "kappa": 2, "length": 1000, "seed": 42 },
+  "analysis": { "correction": "JC69", "method": "UPGMA" },
+  "locked": ["sim.model", "analysis.method"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "Which two taxa will join first?",
+      "math": "Find the minimum Q(i,j)."
+    },
+    { "at_step": 3, "type": "note", "concept": "…", "math": "…" }
+  ]
+}
