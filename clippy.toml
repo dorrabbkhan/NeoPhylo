@@ -1,0 +1,6 @@
+disallowed-methods = [
+  { path = "f64::exp", reason = "use libm::exp (spec §3)" },
+  { path = "f64::ln", reason = "use libm::log" },
+  { path = "f64::powf", reason = "use libm::pow" },
+  { path = "f64::sqrt", reason = "use libm::sqrt" },
+]

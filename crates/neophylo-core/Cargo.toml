@@ -1,0 +1,14 @@
+[package]
+name = "neophylo-core"
+description = "Distance-based phylogenetics engine for NeoPhylo. Pure Rust, no wasm or UI deps."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+libm = "0.2"
+rand_chacha = "0.3"
+rand_core = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ts-rs = "10"

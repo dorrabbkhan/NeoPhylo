@@ -420,3 +420,13 @@ CI runs the generated R scripts and checks that their output matches the engine'
 - Never hand-edit generated TS types, and never duplicate engine logic in TypeScript.
 - When a reference test fails, assume the implementation is wrong before suspecting the fixture. Fixtures change only through their generator scripts.
 - Use `libm` for math functions in core; never `f64::exp` or `f64::ln` directly. Enforce this with a clippy `disallowed-methods` rule.
+
+## 11. Resolved gaps
+
+These gaps were found during planning and are resolved as follows:
+
+1. `NeoError` includes a `TooFewTaxa { min, got }` variant; building a tree needs at least 3 taxa.
+2. `build_tree` takes `BuildOptions { trace: bool }` and returns `trace: Option<Trace>`, because a 200-taxon trace would be over 100 MB. Traces are produced only when requested; the UI requests them only for 50 taxa or fewer.
+3. The wasm boundary includes `load_exercise(json) -> Result<Exercise>` in addition to the functions listed in §5.
+4. Duplicate taxon names in a FASTA import are reported as `NeoError::Parse` at the duplicate's line.
+5. A true tree used for simulation that is missing a branch length gives `NeoError::InvalidExercise { field: "true_tree" }`.
