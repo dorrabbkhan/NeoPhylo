@@ -293,3 +293,19 @@ fn kappa_nonpositive() {
         "kappa 0 gave {err:?}"
     );
 }
+
+#[test]
+fn seed_limit() {
+    // Seeds arrive from JS as `number`, so anything above 2^53 - 1 is
+    // rejected; the boundary value itself is accepted.
+    let tree = parse_newick("(A:0.1,B:0.2,C:0.3);").unwrap();
+    let err = simulate(&tree, &spec(SimModel::Jc69, 100, 1 << 53)).unwrap_err();
+    assert_eq!(
+        err,
+        NeoError::InvalidExercise {
+            field: "sim.seed".to_string(),
+            msg: "seed must be at most 2^53 - 1".to_string(),
+        }
+    );
+    simulate(&tree, &spec(SimModel::Jc69, 100, (1 << 53) - 1)).unwrap();
+}

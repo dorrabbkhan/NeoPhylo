@@ -457,3 +457,4 @@ These gaps were found during planning and are resolved as follows:
 4. Duplicate taxon names in a FASTA import are reported as `NeoError::Parse` at the duplicate's line.
 5. A true tree used for simulation that is missing a branch length gives `NeoError::InvalidExercise { field: "true_tree" }`.
 6. PHYLIP `dnadist` K2P is a fixed-ratio estimator, not §4.3 K80. The PHYLIP K80 distance column is checked as a known divergence; ape is the oracle for K80 distances (see §8.1). Ratified by owner, Task 10.
+7. Seeds are limited to 0 … 2^53 − 1 (`MAX_SEED`) and typed as `number` in TypeScript, so they survive JavaScript numbers, JSON exercise files and URLs. Larger seeds give `InvalidExercise { field: "sim.seed" }`.

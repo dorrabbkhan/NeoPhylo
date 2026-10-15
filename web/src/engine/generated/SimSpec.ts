@@ -4,4 +4,4 @@ import type { SimModel } from "./SimModel";
 /**
  * What to simulate: model, site count and the RNG seed.
  */
-export type SimSpec = { model: SimModel, length: number, seed: bigint, };
+export type SimSpec = { model: SimModel, length: number, seed: number, };
