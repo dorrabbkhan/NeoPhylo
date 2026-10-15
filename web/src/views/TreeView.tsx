@@ -4,13 +4,15 @@
 // Styling conventions (spec §6.3, §6.5 — meaning never relies on color alone):
 // - Negative branch lengths are dashed and carry the class "negative".
 // - Highlighted nodes get data-highlight="true", a thicker stroke and a
-//   visible label (their own label if any, else their node id).
+//   visible label (their display name via state/names.ts: leaf labels and
+//   u1, u2, … for internal nodes).
 // - Wrong clades get a dotted outline around the clade plus a "✕" marker.
 // - Leaf labels are SVG <text> children, so React escapes them and markup in
 //   a taxon name can never be parsed as HTML (Review Focus 2).
 
 import type { Tree } from "../engine/generated/Tree";
 import { layout, type LaidOutNode } from "../layout/phylogram";
+import { nodeName } from "../state/names";
 
 export interface TreeViewProps {
   tree: Tree;
@@ -152,7 +154,7 @@ export function TreeView({
                   fontSize={FONT_SIZE}
                   dominantBaseline="middle"
                 >
-                  {n.label ?? `#${n.id}`}
+                  {nodeName(tree, n.id)}
                 </text>
               )
             )}
