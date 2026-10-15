@@ -1,0 +1,99 @@
+{
+  "name": "upgma_wikipedia5",
+  "source": "UPGMA worked example (en.wikipedia.org/wiki/UPGMA), taxa a-e",
+  "labels": ["a", "b", "c", "d", "e"],
+  "matrix": {
+    "n": 5,
+    "data": [
+      0, 17, 21, 31, 23,
+      17, 0, 30, 34, 21,
+      21, 30, 0, 28, 39,
+      31, 34, 28, 0, 43,
+      23, 21, 39, 43, 0
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "active": [0, 1, 2, 3, 4],
+      "distance": {
+        "n": 5,
+        "data": [
+          0, 17, 21, 31, 23,
+          17, 0, 30, 34, 21,
+          21, 30, 0, 28, 39,
+          31, 34, 28, 0, 43,
+          23, 21, 39, 43, 0
+        ]
+      },
+      "sizes": [1, 1, 1, 1, 1],
+      "chosen": [0, 1],
+      "tie": false,
+      "height": 8.5,
+      "len_i": 8.5,
+      "len_j": 8.5,
+      "new_node": 5,
+      "new_row": [25.5, 32.5, 22]
+    },
+    {
+      "step": 2,
+      "active": [2, 3, 4, 5],
+      "distance": {
+        "n": 4,
+        "data": [
+          0, 28, 39, 25.5,
+          28, 0, 43, 32.5,
+          39, 43, 0, 22,
+          25.5, 32.5, 22, 0
+        ]
+      },
+      "sizes": [1, 1, 1, 2],
+      "chosen": [2, 3],
+      "tie": false,
+      "height": 11,
+      "len_i": 11,
+      "len_j": 2.5,
+      "new_node": 6,
+      "new_row": [30, 36]
+    },
+    {
+      "step": 3,
+      "active": [2, 3, 6],
+      "distance": {
+        "n": 3,
+        "data": [
+          0, 28, 30,
+          28, 0, 36,
+          30, 36, 0
+        ]
+      },
+      "sizes": [1, 1, 3],
+      "chosen": [0, 1],
+      "tie": false,
+      "height": 14,
+      "len_i": 14,
+      "len_j": 14,
+      "new_node": 7,
+      "new_row": [33]
+    },
+    {
+      "step": 4,
+      "active": [6, 7],
+      "distance": {
+        "n": 2,
+        "data": [
+          0, 33,
+          33, 0
+        ]
+      },
+      "sizes": [3, 2],
+      "chosen": [0, 1],
+      "tie": false,
+      "height": 16.5,
+      "len_i": 5.5,
+      "len_j": 2.5,
+      "new_node": 8,
+      "new_row": []
+    }
+  ]
+}

@@ -16,6 +16,17 @@ if git rev-parse --verify -q main >/dev/null; then
 fi
 echo ok
 
+if [ -f fixtures/generate.R ] && [ "${FIXTURES:-0}" = "1" ]; then
+  step "fixtures: regenerate (FIXTURES=1)"
+  Rscript fixtures/generate.R
+  bash fixtures/generate_phylip.sh
+  git diff --exit-code fixtures/ref
+  # also catch new/stray files under ref/
+  if [ -n "$(git status --porcelain fixtures/ref)" ]; then
+    echo "FAIL: fixtures/ref changed after regeneration"; git status --porcelain fixtures/ref; exit 1
+  fi
+fi
+
 if [ -f Cargo.toml ]; then
   step "rust: fmt";    cargo fmt --all --check
   step "rust: clippy"; cargo clippy --workspace --all-targets -- -D warnings
