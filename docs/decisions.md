@@ -57,8 +57,8 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - src/test/setup.ts and src/layout/phylogram.test.ts: under jsdom `import.meta.url` is an
     http URL, so wasm/fixture paths fall back to cwd-relative resolution (vitest runs in web/).
 - Plan ambiguities resolved:
-  - "highlighted nodes are thicker and labeled": internal nodes often have no label, so an
-    unlabeled highlighted node shows `#<id>`.
+  - "highlighted nodes are thicker and labeled": internal nodes are named
+    u1, u2, … by creation order via state/names.ts; Tasks 16 and 18 must use nodeName.
   - `onHoverLeaf(label)` is called with the leaf's label on mouse enter and `null` on leave.
   - Fixed drawing geometry (viewBox 400-wide layout + label gutter); the svg scales via viewBox.
   - A "wrong clade" outline bounds the clade's laid-out nodes plus the branch leading to it;
