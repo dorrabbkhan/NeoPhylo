@@ -47,3 +47,19 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - `leaf` means "no visible children", so a cluster tip during stepping reads as a leaf.
   - `negative` is true only when the parent edge is actually drawn (visible parent) and length < 0,
     independent of `clampNegative`.
+
+## Task 15: TreeView
+
+- Outside Files block, all required by the plan's M3 preamble ("Component tests use Vitest +
+  Testing Library + jsdom"), which no earlier task had set up:
+  - package.json: devDependencies `jsdom`, `@testing-library/react`, `@testing-library/dom`.
+  - vite.config.ts: `test.environment = "jsdom"`.
+  - src/test/setup.ts and src/layout/phylogram.test.ts: under jsdom `import.meta.url` is an
+    http URL, so wasm/fixture paths fall back to cwd-relative resolution (vitest runs in web/).
+- Plan ambiguities resolved:
+  - "highlighted nodes are thicker and labeled": internal nodes often have no label, so an
+    unlabeled highlighted node shows `#<id>`.
+  - `onHoverLeaf(label)` is called with the leaf's label on mouse enter and `null` on leave.
+  - Fixed drawing geometry (viewBox 400-wide layout + label gutter); the svg scales via viewBox.
+  - A "wrong clade" outline bounds the clade's laid-out nodes plus the branch leading to it;
+    descendants hidden by `visibleNodes` are left out.
