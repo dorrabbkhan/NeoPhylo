@@ -1,6 +1,7 @@
 //! Tree-building algorithms and their per-join traces (spec §4.5).
 
 pub mod nj;
+pub mod upgma;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -45,7 +46,7 @@ pub enum Trace {
 }
 
 /// One UPGMA join record (spec §4.5). Defined here because `Trace`
-/// references it; the algorithm that produces it is added by a later task.
+/// references it; produced by `upgma::run`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct UpgmaStep {
@@ -115,9 +116,6 @@ pub fn build_tree(
     }
     match method {
         Method::Nj => nj::run(&matrix, &m.labels, opts.trace),
-        Method::Upgma => Err(NeoError::InvalidExercise {
-            field: "method".to_string(),
-            msg: "upgma is not implemented yet".to_string(),
-        }),
+        Method::Upgma => upgma::run(&matrix, &m.labels, opts.trace),
     }
 }

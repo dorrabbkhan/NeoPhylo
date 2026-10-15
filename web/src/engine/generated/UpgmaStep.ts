@@ -4,7 +4,7 @@ import type { NodeId } from "./NodeId";
 
 /**
  * One UPGMA join record (spec §4.5). Defined here because `Trace`
- * references it; the algorithm that produces it is added by a later task.
+ * references it; produced by `upgma::run`.
  */
 export type UpgmaStep = { 
 /**
