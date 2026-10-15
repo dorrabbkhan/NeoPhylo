@@ -60,6 +60,15 @@ if [ -f web/package.json ]; then
     npm run build )
 fi
 
+if [ -d crates/neophylo-core/fuzz/fuzz_targets ] && [ "${FUZZ:-0}" = "1" ]; then
+  step "fuzz: smoke, 60 s per target (FUZZ=1, nightly)"
+  for t in fasta newick exercise; do
+    # corpus/ is gitignored; seeds/ is committed.
+    mkdir -p "crates/neophylo-core/fuzz/corpus/$t"
+    ( cd crates/neophylo-core/fuzz && cargo +nightly fuzz run "$t" "corpus/$t" "seeds/$t" -- -max_total_time=60 )
+  done
+fi
+
 if [ -f web/playwright.config.ts ] && [ "${E2E:-0}" = "1" ]; then
   step "web: e2e (E2E=1)"; ( cd web && npx playwright test )
 fi

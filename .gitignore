@@ -21,3 +21,5 @@ web/dist/
 
 # Fuzzing
 crates/neophylo-core/fuzz/target/
+crates/neophylo-core/fuzz/corpus/
+crates/neophylo-core/fuzz/artifacts/
