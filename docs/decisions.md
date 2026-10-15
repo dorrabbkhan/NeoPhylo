@@ -63,3 +63,19 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - Fixed drawing geometry (viewBox 400-wide layout + label gutter); the svg scales via viewBox.
   - A "wrong clade" outline bounds the clade's laid-out nodes plus the branch leading to it;
     descendants hidden by `visibleNodes` are left out.
+
+## Task 16: MatrixHeatmap
+
+- Plan ambiguities resolved:
+  - `values` takes the flattened row-major cell list with "sat" for saturated cells
+    (the signature's `"sat" | number`); Session's DistanceMatrix.cells (Cell[]) is
+    flattened by the caller in Task 17.
+  - `onHover(cell)` is called with `{ i, j }` on hover/focus and `null` on leave/blur,
+    matching Session.hover's type.
+  - Viridis is approximated by linear interpolation over the eight stops of R's
+    `viridis(8)`; min→dark, max→bright, 0.5 when all values are equal.
+  - `chosen` marks exactly the [i, j] cell (traces always give i < j), not both
+    symmetric halves.
+  - Arrow keys use a roving tabindex (WAI-ARIA grid pattern): one cell is tabbable,
+    initially the chosen cell; focus also fires onHover for keyboard parity.
+  - Non-finite numbers are rendered like "sat" (hatch + ∞) defensively.
