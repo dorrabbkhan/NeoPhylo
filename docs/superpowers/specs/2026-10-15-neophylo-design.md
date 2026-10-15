@@ -105,6 +105,7 @@ In sandbox mode, an imported FASTA file replaces the simulation step. An importe
 ### 4.2 Simulation (`sim`)
 
 **Input:**
+
 - a rooted or unrooted true tree with branch lengths (in expected substitutions per site)
 - the model, `JC69` or `K80 { kappa }`
 - `length`: the engine accepts 10–100,000 sites; the UI and exercise files allow 10–10,000
@@ -113,6 +114,7 @@ In sandbox mode, an imported FASTA file replaces the simulation step. An importe
 **RNG:** `rand_chacha::ChaCha8Rng` seeded from `seed`.
 
 **Consumption order (fixed, so results are reproducible):**
+
 1. The root sequence is drawn first, sites in order, each uniform over A/C/G/T.
 2. Then branches are visited in preorder, children in stored order, sites in order, with one uniform draw per site per branch.
 
@@ -130,11 +132,11 @@ In sandbox mode, an imported FASTA file replaces the simulation step. An importe
 
 Each cell of the output matrix is `Cell::Value(f64)` or `Cell::Saturated`. The matrix is symmetric with a zero diagonal.
 
-| Model | Formula | Saturated when |
-|---|---|---|
-| p | p = differences / comparable sites | never |
-| JC69 | d = −¾ ln(1 − 4p/3) | p ≥ 0.75 |
-| K80 | d = −½ ln(1 − 2P − Q) − ¼ ln(1 − 2Q) | 1 − 2P − Q ≤ 0 or 1 − 2Q ≤ 0 |
+| Model | Formula                              | Saturated when               |
+| ----- | ------------------------------------ | ---------------------------- |
+| p     | p = differences / comparable sites   | never                        |
+| JC69  | d = −¾ ln(1 − 4p/3)                  | p ≥ 0.75                     |
+| K80   | d = −½ ln(1 − 2P − Q) − ¼ ln(1 − 2Q) | 1 − 2P − Q ≤ 0 or 1 − 2Q ≤ 0 |
 
 For K80, P is the proportion of transitions and Q the proportion of transversions.
 
@@ -143,11 +145,13 @@ For K80, P is the proportion of transitions and Q the proportion of transversion
 **Structure:** an arena of nodes (`NodeId(u32)`), each with a parent and an ordered list of children. A `rooted: bool` flag marks the tree; unrooted trees are stored with an arbitrary internal root of degree 3.
 
 **Attributes:**
+
 - **Node attributes:** label.
 - **Branch attributes:** stored separately, keyed by the child `NodeId`. In v1 this is `length`; v1.1 adds support values.
-- This separation is mandatory, so rerooting cannot misplace support values (Czech et al., *MBE* 2017).
+- This separation is mandatory, so rerooting cannot misplace support values (Czech et al., _MBE_ 2017).
 
 **Newick:**
+
 - Reading supports quoted labels, branch lengths, internal labels, and comments (ignored).
 - Writing is lossless for labels and lengths.
 - Malformed input gives `NeoError::Parse { line, col, msg }`.
@@ -157,6 +161,7 @@ For K80, P is the proportion of transitions and Q the proportion of transversion
 Both algorithms return `(Tree, Trace)` and refuse a matrix with any `Saturated` cell, returning `NeoError::SaturatedMatrix { cells }`.
 
 **Index and tie-break rule (shared):**
+
 - Active clusters are indexed with the original taxa first, in input order, and new nodes appended.
 - A tie is broken by choosing the pair with the lowest (i, j) in lexicographic order, with i < j.
 - The step is marked `tie: true`.
@@ -175,9 +180,11 @@ Both algorithms return `(Tree, Trace)` and refuse a matrix with any `Saturated` 
    - l_c = (d_ac + d_bc − d_ab)/2
 
    This final step is recorded in the trace.
+
 6. The output is unrooted. Negative lengths are kept as computed; clamping is display-only (§6.3).
 
 **UPGMA:**
+
 - Choose the pair with minimal d.
 - Merge into a cluster with height h = d(i,j)/2 and size s_i + s_j. Each child's branch length is h minus the child's height.
 - Distances to the new cluster are size-weighted averages.
@@ -222,6 +229,7 @@ Comparison uses unrooted Robinson–Foulds distance over bipartitions, so it wor
 ### 4.7 Errors
 
 `NeoError` is a single enum:
+
 - `Parse`, `UnequalLengths`, `UnsupportedCharacter`
 - `InsufficientOverlap`, `TooManyTaxa`, `SaturatedMatrix`
 - `LabelMismatch`, `InvalidExercise`
@@ -247,6 +255,7 @@ The exported functions take and return `serde` types:
 ## 6. Web app
 
 **Stack:**
+
 - React 19, TypeScript in strict mode, Vite.
 - KaTeX for formulas; SVG rendering throughout.
 - `vite-plugin-pwa` for offline use after first load.
@@ -270,17 +279,20 @@ The exported functions take and return `serde` types:
 ### 6.2 Interaction
 
 **Stepping:**
+
 - Steps are controlled by buttons, the ← and → keys, or a slider.
 - All panels stay in sync with step k.
 - Hovering a matrix cell highlights both taxa in the trees, and the chosen pair is emphasized in every view.
 
 **Explanation panel:**
+
 - Both layers are rendered from the same trace record.
 - The **Concept** layer is plain-language text per step type.
 - The **Math** layer shows the step's formulas with live values plugged in.
 - The toggle is global and remembered for the session.
 
 **Guided lessons:**
+
 - A lesson may pause at a given step with a predict-then-reveal prompt ("Which pair joins next?"). The student clicks a matrix cell or a pair, then the answer is revealed with an explanation.
 - Lessons may lock controls.
 
@@ -296,6 +308,7 @@ The exported functions take and return `serde` types:
 ### 6.4 State and sharing
 
 **URL contents:**
+
 - A built-in exercise uses `?lesson=<id>` plus overrides in the query string. A custom exercise is compressed JSON in the URL fragment (`#x=`), so it is never sent to a server.
 - The current step and the Concept/Math mode are included.
 - The state carries `schema_version`. Older versions are converted on load; invalid state shows a friendly message and loads the default lesson.
@@ -330,15 +343,19 @@ The exported functions take and return `serde` types:
   "analysis": { "correction": "JC69", "method": "NJ" },
   "locked": ["sim.model", "analysis.method"],
   "prompts": [
-    { "at_step": 1, "type": "predict_pair",
+    {
+      "at_step": 1,
+      "type": "predict_pair",
       "concept": "Which two taxa will join first?",
-      "math": "Find the minimum Q(i,j)." },
+      "math": "Find the minimum Q(i,j)."
+    },
     { "at_step": 3, "type": "note", "concept": "…", "math": "…" }
   ]
 }
 ```
 
 **Model fields:**
+
 - `sim.model` is `"JC69"` or `"K80"`, plus `kappa` for K80.
 - `analysis.correction` is `"p"`, `"JC69"` or `"K80"`.
 - `analysis.method` is `"NJ"` or `"UPGMA"`.
@@ -348,6 +365,7 @@ The exported functions take and return `serde` types:
 ## 8. Testing and validation
 
 **Rules:**
+
 - Reference fixtures and tests are written **before** the code they test.
 - No engine change merges unless the whole suite passes.
 
@@ -356,11 +374,18 @@ The exported functions take and return `serde` types:
 **Generation:** `fixtures/generate.R` (using `ape` and `phangorn`) and `fixtures/generate_phylip.sh` (using `dnadist` and `neighbor`) produce JSON fixtures, committed together with the scripts and tool versions.
 
 **Tolerances against R (`ape`/`phangorn`):**
+
 - Distances and branch lengths match to 10⁻⁹.
 - NJ topology matches exactly (RF = 0).
 - UPGMA is rooted, so it is checked with **rooted** clade comparison and node heights, not just unrooted RF.
 
-**Against PHYLIP:** values match to PHYLIP's printed precision.
+**Against PHYLIP:** values match to PHYLIP's printed precision, with one known exception.
+PHYLIP `dnadist`'s Kimura 2-parameter option estimates distances under a user-set
+transition/transversion ratio (fixtures use the default 2.0), while NeoPhylo's K80 (§4.3)
+uses the closed-form estimate from observed transition and transversion proportions, as ape
+does. For PHYLIP K80 distances the corpus test asserts this known divergence instead of
+equality; K80 distance correctness is verified against ape. PHYLIP NJ trees are compared
+using PHYLIP's own printed distance matrix as input.
 
 **Ties:** fixtures contain no tied minima, because tools break ties differently.
 
@@ -371,6 +396,7 @@ Textbook NJ and UPGMA examples are checked **per step**: every R, Q, chosen pair
 ### 8.3 Property tests (`proptest`)
 
 These rules must hold on randomly generated inputs:
+
 - NJ exactly recovers the tree from any additive matrix.
 - UPGMA exactly recovers the tree from any ultrametric matrix.
 - Distance matrices are symmetric with a zero diagonal, and JC69 ≥ p wherever both are defined.
@@ -404,14 +430,14 @@ CI runs the generated R scripts and checks that their output matches the engine'
 
 ## 9. Milestones
 
-| # | Deliverable | Done when |
-|---|---|---|
-| M0 | Repo, CI, fixture generators, worked examples, exercise schema | Fixtures committed; CI runs |
-| M1 | `neophylo-core` complete (§4) | All §8.1–8.4 tests pass natively |
-| M2 | `neophylo-wasm` + generated TS types | §8.5 passes; bundle < 1 MB gzipped |
-| M3 | Sandbox UI: trees, matrix, stepper, both explanation layers | Vitest passes; manual walkthrough of a 6-taxon NJ |
-| M4 | Guided lessons, prompts, URL state, 3 built-in lessons | Playwright lesson and link tests pass |
-| M5 | Export, R script, accessibility, offline, polish | §8.6–8.7 pass; §8.8 complete |
+| #   | Deliverable                                                    | Done when                                         |
+| --- | -------------------------------------------------------------- | ------------------------------------------------- |
+| M0  | Repo, CI, fixture generators, worked examples, exercise schema | Fixtures committed; CI runs                       |
+| M1  | `neophylo-core` complete (§4)                                  | All §8.1–8.4 tests pass natively                  |
+| M2  | `neophylo-wasm` + generated TS types                           | §8.5 passes; bundle < 1 MB gzipped                |
+| M3  | Sandbox UI: trees, matrix, stepper, both explanation layers    | Vitest passes; manual walkthrough of a 6-taxon NJ |
+| M4  | Guided lessons, prompts, URL state, 3 built-in lessons         | Playwright lesson and link tests pass             |
+| M5  | Export, R script, accessibility, offline, polish               | §8.6–8.7 pass; §8.8 complete                      |
 
 ## 10. Guidance for AI-assisted implementation
 
@@ -430,3 +456,4 @@ These gaps were found during planning and are resolved as follows:
 3. The wasm boundary includes `load_exercise(json) -> Result<Exercise>` in addition to the functions listed in §5.
 4. Duplicate taxon names in a FASTA import are reported as `NeoError::Parse` at the duplicate's line.
 5. A true tree used for simulation that is missing a branch length gives `NeoError::InvalidExercise { field: "true_tree" }`.
+6. PHYLIP `dnadist` K2P is a fixed-ratio estimator, not §4.3 K80. The PHYLIP K80 distance column is checked as a known divergence; ape is the oracle for K80 distances (see §8.1). Ratified by owner, Task 10.
