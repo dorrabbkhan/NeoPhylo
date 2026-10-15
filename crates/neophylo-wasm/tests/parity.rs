@@ -168,6 +168,41 @@ fn corpus_subset() {
     }
 }
 
+// --- Option::None crosses as null -------------------------------------------
+
+/// The shared serializer's `serialize_missing_as_null` contract: an
+/// unlabeled internal node's `label` arrives in JS as `null`, never
+/// `undefined`, matching the generated `string | null` type.
+#[wasm_bindgen_test]
+fn none_serializes_as_null() {
+    let res = neophylo_wasm::parse_newick("(a:1,b:1);");
+    let value = js_sys::Reflect::get(&res, &JsValue::from_str("value")).unwrap();
+    let nodes = js_sys::Reflect::get(&value, &JsValue::from_str("nodes")).unwrap();
+    let n_nodes = js_sys::Reflect::get(&nodes, &JsValue::from_str("length"))
+        .unwrap()
+        .as_f64()
+        .unwrap() as u32;
+    let mut checked = 0;
+    for i in 0..n_nodes {
+        let node = js_sys::Reflect::get(&nodes, &JsValue::from_f64(i as f64)).unwrap();
+        let children = js_sys::Reflect::get(&node, &JsValue::from_str("children")).unwrap();
+        let n_children = js_sys::Reflect::get(&children, &JsValue::from_str("length"))
+            .unwrap()
+            .as_f64()
+            .unwrap();
+        if n_children == 0.0 {
+            continue;
+        }
+        let label = js_sys::Reflect::get(&node, &JsValue::from_str("label")).unwrap();
+        assert!(
+            label.is_null() && !label.is_undefined(),
+            "internal node label must be null, not undefined"
+        );
+        checked += 1;
+    }
+    assert!(checked >= 1, "tree must have at least one internal node");
+}
+
 // --- errors are values -------------------------------------------------------
 
 #[wasm_bindgen_test]

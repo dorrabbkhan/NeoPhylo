@@ -51,11 +51,21 @@ impl<T> From<Result<T, NeoError>> for WasmResult<T> {
     }
 }
 
+/// The single serializer shared by every export.
+/// `serialize_missing_as_null` sends every `Option::None` to JS as
+/// `null`, matching the generated `T | null` types; `json_compatible`
+/// keeps the usual `to_value` wire shape otherwise (plain objects,
+/// byte arrays).
+const SERIALIZER: swb::Serializer =
+    swb::Serializer::json_compatible().serialize_missing_as_null(true);
+
 /// Serialize a `WasmResult`. `serde-wasm-bindgen` only fails on types
 /// JS cannot represent, which ours never are; null is returned rather
 /// than panicking if that ever changes.
 fn to_js<T: Serialize>(r: Result<T, NeoError>) -> JsValue {
-    swb::to_value(&WasmResult::from(r)).unwrap_or(JsValue::NULL)
+    WasmResult::from(r)
+        .serialize(&SERIALIZER)
+        .unwrap_or(JsValue::NULL)
 }
 
 /// Deserialize one `JsValue` argument. A malformed argument is reported
