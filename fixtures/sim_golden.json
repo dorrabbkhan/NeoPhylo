@@ -1,7 +1,7 @@
 {
   "cases": [
-    { "name": "jc69_seed1", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "JC69", "length": 1000, "seed": 1, "fnv1a64": "4c5e32830effebeb" },
+    { "name": "jc69_seed1", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "JC69", "length": 1000, "seed": 1, "fnv1a64": "5a41626080d0973c" },
     { "name": "k80_k2_seed2", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "K80", "kappa": 2, "length": 1000, "seed": 2, "fnv1a64": "596d15e509289285" },
-    { "name": "jc69_seed3_len10000", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "JC69", "length": 10000, "seed": 3, "fnv1a64": "bdd98e7adba322ec" }
+    { "name": "jc69_seed3_len10000", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "JC69", "length": 10000, "seed": 3, "fnv1a64": "67b045ba5fcdad28" }
   ]
 }

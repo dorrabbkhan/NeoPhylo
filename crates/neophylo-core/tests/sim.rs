@@ -193,6 +193,32 @@ fn jc69_convergence() {
 }
 
 #[test]
+fn k80_convergence() {
+    // spec §8.4: same tree and seed as jc69_convergence, K80 kappa = 2,
+    // 100,000 sites, K80 correction, distances within 2% of the true
+    // path length.
+    let tree = parse_newick("((A:0.1,B:0.2):0.15,(C:0.25,D:0.3):0.2);").unwrap();
+    let aln = simulate(&tree, &spec(SimModel::K80 { kappa: 2.0 }, 100_000, 7)).unwrap();
+    let dm = compute(&aln, DistModel::K80).unwrap();
+    let n = dm.n();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let want = path_length(&tree, &dm.labels[i], &dm.labels[j]);
+            let got = match dm.cells[i * n + j] {
+                Cell::Value(v) => v,
+                Cell::Saturated => panic!("saturated cell ({i},{j})"),
+            };
+            assert!(
+                (got - want).abs() <= 0.02 * want,
+                "pair ({},{}) got {got}, want {want} ± 2%",
+                dm.labels[i],
+                dm.labels[j]
+            );
+        }
+    }
+}
+
+#[test]
 fn k80_kappa1_matches_jc_stats() {
     // With kappa = 1 the K80 transition rate equals each transversion
     // rate, so about 1/3 of changes are transitions. B's zero-length
