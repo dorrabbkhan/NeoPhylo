@@ -32,3 +32,16 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
 - Added Session.alignmentOrigin (imported alignments are never re-simulated) and initialSession().
 - Follow-up: to_js may return null on serialization failure (unreachable today); the TS wrapper
   should throw a clear Error so the Task 22 error boundary catches it.
+
+## Task 14: tree layout
+
+- Plan left these conventions unspecified; resolved as:
+  - `scale` = `width / maxCum` (px per unit), 0 when maxCum is 0 so a zero-length tree never NaNs.
+  - Leaf i sits at `(i + 0.5) * leafSpacing`; `height` = `leafCount * leafSpacing`.
+  - Internal node y = midpoint of its outermost _visible_ children.
+  - Cladogram leaves align at max depth x so all tips share one x (required by the task's own test).
+  - Forest roots (visible node with invisible/absent parent) start at x = 0 with `parentX === x` —
+    no stub edge is drawn.
+  - `leaf` means "no visible children", so a cluster tip during stepping reads as a leaf.
+  - `negative` is true only when the parent edge is actually drawn (visible parent) and length < 0,
+    independent of `clampNegative`.
