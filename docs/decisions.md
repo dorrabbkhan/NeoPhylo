@@ -372,3 +372,100 @@ All three are plan gaps found at checkpoint 7.
     `recompute` already uses them; `branchScale`/`src`/`step`/`mode` are
     applied as reducer actions afterwards (step clamps via `reducer`).
   - The toast has no auto-dismiss timer; it stays until reload/navigation.
+
+## Task 23: built-in lessons and e2e tests
+
+- Files outside the Files block:
+  - `web/e2e/helpers.ts` — shared Playwright helpers (waitForApp, readStep,
+    answerPredictPrompt, stepToEnd, matrixLabels) used by both specs; kept
+    out of the spec files so each test states only what it asserts.
+  - `web/package.json` + `package-lock.json` — `@playwright/test`
+    devDependency; Playwright is named in the plan's Tech Stack.
+  - `web/eslint.config.js` — node globals for `e2e/**` and
+    `playwright.config.ts` (`process.env`); browser globals otherwise.
+  - `web/tsconfig.node.json` — include `playwright.config.ts` so `tsc -b`
+    type-checks it.
+  - `web/vite.config.ts` — `server.fs.allow` covers the repo root (the
+    `?raw` import of `exercises/nj-basics.json` is outside web/);
+    `test.include` scoped to `src/**` because Vitest's default glob also
+    matches `*.spec.ts` and was picking up the Playwright specs.
+  - `web/.gitignore` — standard Playwright artifact ignores.
+  - `web/src/views/TeachingNotices.tsx` — the saturation panel headline is
+    now `errorMessage(sat).title` ("Some distances can't be estimated"),
+    the phrase the plan's e2e asserts; previously only "cannot estimate:"
+    was rendered and the role="alert" title was suppressed for
+    SaturatedMatrix.
+  - `web/src/lessons/loader.test.ts`, `web/src/views/App.prompts.test.tsx`,
+    `web/src/views/App.sandbox.test.tsx` — were coupled to the placeholder
+    lesson's prompt wording; now read `exercise().prompts[...]` from the
+    real file (and the note test follows the real prompt layout).
+- Ambiguities resolved:
+  - "load `nj-basics`" in `src/lessons/default.ts`: the file is embedded
+    via `import ... ?raw` instead of fetched — zero requests for "/",
+    identical bytes as `exercises/nj-basics.json`, still validated through
+    `engine.loadExercise`.
+  - `upgma-fails`: "UPGMA is locked" can't mean `analysis.method ∈ locked`
+    — the same lesson's final note invites switching to NJ and the e2e
+    asserts RF = 0 after switching. Locked fields are `sim.model` and
+    `analysis.correction`; `analysis.method` is the unlocked lever.
+    UPGMA fails deterministically (RF = 2 at every seed tried; pinned 42):
+    branch B = 0.5 is 10× the cherry/internal branches, so A–E is the
+    closest pair and UPGMA's wrong first join costs a split.
+  - `saturation` pins seed 42 as the plan asserts: at length 50 the JC69
+    matrix has 3 saturated pairs; the "Use longer sequences" fix still
+    saturates at 100 and produces a tree at 200 (verified against the
+    wasm build). Branches 0.5–0.8, inside the plan's 0.5–1.5 band.
+  - `nj-basics` pins seed 42: NJ recovers the true tree (RF = 0 / 6) at
+    1000 sites; e2e answers predict_pair prompts by picking the minimum-Q
+    cell via the Distance/Q switch — the gate hides the mark, not the
+    values, so the test answers correctly without peeking.
+  - The ci.yml "Playwright job" is check.sh's existing `E2E=1` step (the
+    project has no GitHub CI; AGENTS.md). Playwright config runs all
+    three projects (Chromium, Firefox, WebKit) against the dev server.
+  - "Copy the URL" in share.spec is `page.url()` — the app already syncs
+    state to `history.replaceState` on every change; no clipboard needed.
+- Environment note (not committed): WebKit needed libavif16,
+  libmanette-0.2-0, libyuv0, libgav1-2 and libhidapi-hidraw0; the .debs
+  were extracted into `~/.cache/ms-playwright/webkit-*/minibrowser-*/sys/lib`
+  because the MiniBrowser wrapper overwrites LD_LIBRARY_PATH. sudo
+  `npx playwright install-deps` does the same thing system-wide.
+
+## Task 23 checkpoint-7: lesson content requirements
+
+- `at_step` convention documented in exercises/schema.json: it is the
+  1-based number of the join being discussed — the prompt shows at
+  stepper position `at_step - 1`, where that join is still pending; one
+  past the last join shows on the completed tree (closing notes).
+- `Prompt.reveal` added to the engine (`Option<String>`, ts-rs →
+  `string | null`) and the JSON Schema: an explanation a predict_pair
+  card shows only after the student picks, so the nj-basics step-3
+  question is not spoiled. Required because the reveal text must exist
+  without leaking the answer beforehand. Spec §7 documents it and its
+  placeholder note got real text.
+- nj-basics keeps tree
+  `((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05)` and
+  seed 42 — the checkpoint-7 premise already holds there: at join 3 the
+  smallest distance is u1–u2 (≈0.255) while the minimum-Q join NJ takes
+  is E–F. The step-3 prompt's `reveal` states this; the e2e asserts the
+  premise by locating the min cell in each view.
+- upgma-fails (tree `((A:0.02,B:0.5):0.02,(C:0.05,D:0.05):0.05,E:0.02)`,
+  seed 42) and saturation (tree
+  `((A:0.8,B:0.7):0.5,(C:0.5,D:0.8):0.5,(E:0.6,F:0.5):0.5)`, seed 42,
+  length 50) keep their verified parameters; closing notes moved/added
+  at "one past the last join" so they show on the completed tree.
+- New `src/lessons/lessons.test.ts` enforces checkpoint-7 content rules
+  on every exercises/\*.json: no empty/"…" prompt text, no predict_pair
+  at the final join (built from the real trace; saturation falls back to
+  leaf counts since its own settings block the build), and at_step
+  within the stepper's range.
+- `PromptCard` renders `reveal` only after a pick (`.prompt-reveal`);
+  component test added.
+- nj-basics e2e now picks the _closest_ cell at join 3, sees
+  "Not quite" plus the reveal, then steps to RF = 0 / 6 — the student's
+  intended mistake becomes the teaching moment.
+- Fuzz seeds `crates/…/fuzz/seeds/exercise/*.json` keep their "…" text
+  on purpose — they are corpus inputs for parser robustness, not lesson
+  content.
+- Flake fix (Task 22 test): `App.url.test.tsx`'s URL-sync assertion now
+  awaits `window.location.hash` with `waitFor` — the replaceState sync
+  runs in an effect and raced the assertion once under check.sh load.

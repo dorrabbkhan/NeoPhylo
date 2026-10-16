@@ -54,7 +54,9 @@ describe("Lesson | Sandbox switch", () => {
     const group = screen.getByRole("radiogroup", { name: "Mode" });
     expect(group).toBeTruthy();
     expect(
-      screen.getByRole("radio", { name: "Lesson" }).getAttribute("aria-checked"),
+      screen
+        .getByRole("radio", { name: "Lesson" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       screen
@@ -65,20 +67,20 @@ describe("Lesson | Sandbox switch", () => {
 
   it("unlocks a locked control and shows the import panel; exit restores lock and prompts at step 0", async () => {
     const ex = lesson(); // predict_pair prompt at position 0, locked sim.model
+    const question = ex.prompts[0].concept;
     render(<App exercise={ex} />);
     // Lesson mode: prompt visible, locked control disabled, gated stepper.
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(question);
     expect(modelSelect().disabled).toBe(true);
     expect(importPanel()).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
     expect(importPanel()).not.toBeNull();
     expect(modelSelect().disabled).toBe(false);
-    expect(screen.queryByText("Which two taxa will join first?")).toBeNull();
+    expect(screen.queryByText(question)).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "Lesson" }));
-    expect(await screen.findByText("Which two taxa will join first?"))
-      .toBeTruthy();
+    expect(await screen.findByText(question)).toBeTruthy();
     expect(modelSelect().disabled).toBe(true);
     expect(importPanel()).toBeNull();
     expect(screen.getByText(/step 0 of/)).toBeTruthy();
@@ -89,9 +91,9 @@ describe("Lesson | Sandbox switch", () => {
     const grid = await screen.findByRole("grid", { name: "Distance matrix" });
     const before = grid.innerHTML;
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    expect(screen.getByRole("grid", { name: "Distance matrix" }).innerHTML).toBe(
-      before,
-    );
+    expect(
+      screen.getByRole("grid", { name: "Distance matrix" }).innerHTML,
+    ).toBe(before);
   });
 });
 
@@ -120,9 +122,7 @@ describe("Sandbox true-tree origin", () => {
   });
 
   it("asks before leaving sandbox when imported data would be cleared", async () => {
-    const confirmSpy = vi
-      .spyOn(window, "confirm")
-      .mockReturnValue(false);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
@@ -142,9 +142,7 @@ describe("Sandbox true-tree origin", () => {
     confirmSpy.mockReturnValue(true);
     fireEvent.click(screen.getByRole("radio", { name: "Lesson" }));
     expect(importPanel()).toBeNull();
-    expect(
-      await screen.findByRole("img", { name: "True tree" }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("img", { name: "True tree" })).toBeTruthy();
     expect(modelSelect().disabled).toBe(true);
     confirmSpy.mockRestore();
   });

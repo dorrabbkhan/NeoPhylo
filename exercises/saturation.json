@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "saturation",
+  "title": "Saturation and distance correction",
+  "true_tree": "((A:0.8,B:0.7):0.5,(C:0.5,D:0.8):0.5,(E:0.6,F:0.5):0.5);",
+  "sim": { "model": "JC69", "length": 50, "seed": 42 },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "locked": ["sim.model"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "No tree appeared: some sequence pairs differ so much that the JC69 distance is not finite. The hatched cells mark them; try the suggested fixes below.",
+      "math": "JC69 needs p < 3/4. Once observed differences reach 0.75 the correction's logarithm has no finite answer."
+    },
+    {
+      "at_step": 2,
+      "type": "note",
+      "concept": "With a tree on screen, compare it with the true one. More sites sharpen the distance estimates; shorter branches or the p-distance are the other escapes from saturation.",
+      "math": "p-distance always has a value, but it underestimates long branches because it ignores multiple hits."
+    },
+    {
+      "at_step": 5,
+      "type": "note",
+      "concept": "The corrected distance between two sequences diverges once their observed difference p nears 0.75 — under JC69 the estimate runs off to infinity, which is exactly what blocked the build at 50 sites.",
+      "math": "d = −3/4·ln(1 − 4p/3): as p → 0.75 the logarithm's argument reaches 0, so the distance estimate has no finite value."
+    }
+  ]
+}

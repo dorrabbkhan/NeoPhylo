@@ -14,6 +14,7 @@ const PREDICT: Prompt = {
   type: "predict_pair",
   concept: "Which two taxa will join first?",
   math: "Find the minimum Q(i,j).",
+  reveal: null,
 };
 
 const NOTE: Prompt = {
@@ -21,6 +22,7 @@ const NOTE: Prompt = {
   type: "note",
   concept: "Joins so far.",
   math: null,
+  reveal: null,
 };
 
 afterEach(cleanup);
@@ -62,9 +64,7 @@ describe("PromptCard", () => {
         answer={["A", "B"]}
       />,
     );
-    expect(
-      screen.getByText("Not quite: the answer is A and B."),
-    ).toBeTruthy();
+    expect(screen.getByText("Not quite: the answer is A and B.")).toBeTruthy();
   });
 
   it("shows the math text in math mode", () => {
@@ -85,5 +85,32 @@ describe("PromptCard", () => {
     );
     expect(screen.getByText("Joins so far.")).toBeTruthy();
     expect(screen.queryByText(/Correct|Not quite/)).toBeNull();
+  });
+
+  it("shows the reveal text only after a pick", () => {
+    const prompt: Prompt = {
+      ...PREDICT,
+      reveal: "u1 and u2 are closest, but NJ joins E and F.",
+    };
+    const { rerender } = render(
+      <PromptCard
+        prompt={prompt}
+        mode="concept"
+        picked={null}
+        answer={["E", "F"]}
+      />,
+    );
+    expect(screen.queryByText(/u1 and u2 are closest/)).toBeNull();
+    rerender(
+      <PromptCard
+        prompt={prompt}
+        mode="concept"
+        picked={["u1", "u2"]}
+        answer={["E", "F"]}
+      />,
+    );
+    expect(
+      screen.getByText("u1 and u2 are closest, but NJ joins E and F."),
+    ).toBeTruthy();
   });
 });
