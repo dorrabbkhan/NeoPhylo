@@ -170,3 +170,35 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   math: both equal Q values with "(always equal at four nodes)") — at
   four actives complementary pairs are algebraically guaranteed equal Q.
   Ties with more actives keep "Tie: chosen by input order."
+
+## UI polish
+
+- Trees fill their panels (TreeView.tsx, App.tsx, index.css, new
+  src/layout/treePanel.ts):
+  - `.col-center` is now a grid with rows `auto minmax(0,45fr) minmax(0,55fr)`:
+    the trees row gets ~45% of the column height and the heatmap ~55%,
+    with no large empty gap (the error message takes the auto row when
+    present).
+  - Each TreeView measures its drawing box (`.tree-canvas`, a div wrapping
+    the svg so the figcaption is excluded) with a ResizeObserver and
+    passes the panel size into layout(): leafSpacing fills the measured
+    height clamped to 18–48px, and the drawing width leaves room on the
+    right for the longest leaf label (labelRoomFor, ~0.62em/char).
+  - App measures the `.trees` row once and passes one leafSpacing to both
+    TreeViews so their rows line up side by side; leaf labels are 14–16px
+    and grow with leafSpacing. The observer binds through a callback ref:
+    a mount-time effect would run while the .app-loading placeholder is
+    rendered and find no element. The heatmap is top-aligned in its row
+    so it sits directly under the trees.
+  - Sizing math lives in src/layout/treePanel.ts (pure functions, like
+    phylogram.ts) — react-refresh lint bars non-component exports from
+    component files. jsdom tests stub ResizeObserver in
+    src/test/setup.ts and exercise the helpers directly.
+- Math panel readability (index.css; ExplanationPanel markup unchanged —
+  formulas were already one <p.math-line> block each):
+  - `.explain-body` text and KaTeX output use --fg (same token as the
+    trees), minimum 15px.
+  - `.math-line` is display:block with white-space:nowrap and
+    overflow-x:auto, so a formula never wraps mid-formula — long ones
+    scroll horizontally. Even 8px spacing between lines.
+  - The precision note sits below in 12px --fg text (opacity 0.8).
