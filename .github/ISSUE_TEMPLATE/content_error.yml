@@ -1,0 +1,42 @@
+name: Science or teaching content error
+description: Report an error in a lesson or in explanatory content
+labels: [content]
+body:
+  - type: input
+    id: lesson
+    attributes:
+      label: Lesson and step
+      placeholder: e.g. nj-basics, step 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrong_text
+    attributes:
+      label: The text that is wrong
+      description: Quote or describe the incorrect content.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct_text
+    attributes:
+      label: What it should say
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Source or reference
+      placeholder: e.g. textbook chapter, paper DOI, documentation link
+    validations:
+      required: true
+
+  - type: input
+    id: background
+    attributes:
+      label: Your background (optional)
+      description: e.g. student, teacher, researcher — helps us calibrate the fix.
+    validations:
+      required: false
