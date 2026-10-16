@@ -32,6 +32,7 @@ import { ExplanationPanel } from "./ExplanationPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { Stepper } from "./Stepper";
 import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
+import { TeachingNotices } from "./TeachingNotices";
 import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
@@ -343,11 +344,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
           />
         </aside>
         <section className="col-center">
-          {session.error !== null && (
-            <p role="alert" className="error">
-              {errorText(session.error)}
-            </p>
-          )}
+          <div className="notices">
+            {session.error !== null &&
+              session.error.kind !== "SaturatedMatrix" && (
+                <p role="alert" className="error">
+                  {errorText(session.error)}
+                </p>
+              )}
+            <TeachingNotices session={session} dispatch={dispatch} />
+          </div>
           <div className="trees" ref={treesRef}>
             {trueTree !== null && (
               <TreeView

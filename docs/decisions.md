@@ -203,3 +203,21 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
     overflow-x:auto, so a formula never wraps mid-formula — long ones
     scroll horizontally. Even 8px spacing between lines.
   - The precision note sits below in 12px --fg text (opacity 0.8).
+
+## Task 19: teaching states
+
+- Files outside the Files block: `web/src/index.css` — styles for the
+  `.notices` row-1 container, `.notice` panels, `.notice-fixes` button
+  row and `.saturation-chart`; all view styling lives there.
+- Ambiguities resolved:
+  - SaturationChart renders inside the saturation notice (spec §6.3
+    attaches the chart to the saturated-cells teaching state).
+  - The chart's x-domain is the spec's [0, 2] but extends to fit any
+    plotted pair's true distance instead of silently clamping points.
+  - Chart p values come from `engine.distances(alignment, "P")` (no
+    engine math in TS); true path lengths are plain parent-pointer
+    traversal.
+  - The generic role="alert" error line is suppressed for
+    SaturatedMatrix — the teaching panel names the pairs and the fixes.
+  - RF notice count is `missing_in_inferred.length` (task's parenthetical);
+    the wrong-clade outline already existed via TreeView's `wrong` prop.
