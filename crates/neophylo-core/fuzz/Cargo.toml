@@ -33,3 +33,9 @@ name = "exercise"
 path = "fuzz_targets/exercise.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "phylip"
+path = "fuzz_targets/phylip.rs"
+test = false
+doc = false

@@ -796,3 +796,27 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     `model: "JC69"`.
   - Detection of input with no countable characters (all `-`/`?` or
     empty) falls through to `Protein`, the spec's "otherwise" arm.
+
+## Task 4 (v1.1): PHYLIP parser and matrix writer
+
+- Files outside the Files block:
+  - `crates/neophylo-core/src/lib.rs` — required to register `pub mod phylip`
+    and re-export `parse_phylip`, `write_phylip_matrix`, `NameMode`.
+  - `crates/neophylo-core/fuzz/Cargo.toml` — required `[[bin]]` registration
+    for the new `phylip` fuzz target.
+  - `crates/neophylo-core/fuzz/Cargo.lock` — the committed lock was stale
+    (pinned `ts-rs 10.1.0` while `neophylo-core` requires `ts-rs = "12"`);
+    the first `cargo fuzz` build re-resolved it to the 12.0.1 the main
+    lockfile already uses.
+- Ambiguities resolved:
+  - Spec §3.2 does not say which error `Auto` reports when both name modes
+    fail. The Relaxed error is returned: Auto prefers Relaxed, and its
+    messages name tokens that appear verbatim in the file (e.g. "taxon 'c'"),
+    whereas a failed Strict parse reports mangled names like "a ACGT".
+  - Interleaved continuation lines are assigned to taxa in order, restarting
+    at the first taxon after each blank line; without blank separators the
+    assignment cycles `i mod n`. Sequence-wrapped sequential input (allowed
+    by PHYLIP but not described in §3.2) therefore errors on the site count
+    rather than silently mis-assigning.
+  - `NameMode` carries serde derives but no `TS` derive yet; Task 8 adds the
+    wasm boundary and can derive it then.
