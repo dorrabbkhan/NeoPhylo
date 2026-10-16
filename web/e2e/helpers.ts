@@ -17,21 +17,20 @@ export async function waitForApp(page: Page): Promise<void> {
 }
 
 /** Current stepper position and max, parsed from "step k of N". */
-export async function readStep(page: Page): Promise<{ k: number; max: number }> {
+export async function readStep(
+  page: Page,
+): Promise<{ k: number; max: number }> {
   const text = await page.locator(".stepper-status").innerText();
   const m = /step (\d+) of (\d+)/.exec(text);
   if (m === null) throw new Error(`unexpected stepper text: "${text}"`);
   return { k: Number(m[1]), max: Number(m[2]) };
 }
 
-/** Answer the gating predict_pair prompt with the correct pair. */
-export async function answerPredictPrompt(page: Page): Promise<void> {
-  const qToggle = page.getByRole("switch", { name: "Distance / Q" });
-  const switchedToQ =
-    (await qToggle.count()) > 0 &&
-    (await qToggle.getAttribute("aria-checked")) === "false";
-  if (switchedToQ) await qToggle.click();
-
+/** Locator index of the minimum off-diagonal matrix cell currently shown
+ * (-1 when the grid is empty). Works on whichever view is on screen —
+ * distance or Q — since both parse the value out of each cell's
+ * aria-label. */
+export async function minCell(page: Page): Promise<number> {
   const cells = page.locator('[role="gridcell"]');
   const count = await cells.count();
   let best = -1;
@@ -48,10 +47,28 @@ export async function answerPredictPrompt(page: Page): Promise<void> {
       best = c;
     }
   }
-  if (best < 0) throw new Error("no off-diagonal matrix cell found");
-  await cells.nth(best).click();
+  return best;
+}
 
-  if (switchedToQ) await qToggle.click();
+/** Toggle the matrix into the Q view if it isn't there already; returns
+ * whether the helper switched it (callers restore the view they found). */
+async function withQView(page: Page): Promise<boolean> {
+  const qToggle = page.getByRole("switch", { name: "Distance / Q" });
+  const switched =
+    (await qToggle.count()) > 0 &&
+    (await qToggle.getAttribute("aria-checked")) === "false";
+  if (switched) await qToggle.click();
+  return switched;
+}
+
+/** Answer the gating predict_pair prompt with the correct pair. */
+export async function answerPredictPrompt(page: Page): Promise<void> {
+  const switchedToQ = await withQView(page);
+  const best = await minCell(page);
+  if (best < 0) throw new Error("no off-diagonal matrix cell found");
+  await page.locator('[role="gridcell"]').nth(best).click();
+  if (switchedToQ)
+    await page.getByRole("switch", { name: "Distance / Q" }).click();
 }
 
 /** Step to the last position, answering predict_pair prompts on the way. */

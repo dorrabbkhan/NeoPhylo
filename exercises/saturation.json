@@ -18,6 +18,12 @@
       "type": "note",
       "concept": "With a tree on screen, compare it with the true one. More sites sharpen the distance estimates; shorter branches or the p-distance are the other escapes from saturation.",
       "math": "p-distance always has a value, but it underestimates long branches because it ignores multiple hits."
+    },
+    {
+      "at_step": 5,
+      "type": "note",
+      "concept": "The corrected distance between two sequences diverges once their observed difference p nears 0.75 — under JC69 the estimate runs off to infinity, which is exactly what blocked the build at 50 sites.",
+      "math": "d = −3/4·ln(1 − 4p/3): as p → 0.75 the logarithm's argument reaches 0, so the distance estimate has no finite value."
     }
   ]
 }

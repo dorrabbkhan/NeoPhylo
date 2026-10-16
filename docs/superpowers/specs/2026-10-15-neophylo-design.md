@@ -349,10 +349,22 @@ The exported functions take and return `serde` types:
       "concept": "Which two taxa will join first?",
       "math": "Find the minimum Q(i,j)."
     },
-    { "at_step": 3, "type": "note", "concept": "…", "math": "…" }
+    {
+      "at_step": 3,
+      "type": "note",
+      "concept": "Only one join is left; it finishes the tree.",
+      "math": "With three clusters the Q values rank all three pairs the same way."
+    }
   ]
 }
 ```
+
+`at_step` is the 1-based number of the join being discussed: the prompt appears at
+stepper position `at_step - 1`, where that join is still pending. One past the
+last join shows on the completed tree. A `predict_pair` prompt may carry an
+optional `reveal` string — an explanation the card shows only after the student
+picks, so the question is not spoiled. Prompt text is never empty or a "…"
+placeholder.
 
 **Model fields:**
 

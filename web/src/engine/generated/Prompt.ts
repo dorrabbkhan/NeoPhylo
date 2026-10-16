@@ -8,4 +8,10 @@ export type Prompt = {
 /**
  * 1-based join step at which the prompt appears.
  */
-at_step: number, type: PromptType, concept: string, math: string | null, };
+at_step: number, type: PromptType, concept: string, math: string | null, 
+/**
+ * Optional explanation shown on a predict_pair card only after the
+ * student picks — used for "the closest pair is not the answer"
+ * reveals (checkpoint 7); a lesson must not spoil the question.
+ */
+reveal: string | null, };

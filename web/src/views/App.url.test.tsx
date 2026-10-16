@@ -2,7 +2,7 @@
 // URL on load and syncs it with history.replaceState on every state
 // change. A broken link toasts and falls back to the default lesson.
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Exercise } from "../engine/generated/Exercise";
@@ -67,7 +67,9 @@ describe("URL state", () => {
   it("syncs the current state into the URL with replaceState", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "True tree" });
-    expect(window.location.hash).toContain("#x=");
+    // The replaceState sync runs in an effect after the first session
+    // render; waitFor keeps this from racing under load.
+    await waitFor(() => expect(window.location.hash).toContain("#x="));
     // The written URL decodes back to a state matching the session.
     const d = decode(window.location.href);
     if (!d.ok) throw new Error("synced URL does not decode");

@@ -6,7 +6,13 @@
 
 import { test, expect } from "@playwright/test";
 
-import { answerPredictPrompt, readStep, stepToEnd, waitForApp } from "./helpers";
+import {
+  answerPredictPrompt,
+  minCell,
+  readStep,
+  stepToEnd,
+  waitForApp,
+} from "./helpers";
 
 test.describe("nj-basics", () => {
   test("a correct pick ungates the stepper and the lesson ends at RF = 0 / 6", async ({
@@ -17,16 +23,57 @@ test.describe("nj-basics", () => {
     await expect(page.locator("h1")).toHaveText("How Neighbor-Joining works");
 
     // The predict_pair prompt at join 1 gates position 0.
-    await expect(page.getByRole("button", { name: "Next step" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Next step" }),
+    ).toBeDisabled();
 
     // Answer it correctly: the minimum-Q cell (the helper switches the
     // matrix to the Q view and restores it).
     await answerPredictPrompt(page);
     await expect(page.locator(".prompt-verdict.correct")).toHaveText("Correct");
 
+    // Advance to position 2, where the step-3 predict_pair prompt gates.
+    const next = page.getByRole("button", { name: "Next step" });
+    await next.click();
+    await next.click();
+    expect(await readStep(page)).toMatchObject({ k: 2 });
+    await expect(next).toBeDisabled();
+
+    // Premise (checkpoint 7): the closest pair is not the pair NJ joins.
+    const distMin = await minCell(page);
+    const qToggle = page.getByRole("switch", { name: "Distance / Q" });
+    await qToggle.click();
+    const qMin = await minCell(page);
+    await qToggle.click();
+    expect(
+      distMin,
+      "lesson premise: min-distance cell differs from min-Q cell at join 3",
+    ).not.toBe(qMin);
+
+    // Picking the closest pair is wrong and reveals why.
+    const cells = page.locator('[role="gridcell"]');
+    const distLabel = await cells.nth(distMin).getAttribute("aria-label");
+    await cells.nth(distMin).click();
+    await expect(page.locator(".prompt-verdict.wrong")).toContainText(
+      "Not quite",
+    );
+    await expect(
+      page.getByText(
+        "u1 and u2 are closest, but NJ joins E and F: they are close relative to how far each is from everything else.",
+      ),
+    ).toBeVisible();
+    expect(distLabel).toContain("u1");
+    expect(distLabel).toContain("u2");
+
+    // The answered prompt no longer gates; step through to the end.
     await stepToEnd(page);
     expect(await readStep(page)).toEqual({ k: 4, max: 4 });
     await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 6");
+    await expect(
+      page.getByText(
+        "The tree is complete: RF = 0, so every grouping in the true tree was recovered.",
+      ),
+    ).toBeVisible();
   });
 });
 

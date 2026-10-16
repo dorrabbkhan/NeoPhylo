@@ -16,13 +16,14 @@
     {
       "at_step": 3,
       "type": "predict_pair",
-      "concept": "Four clusters remain. Which pair joins at step 3?",
-      "math": "Q is recomputed over the remaining clusters after every join; again the minimum joins."
+      "concept": "Four clusters remain: u1, u2, E and F. Which pair joins next? The tempting answer is the closest pair — is it?",
+      "math": "Q(i,j) = (n−2)·d(i,j) − R_i − R_j subtracts each cluster's average divergence. A pair close to each other can still lose to a pair whose members are far from everything else.",
+      "reveal": "u1 and u2 are closest, but NJ joins E and F: they are close relative to how far each is from everything else."
     },
     {
       "at_step": 5,
       "type": "note",
-      "concept": "Neighbor-Joining recovered the true tree exactly — RF = 0. It assumed nothing about a molecular clock; only that distances are close to additive.",
+      "concept": "The tree is complete: RF = 0, so every grouping in the true tree was recovered.",
       "math": "RF counts splits present in one tree but not the other. Two unrooted 6-taxon trees can differ on at most 2·(6−3) = 6 splits."
     }
   ]
