@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import type { Dispatch } from "react";
 
 import { engine } from "../engine";
+import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Tree } from "../engine/generated/Tree";
 import type { Action, Session } from "../state/session";
@@ -100,7 +101,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
     <>
       {sat !== null && (
         <section className="notice" aria-label="Saturation">
-          <h2>Saturation</h2>
+          {/* The headline matches errorMessage(SaturatedMatrix).title so the
+              same phrase appears wherever this state is explained. */}
+          <h2>{errorMessage(sat).title}</h2>
           <p className="notice-pairs">
             cannot estimate:{" "}
             {sat.cells.map(([i, j]) => pairName(i, j)).join(", ")}

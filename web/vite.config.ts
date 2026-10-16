@@ -60,8 +60,16 @@ function exercisesPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), exercisesPlugin()],
+  server: {
+    // The default lesson embeds exercises/nj-basics.json via a ?raw
+    // import (Task 23); the exercises dir is outside web/, so the fs
+    // guard must allow the repo root (dev server + vitest transforms).
+    fs: { allow: [fileURLToPath(new URL("..", import.meta.url))] },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
+    // Vitest tests live under src/; e2e/*.spec.ts are Playwright's.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
 });

@@ -25,8 +25,12 @@ const exercise = (): Exercise => {
   return r.value;
 };
 
-/** The pair join 1 will pick, as [cell indices, cluster labels]. */
-function firstJoin(ex: Exercise): {
+/** The pair pending join `join` (1-based) will pick, as [cell indices,
+ * cluster labels] into that step's active-cluster matrix. */
+function joinAt(
+  ex: Exercise,
+  join: number,
+): {
   chosen: [number, number];
   labels: [string, string];
 } {
@@ -37,13 +41,19 @@ function firstJoin(ex: Exercise): {
   });
   const trace = s.result!.trace!;
   if (!("Nj" in trace)) throw new Error("expected an NJ trace");
-  const step0: NjStep = trace.Nj.steps[0];
-  const [ci, cj] = step0.chosen;
-  const labels = [step0.active[ci], step0.active[cj]].map((id) =>
+  const step: NjStep = trace.Nj.steps[join - 1];
+  const [ci, cj] = step.chosen;
+  const labels = [step.active[ci], step.active[cj]].map((id) =>
     nodeName(s.result!.tree, id),
   ) as [string, string];
   return { chosen: [ci, cj], labels };
 }
+
+const firstJoin = (ex: Exercise) => joinAt(ex, 1);
+
+// The first predict_pair prompt's question text, from the lesson itself
+// so the tests survive lesson rewording.
+const firstQuestion = () => exercise().prompts[0].concept;
 
 const grid = () => screen.getByRole("grid", { name: "Distance matrix" });
 const cell = (i: number, j: number) =>
@@ -74,12 +84,12 @@ describe("lesson prompts", () => {
     rerender(<App />);
     rerender(<App />);
     expect(screen.getByText("Loading…")).toBeTruthy();
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(firstQuestion());
   });
 
   it("gates the stepper at a predict_pair step until a pick", async () => {
     render(<App />);
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(firstQuestion());
     expect(nextButton().disabled).toBe(true);
     expect(prevButton().disabled).toBe(true);
     expect(slider().disabled).toBe(true);
@@ -94,7 +104,7 @@ describe("lesson prompts", () => {
     const ex = exercise();
     const { chosen } = firstJoin(ex);
     render(<App exercise={ex} />);
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(firstQuestion());
     fireEvent.keyDown(cell(chosen[0], chosen[1]), { key: "Enter" });
     expect(screen.getByText("Correct")).toBeTruthy();
     expect(nextButton().disabled).toBe(false);
@@ -107,12 +117,12 @@ describe("lesson prompts", () => {
     const ex = exercise();
     const { chosen, labels } = firstJoin(ex);
     render(<App exercise={ex} />);
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(firstQuestion());
     let p = 0;
     let q = 1;
     while (p === chosen[0] && q === chosen[1]) {
       q += 1;
-      if (q > 4) {
+      if (q > 5) {
         p += 1;
         q = p + 1;
       }
@@ -130,25 +140,33 @@ describe("lesson prompts", () => {
     const ex = exercise();
     const { labels } = firstJoin(ex);
     render(<App exercise={ex} />);
-    await screen.findByText("Which two taxa will join first?");
+    await screen.findByText(firstQuestion());
     fireEvent.click(leafText("Inferred tree", labels[0]));
     fireEvent.click(leafText("Inferred tree", labels[1]));
     expect(screen.getByText("Correct")).toBeTruthy();
     expect(nextButton().disabled).toBe(false);
   });
 
-  it("shows a note prompt at its step without gating", async () => {
+  it("shows the closing note at the final step without gating", async () => {
     const ex = exercise();
-    const { chosen } = firstJoin(ex);
     render(<App exercise={ex} />);
-    await screen.findByText("Which two taxa will join first?");
-    fireEvent.keyDown(cell(chosen[0], chosen[1]), { key: "Enter" });
-    // The note sits at join step 3 → stepper position 2.
-    fireEvent.click(nextButton());
-    fireEvent.click(nextButton());
-    expect(screen.getByText(/step 2 of/)).toBeTruthy();
-    expect(screen.getByText("…")).toBeTruthy();
-    expect(nextButton().disabled).toBe(false);
+    await screen.findByText(firstQuestion());
+    // Answer the predict_pair prompts at positions 0 and 2 (joins 1 and
+    // 3); the closing note lives at the final position.
+    for (const join of [1, 3]) {
+      const { chosen } = joinAt(ex, join);
+      fireEvent.keyDown(cell(chosen[0], chosen[1]), { key: "Enter" });
+      fireEvent.click(nextButton());
+      fireEvent.click(nextButton());
+    }
+    expect(screen.getByText(/step 4 of 4/)).toBeTruthy();
+    const note = ex.prompts.find((p) => p.type === "note");
+    expect(note).toBeDefined();
+    expect(screen.getByText(note!.concept)).toBeTruthy();
+    // At the end there is nowhere to go — Next stays disabled, but for
+    // the boundary reason, not the gate (the note never gates).
+    expect(nextButton().disabled).toBe(true);
+    expect(prevButton().disabled).toBe(false);
   });
 
   it("disables a locked analysis.method select with the lesson tooltip", async () => {

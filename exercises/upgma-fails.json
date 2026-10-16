@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "upgma-fails",
+  "title": "When UPGMA fails: the molecular clock",
+  "true_tree": "((A:0.02,B:0.5):0.02,(C:0.05,D:0.05):0.05,E:0.02);",
+  "sim": { "model": "JC69", "length": 1000, "seed": 42 },
+  "analysis": { "correction": "JC69", "method": "UPGMA" },
+  "locked": ["sim.model", "analysis.correction"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "This true tree is not clock-like: the branch to B is ten times the others, so B has drifted far from every other taxon. Watch where UPGMA goes wrong.",
+      "math": "UPGMA joins the closest pair and sets each branch to d/2 — correct only when all tips are equally distant from the root (ultrametric)."
+    },
+    {
+      "at_step": 3,
+      "type": "note",
+      "concept": "Because B races ahead, UPGMA's plain averages pull the wrong pair together first and the split it builds is not in the true tree.",
+      "math": "Averaging distances assumes the cluster means stay comparable; a fast branch breaks that assumption."
+    },
+    {
+      "at_step": 5,
+      "type": "note",
+      "concept": "RF > 0: UPGMA built a different tree. Now switch the Method control to Neighbor-Joining — it corrects for unequal rates and should reach RF = 0.",
+      "math": "NJ subtracts each cluster's average divergence (the r values) before joining, so an accelerated branch no longer misleads the search."
+    }
+  ]
+}
