@@ -622,3 +622,8 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
 - Check names for branch protection: `fixture-guard`, `rust`, `wasm`,
   `web`, `e2e (chromium)`, `e2e (firefox)`, `e2e (webkit)`,
   `r-and-fixtures`.
+- `.github/workflows/deploy.yml` removed (owner decision): the spec only
+  requires "any static host", Pages was never enabled, and the workflow
+  used unpinned actions plus the broken `npm i -g wasm-pack` install.
+  The `web` job's `dist` artifact keeps a build available for any future
+  host; `NEOPHYLO_BASE` in `vite.config.ts` stays (host-agnostic).
