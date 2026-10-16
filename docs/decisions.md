@@ -682,7 +682,7 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
 ## docs/public-readme: public-facing docs pack
 
 - README links the CI badge at `.github/workflows/ci.yml`, which now exists
-  (the AGENTS.md "no GitHub CI" note predates the ci/* branches).
+  (the AGENTS.md "no GitHub CI" note predates the ci/\* branches).
 - Placeholders pending owner input: `<LIVE URL>` (Netlify production URL),
   `<AUTHOR SURNAME>`/`<AUTHOR GIVEN NAME>`/`<AUTHOR ORCID>` and
   `<DATE RELEASED>` in CITATION.cff, `<PROJECT OWNER NAME>`/
@@ -701,3 +701,18 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   Assistant is configured on the repo.
 - Branch pushed and PR opened on explicit instruction, overriding the
   default "commit but do not push" workflow.
+
+## chore/agent-workflow-ci: CI restored, agent workflow updated
+
+- GitHub CI now exists (`.github/workflows/ci.yml`, `fuzz.yml`; see
+  "CI: .github/workflows/ci.yml" above), so the plan's "No-CI override"
+  note is marked **Superseded** — kept in place for history.
+- `AGENTS.md` Workflow rules updated: run `./scripts/check.sh` before
+  pushing; push the task branch and open a PR with `gh pr create`
+  (body = Final summary); a PR is done when `gh pr checks --watch` is
+  green; the human merges. Deviations still land here, in the same PR.
+- `.devin/skills/neophylo-task`: commit → push → `gh pr create` →
+  `gh pr checks --watch` → fix until green → report PR URL and checks.
+- `.devin/skills/neophylo-review`: accepts a PR number or task number,
+  reviews `gh pr diff`, requires `gh pr checks` green, and posts the
+  verdict via `gh pr review --comment`.

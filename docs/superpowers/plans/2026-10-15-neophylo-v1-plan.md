@@ -2,7 +2,7 @@
 
 > **For agentic workers (Devin):** Run each task below in its **own session** with the `!neophylo-task` playbook, pasting the task's full text into the playbook's task slot. One task means one branch and one PR. Steps use checkbox (`- [ ]`) syntax for tracking. Read `AGENTS.md` and the spec sections a task names before starting.
 
-> **No-CI override (current setup):** There is no GitHub CI for now. Every "add to `ci.yml`" step means "add to `scripts/check.sh`", and "CI green" means `./scripts/check.sh` passes locally. `CODEOWNERS` and `deploy.yml` (Tasks 1 and 25) are skipped until CI is introduced. A "PR" is a local task branch that the human reviews and merges.
+> **No-CI override — Superseded (CI restored, see `docs/decisions.md`).** Kept for history: ~~There is no GitHub CI for now. Every "add to `ci.yml`" step means "add to `scripts/check.sh`", and "CI green" means `./scripts/check.sh` passes locally. `CODEOWNERS` and `deploy.yml` (Tasks 1 and 25) are skipped until CI is introduced. A "PR" is a local task branch that the human reviews and merges.~~
 
 **Goal:** Build NeoPhylo v1, a browser-based teaching tool where students step through NJ and UPGMA on simulated or imported DNA data and compare the result with a known true tree.
 

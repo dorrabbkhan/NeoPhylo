@@ -28,12 +28,12 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 ## Workflow
 
 - One task per branch. Name the branch `m<milestone>/<short-task>`, e.g. `m1/nj-trace`.
+- Run `./scripts/check.sh` locally and make it pass before pushing. Do not disable, skip or loosen tests to make it pass.
+- Push the task branch and open a PR with `gh pr create`; the PR body is the Final summary.
+- The PR is done when all GitHub checks are green (`gh pr checks --watch`). Never merge; the human merges.
 - Final summary: the spec sections implemented, the tests added, and anything ambiguous you resolved, so the reviewer can check it.
 - Record any deviation from the task's Files block, interfaces or spec in `docs/decisions.md`
-  (one entry per task) in the same commit. There are no PRs; this file is the record reviewers check.
-- There is **no GitHub CI** in this project. Wherever the plan says to add a job or step to `.github/workflows/ci.yml`, add the equivalent command to `scripts/check.sh` instead. Skip `CODEOWNERS` and the deploy workflow until told otherwise.
-- `./scripts/check.sh` must pass before committing. Do not disable, skip or loosen tests to make it pass.
-- Commit on the task branch, but do not push or merge. The human reviews and merges.
+  (one entry per task) in the same PR.
 - Stay inside the task's scope. Note follow-ups in the PR description instead of doing them.
 
 ## Layout
