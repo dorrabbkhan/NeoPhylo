@@ -783,12 +783,8 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   now uses `AC#T`/`'#'` because DNA input containing `X` is detected as
   protein rather than rejected.
 - Ambiguities resolved:
-  - `with_alphabet(_, Dna)` uses the strict set `A C G T U N - ?` (with
-    `U`→`T`), not the v1 IUPAC acceptance set: the plan's
-    `with_alphabet_rejects` test requires `M` — a valid IUPAC code — to be
-    rejected, and an explicit "treat as DNA" should catch the amino-acid
-    letters that overlap IUPAC ambiguity codes. `parse_fasta` detection
-    keeps the v1 IUPAC set unchanged.
+  - `with_alphabet(_, Dna)` uses the v1 DNA rules (shared validator);
+    the plan's `MKV` test example was invalid and was replaced by `MEV`.
   - `parse_fasta` is now two-phase: sequences are collected raw
     (uppercased), the alphabet is detected, then characters are validated
     and normalized. This is required so `U` stays selenocysteine

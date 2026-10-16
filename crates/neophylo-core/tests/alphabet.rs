@@ -59,17 +59,31 @@ fn translated_with_stops() {
 
 #[test]
 fn with_alphabet_rejects() {
-    let aln = parse_fasta(">a\nMKV\n").unwrap();
+    // 'M' and 'V' are valid IUPAC DNA codes, so a protein override
+    // failure must come from a non-IUPAC amino-acid letter ('E' here).
+    let aln = parse_fasta(">a\nMEV\n").unwrap();
     assert_eq!(aln.alphabet, Alphabet::Protein);
     let err = with_alphabet(aln, Alphabet::Dna).unwrap_err();
     assert_eq!(
         err,
         NeoError::UnsupportedCharacter {
             label: "a".to_string(),
-            position: 0,
-            ch: 'M',
+            position: 1,
+            ch: 'E',
         }
     );
+}
+
+#[test]
+fn with_alphabet_iupac_ok() {
+    // IUPAC ambiguity codes are valid DNA under the v1 rules: an
+    // ambiguous sequence detected as protein is still accepted when the
+    // user forces Dna.
+    let aln = parse_fasta(">a\nACGRYKMN\n").unwrap();
+    assert_eq!(aln.alphabet, Alphabet::Protein);
+    let aln = with_alphabet(aln, Alphabet::Dna).unwrap();
+    assert_eq!(aln.alphabet, Alphabet::Dna);
+    assert_eq!(aln.seqs[0], b"ACGRYKMN");
 }
 
 #[test]

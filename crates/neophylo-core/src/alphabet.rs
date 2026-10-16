@@ -101,13 +101,14 @@ pub fn detect_alphabet(seqs: &[Vec<u8>]) -> Alphabet {
 /// Re-validate `aln` against alphabet `a` and return the re-tagged
 /// alignment (v1.1 spec §3.1 override).
 ///
-/// `Dna` validation is strict: only `A C G T U N - ?` are accepted
-/// (`U` normalizes to `T`), so forcing DNA onto a protein reports the
-/// first amino-acid letter as `UnsupportedCharacter` instead of silently
-/// accepting the overlapping IUPAC ambiguity codes. `Protein` validation
-/// accepts every valid DNA sequence too.
+/// `Dna` validation applies exactly the v1 rules — the same acceptance
+/// set as the DNA path of `parse_fasta` (`A C G T R Y K M S W B D H V N
+/// - ?`, with `U` normalized to `T`) — via the shared `validate`
+/// function. Forcing DNA onto a protein still reports the first
+/// amino-acid letter (`E F I L P Q J O Z X *`) as `UnsupportedCharacter`.
+/// `Protein` validation accepts every valid DNA sequence too.
 pub fn with_alphabet(aln: Alignment, a: Alphabet) -> Result<Alignment, NeoError> {
-    let seqs = validate(&aln.labels, &aln.seqs, a, true)?;
+    let seqs = validate(&aln.labels, &aln.seqs, a)?;
     Ok(Alignment {
         labels: aln.labels,
         seqs,

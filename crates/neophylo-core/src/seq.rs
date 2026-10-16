@@ -136,7 +136,7 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
     }
 
     let alphabet = detect_alphabet(&seqs);
-    let seqs = validate(&labels, &seqs, alphabet, false)?;
+    let seqs = validate(&labels, &seqs, alphabet)?;
 
     let expected = seqs[0].len();
     for (k, seq) in seqs.iter().enumerate() {
@@ -157,16 +157,13 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
 }
 
 /// Re-validate sequences against `alphabet` and return normalized copies
-/// (uppercase; `U`→`T` for DNA only). `strict_dna` accepts only
-/// `A C G T U N - ?` — used by `with_alphabet`, where an explicit
-/// "treat as DNA" should reject IUPAC ambiguity codes that would otherwise
-/// let a protein sequence pass — while `false` applies the v1 FASTA
-/// acceptance set.
+/// (uppercase; `U`→`T` for DNA only). `Dna` applies exactly the v1 FASTA
+/// acceptance set (`is_allowed` plus `U`), so `parse_fasta` and
+/// `with_alphabet` cannot drift apart.
 pub(crate) fn validate(
     labels: &[String],
     seqs: &[Vec<u8>],
     alphabet: Alphabet,
-    strict_dna: bool,
 ) -> Result<Vec<Vec<u8>>, NeoError> {
     let mut out = Vec::with_capacity(seqs.len());
     for (k, seq) in seqs.iter().enumerate() {
@@ -174,13 +171,7 @@ pub(crate) fn validate(
         for (i, &b) in seq.iter().enumerate() {
             let c = b.to_ascii_uppercase();
             let ok = match alphabet {
-                Alphabet::Dna => {
-                    if strict_dna {
-                        matches!(c, b'A' | b'C' | b'G' | b'T' | b'U' | b'N' | b'-' | b'?')
-                    } else {
-                        is_allowed(c) || c == b'U'
-                    }
-                }
+                Alphabet::Dna => is_allowed(c) || c == b'U',
                 Alphabet::Protein => is_protein_char(c),
             };
             if !ok {
