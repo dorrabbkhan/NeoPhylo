@@ -28,13 +28,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { engine, initEngine } from "../engine";
+import { initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
-import { defaultLessonJson } from "../lessons/default";
 import { usePromptGate } from "../lessons/promptGate";
 import type { Action, Session } from "../state/session";
 import { hasImportedData, initialSession, reducer } from "../state/session";
+import { encode } from "../state/url";
+import {
+  applyUrlState,
+  resolveInitial,
+  sessionUrlState,
+  type LinkKind,
+} from "../state/urlRestore";
 
 import { Controls } from "./Controls";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -60,6 +66,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [session, setSession] = useState<Session | null>(null);
   const [playing, setPlaying] = useState(false);
   const [hoverLeaf, setHoverLeaf] = useState<string | null>(null);
+  const [link, setLink] = useState<LinkKind>({ kind: "custom" });
+  const [toast, setToast] = useState<string | null>(null);
 
   // Height of the side-by-side tree row, measured once for both panels
   // so they share one leafSpacing and their rows line up (§6.1). The
@@ -80,34 +88,45 @@ export function App({ exercise }: { exercise?: Exercise }) {
     [],
   );
 
+  // Restore from the URL once per exercise change (spec §6.4): the URL
+  // may supply a custom exercise (`#x=`), a lesson id (`?lesson=`), or
+  // nothing; a failed decode toasts and falls back to the default
+  // lesson. Helpers live in src/state/urlRestore.ts.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       await initEngine();
-      let ex = exercise ?? null;
-      if (ex === null) {
-        const r = engine.loadExercise(defaultLessonJson);
-        ex = r.ok ? r.value : null;
-      }
+      const r = await resolveInitial(exercise ?? null);
       if (cancelled) return;
       setPlaying(false);
       setHoverLeaf(null);
-      if (ex === null) {
+      setLink(r.link);
+      if (r.toast) {
+        setToast("This link couldn't be opened — showing the default lesson.");
+      }
+      if (r.exercise === null) {
         setSession(null);
         return;
       }
-      setSession(
-        reducer(initialSession(ex), {
-          type: "load",
-          exercise: ex,
-          source: "lesson",
-        }),
-      );
+      let s = reducer(initialSession(r.exercise), {
+        type: "load",
+        exercise: r.exercise,
+        source: "lesson",
+      });
+      if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl);
+      setSession(s);
     })();
     return () => {
       cancelled = true;
     };
   }, [exercise]);
+
+  // Sync the URL on every state change with replaceState (spec §6.4):
+  // reloads and shared links land on exactly this view.
+  useEffect(() => {
+    if (session === null) return;
+    history.replaceState(null, "", encode(sessionUrlState(session, link)));
+  }, [session, link]);
 
   const onStep = useCallback(
     (to: number) => dispatch({ type: "step", to }),
@@ -251,6 +270,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
     <div className="app">
       <header className="app-header">
         <h1>{session.exercise.title}</h1>
+        {toast !== null && (
+          <p role="status" className="toast">
+            {toast}
+          </p>
+        )}
         <div className="mode-switch" role="radiogroup" aria-label="Mode">
           <button
             type="button"

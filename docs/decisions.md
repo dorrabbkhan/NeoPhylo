@@ -330,3 +330,45 @@ All three are plan gaps found at checkpoint 7.
   `.no-true-tree`; `.sandbox-entry` removed), `web/src/views/App.sandbox.test.tsx`.
 - **Follow-up for Task 22:** the URL state must include `source`
   (lesson | sandbox) so sandbox links can be shared.
+
+## Task 22: URL state and error boundary
+
+- Files outside the Files block:
+  - `web/src/state/urlRestore.ts` — the decode→load and session→UrlState
+    wiring, extracted from App.tsx so it stays near the 400-line rule
+    (411), same pattern as stepMatrix.ts/promptGate.ts. App owns no URL
+    logic itself.
+  - `web/src/views/App.tsx` — the task's own Produces requires the App to
+    decode on load and to sync `history.replaceState` on every state change;
+    no other component can do that.
+  - `web/src/main.tsx` — mounts `ErrorBoundary` around `<App />`; nothing
+    else can wrap the root.
+  - `web/src/index.css` — `.toast` (failed-decode message) and
+    `.error-boundary` styles; all view styling lives there.
+  - `web/package.json` + lock — `lz-string` (named in the plan's Tech
+    Stack and required by `encode`/`decode`) plus `@types/lz-string`.
+- Ambiguities resolved:
+  - `UrlState` gains `src?: "sandbox"` (encoded `&sb=1` in query links,
+    inside the `#x=` JSON for custom exercises). Implements the Task 21
+    follow-up above; Produces otherwise unchanged.
+  - A `#x=` payload compresses the whole `UrlState` (including `x`), not
+    just the exercise, so step/mode/overrides survive in one fragment.
+  - Built-in links always write the current `sim` and `analysis` as the
+    `o` override (plus `branchScale` when ≠ 1) rather than diffing against
+    the lesson file — the merge is idempotent, and the URL stays correct
+    even if a lesson file changes between shares.
+  - `migrate`'s v0 → v1 path is a stub by design: v0 carried only
+    `step`/`mode`, which are lifted (invalid values fall back to
+    `0`/`"concept"`); everything else is dropped. Any other version → null.
+  - A bare URL (no `?`, no `#x=`) decodes to the default state without a
+    toast; only recognizable-but-broken links (`#x=` garbage, malformed
+    `s`/`m`/`o`, empty `lesson`, `src`/`x`/`overrides` of wrong type)
+    return `ok: false`. Unrelated query params are ignored.
+  - A `?lesson=` id that fails to fetch also toasts and falls back to the
+    default lesson (spec §6.4 "invalid state loads the default lesson").
+  - The `exercise` prop skips URL decoding entirely (tests drive the app
+    directly) and syncs as `#x=` — a prop exercise isn't a built-in.
+  - Overrides are merged onto the exercise before `load` so the first
+    `recompute` already uses them; `branchScale`/`src`/`step`/`mode` are
+    applied as reducer actions afterwards (step clamps via `reducer`).
+  - The toast has no auto-dismiss timer; it stays until reload/navigation.
