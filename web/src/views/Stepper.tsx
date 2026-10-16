@@ -98,7 +98,7 @@ export function Stepper({
         disabled={step <= 0 || gated}
         onClick={() => onStep(step - 1)}
       >
-        ◀ prev
+        ◀ Previous
       </button>
       <button
         type="button"
@@ -114,7 +114,7 @@ export function Stepper({
         disabled={step >= max || gated}
         onClick={() => onStep(step + 1)}
       >
-        ▶ next
+        Next ▶
       </button>
       <input
         type="range"

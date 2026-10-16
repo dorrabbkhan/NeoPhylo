@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
 import type { Connect, Plugin } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
 
 // Lesson files live in the repo-level exercises/ directory (spec §7),
@@ -59,7 +60,40 @@ function exercisesPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), exercisesPlugin()],
+  // GitHub Pages serves the repo site under /<repo>/. Deploy sets
+  // NEOPHYLO_BASE (see .github/workflows/deploy.yml); dev, tests and
+  // `vite preview` keep the default "/".
+  base: process.env.NEOPHYLO_BASE ?? "/",
+  plugins: [
+    react(),
+    exercisesPlugin(),
+    // Offline after first load (spec §2.1): precache the app shell, the
+    // wasm engine asset and the copied exercises/*.json — the defaults
+    // exclude .wasm and .json. navigateFallback (index.html) is the
+    // plugin default, so lesson URLs also resolve offline.
+    VitePWA({
+      registerType: "autoUpdate",
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,wasm,json}"],
+        // The wasm engine (~300 KB today) plus everything else stays
+        // well under this; the default 2 MiB cap would silently drop a
+        // growing wasm.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+      },
+      manifest: {
+        name: "NeoPhylo",
+        short_name: "NeoPhylo",
+        description: "Distance-based phylogenetics, step by step",
+        theme_color: "#6d28d9",
+        background_color: "#ffffff",
+        display: "standalone",
+        icons: [
+          { src: "favicon.svg", sizes: "any", type: "image/svg+xml" },
+          { src: "icons.svg", sizes: "any", type: "image/svg+xml" },
+        ],
+      },
+    }),
+  ],
   server: {
     // The default lesson embeds exercises/nj-basics.json via a ?raw
     // import (Task 23); the exercises dir is outside web/, so the fs

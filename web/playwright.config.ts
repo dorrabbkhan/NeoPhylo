@@ -20,10 +20,21 @@ export default defineConfig({
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
-  webServer: {
-    command: "npm run dev -- --port 4173 --strictPort",
-    url: "http://localhost:4173",
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: "npm run dev -- --port 4173 --strictPort",
+      url: "http://localhost:4173",
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      // Production build + preview for the PWA offline test (Task 25):
+      // the dev server never registers a service worker. Always a fresh
+      // build — a reused server could serve a stale dist.
+      command: "npm run build && npm run preview -- --port 4174 --strictPort",
+      url: "http://localhost:4174",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 });

@@ -9,6 +9,9 @@
   --accent: #aa3bff;
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
+  /* Text on --accent-bg or --bg must reach 4.5:1 (axe, spec §6.5);
+     --accent itself is too light for text. */
+  --accent-text: #6d28d9;
   --danger: #b3261e;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -37,6 +40,7 @@
     --accent: #c084fc;
     --accent-bg: rgba(192, 132, 252, 0.15);
     --accent-border: rgba(192, 132, 252, 0.5);
+    --accent-text: #c084fc;
     --danger: #f28b82;
   }
 }
@@ -127,7 +131,7 @@ p {
 
 .mode-switch button[aria-checked="true"] {
   background: var(--accent-bg);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -255,7 +259,7 @@ p {
 .stepper-rf {
   font-family: var(--mono);
   font-size: 13px;
-  color: var(--accent);
+  color: var(--accent-text);
   white-space: nowrap;
 }
 
