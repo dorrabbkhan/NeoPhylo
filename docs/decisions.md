@@ -114,3 +114,20 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
 - Dev walkthrough: `npm run dev` serves the built-in 5-taxon lesson and the
   step-through/Q-toggle/hover paths are exercised by App.test.tsx; a 6-taxon
   NJ can't be loaded interactively until Task 20 adds import UI.
+
+## Task 17 checkpoint-6 fixes
+
+- Distance heatmap now shows the displayed step's active-cluster matrix
+  (steps[k].distance, or the last stored step past the end) labeled by
+  nodeName — previously it always showed the full leaf matrix. Chosen cells
+  are active-indexed in both views; NJ's final three-way join (no stored
+  matrix) shows the last stored step's matrix with no cell marked.
+- New file src/views/stepMatrix.ts holds that selection (traceLength/stepsOf
+  moved there too) so App.tsx stays near the 400-line guideline and the
+  sync is unit-testable; no distances are ever computed in TypeScript.
+- New --fg token styles all SVG text/lines in both color schemes; leaf
+  labels are 14px; each tree panel shows its title via figcaption. The app
+  shell fits the viewport (grid rows: content 1fr, stepper auto) so the
+  stepper is always fully visible; tree panels are ≥260px and SVGs fill them.
+- Heatmap cell text picks dark/white from the viridis t value (threshold
+  0.5), not from the interpolated color's luminance.

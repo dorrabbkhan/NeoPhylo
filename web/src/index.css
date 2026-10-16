@@ -1,6 +1,7 @@
 :root {
   --text: #6b6375;
   --text-h: #08060d;
+  --fg: #241f2e; /* foreground for SVG lines and text (trees, heatmap) */
   --bg: #fff;
   --border: #e5e4e7;
   --panel: #fafaf9;
@@ -28,6 +29,7 @@
   :root {
     --text: #9ca3af;
     --text-h: #f3f4f6;
+    --fg: #e5e7eb;
     --bg: #16171d;
     --panel: #1c1d24;
     --border: #2e303a;
@@ -41,6 +43,11 @@
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
@@ -69,18 +76,18 @@ p {
 }
 
 #root {
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
 }
 
 /* ---- App shell: three columns over a stepper bar (spec §6.1) ---- */
 
+/* The page fits the viewport: header auto, content 1fr, stepper auto.
+ * The stepper bar is therefore always fully visible; overflowing content
+ * scrolls inside its own column, never pushes the footer off screen. */
 .app {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100svh;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .app-loading {
@@ -93,10 +100,10 @@ p {
 }
 
 .app-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr) 300px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .col-controls {
@@ -128,12 +135,36 @@ p {
   width: 100%;
 }
 
-.trees svg,
+.tree-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  margin: 0;
+}
+
+.tree-panel figcaption {
+  color: var(--fg);
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+/* Tree SVGs fill their panel (flex gives them a definite height; the
+ * viewBox + preserveAspectRatio keeps the drawing proportionate). */
+.tree-panel svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  color: var(--fg);
+}
+
+/* The heatmap keeps its square aspect; currentColor inside it (cell
+ * outlines, axis labels) follows --fg like the trees. */
 .col-center > svg {
   width: 100%;
   max-width: 560px;
   height: auto;
-  color: var(--text-h);
+  color: var(--fg);
 }
 
 .app-footer {

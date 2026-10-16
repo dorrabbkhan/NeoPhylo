@@ -26,12 +26,13 @@ export interface TreeViewProps {
 }
 
 // Fixed drawing geometry; the svg scales to its container via viewBox.
+// Leaf labels are at least 14px (Review Focus: readable in both themes).
 const LAYOUT_WIDTH = 400;
 const LEAF_SPACING = 24;
 const PAD = 8;
 const LABEL_OFFSET = 4;
 const LABEL_SPACE = 140; // room for leaf labels to the right of the tree
-const FONT_SIZE = 12;
+const FONT_SIZE = 14;
 const NODE_RADIUS = 3;
 const WRONG_PAD = 6;
 
@@ -92,112 +93,125 @@ export function TreeView({
   const branchClass = (n: LaidOutNode) =>
     n.negative ? "branch negative" : "branch";
 
+  // The figure wrapper makes the tree's title visible above the panel;
+  // the svg keeps title as its accessible name. All lines and text use
+  // currentColor so the theme's --fg token styles them (see index.css).
   return (
-    <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
-      {laid.nodes.map((n) => {
-        const children = tree.nodes[n.id].children.filter((c) => byId.has(c));
-        const parent = tree.nodes[n.id].parent;
-        const hasVisibleParent = parent !== null && byId.has(parent);
-        const isHighlighted = highlight.has(n.id);
-        const strokeWidth = isHighlighted ? 3 : 1.5;
-        return (
-          <g
-            key={n.id}
-            data-node={n.id}
-            data-highlight={isHighlighted ? "true" : undefined}
-          >
-            {hasVisibleParent && (
-              <line
-                className={branchClass(n)}
-                x1={tx(n.parentX)}
-                y1={ty(n.y)}
-                x2={tx(n.x)}
-                y2={ty(n.y)}
-                stroke="currentColor"
-                strokeWidth={strokeWidth}
-                strokeDasharray={n.negative ? "4 3" : undefined}
+    <figure className="tree-panel">
+      <figcaption>{title}</figcaption>
+      <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
+        {laid.nodes.map((n) => {
+          const children = tree.nodes[n.id].children.filter((c) => byId.has(c));
+          const parent = tree.nodes[n.id].parent;
+          const hasVisibleParent = parent !== null && byId.has(parent);
+          const isHighlighted = highlight.has(n.id);
+          const strokeWidth = isHighlighted ? 3 : 1.5;
+          return (
+            <g
+              key={n.id}
+              data-node={n.id}
+              data-highlight={isHighlighted ? "true" : undefined}
+            >
+              {hasVisibleParent && (
+                <line
+                  className={branchClass(n)}
+                  x1={tx(n.parentX)}
+                  y1={ty(n.y)}
+                  x2={tx(n.x)}
+                  y2={ty(n.y)}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={n.negative ? "4 3" : undefined}
+                />
+              )}
+              {children.length > 0 && (
+                <line
+                  className="connector"
+                  x1={tx(n.x)}
+                  y1={ty(byId.get(children[0])!.y)}
+                  x2={tx(n.x)}
+                  y2={ty(byId.get(children[children.length - 1])!.y)}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                />
+              )}
+              <circle
+                cx={tx(n.x)}
+                cy={ty(n.y)}
+                r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
+                fill="currentColor"
               />
-            )}
-            {children.length > 0 && (
-              <line
-                className="connector"
-                x1={tx(n.x)}
-                y1={ty(byId.get(children[0])!.y)}
-                x2={tx(n.x)}
-                y2={ty(byId.get(children[children.length - 1])!.y)}
-                stroke="currentColor"
-                strokeWidth={strokeWidth}
-              />
-            )}
-            <circle
-              cx={tx(n.x)}
-              cy={ty(n.y)}
-              r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
-              fill="currentColor"
-            />
-            {hasVisibleParent && tree.branches[n.id].length === 0 && (
-              <text
-                className="zero-len"
-                x={(tx(n.parentX) + tx(n.x)) / 2}
-                y={ty(n.y) - 4}
-                fontSize={FONT_SIZE - 3}
-                textAnchor="middle"
-              >
-                0
-              </text>
-            )}
-            {n.leaf ? (
-              <text
-                x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
-                y={ty(n.y)}
-                fontSize={FONT_SIZE}
-                dominantBaseline="middle"
-                onMouseEnter={() => onHoverLeaf?.(n.label)}
-                onMouseLeave={() => onHoverLeaf?.(null)}
-              >
-                {n.label}
-              </text>
-            ) : (
-              isHighlighted && (
+              {hasVisibleParent && tree.branches[n.id].length === 0 && (
+                <text
+                  className="zero-len"
+                  x={(tx(n.parentX) + tx(n.x)) / 2}
+                  y={ty(n.y) - 4}
+                  fontSize={FONT_SIZE - 3}
+                  textAnchor="middle"
+                >
+                  0
+                </text>
+              )}
+              {n.leaf ? (
                 <text
                   x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
                   y={ty(n.y)}
                   fontSize={FONT_SIZE}
+                  fill="currentColor"
                   dominantBaseline="middle"
+                  onMouseEnter={() => onHoverLeaf?.(n.label)}
+                  onMouseLeave={() => onHoverLeaf?.(null)}
                 >
-                  {nodeName(tree, n.id)}
+                  {n.label}
                 </text>
-              )
-            )}
-          </g>
-        );
-      })}
-      {[...wrong].map((id) => {
-        const box = cladeBox(id);
-        if (!box) return null;
-        const x = tx(box.minX) - WRONG_PAD;
-        const y = ty(box.minY) - WRONG_PAD;
-        const w = box.maxX - box.minX + WRONG_PAD * 2;
-        const h = box.maxY - box.minY + WRONG_PAD * 2;
-        return (
-          <g key={`wrong-${id}`} className="wrong">
-            <rect
-              x={x}
-              y={y}
-              width={w}
-              height={h}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeDasharray="1 3"
-              strokeLinecap="round"
-            />
-            <text x={x + 2} y={y + FONT_SIZE - 2} fontSize={FONT_SIZE}>
-              ✕
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+              ) : (
+                isHighlighted && (
+                  <text
+                    x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
+                    y={ty(n.y)}
+                    fontSize={FONT_SIZE}
+                    fill="currentColor"
+                    dominantBaseline="middle"
+                  >
+                    {nodeName(tree, n.id)}
+                  </text>
+                )
+              )}
+            </g>
+          );
+        })}
+        {[...wrong].map((id) => {
+          const box = cladeBox(id);
+          if (!box) return null;
+          const x = tx(box.minX) - WRONG_PAD;
+          const y = ty(box.minY) - WRONG_PAD;
+          const w = box.maxX - box.minX + WRONG_PAD * 2;
+          const h = box.maxY - box.minY + WRONG_PAD * 2;
+          return (
+            <g key={`wrong-${id}`} className="wrong">
+              <rect
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeDasharray="1 3"
+                strokeLinecap="round"
+              />
+              <text
+                x={x + 2}
+                y={y + FONT_SIZE - 2}
+                fontSize={FONT_SIZE}
+                fill="currentColor"
+              >
+                ✕
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </figure>
   );
 }
