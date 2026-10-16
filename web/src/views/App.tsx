@@ -8,45 +8,29 @@
 // - The highlighted pair at step k is the `chosen` pair of the next join
 //   (trace step k+1); at the end it is the last join — NJ's three-way
 //   final join highlights all three nodes and no single matrix cell.
-// - In distance view a `chosen` cell is marked only while both chosen
-//   nodes are still leaves; clusters have no single taxon cell.
-// - The Q heatmap shows the matrix recorded *before* join k+1, i.e.
-//   trace.steps[k].q, labelled by the active clusters' display names.
+// - The heatmap shows the active clusters' pre-join matrix at step k
+//   (trace.steps[k].distance or .q), labelled by nodeName (stepMatrix.ts).
 //
-// Hover sync (spec §6.2): a matrix cell highlights its two taxa (or, in Q
-// view, its two clusters) in both trees; a hovered leaf highlights its
-// matrix row and column. `Session.hover` stores the matrix cell; the
-// hovered leaf label is local App state.
+// Hover sync (spec §6.2): a matrix cell highlights its two clusters in
+// both trees; a hovered leaf highlights its matrix row and column.
+// `Session.hover` stores the matrix cell; the hovered leaf label is
+// local App state.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
-import type { NjStep } from "../engine/generated/NjStep";
-import type { Trace } from "../engine/generated/Trace";
 import type { Tree } from "../engine/generated/Tree";
-import type { UpgmaStep } from "../engine/generated/UpgmaStep";
 import { defaultLessonJson } from "../lessons/default";
-import { nodeName } from "../state/names";
 import type { Action, Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 
 import { Controls } from "./Controls";
 import { MatrixHeatmap } from "./MatrixHeatmap";
-import type { MatrixCell } from "./MatrixHeatmap";
 import { Stepper } from "./Stepper";
+import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
 import { TreeView } from "./TreeView";
-
-/** Steps are 1-based joins; NJ records the final three-way join as one
- * extra position beyond `steps` (mirrors session.ts traceLength). */
-function traceLength(trace: Trace): number {
-  return "Nj" in trace ? trace.Nj.steps.length + 1 : trace.Upgma.steps.length;
-}
-
-function stepsOf(trace: Trace): (NjStep | UpgmaStep)[] {
-  return "Nj" in trace ? trace.Nj.steps : trace.Upgma.steps;
-}
 
 /** Map of every node id to the set of leaf labels under it. */
 function leafLabelSets(tree: Tree): Map<number, Set<string>> {
@@ -192,32 +176,26 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const isNj = trace !== null && "Nj" in trace;
   const nLeaf = inferred ? leafCount(inferred) : 0;
 
-  // The trace record shown in views at step k: the join about to happen,
-  // or the last join once the trace is exhausted.
-  const displayStep =
-    steps.length === 0
-      ? null
-      : k < steps.length
-        ? steps[k]
-        : steps[steps.length - 1];
-  const qActive =
-    session.matrixView === "q" && displayStep !== null && "q" in displayStep;
+  // The heatmap content at step k: the displayed step's active-cluster
+  // matrix (distance or Q), or the full leaf matrix without a trace.
+  const sm = stepMatrix({
+    trace,
+    step: k,
+    matrix: session.matrix,
+    matrixView: session.matrixView,
+    inferred,
+  });
 
   // Highlighted nodes for the inferred tree: the next (or last) join plus
   // whatever the pointer is over.
   const chosenNodes: number[] = [];
-  let chosenCell: [number, number] | null = null;
   if (isNj && k >= steps.length) {
     // NJ's final three-way join: no single pair, highlight all three.
     const f = trace!.Nj.final_join;
     chosenNodes.push(f.a, f.b, f.c);
-  } else if (displayStep !== null) {
-    const [ci, cj] = displayStep.chosen;
-    const a = displayStep.active[ci];
-    const b = displayStep.active[cj];
-    chosenNodes.push(a, b);
-    if (qActive) chosenCell = [ci, cj];
-    else if (a < nLeaf && b < nLeaf) chosenCell = [a, b];
+  } else if (sm !== null && sm.active !== null && sm.chosen !== null) {
+    const [ci, cj] = sm.chosen;
+    chosenNodes.push(sm.active[ci], sm.active[cj]);
   }
 
   const inferHi = new Set<number>(chosenNodes);
@@ -231,10 +209,21 @@ export function App({ exercise }: { exercise?: Exercise }) {
     }
   }
 
-  // Hover: a matrix cell highlights its pair in both trees; the meaning of
-  // the cell indices depends on the current view.
+  // Hover: a matrix cell highlights its pair in both trees. When a trace
+  // step is shown the indices address `sm.active` clusters; without a
+  // trace they address leaf labels of the full matrix.
   const cellHover = session.hover;
-  if (cellHover !== null && !qActive && session.matrix !== null) {
+  if (cellHover !== null && sm !== null && sm.active !== null) {
+    for (const idx of [cellHover.i, cellHover.j]) {
+      const id = sm.active[idx];
+      if (id === undefined) continue;
+      inferHi.add(id);
+      for (const label of inferSets.get(id) ?? NO_LABELS) {
+        const ft = trueLeafByLabel.get(label);
+        if (ft !== undefined) trueHi.add(ft);
+      }
+    }
+  } else if (cellHover !== null && session.matrix !== null) {
     for (const idx of [cellHover.i, cellHover.j]) {
       const label = session.matrix.labels[idx];
       if (label === undefined) continue;
@@ -242,16 +231,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
       const ft = trueLeafByLabel.get(label);
       if (fi !== undefined) inferHi.add(fi);
       if (ft !== undefined) trueHi.add(ft);
-    }
-  } else if (cellHover !== null && qActive && displayStep !== null) {
-    for (const idx of [cellHover.i, cellHover.j]) {
-      const id = displayStep.active[idx];
-      if (id === undefined) continue;
-      inferHi.add(id);
-      for (const label of inferSets.get(id) ?? NO_LABELS) {
-        const ft = trueLeafByLabel.get(label);
-        if (ft !== undefined) trueHi.add(ft);
-      }
     }
   }
   if (hoverLeaf !== null) {
@@ -287,13 +266,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
     }
   }
 
-  // Leaf hover → highlight that leaf's matrix row and column.
+  // Leaf hover → highlight that leaf's matrix row and column: the row of
+  // the cluster containing the leaf when a step is shown, else the
+  // leaf's own row in the full matrix.
   let matrixHover: { i: number; j: number } | { axis: number } | null =
     cellHover;
   if (hoverLeaf !== null) {
     matrixHover = null;
-    if (qActive && displayStep !== null) {
-      const idx = displayStep.active.findIndex((id) =>
+    if (sm !== null && sm.active !== null) {
+      const idx = sm.active.findIndex((id) =>
         inferSets.get(id)?.has(hoverLeaf),
       );
       if (idx >= 0) matrixHover = { axis: idx };
@@ -302,15 +283,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
       if (idx >= 0) matrixHover = { axis: idx };
     }
   }
-
-  const matrixValues: MatrixCell[] = qActive
-    ? (displayStep as NjStep).q.data
-    : (session.matrix?.cells.map((c) =>
-        c === "Saturated" ? "sat" : c.Value,
-      ) ?? []);
-  const matrixLabels = qActive
-    ? (displayStep as NjStep).active.map((id) => nodeName(inferred!, id))
-    : (session.matrix?.labels ?? []);
 
   const rfText =
     session.rf !== null ? `${session.rf.rf} / ${session.rf.max_rf}` : null;
@@ -369,12 +341,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
               />
             )}
           </div>
-          {session.matrix !== null && (
+          {sm !== null && (
             <MatrixHeatmap
-              labels={matrixLabels}
-              values={matrixValues}
-              view={qActive ? "q" : "distance"}
-              chosen={chosenCell}
+              labels={sm.labels}
+              values={sm.values}
+              view={sm.view}
+              chosen={sm.chosen}
               hover={matrixHover}
               onHover={onHoverCell}
             />

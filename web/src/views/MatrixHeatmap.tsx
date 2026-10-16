@@ -71,15 +71,11 @@ function viridis(t: number): string {
   return `#${c.toString(16).padStart(6, "0")}`;
 }
 
-/** Dark text on the bright end of viridis, white on the dark end. */
-function textFill(hex: string): string {
-  const c = parseInt(hex.slice(1), 16);
-  const r = ((c >> 16) & 0xff) / 255;
-  const g = ((c >> 8) & 0xff) / 255;
-  const b = (c & 0xff) / 255;
-  // WCAG relative luminance on the sRGB channels (approximation is fine).
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.45 ? "#1a1a1a" : "#ffffff";
+/** Cell value text: dark on the bright (high-t) half of viridis, white
+ * on the dark half. Choosing by the scale value t — rather than the
+ * interpolated color — keeps the rule independent of the palette. */
+function cellTextFill(tv: number): string {
+  return tv > 0.5 ? "#1a1a1a" : "#ffffff";
 }
 
 export function MatrixHeatmap({
@@ -202,6 +198,7 @@ export function MatrixHeatmap({
           x={cx(j) + CELL / 2}
           y={PAD + LABEL - 4}
           fontSize={LABEL_FONT}
+          fill="currentColor"
           textAnchor="start"
           transform={`rotate(-60 ${cx(j) + CELL / 2} ${PAD + LABEL - 4})`}
         >
@@ -215,6 +212,7 @@ export function MatrixHeatmap({
             x={PAD + LABEL - 6}
             y={cy(i) + CELL / 2}
             fontSize={LABEL_FONT}
+            fill="currentColor"
             textAnchor="end"
             dominantBaseline="middle"
           >
@@ -224,7 +222,8 @@ export function MatrixHeatmap({
             const v = at(i, j);
             const saturated =
               v === "sat" || (typeof v === "number" && !Number.isFinite(v));
-            const fill = saturated ? "url(#hatch)" : viridis(t(v as number));
+            const tv = saturated ? 0 : t(v as number);
+            const fill = saturated ? "url(#hatch)" : viridis(tv);
             const text = saturated ? "∞" : (v as number).toFixed(3);
             return (
               <g
@@ -235,6 +234,7 @@ export function MatrixHeatmap({
                 data-j={j}
                 aria-selected={isChosen(i, j)}
                 aria-colindex={j + 1}
+                aria-rowindex={i + 1}
                 aria-label={`${labels[i]}, ${labels[j]}: ${saturated ? "saturated" : text}`}
                 tabIndex={focused[0] === i && focused[1] === j ? 0 : -1}
                 onKeyDown={onKeyDown(i, j)}
@@ -267,7 +267,7 @@ export function MatrixHeatmap({
                   fontSize={FONT}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill={saturated ? "#333333" : textFill(fill)}
+                  fill={saturated ? "#333333" : cellTextFill(tv)}
                   pointerEvents="none"
                 >
                   {text}

@@ -135,6 +135,26 @@ describe("App shell", () => {
     }
   });
 
+  it("syncs the heatmap to the highlighted join (5 → 4 rows, u1 cluster)", async () => {
+    // The built-in lesson is a 5-taxon NJ; the same sync is verified
+    // against the Wikipedia worked example in stepMatrix.test.ts.
+    render(<App exercise={NJ_BASICS} />);
+    const grid = await screen.findByRole("grid", { name: "Distance matrix" });
+    expect(grid.getAttribute("aria-rowcount")).toBe("5");
+    expect(grid.querySelectorAll('[role="row"]')).toHaveLength(5);
+    expect(
+      grid.querySelector('[aria-selected="true"]'),
+    ).not.toBeNull();
+
+    fireEvent.keyDown(document.body, { key: "ArrowRight" });
+    expect(grid.getAttribute("aria-rowcount")).toBe("4");
+    const rows = Array.from(grid.querySelectorAll('[role="row"]'));
+    expect(rows).toHaveLength(4);
+    expect(rows.map((r) => r.querySelector("text")?.textContent)).toContain(
+      "u1",
+    );
+  });
+
   it("shows the current step's Q values (3 decimals) with the Q toggle on", async () => {
     const s = loaded(NJ_BASICS);
     const trace = s.result!.trace!;
