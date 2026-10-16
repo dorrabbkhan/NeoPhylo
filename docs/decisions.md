@@ -221,3 +221,28 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
     SaturatedMatrix — the teaching panel names the pairs and the fixes.
   - RF notice count is `missing_in_inferred.length` (task's parenthetical);
     the wrong-clade outline already existed via TreeView's `wrong` prop.
+
+## Task 20: sandbox import and error messages
+
+- Files outside the Files block:
+  - `web/src/views/App.tsx` — nothing else mounts ImportPanel or lets the
+    user reach `source === "sandbox"`: the plan never defined a sandbox
+    entry point. Added an "Import your own data" button that dispatches
+    `load` with `source: "sandbox"` (reuses the existing action; no
+    `session.ts` change needed) and renders ImportPanel in the controls
+    column while sandboxed. The center-column `errorText` line was
+    replaced by `errorMessage` (title + body), still suppressed for
+    SaturatedMatrix (§6.3 notice) and additionally suppressed in sandbox
+    mode, where ImportPanel shows pipeline errors under the import box.
+  - `web/src/index.css` — `.sandbox-entry` and `.import-panel` styles;
+    all view styling lives there.
+- Ambiguities resolved:
+  - Sandbox unlocks locked controls per spec §6.2 ("all controls are
+    unlocked"): App passes `locked: []` while `source === "sandbox"`.
+  - A "Back to the lesson" button re-dispatches `load` with
+    `source: "lesson"` so the sandbox isn't a dead end.
+  - Import is explicit (an Import button) rather than on every change;
+    the pasted text stays in the box for editing after a failed parse.
+  - `TooFewTaxa`'s title interpolates `min` ("Need at least {min}
+    sequences") so the verbatim string survives a future limit change;
+    `Parse` interpolates `line` per the plan's "{line}" placeholder.
