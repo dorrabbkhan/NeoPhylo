@@ -469,3 +469,35 @@ All three are plan gaps found at checkpoint 7.
 - Flake fix (Task 22 test): `App.url.test.tsx`'s URL-sync assertion now
   awaits `window.location.hash` with `waitFor` — the replaceState sync
   runs in an effect and raced the assertion once under check.sh load.
+
+## Task 24: export and R parity
+
+- Files outside the Files block: `web/src/views/App.tsx` — modified to
+  mount `ExportMenu` in the controls column; the export functions are
+  otherwise unreachable from the UI (spec §6.6 lists export as an app
+  feature). No behavior changes beyond rendering the menu.
+- `ci.yml` does not exist (no GitHub CI, per AGENTS.md); the
+  `fixtures-r` equivalent already lives in `scripts/check.sh` as the
+  `RPARITY=1` step, which now activates since `web/scripts/r-parity.mjs`
+  exists. No check.sh edit was needed.
+- `r-parity.mjs` imports `src/export/rscript.ts` directly — Node 24's
+  built-in type stripping handles it, and the file only uses erasable
+  syntax plus `import type`, so no bundler step is required.
+- R scripts are run via a temp file (`Rscript file.R`), not `Rscript
+  -e`: long `-e` arguments get mangled by the shell/R arg parser.
+- `write.tree(tree)` prints R's vector form (`[1] "…"`); the parity
+  script unwraps the quotes and unescapes `\"`/`\\` before parsing.
+- Branch lengths are compared via all-pairs patristic distances within
+  1e-6 (plan tolerance "since R prints limited digits"), not per-edge:
+  the engine and R produce differently-rooted/ordered arenas, and RF=0
+  already guarantees the splits match.
+- Review Focus 2 in the parity job asserts the `O'Brien"s` script runs
+  and the label survives in the output. It does not re-parse the Newick:
+  ape's `write.tree` emits labels containing `'` or `"` bare (not
+  single-quoted), which is non-standard Newick our strict parser
+  rejects. Documented here rather than "fixed" — it is R's output, and
+  the plan only requires the generated script to be valid runnable R.
+- `exportSvg` uses fixed geometry (22 px leaf spacing, 480 px draw
+  width): there is no panel to measure in a download, and the same
+  `layout()`/`treePanel` helpers as `TreeView` keep spacing and label
+  room consistent with the on-screen tree.
