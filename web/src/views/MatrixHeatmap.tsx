@@ -23,8 +23,9 @@ export interface MatrixHeatmapProps {
   view: "distance" | "q";
   /** Indices [i, j] of the pair joining next, or null. */
   chosen: [number, number] | null;
-  /** Cell currently highlighted by hover/focus, or null. */
-  hover: { i: number; j: number } | null;
+  /** Cell currently highlighted by hover/focus, or { axis } to highlight a
+   * whole row and column (used when a tree leaf is hovered, Task 17). */
+  hover: { i: number; j: number } | { axis: number } | null;
   /** Called with { i, j } on hover/focus and null when the pointer leaves. */
   onHover: (cell: { i: number; j: number } | null) => void;
   /** Called when a cell is activated with Enter/Space (predict prompts). */
@@ -58,21 +59,23 @@ function viridis(t: number): string {
   const a = parseInt(VIRIDIS[lo].slice(1), 16);
   const b = parseInt(VIRIDIS[hi].slice(1), 16);
   const c =
-    (Math.round(((a >> 16) & 0xff) + (((b >> 16) & 0xff) - ((a >> 16) & 0xff)) * f) << 16) |
-    (Math.round(((a >> 8) & 0xff) + (((b >> 8) & 0xff) - ((a >> 8) & 0xff)) * f) << 8) |
+    (Math.round(
+      ((a >> 16) & 0xff) + (((b >> 16) & 0xff) - ((a >> 16) & 0xff)) * f,
+    ) <<
+      16) |
+    (Math.round(
+      ((a >> 8) & 0xff) + (((b >> 8) & 0xff) - ((a >> 8) & 0xff)) * f,
+    ) <<
+      8) |
     Math.round((a & 0xff) + ((b & 0xff) - (a & 0xff)) * f);
   return `#${c.toString(16).padStart(6, "0")}`;
 }
 
-/** Dark text on the bright end of viridis, white on the dark end. */
-function textFill(hex: string): string {
-  const c = parseInt(hex.slice(1), 16);
-  const r = ((c >> 16) & 0xff) / 255;
-  const g = ((c >> 8) & 0xff) / 255;
-  const b = (c & 0xff) / 255;
-  // WCAG relative luminance on the sRGB channels (approximation is fine).
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.45 ? "#1a1a1a" : "#ffffff";
+/** Cell value text: dark on the bright (high-t) half of viridis, white
+ * on the dark half. Choosing by the scale value t — rather than the
+ * interpolated color — keeps the rule independent of the palette. */
+function cellTextFill(tv: number): string {
+  return tv > 0.5 ? "#1a1a1a" : "#ffffff";
 }
 
 export function MatrixHeatmap({
@@ -120,38 +123,42 @@ export function MatrixHeatmap({
     cellEls.current.get(ni * n + nj)?.focus();
   };
 
-  const onKeyDown = (i: number, j: number) => (e: KeyboardEvent<SVGGElement>) => {
-    switch (e.key) {
-      case "ArrowUp":
-        e.preventDefault();
-        moveFocus(i - 1, j);
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        moveFocus(i + 1, j);
-        break;
-      case "ArrowLeft":
-        e.preventDefault();
-        moveFocus(i, j - 1);
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        moveFocus(i, j + 1);
-        break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
-        onPick?.(i, j);
-        break;
-    }
-  };
+  const onKeyDown =
+    (i: number, j: number) => (e: KeyboardEvent<SVGGElement>) => {
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          moveFocus(i - 1, j);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          moveFocus(i + 1, j);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          moveFocus(i, j - 1);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          moveFocus(i, j + 1);
+          break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          onPick?.(i, j);
+          break;
+      }
+    };
 
   const cx = (j: number) => PAD + LABEL + j * CELL;
   const cy = (i: number) => PAD + LABEL + i * CELL;
   const isChosen = (i: number, j: number) =>
     chosen !== null && chosen[0] === i && chosen[1] === j;
   const isHovered = (i: number, j: number) =>
-    hover !== null && hover.i === i && hover.j === j;
+    hover !== null &&
+    ("axis" in hover
+      ? hover.axis === i || hover.axis === j
+      : hover.i === i && hover.j === j);
 
   const title = view === "distance" ? "Distance matrix" : "Q matrix";
   const width = PAD * 2 + LABEL + n * CELL;
@@ -174,7 +181,14 @@ export function MatrixHeatmap({
           patternTransform="rotate(45)"
         >
           <rect width="6" height="6" fill="#e8e8e8" />
-          <line x1="0" y1="0" x2="0" y2="6" stroke="#666666" strokeWidth="1.5" />
+          <line
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="6"
+            stroke="#666666"
+            strokeWidth="1.5"
+          />
         </pattern>
       </defs>
 
@@ -184,6 +198,7 @@ export function MatrixHeatmap({
           x={cx(j) + CELL / 2}
           y={PAD + LABEL - 4}
           fontSize={LABEL_FONT}
+          fill="currentColor"
           textAnchor="start"
           transform={`rotate(-60 ${cx(j) + CELL / 2} ${PAD + LABEL - 4})`}
         >
@@ -197,6 +212,7 @@ export function MatrixHeatmap({
             x={PAD + LABEL - 6}
             y={cy(i) + CELL / 2}
             fontSize={LABEL_FONT}
+            fill="currentColor"
             textAnchor="end"
             dominantBaseline="middle"
           >
@@ -204,8 +220,10 @@ export function MatrixHeatmap({
           </text>
           {labels.map((_, j) => {
             const v = at(i, j);
-            const saturated = v === "sat" || (typeof v === "number" && !Number.isFinite(v));
-            const fill = saturated ? "url(#hatch)" : viridis(t(v as number));
+            const saturated =
+              v === "sat" || (typeof v === "number" && !Number.isFinite(v));
+            const tv = saturated ? 0 : t(v as number);
+            const fill = saturated ? "url(#hatch)" : viridis(tv);
             const text = saturated ? "∞" : (v as number).toFixed(3);
             return (
               <g
@@ -216,6 +234,7 @@ export function MatrixHeatmap({
                 data-j={j}
                 aria-selected={isChosen(i, j)}
                 aria-colindex={j + 1}
+                aria-rowindex={i + 1}
                 aria-label={`${labels[i]}, ${labels[j]}: ${saturated ? "saturated" : text}`}
                 tabIndex={focused[0] === i && focused[1] === j ? 0 : -1}
                 onKeyDown={onKeyDown(i, j)}
@@ -233,7 +252,13 @@ export function MatrixHeatmap({
                   width={CELL}
                   height={CELL}
                   fill={fill}
-                  stroke={isChosen(i, j) ? "currentColor" : isHovered(i, j) ? "currentColor" : "#ffffff"}
+                  stroke={
+                    isChosen(i, j)
+                      ? "currentColor"
+                      : isHovered(i, j)
+                        ? "currentColor"
+                        : "#ffffff"
+                  }
                   strokeWidth={isChosen(i, j) ? 3 : isHovered(i, j) ? 2 : 0.5}
                 />
                 <text
@@ -242,7 +267,7 @@ export function MatrixHeatmap({
                   fontSize={FONT}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill={saturated ? "#333333" : textFill(fill)}
+                  fill={saturated ? "#333333" : cellTextFill(tv)}
                   pointerEvents="none"
                 >
                   {text}

@@ -79,3 +79,55 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - Arrow keys use a roving tabindex (WAI-ARIA grid pattern): one cell is tabbable,
     initially the chosen cell; focus also fires onHover for keyboard parity.
   - Non-finite numbers are rendered like "sat" (hatch + ∞) defensively.
+
+## Task 17: Stepper, Controls and App shell
+
+- exercises/nj-basics.json does not exist yet (exercises/ is Task 23's file), so
+  src/lessons/default.ts embeds the spec §7 example verbatim (identical to
+  fuzz/seeds/exercise/spec_example.json) and parses it through
+  engine.loadExercise, exercising the real validation path.
+- App lives at src/views/App.tsx per the Files block; the Vite template
+  src/App.tsx and src/App.css were deleted and main.tsx updated.
+- MatrixHeatmapProps.hover widened to { i, j } | { axis: number } | null so a
+  hovered tree leaf can highlight its matrix row and column; Task 16's
+  { i, j }-only type could not express that.
+- TreeView now draws a small "0" text on zero-length branches (§6.3), required
+  by this task's Produces but absent from Task 15's file.
+- Ambiguities resolved:
+  - At step k the highlight is the chosen pair of join k+1 (steps[k]). At the
+    end, NJ's three-way final join highlights all three nodes (no single
+    matrix cell is marked); UPGMA highlights its last step's pair.
+  - In distance view a chosen cell is marked only while both chosen nodes are
+    still leaves (a cluster has no single taxon cell); in Q view the active-
+    indexed cell is always marked. Q shows trace.steps[k].q (the pre-join
+    state), clamped to the last step once the trace is exhausted, labeled by
+    the active clusters' nodeName.
+  - The >50-taxa stepper note is keyed on taxon count, not on build success.
+  - Global keys ignore form controls and e.defaultPrevented (so the matrix
+    grid's arrow navigation and Space on buttons keep native behavior); play
+    steps every 800 ms and pauses at the end.
+  - Locked exercise fields render as disabled controls (Task 21 adds lock UI);
+    sim controls disable while an imported alignment is in place.
+  - The explanation column is an empty aside until Task 18.
+  - App takes an optional exercise prop (used by tests); it defaults to the
+    embedded lesson.
+- Dev walkthrough: `npm run dev` serves the built-in 5-taxon lesson and the
+  step-through/Q-toggle/hover paths are exercised by App.test.tsx; a 6-taxon
+  NJ can't be loaded interactively until Task 20 adds import UI.
+
+## Task 17 checkpoint-6 fixes
+
+- Distance heatmap now shows the displayed step's active-cluster matrix
+  (steps[k].distance, or the last stored step past the end) labeled by
+  nodeName — previously it always showed the full leaf matrix. Chosen cells
+  are active-indexed in both views; NJ's final three-way join (no stored
+  matrix) shows the last stored step's matrix with no cell marked.
+- New file src/views/stepMatrix.ts holds that selection (traceLength/stepsOf
+  moved there too) so App.tsx stays near the 400-line guideline and the
+  sync is unit-testable; no distances are ever computed in TypeScript.
+- New --fg token styles all SVG text/lines in both color schemes; leaf
+  labels are 14px; each tree panel shows its title via figcaption. The app
+  shell fits the viewport (grid rows: content 1fr, stepper auto) so the
+  stepper is always fully visible; tree panels are ≥260px and SVGs fill them.
+- Heatmap cell text picks dark/white from the viridis t value (threshold
+  0.5), not from the interpolated color's luminance.
