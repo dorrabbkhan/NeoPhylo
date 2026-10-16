@@ -294,3 +294,39 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - Prompt cards live in the center column above the trees — next to the
     matrix the student picks from — and follow the session's
     concept/math mode; prompt.math renders as plain text, not KaTeX.
+
+## Checkpoint-7 fixes: sandbox switch, trueTreeOrigin, imported saturation
+
+All three are plan gaps found at checkpoint 7.
+
+- **Lesson | Sandbox switch.** The header now carries a `role="radiogroup"`
+  with two `role="radio"` buttons (native keyboard support). The plan only
+  specified the one-way "Import your own data" entry button; that button is
+  removed and the switch is the single mode control. New reducer actions:
+  `enterSandbox` just flips `source` — pipeline outputs (same simulated
+  alignment, same seed) are kept so nothing jumps; `exitSandbox` re-runs
+  `load` with a fresh `prompts` array copy so the prompt gate resets its
+  answered picks (it keys a new exercise on the array's identity).
+  `exitSandbox` reloads the _current_ exercise — sim/analysis edits made in
+  the unlocked sandbox persist into the lesson, same as the old
+  "Back to the lesson" button did. When `hasImportedData(session)` (an
+  imported alignment or tree), leaving asks first via `window.confirm` —
+  both in the header switch and in ImportPanel's "Back to the lesson".
+- **`Session.trueTreeOrigin` ("lesson" | "imported").** `load` sets
+  "lesson", `importTree` sets "imported". `importAlignment` clears a lesson
+  true tree before recompute — the imported labels can't match it, so
+  comparison would always fail with LabelMismatch; with no true tree the
+  comparison is skipped (no RF). An imported tree is kept, so a label
+  mismatch still produces LabelMismatch as before. UI: when `trueTree` is
+  null the true-tree panel shows "No true tree — import a Newick tree to
+  compare" and the stepper ends with "RF: — (no true tree)" (new
+  `Stepper.noTrueTree` prop).
+- **Imported-data saturation.** While `alignmentOrigin === "imported"` the
+  saturation notice hides "Use longer sequences" and "Use shorter branches"
+  (re-simulation can't help data that wasn't simulated), shows only
+  "Switch to p-distance", and adds the line "Your own data can't be
+  re-simulated."
+- Files outside the plan's purview: `web/src/index.css` (`.mode-switch`,
+  `.no-true-tree`; `.sandbox-entry` removed), `web/src/views/App.sandbox.test.tsx`.
+- **Follow-up for Task 22:** the URL state must include `source`
+  (lesson | sandbox) so sandbox links can be shared.

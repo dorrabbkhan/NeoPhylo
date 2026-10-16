@@ -151,6 +151,100 @@ describe("session reducer", () => {
     expect(s.alignment?.labels.slice().sort()).toEqual(["P", "Q", "R"]);
   });
 
+  it("enterSandbox flips the source and leaves the pipeline untouched", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const s = reducer(loaded, { type: "enterSandbox" });
+    expect(s.source).toBe("sandbox");
+    // Same simulated data — nothing jumps on screen.
+    expect(s.alignment).toBe(loaded.alignment);
+    expect(s.result).toBe(loaded.result);
+    expect(s.trueTree).toBe(loaded.trueTree);
+    expect(s.trueTreeOrigin).toBe("lesson");
+  });
+
+  it("exitSandbox reloads the lesson at step 0", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const sb = reducer(loaded, { type: "enterSandbox" });
+    const stepped = reducer(sb, { type: "step", to: 2 });
+    const s = reducer(stepped, { type: "exitSandbox" });
+    expect(s.source).toBe("lesson");
+    expect(s.step).toBe(0);
+    expect(s.trueTreeOrigin).toBe("lesson");
+    expect(s.alignmentOrigin).toBe("simulated");
+    expect(s.error).toBeNull();
+  });
+
+  it("importAlignment drops a lesson true tree: no comparison, no RF", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    // Six sequences whose labels don't match the lesson tree A–E.
+    const alignment: Alignment = {
+      labels: ["T1", "T2", "T3", "T4", "T5", "T6"],
+      seqs: [
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+      ],
+    };
+    const s = reducer(loaded, { type: "importAlignment", alignment });
+    expect(s.error).toBeNull();
+    expect(s.trueTree).toBeNull();
+    expect(s.rf).toBeNull();
+    expect(s.result).not.toBeNull();
+    expect(s.alignment?.labels).toHaveLength(6);
+  });
+
+  it("importAlignment keeps an imported true tree and compares — LabelMismatch", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const parsed = engine.parseNewick(
+      "((T1:0.1,T2:0.1):0.1,(T3:0.1,T4:0.1):0.1,(T5:0.1,T6:0.1):0.1);",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const withTree = reducer(loaded, {
+      type: "importTree",
+      tree: parsed.value,
+    });
+    expect(withTree.trueTreeOrigin).toBe("imported");
+    // A FASTA with one different label (X6 instead of T6).
+    const alignment: Alignment = {
+      labels: ["T1", "T2", "T3", "T4", "T5", "X6"],
+      seqs: [
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+        [65, 67, 71, 84],
+      ],
+    };
+    const s = reducer(withTree, { type: "importAlignment", alignment });
+    expect(s.trueTree).toBe(parsed.value);
+    expect(s.error?.kind).toBe("LabelMismatch");
+  });
+
   it("an alignment of 60 taxa builds without a trace", () => {
     const ex = exercise(EXERCISE_JSON);
     // Identical sequences keep every distance at 0 (no saturation) and

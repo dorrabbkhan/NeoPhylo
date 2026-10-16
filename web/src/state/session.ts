@@ -33,6 +33,10 @@ export interface Session {
   branchScale: number; // default 1; multiplies true-tree lengths before simulate
   hover: { i: number; j: number } | null;
   source: "lesson" | "sandbox";
+  /** Where `trueTree` came from. An imported alignment is never
+   * compared against the *lesson* tree (labels would mismatch), so
+   * importAlignment drops a lesson tree and keeps an imported one. */
+  trueTreeOrigin: "lesson" | "imported";
 }
 
 export type Action =
@@ -46,7 +50,9 @@ export type Action =
   | { type: "toggleClamp" }
   | { type: "setMatrixView"; view: Session["matrixView"] }
   | { type: "setBranchScale"; scale: number }
-  | { type: "hover"; cell: Session["hover"] };
+  | { type: "hover"; cell: Session["hover"] }
+  | { type: "enterSandbox" }
+  | { type: "exitSandbox" };
 
 /** Number of steps in a trace. NJ records the final three-way join
  * separately (spec §4.5 step 5 is part of the trace), so it counts one
@@ -195,6 +201,7 @@ export function reducer(s: Session, a: Action): Session {
         branchScale: 1,
         hover: null,
         source: a.source,
+        trueTreeOrigin: "lesson",
         alignmentOrigin: "simulated",
       };
       return parsed.ok ? recompute(base) : base;
@@ -217,11 +224,15 @@ export function reducer(s: Session, a: Action): Session {
         },
       });
     case "importAlignment":
+      // An imported alignment is compared against an imported true
+      // tree only: the lesson's tree is a different leaf set, so it is
+      // cleared (no comparison, no RF) instead of erroring.
       return recompute({
         ...s,
         alignment: a.alignment,
         alignmentOrigin: "imported",
         source: "sandbox",
+        trueTree: s.trueTreeOrigin === "imported" ? s.trueTree : null,
       });
     case "importTree":
       // The imported tree becomes the true tree and the alignment is
@@ -229,6 +240,7 @@ export function reducer(s: Session, a: Action): Session {
       return recompute({
         ...s,
         trueTree: a.tree,
+        trueTreeOrigin: "imported",
         alignment: null,
         alignmentOrigin: "simulated",
         source: "sandbox",
@@ -250,6 +262,21 @@ export function reducer(s: Session, a: Action): Session {
       return recompute({ ...s, branchScale: a.scale });
     case "hover":
       return { ...s, hover: a.cell };
+    case "enterSandbox":
+      // Sandbox keeps the current pipeline outputs — same exercise,
+      // same seed — so nothing on screen jumps. It only unlocks the
+      // controls and shows the import panel (both read `source`).
+      return { ...s, source: "sandbox" };
+    case "exitSandbox":
+      // Reload the current lesson from scratch. The exercise is
+      // re-dispatched through `load` with a fresh `prompts` array so
+      // the prompt gate (which resets on the array's identity)
+      // forgets the student's picks.
+      return reducer(s, {
+        type: "load",
+        exercise: { ...s.exercise, prompts: [...s.exercise.prompts] },
+        source: "lesson",
+      });
   }
 }
 
@@ -272,5 +299,13 @@ export function initialSession(exercise: Exercise): Session {
     branchScale: 1,
     hover: null,
     source: "lesson",
+    trueTreeOrigin: "lesson",
   };
+}
+
+/** True when the session holds user-imported data (an alignment or a
+ * true tree) that `exitSandbox` would clear — the UI confirms before
+ * leaving sandbox in that case. */
+export function hasImportedData(s: Session): boolean {
+  return s.alignmentOrigin === "imported" || s.trueTreeOrigin === "imported";
 }
