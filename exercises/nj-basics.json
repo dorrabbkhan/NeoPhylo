@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "nj-basics",
+  "title": "How Neighbor-Joining works",
+  "true_tree": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);",
+  "sim": { "model": "JC69", "length": 1000, "seed": 42 },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "locked": ["sim.model", "analysis.correction", "analysis.method"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "Neighbor-Joining starts from the distance matrix. Which two taxa join first? Pick a cell in the matrix, or click two leaves in a tree.",
+      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins."
+    },
+    {
+      "at_step": 3,
+      "type": "predict_pair",
+      "concept": "Four clusters remain: u1, u2, E and F. Which pair joins next? The tempting answer is the closest pair — is it?",
+      "math": "Q(i,j) = (n−2)·d(i,j) − R_i − R_j subtracts each cluster's average divergence. A pair close to each other can still lose to a pair whose members are far from everything else.",
+      "reveal": "u1 and u2 are closest, but NJ joins E and F: they are close relative to how far each is from everything else."
+    },
+    {
+      "at_step": 5,
+      "type": "note",
+      "concept": "The tree is complete: RF = 0, so every grouping in the true tree was recovered.",
+      "math": "RF counts splits present in one tree but not the other. Two unrooted 6-taxon trees can differ on at most 2·(6−3) = 6 splits."
+    }
+  ]
+}

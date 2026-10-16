@@ -69,6 +69,10 @@ pub struct Prompt {
     pub r#type: PromptType,
     pub concept: String,
     pub math: Option<String>,
+    /// Optional explanation shown on a predict_pair card only after the
+    /// student picks — used for "the closest pair is not the answer"
+    /// reveals (checkpoint 7); a lesson must not spoil the question.
+    pub reveal: Option<String>,
 }
 
 /// Parse and validate an exercise file (spec §7). `schema_version` must
@@ -126,6 +130,7 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
             r#type,
             concept: p.concept.clone(),
             math: p.math.clone(),
+            reveal: p.reveal.clone(),
         });
     }
 
@@ -226,4 +231,6 @@ struct PromptFile {
     concept: String,
     #[serde(default)]
     math: Option<String>,
+    #[serde(default)]
+    reveal: Option<String>,
 }
