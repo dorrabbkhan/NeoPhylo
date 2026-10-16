@@ -45,6 +45,9 @@ export function PromptCard({ prompt, mode, picked, answer }: PromptCardProps) {
         </p>
       )}
       <p className="prompt-concept">{prompt.concept}</p>
+      {answered && prompt.reveal !== null && (
+        <p className="prompt-reveal">{prompt.reveal}</p>
+      )}
       {predicting && (
         <p className="prompt-hint">
           Pick a cell in the matrix, or two leaves in a tree.

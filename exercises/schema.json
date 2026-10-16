@@ -29,7 +29,9 @@
           },
           "then": {
             "required": ["kappa"],
-            "properties": { "kappa": { "type": "number", "exclusiveMinimum": 0 } }
+            "properties": {
+              "kappa": { "type": "number", "exclusiveMinimum": 0 }
+            }
           }
         }
       ]
@@ -56,11 +58,15 @@
           "at_step": {
             "type": "integer",
             "minimum": 0,
-            "description": "1-based join step at which the prompt appears."
+            "description": "1-based number of the join being discussed. The prompt appears at stepper position at_step-1, where that join is still the pending join; one past the last join (at_step = steps+2 for NJ, steps+1 for UPGMA) shows on the completed tree. A predict_pair must never target NJ's final three-way join — there is no pair to predict."
           },
           "type": { "enum": ["predict_pair", "note"] },
           "concept": { "type": "string" },
-          "math": { "type": ["string", "null"] }
+          "math": { "type": ["string", "null"] },
+          "reveal": {
+            "type": ["string", "null"],
+            "description": "Optional explanation a predict_pair card shows only after the student picks (e.g. why the closest pair is not the answer); must not spoil the question."
+          }
         }
       }
     }

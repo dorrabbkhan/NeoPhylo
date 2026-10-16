@@ -20,7 +20,9 @@ const VALID: &str = r#"{
     { "at_step": 1, "type": "predict_pair",
       "concept": "Which two taxa will join first?",
       "math": "Find the minimum Q(i,j)." },
-    { "at_step": 3, "type": "note", "concept": "…", "math": "…" }
+    { "at_step": 3, "type": "note",
+      "concept": "Only one join is left; it finishes the tree.",
+      "math": "With three clusters the Q values rank all three pairs the same way." }
   ]
 }"#;
 
@@ -55,6 +57,25 @@ fn valid_loads() {
         Some("Find the minimum Q(i,j).")
     );
     assert_eq!(ex.prompts[1].r#type, PromptType::Note);
+    assert_eq!(ex.prompts[0].reveal, None);
+    assert_eq!(ex.prompts[1].reveal, None);
+}
+
+#[test]
+fn reveal_text_loads() {
+    // `reveal` is the optional post-answer explanation on a predict_pair
+    // prompt (checkpoint 7): absent parses to None, present to Some.
+    let json = VALID.replace(
+        r#""math": "Find the minimum Q(i,j).""#,
+        r#""math": "Find the minimum Q(i,j).",
+      "reveal": "The lowest Q pair is not always the closest pair.""#,
+    );
+    let ex = load_exercise(&json).unwrap();
+    assert_eq!(
+        ex.prompts[0].reveal.as_deref(),
+        Some("The lowest Q pair is not always the closest pair.")
+    );
+    assert_eq!(ex.prompts[1].reveal, None);
 }
 
 #[test]

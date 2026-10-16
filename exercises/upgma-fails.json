@@ -22,7 +22,7 @@
     {
       "at_step": 5,
       "type": "note",
-      "concept": "RF > 0: UPGMA built a different tree. Now switch the Method control to Neighbor-Joining — it corrects for unequal rates and should reach RF = 0.",
+      "concept": "UPGMA assumed every lineage evolves at the same rate — the long branch to B broke that assumption and misled the join order, so RF > 0. Now switch the Method control to Neighbor-Joining, which corrects for unequal rates and reaches RF = 0 here.",
       "math": "NJ subtracts each cluster's average divergence (the r values) before joining, so an accelerated branch no longer misleads the search."
     }
   ]
