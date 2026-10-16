@@ -21,14 +21,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
-import type { NeoError } from "../engine/generated/NeoError";
 import type { Tree } from "../engine/generated/Tree";
+import { errorMessage } from "../explain/errors";
 import { defaultLessonJson } from "../lessons/default";
 import type { Action, Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 
 import { Controls } from "./Controls";
 import { ExplanationPanel } from "./ExplanationPanel";
+import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { Stepper } from "./Stepper";
 import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
@@ -74,23 +75,6 @@ function leafCount(tree: Tree): number {
     (n, node) => n + (node.children.length === 0 ? 1 : 0),
     0,
   );
-}
-
-function errorText(e: NeoError): string {
-  switch (e.kind) {
-    case "TooFewTaxa":
-      return `At least ${e.min} taxa are needed to build a tree (got ${e.got}).`;
-    case "TooManyTaxa":
-      return `At most ${e.max} taxa are supported (got ${e.got}).`;
-    case "SaturatedMatrix":
-      return `Some distances could not be estimated (saturation). Try longer sequences or shorter branches.`;
-    case "Parse":
-      return `Parse error at line ${e.line}: ${e.msg}`;
-    case "InvalidExercise":
-      return `Invalid exercise field "${e.field}": ${e.msg}`;
-    default:
-      return e.kind;
-  }
 }
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -320,6 +304,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const rfText =
     session.rf !== null ? `${session.rf.rf} / ${session.rf.max_rf}` : null;
 
+  // Center-column error banner. SaturatedMatrix is covered by the §6.3
+  // teaching notice; in sandbox mode pipeline errors are shown under the
+  // import box instead.
+  const banner =
+    session.error !== null &&
+    session.error.kind !== "SaturatedMatrix" &&
+    session.source !== "sandbox"
+      ? errorMessage(session.error)
+      : null;
+
   // Traces are requested only for alignments of at most 50 taxa
   // (Global Constraints); above that the stepper is replaced by a note.
   const tooManyForSteps =
@@ -336,21 +330,37 @@ export function App({ exercise }: { exercise?: Exercise }) {
           <Controls
             sim={session.exercise.sim}
             analysis={session.exercise.analysis}
-            locked={session.exercise.locked}
+            locked={session.source === "sandbox" ? [] : session.exercise.locked}
             matrixView={session.matrixView}
             qAvailable={isNj && trace !== null}
             simEnabled={session.alignmentOrigin === "simulated"}
             dispatch={dispatch}
           />
+          {session.source === "sandbox" ? (
+            <ImportPanel session={session} dispatch={dispatch} />
+          ) : (
+            <button
+              type="button"
+              className="sandbox-entry"
+              onClick={() =>
+                dispatch({
+                  type: "load",
+                  exercise: session.exercise,
+                  source: "sandbox",
+                })
+              }
+            >
+              Import your own data
+            </button>
+          )}
         </aside>
         <section className="col-center">
           <div className="notices">
-            {session.error !== null &&
-              session.error.kind !== "SaturatedMatrix" && (
-                <p role="alert" className="error">
-                  {errorText(session.error)}
-                </p>
-              )}
+            {banner !== null && (
+              <p role="alert" className="error">
+                <strong>{banner.title}</strong> {banner.body}
+              </p>
+            )}
             <TeachingNotices session={session} dispatch={dispatch} />
           </div>
           <div className="trees" ref={treesRef}>
