@@ -236,8 +236,28 @@ p {
 }
 
 .app-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   border-top: 1px solid var(--border);
   padding: 8px 16px;
+}
+
+.app-footer > .stepper {
+  flex: 1;
+}
+
+.app-footer .repo-link {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--fg);
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.app-footer .repo-link:hover,
+.app-footer .repo-link:focus-visible {
+  opacity: 1;
 }
 
 .stepper {
