@@ -28,7 +28,7 @@ use std::collections::HashSet;
 use crate::alphabet::detect_alphabet;
 use crate::dist::{Cell, DistanceMatrix};
 use crate::error::NeoError;
-use crate::seq::{validate, Alignment, MAX_SITES, MAX_TAXA};
+use crate::seq::{seq_byte, validate, Alignment, MAX_SITES, MAX_TAXA};
 
 /// How taxon names are delimited in PHYLIP text (v1.1 spec §3.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,21 +60,20 @@ fn parse_header(line_no: u32, line: &str) -> Result<(usize, usize), NeoError> {
 }
 
 /// Split one first-block line into `(name, sequence fragment)` under
-/// `mode`. Internal whitespace in the fragment is removed by the caller.
+/// `mode`. Internal whitespace in the fragment is removed; the name may
+/// be Unicode but every sequence character must be ASCII (`seq_byte`).
 fn split_line(line_no: u32, line: &str, mode: NameMode) -> Result<(String, Vec<u8>), NeoError> {
     match mode {
-        NameMode::Strict | NameMode::Auto => {
+        NameMode::Strict => {
             let name: String = line.chars().take(10).collect::<String>();
             let name = name.trim_end().to_string();
             if name.is_empty() {
                 return Err(parse_err(line_no, "empty taxon name".to_string()));
             }
-            let frag = line
-                .chars()
-                .skip(10)
-                .filter(|c| !c.is_whitespace())
-                .map(|c| c as u8)
-                .collect();
+            let mut frag = Vec::new();
+            for c in line.chars().skip(10).filter(|c| !c.is_whitespace()) {
+                frag.push(seq_byte(&name, frag.len(), c)?);
+            }
             Ok((name, frag))
         }
         NameMode::Relaxed => {
@@ -83,9 +82,18 @@ fn split_line(line_no: u32, line: &str, mode: NameMode) -> Result<(String, Vec<u
             if name.is_empty() {
                 return Err(parse_err(line_no, "empty taxon name".to_string()));
             }
-            let frag = tok.flat_map(|t| t.bytes()).collect();
+            let mut frag = Vec::new();
+            for c in tok.flat_map(str::chars) {
+                frag.push(seq_byte(&name, frag.len(), c)?);
+            }
             Ok((name, frag))
         }
+        // `parse_phylip` resolves `Auto` into Strict or Relaxed before
+        // `parse_mode` runs, so it can never reach this arm.
+        NameMode::Auto => Err(parse_err(
+            line_no,
+            "internal error: unresolved name mode".to_string(),
+        )),
     }
 }
 
@@ -162,12 +170,10 @@ fn parse_mode(text: &str, mode: NameMode) -> Result<Alignment, NeoError> {
 
         // Continuation line: all characters are sequence data for the
         // taxon at `pos`.
-        let frag: Vec<u8> = line
-            .chars()
-            .filter(|c| !c.is_whitespace())
-            .map(|c| c as u8)
-            .collect();
-        seqs[pos].extend_from_slice(&frag);
+        for c in line.chars().filter(|c| !c.is_whitespace()) {
+            let position = seqs[pos].len();
+            seqs[pos].push(seq_byte(&labels[pos], position, c)?);
+        }
         if seqs[pos].len() > m {
             return Err(parse_err(
                 line_no,

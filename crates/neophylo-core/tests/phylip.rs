@@ -4,7 +4,7 @@
 use neophylo_core::dist::{Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::phylip::{parse_phylip, write_phylip_matrix, NameMode};
-use neophylo_core::seq::MAX_TAXA;
+use neophylo_core::seq::{parse_fasta, MAX_TAXA};
 
 /// The protdist documentation alignment (plan Task 2), names padded to
 /// the 10-column strict field.
@@ -161,6 +161,59 @@ fn header_mismatch() {
         }
         other => panic!("expected Parse, got {other:?}"),
     }
+}
+
+#[test]
+fn phylip_non_ascii() {
+    // Sequence data must be ASCII: 'Ł' is rejected with the original
+    // char, never truncated to a byte. Every name mode reports it at
+    // its index into the sequence.
+    for mode in [NameMode::Strict, NameMode::Relaxed, NameMode::Auto] {
+        let err = parse_phylip("1 4\na         AŁGT\n", mode).unwrap_err();
+        assert_eq!(
+            err,
+            NeoError::UnsupportedCharacter {
+                label: "a".to_string(),
+                position: 1,
+                ch: 'Ł',
+            },
+            "{mode:?}"
+        );
+    }
+    // The relaxed name split needs only one space; same error.
+    let err = parse_phylip("1 4\na AŁGT\n", NameMode::Relaxed).unwrap_err();
+    assert_eq!(
+        err,
+        NeoError::UnsupportedCharacter {
+            label: "a".to_string(),
+            position: 1,
+            ch: 'Ł',
+        }
+    );
+    // An interleaved continuation line reports the position inside the
+    // accumulated sequence (4 first-block sites + 'A').
+    let err = parse_phylip("2 8\na ACGT\nb ACGA\n\nAŁGT\nACGA\n", NameMode::Auto).unwrap_err();
+    assert_eq!(
+        err,
+        NeoError::UnsupportedCharacter {
+            label: "a".to_string(),
+            position: 5,
+            ch: 'Ł',
+        }
+    );
+}
+
+#[test]
+fn labels_unicode_ok() {
+    // Taxon names may be Unicode; only sequence data must be ASCII.
+    let aln = parse_fasta(">Ångström\nACGT\n").unwrap();
+    assert_eq!(aln.labels, ["Ångström"]);
+    assert_eq!(aln.seqs[0], b"ACGT");
+
+    let (aln, used) = parse_phylip("1 4\nÅngström ACGT\n", NameMode::Relaxed).unwrap();
+    assert_eq!(used, NameMode::Relaxed);
+    assert_eq!(aln.labels, ["Ångström"]);
+    assert_eq!(aln.seqs[0], b"ACGT");
 }
 
 #[test]

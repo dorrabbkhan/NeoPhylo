@@ -820,3 +820,5 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     rather than silently mis-assigning.
   - `NameMode` carries serde derives but no `TS` derive yet; Task 8 adds the
     wasm boundary and can derive it then.
+  - Sequence data must be ASCII; non-ASCII characters are rejected, never
+    truncated (found in Task 4 review).
