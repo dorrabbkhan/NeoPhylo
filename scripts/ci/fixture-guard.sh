@@ -25,8 +25,11 @@ fi
 
 if [ -f fixtures/generate.R ] && [ "${FIXTURES:-0}" = "1" ]; then
   step "fixtures: regenerate (FIXTURES=1)"
-  Rscript fixtures/generate.R
+  # generate_phylip.sh runs first: generate.R merges the phangorn second
+  # opinion into the protdist-produced ref/protein_*.json files and
+  # tie-checks protdist's JTT matrices, so it needs them on disk.
   bash fixtures/generate_phylip.sh
+  Rscript fixtures/generate.R
   git diff --exit-code fixtures/ref
   # also catch new/stray files under ref/
   if [ -n "$(git status --porcelain fixtures/ref)" ]; then

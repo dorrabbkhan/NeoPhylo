@@ -1,0 +1,18 @@
+{
+  "labels": ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"],
+  "sequences": [
+    "AACGTGGCCACAT",
+    "AAGGTCGCCACAC",
+    "CAGTTCGCCACAA",
+    "GAGATTTCCGCCT",
+    "GAGATCTCCGCCC"
+  ],
+  "alphabet": "protein",
+  "jtt": [
+    [0, 0.331834, 0.628142, 1.036660, 1.365098],
+    [0.331834, 0, 0.377406, 1.102689, 0.682218],
+    [0.628142, 0.377406, 0, 0.979550, 0.866781],
+    [1.036660, 1.102689, 0.979550, 0, 0.227515],
+    [1.365098, 0.682218, 0.866781, 0.227515, 0]
+  ]
+}
