@@ -118,27 +118,35 @@ p {
   overflow-y: auto;
 }
 
+/* The tree row takes ~45% of the column height and the matrix row ~55%,
+ * so both fill the column with no large empty gap between them. Row 1
+ * is reserved for the (usually absent) error message. */
 .col-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-rows: auto minmax(0, 45fr) minmax(0, 55fr);
   gap: 12px;
   padding: 12px;
-  overflow: auto;
+  overflow: hidden;
   min-width: 0;
 }
 
+.col-center > .error {
+  grid-row: 1;
+}
+
 .trees {
+  grid-row: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   width: 100%;
+  min-height: 0;
 }
 
 .tree-panel {
   display: flex;
   flex-direction: column;
-  min-height: 260px;
+  min-height: 0;
   margin: 0;
 }
 
@@ -149,21 +157,33 @@ p {
   margin-bottom: 4px;
 }
 
-/* Tree SVGs fill their panel (flex gives them a definite height; the
- * viewBox + preserveAspectRatio keeps the drawing proportionate). */
-.tree-panel svg {
+/* The measured box: TreeView observes it and derives leaf spacing and
+ * label room from its size. */
+.tree-canvas {
   flex: 1;
   min-height: 0;
+}
+
+/* Tree SVGs fill the measured box; the viewBox + preserveAspectRatio
+ * keeps the drawing proportionate. */
+.tree-canvas svg {
   width: 100%;
+  height: 100%;
+  display: block;
   color: var(--fg);
 }
 
-/* The heatmap keeps its square aspect; currentColor inside it (cell
- * outlines, axis labels) follows --fg like the trees. */
+/* The heatmap keeps its square aspect inside the lower row; currentColor
+ * inside it (cell outlines, axis labels) follows --fg like the trees. */
 .col-center > svg {
+  grid-row: 3;
   width: 100%;
   max-width: 560px;
   height: auto;
+  max-height: 100%;
+  min-height: 0;
+  justify-self: center;
+  align-self: start;
   color: var(--fg);
 }
 
@@ -282,18 +302,36 @@ button:disabled {
   background: var(--accent-bg);
 }
 
+/* Explanations use the same --fg token as the trees at ≥15px. */
+.explain-body {
+  color: var(--fg);
+}
+
 .explain-body p {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
+/* Each formula is its own block on its own line; long formulas scroll
+ * horizontally instead of wrapping mid-formula. */
 .math-line {
+  display: block;
   overflow-x: auto;
+  white-space: nowrap;
+  margin: 0 0 8px;
+  font-size: 15px;
 }
 
+.katex {
+  color: var(--fg);
+}
+
+/* The precision note sits below the formulas in smaller, still
+ * --fg-colored text. */
 .math-note {
-  font-size: 11px;
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--fg);
+  opacity: 0.8;
 }
 
 /* ---- SVG details ---- */
