@@ -627,3 +627,8 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   used unpinned actions plus the broken `npm i -g wasm-pack` install.
   The `web` job's `dist` artifact keeps a build available for any future
   host; `NEOPHYLO_BASE` in `vite.config.ts` stays (host-agnostic).
+- First run fix: `wasm-pkg` artifact downloads specify
+  `path: web/src/engine` — upload-artifact roots multi-path artifacts at
+  the paths' least common ancestor, so the zip holds `pkg/` and
+  `generated/` directly and must extract into `web/src/engine`, not the
+  repo root (vitest failed to resolve `engine/pkg/neophylo_wasm.js`).
