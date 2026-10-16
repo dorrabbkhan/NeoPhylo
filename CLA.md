@@ -4,7 +4,7 @@
 
 Adapted from the Apache Software Foundation Individual Contributor License
 Agreement v2.2. In this document, **"the Project Owner"** means
-<PROJECT OWNER NAME> (<PROJECT OWNER EMAIL>), the maintainer of the NeoPhylo
+Dorrabb Khan (dorrabbk@gmail.com), the maintainer of the NeoPhylo
 project (<https://github.com/dorrabbkhan/NeoPhylo>).
 
 Thank you for your interest in contributing to NeoPhylo (the "Project"). In

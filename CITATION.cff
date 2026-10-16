@@ -9,12 +9,12 @@ abstract: >-
   and a sandbox for your own data.
 version: 1.0.0
 authors:
-  - family-names: "<AUTHOR SURNAME>"
-    given-names: "<AUTHOR GIVEN NAME>"
+  - family-names: "Khan"
+    given-names: "Dorrabb"
     # orcid: "https://orcid.org/<AUTHOR ORCID>"  # uncomment and fill before release
 license: AGPL-3.0-only
 repository-code: "https://github.com/dorrabbkhan/NeoPhylo"
-url: "https://<LIVE URL>"
+url: "https://neophylo.netlify.app"
 # date-released: <DATE RELEASED>  # YYYY-MM-DD; uncomment and set on first release
 keywords:
   - phylogenetics

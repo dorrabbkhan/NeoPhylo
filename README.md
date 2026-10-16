@@ -4,13 +4,13 @@ Learn how phylogenetic trees are built — step by step, in your browser.
 
 [![CI](https://github.com/dorrabbkhan/NeoPhylo/actions/workflows/ci.yml/badge.svg)](https://github.com/dorrabbkhan/NeoPhylo/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
-[![Live site](https://img.shields.io/badge/live-site-brightgreen)](<LIVE URL>)
+[![Live site](https://img.shields.io/badge/live-site-brightgreen)](https://neophylo.netlify.app)
 
 ![The nj-basics lesson, mid-lesson: true and inferred trees, the distance matrix, and a predict-the-next-join prompt.](docs/media/nj-basics-mid-lesson.png)
 
 ![Stepping through Neighbor-Joining one join at a time.](docs/media/nj-step-through.gif)
 
-**Try it:** <LIVE URL>
+**Try it:** https://neophylo.netlify.app
 
 ## Who it's for
 
