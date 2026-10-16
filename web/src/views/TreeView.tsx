@@ -33,6 +33,9 @@ export interface TreeViewProps {
    * derived from the measured panel height. */
   leafSpacing?: number;
   onHoverLeaf?: (label: string | null) => void;
+  /** Called with the leaf's label on click — predict_pair prompts use
+   * two leaf picks as an answer (Task 21); unset otherwise. */
+  onPickLeaf?: (label: string) => void;
   title: "True tree" | "Inferred tree";
 }
 
@@ -84,6 +87,7 @@ export function TreeView({
   visibleNodes,
   leafSpacing,
   onHoverLeaf,
+  onPickLeaf,
   title,
 }: TreeViewProps) {
   const [boxRef, box] = usePanelSize();
@@ -212,6 +216,11 @@ export function TreeView({
                     dominantBaseline="middle"
                     onMouseEnter={() => onHoverLeaf?.(n.label)}
                     onMouseLeave={() => onHoverLeaf?.(null)}
+                    onClick={
+                      onPickLeaf === undefined || n.label === null
+                        ? undefined
+                        : () => onPickLeaf(n.label as string)
+                    }
                   >
                     {n.label}
                   </text>

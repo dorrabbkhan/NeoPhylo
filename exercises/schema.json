@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeoPhylo exercise file",
+  "description": "Lesson/exercise file format (design spec section 7). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, and sim.kappa is required only when sim.model is \"K80\". Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..).",
+  "type": "object",
+  "required": ["schema_version", "id", "title", "true_tree", "sim", "analysis"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "true_tree": {
+      "type": "string",
+      "description": "Newick string; every non-root node must carry a branch length. Syntax is checked by the engine, not by this schema."
+    },
+    "sim": {
+      "type": "object",
+      "required": ["model", "length", "seed"],
+      "properties": {
+        "model": { "enum": ["JC69", "K80"] },
+        "kappa": { "type": "number" },
+        "length": { "type": "integer", "minimum": 10, "maximum": 10000 },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "model": { "const": "K80" } },
+            "required": ["model"]
+          },
+          "then": {
+            "required": ["kappa"],
+            "properties": { "kappa": { "type": "number", "exclusiveMinimum": 0 } }
+          }
+        }
+      ]
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["correction", "method"],
+      "properties": {
+        "correction": { "enum": ["p", "JC69", "K80"] },
+        "method": { "enum": ["NJ", "UPGMA"] }
+      }
+    },
+    "locked": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Dotted control paths fixed for the lesson, e.g. \"sim.model\"."
+    },
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at_step", "type", "concept"],
+        "properties": {
+          "at_step": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "1-based join step at which the prompt appears."
+          },
+          "type": { "enum": ["predict_pair", "note"] },
+          "concept": { "type": "string" },
+          "math": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

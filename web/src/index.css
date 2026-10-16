@@ -440,3 +440,53 @@ button:disabled {
   color: var(--fg);
   opacity: 0.8;
 }
+
+/* ---- Guided-lesson prompts (spec §6.2, Task 21) ---- */
+
+.prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Prompt cards echo the teaching-notice panel: accent border and
+ * background, body-color text. The verdict line carries meaning in its
+ * text, never color alone (§6.5). */
+.prompt-card {
+  padding: 8px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--fg);
+}
+
+.prompt-card p {
+  margin: 0 0 6px;
+}
+
+.prompt-card p:last-child {
+  margin-bottom: 0;
+}
+
+.prompt-verdict {
+  font-weight: 600;
+}
+
+.prompt-verdict.correct {
+  color: var(--ok, #1a7f37);
+}
+
+.prompt-verdict.wrong {
+  color: var(--danger);
+}
+
+.prompt-hint {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.prompt-math {
+  font-family: var(--mono);
+  font-size: 13px;
+}
