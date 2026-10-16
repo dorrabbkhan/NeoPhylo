@@ -152,6 +152,7 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
 - The empty-traces case (>50 taxa, no trace requested) shows a one-line
   note in the panel rather than hiding it.
 - Follow-up for Task 25: lazy-load KaTeX on first switch to Math mode (main bundle 512 kB).
+- Files outside the Files block: App.tsx (panel wired into .col-explain), index.css (panel styles), package.json (katex, @types/katex), and src/views/ExplanationPanel.test.tsx (component test placed next to its component rather than in explain/).
 
 ## Checkpoint-6 fixes (post-Task 18)
 

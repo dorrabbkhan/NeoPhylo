@@ -19,6 +19,7 @@ You are implementing exactly ONE task from `docs/superpowers/plans/2026-10-15-ne
 6. Run them and confirm they fail for the expected reason. Show the output.
 7. Implement the minimum code needed, using the exact names and signatures from **Interfaces → Produces**.
 8. Run the full command list from `AGENTS.md` for every area you touched (Rust, wasm, web). Fix until everything is green.
+   8b. Compare `git diff --name-only main` with the task's Files block. For every file outside it, add a "Files outside the Files block" line to this task's entry in docs/decisions.md, saying why each was needed. Include it in the same commit.
 9. Commit with the message the task specifies. **Do not push.**
 10. Finish with a summary under these headings: Task; Spec sections implemented; Tests added; Ambiguities I resolved (or "None"); Follow-ups noticed.
 
