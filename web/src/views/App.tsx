@@ -27,10 +27,12 @@ import type { Action, Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 
 import { Controls } from "./Controls";
+import { ExplanationPanel } from "./ExplanationPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { Stepper } from "./Stepper";
 import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
 import { TreeView } from "./TreeView";
+import { nodeName } from "../state/names";
 
 /** Map of every node id to the set of leaf labels under it. */
 function leafLabelSets(tree: Tree): Map<number, Set<string>> {
@@ -160,6 +162,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
   );
   const inferLeafByLabel = useMemo(
     () => (inferred ? leafIdByLabel(inferred) : new Map<string, number>()),
+    [inferred],
+  );
+  // Display names indexed by NodeId for the explanation panel: leaf
+  // labels first, then u1, u2, … in creation order (state/names.ts).
+  const explainLabels = useMemo(
+    () =>
+      inferred ? inferred.nodes.map((_, id) => nodeName(inferred, id)) : [],
     [inferred],
   );
   const trueLeafByLabel = useMemo(
@@ -353,7 +362,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
           )}
         </section>
         <aside className="col-explain" aria-label="Explanation">
-          {/* ExplanationPanel arrives in Task 18. */}
+          <ExplanationPanel
+            trace={trace}
+            step={k}
+            labels={explainLabels}
+            mode={session.mode}
+            dispatch={dispatch}
+          />
         </aside>
       </main>
       <footer className="app-footer">
