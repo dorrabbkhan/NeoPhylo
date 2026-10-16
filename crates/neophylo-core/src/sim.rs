@@ -20,6 +20,7 @@ use rand_core::{RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::alphabet::Alphabet;
 use crate::error::NeoError;
 use crate::seq::Alignment;
 use crate::tree::Tree;
@@ -145,7 +146,11 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
             out.push(std::mem::take(&mut seqs[id.0 as usize]));
         }
     }
-    Ok(Alignment { labels, seqs: out })
+    Ok(Alignment {
+        labels,
+        seqs: out,
+        alphabet: Alphabet::Dna,
+    })
 }
 
 /// One uniform draw on [0, 1): `next_u64 / 2^64`.

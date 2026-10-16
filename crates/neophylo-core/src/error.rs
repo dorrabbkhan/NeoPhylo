@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
 
+use crate::alphabet::Alphabet;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
@@ -49,6 +51,12 @@ pub enum NeoError {
     InvalidExercise {
         field: String,
         msg: String,
+    },
+    /// A distance or simulation model that does not apply to the
+    /// alignment's alphabet (v1.1 spec §3.4).
+    ModelAlphabetMismatch {
+        model: String,
+        alphabet: Alphabet,
     },
 }
 
@@ -95,6 +103,13 @@ impl fmt::Display for NeoError {
             ),
             Self::InvalidExercise { field, msg } => {
                 write!(f, "invalid exercise field '{field}': {msg}")
+            }
+            Self::ModelAlphabetMismatch { model, alphabet } => {
+                write!(
+                    f,
+                    "model '{model}' does not apply to {} data",
+                    alphabet.name()
+                )
             }
         }
     }

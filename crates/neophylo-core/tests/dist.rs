@@ -1,3 +1,4 @@
+use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::{compute, Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::seq::{parse_fasta, Alignment};
@@ -119,6 +120,7 @@ fn arb_alignment() -> impl Strategy<Value = Alignment> {
             move |seqs| Alignment {
                 labels: (0..n_taxa).map(|i| format!("t{i}")).collect(),
                 seqs,
+                alphabet: Alphabet::Dna,
             },
         )
     })

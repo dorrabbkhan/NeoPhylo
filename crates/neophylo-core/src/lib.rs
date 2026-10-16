@@ -6,6 +6,7 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod algos;
+pub mod alphabet;
 pub mod compare;
 pub mod dist;
 pub mod error;
@@ -17,6 +18,7 @@ pub mod sim;
 pub mod tree;
 
 pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, Trace, UpgmaStep};
+pub use alphabet::{detect_alphabet, protein_index, with_alphabet, Alphabet, PROTEIN_STATES};
 pub use compare::{rf, RfResult, Split};
 pub use dist::{compute, Cell, DistModel, DistanceMatrix};
 pub use error::NeoError;

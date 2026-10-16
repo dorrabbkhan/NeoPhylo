@@ -19,6 +19,7 @@ const VARIANTS: NeoError[] = [
   { kind: "SaturatedMatrix", cells: [[0, 1]] },
   { kind: "LabelMismatch", only_in_a: ["A", "B"], only_in_b: ["Z"] },
   { kind: "InvalidExercise", field: "true_tree", msg: "branch length missing" },
+  { kind: "ModelAlphabetMismatch", model: "JC69", alphabet: "protein" },
 ];
 
 const TITLES: Record<NeoError["kind"], string> = {
@@ -31,6 +32,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   SaturatedMatrix: "Some distances can't be estimated",
   LabelMismatch: "Tree and sequences have different names",
   InvalidExercise: "This exercise file has a problem",
+  ModelAlphabetMismatch: "JC69 doesn't fit this data",
 };
 
 describe("errorMessage", () => {

@@ -109,6 +109,7 @@ describe("session reducer", () => {
         [65, 67, 71, 84],
         [65, 67, 71, 84],
       ],
+      alphabet: "dna",
     };
     const imported = reducer(loaded, { type: "importAlignment", alignment });
     expect(imported.alignmentOrigin).toBe("imported");
@@ -134,6 +135,7 @@ describe("session reducer", () => {
         [65, 67, 71, 84],
         [65, 67, 71, 84],
       ],
+      alphabet: "dna",
     };
     const imported = reducer(loaded, { type: "importAlignment", alignment });
     const parsed = engine.parseNewick("((P:0.2,Q:0.2):0.1,R:0.3);");
@@ -202,6 +204,7 @@ describe("session reducer", () => {
         [65, 67, 71, 84],
         [65, 67, 71, 84],
       ],
+      alphabet: "dna",
     };
     const s = reducer(loaded, { type: "importAlignment", alignment });
     expect(s.error).toBeNull();
@@ -239,6 +242,7 @@ describe("session reducer", () => {
         [65, 67, 71, 84],
         [65, 67, 71, 84],
       ],
+      alphabet: "dna",
     };
     const s = reducer(withTree, { type: "importAlignment", alignment });
     expect(s.trueTree).toBe(parsed.value);
@@ -252,6 +256,7 @@ describe("session reducer", () => {
     const alignment: Alignment = {
       labels: Array.from({ length: 60 }, (_, i) => `t${i}`),
       seqs: Array.from({ length: 60 }, () => [65, 67, 71, 84, 65, 67, 71, 84]),
+      alphabet: "dna",
     };
     const s = reducer(emptySession(ex), { type: "importAlignment", alignment });
     expect(s.error).toBeNull();

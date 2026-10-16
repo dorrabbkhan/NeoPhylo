@@ -10,6 +10,7 @@ use libm::log;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::alphabet::{protein_index, Alphabet};
 use crate::error::NeoError;
 use crate::matrix::Matrix;
 use crate::seq::Alignment;
@@ -25,6 +26,26 @@ pub enum DistModel {
     /// Kimura 1980 two-parameter. Saturates when either log argument
     /// is non-positive.
     K80,
+}
+
+impl DistModel {
+    /// The exercise-file spelling of the model name ("p", "JC69", "K80").
+    pub fn name(self) -> &'static str {
+        match self {
+            DistModel::P => "p",
+            DistModel::Jc69 => "JC69",
+            DistModel::K80 => "K80",
+        }
+    }
+
+    /// Models valid for `alphabet` (v1.1 spec §3.4). `Kimura` and `Jtt`
+    /// join the protein arm in Task 6.
+    fn supports(self, alphabet: Alphabet) -> bool {
+        match alphabet {
+            Alphabet::Dna => matches!(self, DistModel::P | DistModel::Jc69 | DistModel::K80),
+            Alphabet::Protein => matches!(self, DistModel::P),
+        }
+    }
 }
 
 /// One cell of a `DistanceMatrix`.
@@ -116,9 +137,10 @@ fn is_transition(a: u8, b: u8) -> bool {
     )
 }
 
-/// Per-pair counts under pairwise deletion. Sites at which either base is
-/// not A/C/G/T are skipped; sites past the end of the shorter sequence are
-/// skipped too, so ragged input cannot panic.
+/// Per-pair counts under pairwise deletion. Sites at which either
+/// character is not a standard state of the alphabet (A/C/G/T for DNA,
+/// the 20 amino acids for protein) are skipped; sites past the end of
+/// the shorter sequence are skipped too, so ragged input cannot panic.
 #[derive(Default)]
 struct PairCounts {
     comparable: u64,
@@ -126,17 +148,21 @@ struct PairCounts {
     transitions: u64,
 }
 
-fn pair_counts(a: &[u8], b: &[u8]) -> PairCounts {
+fn pair_counts(a: &[u8], b: &[u8], alphabet: Alphabet) -> PairCounts {
+    let is_standard: fn(u8) -> bool = match alphabet {
+        Alphabet::Dna => is_base,
+        Alphabet::Protein => |b| protein_index(b).is_some(),
+    };
     let mut counts = PairCounts::default();
     for k in 0..a.len().min(b.len()) {
         let (x, y) = (a[k], b[k]);
-        if !is_base(x) || !is_base(y) {
+        if !is_standard(x) || !is_standard(y) {
             continue;
         }
         counts.comparable += 1;
         if x != y {
             counts.differences += 1;
-            if is_transition(x, y) {
+            if alphabet == Alphabet::Dna && is_transition(x, y) {
                 counts.transitions += 1;
             }
         }
@@ -173,13 +199,20 @@ fn distance(counts: &PairCounts, model: DistModel) -> Cell {
     }
 }
 
-/// All pairwise distances for `aln` under `model` (spec §4.3).
+/// All pairwise distances for `aln` under `model` (spec §4.3, v1.1 §3.4).
+/// `model` must be valid for `aln.alphabet`, else `ModelAlphabetMismatch`.
 pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoError> {
+    if !model.supports(aln.alphabet) {
+        return Err(NeoError::ModelAlphabetMismatch {
+            model: model.name().to_string(),
+            alphabet: aln.alphabet,
+        });
+    }
     let n = aln.seqs.len();
     let mut cells = vec![Cell::Value(0.0); n * n];
     for i in 0..n {
         for j in (i + 1)..n {
-            let counts = pair_counts(&aln.seqs[i], &aln.seqs[j]);
+            let counts = pair_counts(&aln.seqs[i], &aln.seqs[j], aln.alphabet);
             if counts.comparable == 0 {
                 return Err(NeoError::InsufficientOverlap {
                     a: label(&aln.labels, i),
