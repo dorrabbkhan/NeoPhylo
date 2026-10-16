@@ -484,7 +484,7 @@ All three are plan gaps found at checkpoint 7.
   built-in type stripping handles it, and the file only uses erasable
   syntax plus `import type`, so no bundler step is required.
 - R scripts are run via a temp file (`Rscript file.R`), not `Rscript
-  -e`: long `-e` arguments get mangled by the shell/R arg parser.
+-e`: long `-e` arguments get mangled by the shell/R arg parser.
 - `write.tree(tree)` prints R's vector form (`[1] "…"`); the parity
   script unwraps the quotes and unescapes `\"`/`\\` before parsing.
 - Branch lengths are compared via all-pairs patristic distances within
@@ -501,3 +501,60 @@ All three are plan gaps found at checkpoint 7.
   width): there is no panel to measure in a download, and the same
   `layout()`/`treePanel` helpers as `TreeView` keep spacing and label
   room consistent with the on-screen tree.
+
+## Task 25: accessibility, offline and deploy
+
+- Files outside the Files block, all required to make the plan's own
+  checks pass or the feature work:
+  - `web/package.json`, `web/package-lock.json` — dev deps
+    `@axe-core/playwright` and `vite-plugin-pwa`, both named by the
+    spec (§6.5 axe checks, §6 stack).
+  - `web/playwright.config.ts` — a second `webServer` (build +
+    `vite preview` on :4174): the dev server never registers a service
+    worker, so the offline test must target the production build.
+  - `web/tsconfig.e2e.json`, `web/tsconfig.json` — `e2e/` sat outside
+    every tsconfig; the new spec uses DOM types inside
+    `page.evaluate`, so e2e got its own project (esnext+bundler,
+    ES2023+DOM lib) wired into `tsc -b`.
+  - `web/index.html` — title was "web"; now "NeoPhylo".
+  - `web/src/index.css` — `--accent` (#aa3bff) fails 4.5:1 on
+    `--accent-bg`/white, so text uses a new `--accent-text` token
+    (#6d28d9 light / #c084fc dark). Affected rules: checked
+    mode-switch radio, `.stepper-rf`.
+  - `web/src/views/Stepper.tsx` — axe `label-content-name-mismatch`:
+    visible "◀ prev"/"▶ next" didn't appear in the accessible names;
+    labels are now "◀ Previous"/"Next ▶" (truncations of the
+    aria-labels "Previous step"/"Next step").
+  - `web/src/views/MatrixHeatmap.tsx` — `focusable="true"` on each
+    gridcell: WebKit ignores `tabindex` on SVG elements for
+    sequential (Tab) focus; the attribute is ignored elsewhere.
+  - `web/src/views/App.tsx` — focus rescue: landing on a gated step
+    disables the focused stepper control and the browser drops focus
+    to `<body>`, and in WebKit the Tab ring cannot re-enter from
+    there. On the gated transition, dead focus moves to the roving
+    gridcell; live focus is never stolen and a gated initial position
+    is left alone.
+- The offline test runs only on Chromium: Playwright's `setOffline`
+  emulation rejects SW-served navigations in Firefox
+  (`NS_ERROR_OFFLINE`) and WebKit (internal error) — a driver
+  limitation, not app behavior. The precache contract it validates is
+  engine-agnostic.
+- The Files block said modify `vite.config.ts` to "set `base` for
+  GitHub Pages". `base` comes from `NEOPHYLO_BASE` (default `/`):
+  hard-coding `/NeoPhylo/` would break dev, vitest and `vite preview`
+  (which the offline test depends on). Only the deploy workflow sets
+  it, to `/NeoPhylo/` matching repo `dorrabbkhan/NeoPhylo`.
+- The deploy workflow builds wasm via `scripts/build-wasm.sh`
+  (wasm-pack installed through npm, `rust-toolchain.toml` supplies
+  toolchain + target) and publishes `web/dist` with
+  actions/upload-pages-artifact + deploy-pages. `workflow_dispatch`
+  allows manual redeploys. The live-URL check ("deployed URL loads
+  the default lesson") can't run until the workflow exists on `main`
+  — Pages must also be enabled once in repo Settings.
+- `workbox.globPatterns` covers `.wasm` and `.json` (defaults exclude
+  both) so the engine and `exercises/*.json` are precached;
+  `maximumFileSizeToCacheInBytes` raised to 8 MiB for wasm headroom.
+- `tabUntil` in the keyboard test walks forward then backward:
+  Playwright's Firefox cannot Tab past the last page element (focus
+  leaves the document and does not wrap), so targets earlier in the
+  ring are reached with Shift+Tab — as a real keyboard user would.

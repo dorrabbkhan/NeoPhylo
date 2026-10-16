@@ -237,6 +237,9 @@ export function MatrixHeatmap({
                 aria-rowindex={i + 1}
                 aria-label={`${labels[i]}, ${labels[j]}: ${saturated ? "saturated" : text}`}
                 tabIndex={focused[0] === i && focused[1] === j ? 0 : -1}
+                // WebKit ignores tabindex on SVG elements for sequential
+                // focus; `focusable` puts the cell in the Tab order.
+                focusable="true"
                 onClick={() => onPick?.(i, j)}
                 onKeyDown={onKeyDown(i, j)}
                 onFocus={() => {
