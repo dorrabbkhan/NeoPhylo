@@ -1,0 +1,57 @@
+# Deploy web/dist to GitHub Pages on every push to main (plan Task 25,
+# spec §3.1 — any static host works; no special headers needed).
+# The site lives at https://dorrabbkhan.github.io/NeoPhylo/, so the
+# build sets NEOPHYLO_BASE — see web/vite.config.ts.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install wasm-pack
+        run: npm install -g wasm-pack
+      - name: Build the wasm engine and generated types
+        run: scripts/build-wasm.sh
+      - name: Build the web app
+        working-directory: web
+        env:
+          NEOPHYLO_BASE: /NeoPhylo/
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

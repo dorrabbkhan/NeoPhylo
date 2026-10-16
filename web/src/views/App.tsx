@@ -26,7 +26,7 @@
 // resumes. Pick state lives in `answered` (at_step → picked labels) and
 // resets whenever a different exercise is loaded.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
@@ -210,6 +210,24 @@ export function App({ exercise }: { exercise?: Exercise }) {
     sm,
     leafSets: inferSets,
   });
+
+  // Focus rescue (§6.5): landing on a gated position disables the
+  // stepper control under focus and the browser drops focus to <body>;
+  // in WebKit the Tab ring can't re-enter from there at all. On the
+  // transition into a gated position, dead focus moves to the matrix's
+  // roving cell — where the prompt asks the student to pick. A gated
+  // initial position is left alone (body is a valid ring start) and
+  // live focus elsewhere is never stolen.
+  const gatedNow = promptGate.gating !== null;
+  const wasGated = useRef(gatedNow);
+  useEffect(() => {
+    const justGated = gatedNow && !wasGated.current;
+    wasGated.current = gatedNow;
+    if (!justGated || document.activeElement !== document.body) return;
+    document
+      .querySelector<SVGGElement>('[role="gridcell"][tabindex="0"]')
+      ?.focus();
+  }, [gatedNow]);
 
   if (session === null) {
     return <div className="app-loading">Loading…</div>;
