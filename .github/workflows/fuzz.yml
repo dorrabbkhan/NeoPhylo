@@ -1,0 +1,62 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FUZZ: "1"
+  FUZZ_SECONDS: "300"
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo-fuzz
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: ${{ runner.os }}-cargo-fuzz
+
+      - name: Install cargo-fuzz
+        run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz
+
+      - name: Run fuzz smoke (${{ env.FUZZ_SECONDS }} s per target)
+        run: bash scripts/ci/fuzz.sh
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts
+          path: crates/neophylo-core/fuzz/artifacts
+          if-no-files-found: ignore
+
+      - name: File or update fuzz-crash issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create fuzz-crash --description "Automated fuzz crash report" --force
+          ISSUE=$(gh issue list --label fuzz-crash --state open --limit 1 --json number --jq '.[0].number')
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "Fuzz run failed again: $RUN_URL"
+          else
+            gh issue create \
+              --title "Fuzz crash detected in nightly run" \
+              --label fuzz-crash \
+              --body "Fuzzing failed. Run: $RUN_URL
+
+          Crash artifacts (if any) are attached to the workflow run."
+          fi
