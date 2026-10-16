@@ -1,9 +1,8 @@
 // Simulation and analysis controls (plan Task 17, spec §6.1-6.2, §7).
 // Every change dispatches setSim or setAnalysis; the session reducer
 // re-runs the pipeline synchronously. Fields named in exercise.locked
-// (Task 21 will render the locks as lesson UI; here they are simply
-// disabled, which is also correct for the default lesson) and all sim
-// controls are inert while an imported alignment is in place.
+// render disabled with the "Fixed for this lesson." tooltip (Task 21),
+// and all sim controls are inert while an imported alignment is in place.
 //
 // Number inputs keep a local text copy so typing multi-digit values is
 // not clobbered by clamping: a commit only happens when the typed value
@@ -32,6 +31,7 @@ export interface ControlsProps {
 
 const KAPPA_DEFAULT = 2;
 const MAX_SEED = Number.MAX_SAFE_INTEGER;
+const LOCKED_TOOLTIP = "Fixed for this lesson.";
 
 function NumberField({
   label,
@@ -40,6 +40,7 @@ function NumberField({
   max,
   step,
   disabled,
+  locked = false,
   onCommit,
 }: {
   label: string;
@@ -48,6 +49,8 @@ function NumberField({
   max: number;
   step?: number;
   disabled?: boolean;
+  /** Lesson-locked field: disabled input plus the §6.2 tooltip. */
+  locked?: boolean;
   onCommit: (v: number) => void;
 }) {
   const [text, setText] = useState(String(value));
@@ -68,6 +71,7 @@ function NumberField({
         step={step}
         value={text}
         disabled={disabled}
+        title={locked ? LOCKED_TOOLTIP : undefined}
         onChange={(e) => {
           setText(e.target.value);
           const v = e.target.valueAsNumber;
@@ -108,6 +112,7 @@ export function Controls({
           aria-label="Simulation model"
           value={modelName}
           disabled={simDisabled || isLocked("sim.model")}
+          title={isLocked("sim.model") ? LOCKED_TOOLTIP : undefined}
           onChange={(e) => setModel(e.target.value)}
         >
           <option value="Jc69">JC69</option>
@@ -122,6 +127,7 @@ export function Controls({
           max={100}
           step={0.1}
           disabled={simDisabled || isLocked("sim.model")}
+          locked={isLocked("sim.model")}
           onCommit={(v) =>
             dispatch({
               type: "setSim",
@@ -136,6 +142,7 @@ export function Controls({
         min={10}
         max={10000}
         disabled={simDisabled || isLocked("sim.length")}
+        locked={isLocked("sim.length")}
         onCommit={(v) =>
           dispatch({ type: "setSim", patch: { length: Math.round(v) } })
         }
@@ -147,6 +154,7 @@ export function Controls({
           min={0}
           max={MAX_SEED}
           disabled={simDisabled || isLocked("sim.seed")}
+          locked={isLocked("sim.seed")}
           onCommit={(v) =>
             dispatch({ type: "setSim", patch: { seed: Math.round(v) } })
           }
@@ -154,6 +162,7 @@ export function Controls({
         <button
           type="button"
           disabled={simDisabled || isLocked("sim.seed")}
+          title={isLocked("sim.seed") ? LOCKED_TOOLTIP : undefined}
           onClick={() =>
             dispatch({ type: "setSim", patch: { seed: sim.seed + 1 } })
           }
@@ -169,6 +178,7 @@ export function Controls({
           aria-label="Distance correction"
           value={analysis.correction}
           disabled={isLocked("analysis.correction")}
+          title={isLocked("analysis.correction") ? LOCKED_TOOLTIP : undefined}
           onChange={(e) =>
             dispatch({
               type: "setAnalysis",
@@ -189,6 +199,7 @@ export function Controls({
           aria-label="Tree-building method"
           value={analysis.method}
           disabled={isLocked("analysis.method")}
+          title={isLocked("analysis.method") ? LOCKED_TOOLTIP : undefined}
           onChange={(e) =>
             dispatch({
               type: "setAnalysis",

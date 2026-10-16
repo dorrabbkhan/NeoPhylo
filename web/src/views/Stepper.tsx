@@ -3,6 +3,10 @@
 // the "step k of N" readout and the RF distance once the final step is
 // reached. Global keys: ← and → step, Space toggles play.
 //
+// `gated` (Task 21): while a lesson's predict_pair prompt is unanswered
+// every stepping input is disabled — prev/next buttons, the slider, ←/→
+// keys and play — so the student picks before the join is revealed.
+//
 // Keyboard events are ignored when focus is inside a form control (so the
 // slider's own arrow handling and Space on buttons keep their native
 // behavior) and when a component already handled the event
@@ -21,6 +25,8 @@ export interface StepperProps {
   playing: boolean;
   onStep: (to: number) => void;
   onPlayToggle: () => void;
+  /** True while an unanswered predict_pair prompt blocks stepping. */
+  gated?: boolean;
 }
 
 export function Stepper({
@@ -30,17 +36,19 @@ export function Stepper({
   playing,
   onStep,
   onPlayToggle,
+  gated = false,
 }: StepperProps) {
   // Play: advance every 800 ms and pause automatically at the last step.
+  // A prompt gate freezes playback mid-run.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || gated) return;
     if (step >= max) {
       onPlayToggle();
       return;
     }
     const id = setInterval(() => onStep(step + 1), 800);
     return () => clearInterval(id);
-  }, [playing, step, max, onStep, onPlayToggle]);
+  }, [playing, gated, step, max, onStep, onPlayToggle]);
 
   // Global keys: ←/→ step, Space toggles play.
   useEffect(() => {
@@ -56,6 +64,7 @@ export function Stepper({
       ) {
         return;
       }
+      if (gated) return;
       if (e.key === "ArrowLeft") {
         onStep(step - 1);
       } else if (e.key === "ArrowRight") {
@@ -69,7 +78,7 @@ export function Stepper({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [step, onStep, onPlayToggle]);
+  }, [step, onStep, onPlayToggle, gated]);
 
   const onSliderKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     // Arrow keys on the focused slider change it natively; stop them from
@@ -83,7 +92,7 @@ export function Stepper({
       <button
         type="button"
         aria-label="Previous step"
-        disabled={step <= 0}
+        disabled={step <= 0 || gated}
         onClick={() => onStep(step - 1)}
       >
         ◀ prev
@@ -91,6 +100,7 @@ export function Stepper({
       <button
         type="button"
         aria-label={playing ? "Pause" : "Play"}
+        disabled={gated}
         onClick={onPlayToggle}
       >
         {playing ? "⏸ pause" : "⏵ play"}
@@ -98,7 +108,7 @@ export function Stepper({
       <button
         type="button"
         aria-label="Next step"
-        disabled={step >= max}
+        disabled={step >= max || gated}
         onClick={() => onStep(step + 1)}
       >
         ▶ next
@@ -109,6 +119,7 @@ export function Stepper({
         min={0}
         max={max}
         value={step}
+        disabled={gated}
         onKeyDown={onSliderKey}
         onChange={(e) => onStep(e.target.valueAsNumber)}
       />
