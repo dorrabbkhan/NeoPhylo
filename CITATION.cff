@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "NeoPhylo: Learn how phylogenetic trees are built — step by step, in your browser"
+abstract: >-
+  A browser-based teaching tool for distance-based phylogenetics. Step through
+  Neighbor-Joining and UPGMA one join at a time, simulate sequence evolution on
+  a true tree, and compare the inferred tree to the truth — with guided lessons
+  and a sandbox for your own data.
+version: 1.0.0
+authors:
+  - family-names: "<AUTHOR SURNAME>"
+    given-names: "<AUTHOR GIVEN NAME>"
+    # orcid: "https://orcid.org/<AUTHOR ORCID>"  # uncomment and fill before release
+license: AGPL-3.0-only
+repository-code: "https://github.com/dorrabbkhan/NeoPhylo"
+url: "https://<LIVE URL>"
+# date-released: <DATE RELEASED>  # YYYY-MM-DD; uncomment and set on first release
+keywords:
+  - phylogenetics
+  - neighbor-joining
+  - UPGMA
+  - distance methods
+  - science education
+  - interactive teaching

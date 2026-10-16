@@ -678,3 +678,26 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     are `netlify`/`ntl`, not `netlify-cli`, so the bare
     `npx netlify-cli@ver deploy` form fails to resolve an executable.
 - Requires repo secrets `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`.
+
+## docs/public-readme: public-facing docs pack
+
+- README links the CI badge at `.github/workflows/ci.yml`, which now exists
+  (the AGENTS.md "no GitHub CI" note predates the ci/* branches).
+- Placeholders pending owner input: `<LIVE URL>` (Netlify production URL),
+  `<AUTHOR SURNAME>`/`<AUTHOR GIVEN NAME>`/`<AUTHOR ORCID>` and
+  `<DATE RELEASED>` in CITATION.cff, `<PROJECT OWNER NAME>`/
+  `<PROJECT OWNER EMAIL>` in CLA.md, and CLA signature fields.
+- CITATION.cff keeps `orcid` and `date-released` as commented placeholders:
+  the cff 1.2.0 schema requires a digit ORCID pattern and an ISO date, so
+  literal placeholder strings fail `cffconvert --validate`. `url` uses
+  `https://<LIVE URL>` so the file validates while the placeholder stays
+  visible.
+- `web/scripts/record-media.mjs` is new (no Files block covers it): it
+  regenerates docs/media/ via a Playwright-recorded video; GIF conversion
+  used the imageio-ffmpeg static binary since no system ffmpeg exists.
+- CLA.md is an ASF ICLA v2.2 adaptation with an added sublicensing /
+  relicensing grant (for future dual licensing); marked "DRAFT — requires
+  owner review" and is not enforceable until the owner approves and CLA
+  Assistant is configured on the repo.
+- Branch pushed and PR opened on explicit instruction, overriding the
+  default "commit but do not push" workflow.
