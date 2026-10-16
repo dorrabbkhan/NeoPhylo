@@ -12,7 +12,7 @@ import { loadLesson } from "../lessons/loader";
 import { decode } from "./url";
 import type { UrlState } from "./url";
 import type { Session } from "./session";
-import { reducer } from "./session";
+import { hasImportedData, reducer } from "./session";
 
 /** How the loaded exercise should be shared: a built-in lesson links
  * by id (`?lesson=`), anything else is embedded in `#x=`. */
@@ -97,6 +97,18 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
   if (fromUrl.src === "sandbox") {
     s = reducer(s, { type: "enterSandbox" });
   }
+  // Tree first: importTree always resets the alignment to "simulated",
+  // so importing it after an alignment would wipe the alignment back out.
+  if (fromUrl.imported?.trueTree !== undefined) {
+    const r = engine.parseNewick(fromUrl.imported.trueTree);
+    if (r.ok) s = reducer(s, { type: "importTree", tree: r.value });
+  }
+  if (fromUrl.imported?.alignment !== undefined) {
+    s = reducer(s, {
+      type: "importAlignment",
+      alignment: fromUrl.imported.alignment,
+    });
+  }
   s = reducer(s, { type: "step", to: fromUrl.step });
   s = reducer(s, { type: "setMode", mode: fromUrl.mode });
   return s;
@@ -123,5 +135,20 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
     ...(link.kind === "lesson"
       ? { lesson: s.exercise.id }
       : { x: s.exercise }),
+    // Pasted/uploaded sandbox data has no seed to replay it from, so it
+    // rides along verbatim — otherwise a shared sandbox link silently
+    // reopens the lesson's own simulated data instead (spec §6.4).
+    ...(hasImportedData(s)
+      ? {
+          imported: {
+            ...(s.alignmentOrigin === "imported" && s.alignment !== null
+              ? { alignment: s.alignment }
+              : {}),
+            ...(s.trueTreeOrigin === "imported" && s.trueTree !== null
+              ? { trueTree: engine.writeNewick(s.trueTree) }
+              : {}),
+          },
+        }
+      : {}),
   };
 }

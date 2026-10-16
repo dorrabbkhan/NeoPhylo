@@ -57,6 +57,8 @@ function randomExercise(rand: () => number): Exercise {
 }
 
 function randomState(rand: () => number): UrlState {
+  const pick = <T>(xs: readonly T[]): T =>
+    xs[Math.floor(rand() * xs.length) % xs.length];
   const s: UrlState = {
     v: 1,
     step: Math.floor(rand() * 20),
@@ -71,6 +73,21 @@ function randomState(rand: () => number): UrlState {
     if (rand() < 0.5)
       s.overrides.analysis = { correction: "K80", method: "Upgma" };
     if (rand() < 0.5) s.overrides.branchScale = 0.5 + rand();
+  }
+  if (rand() < 0.3) {
+    s.imported = {};
+    if (rand() < 0.7) {
+      const n = 3 + Math.floor(rand() * 4);
+      s.imported.alignment = {
+        labels: Array.from({ length: n }, (_, i) => `${pick(LABEL_POOL)}_${i}`),
+        seqs: Array.from({ length: n }, () =>
+          Array.from({ length: 20 }, () => Math.floor(rand() * 4)),
+        ),
+      };
+    }
+    if (rand() < 0.5) {
+      s.imported.trueTree = "((A:0.1,B:0.2):0.05,C:0.3);";
+    }
   }
   return s;
 }
@@ -101,6 +118,28 @@ describe("encode/decode round trip", () => {
       },
       step: 1,
       mode: "math",
+    };
+    const d = decode(encode(s));
+    expect(d).toEqual({ ok: true, state: s });
+  });
+
+  it("carries a sandbox-imported alignment and tree through a ?lesson= link", () => {
+    const s: UrlState = {
+      v: 1,
+      lesson: "nj-basics",
+      step: 0,
+      mode: "concept",
+      src: "sandbox",
+      imported: {
+        alignment: {
+          labels: ["O'Brien", "Ångström"],
+          seqs: [
+            [0, 1, 2, 3],
+            [0, 1, 2, 0],
+          ],
+        },
+        trueTree: "(A:0.1,B:0.2,C:0.3);",
+      },
     };
     const d = decode(encode(s));
     expect(d).toEqual({ ok: true, state: s });
@@ -137,6 +176,7 @@ describe("decode", () => {
     expect(decode("http://x/?s=abc").ok).toBe(false);
     expect(decode("http://x/?m=philosophy").ok).toBe(false);
     expect(decode("http://x/?o=@@@").ok).toBe(false);
+    expect(decode("http://x/?d=@@@").ok).toBe(false);
   });
 
   it("ignores unrelated query parameters", () => {
@@ -186,5 +226,16 @@ describe("migrate", () => {
     expect(
       migrate({ v: 1, step: 0, mode: "concept", overrides: 5 }),
     ).toBeNull();
+    expect(
+      migrate({ v: 1, step: 0, mode: "concept", imported: 5 }),
+    ).toBeNull();
+    expect(
+      migrate({ v: 1, step: 0, mode: "concept", imported: { trueTree: "x" } }),
+    ).toEqual({
+      v: 1,
+      step: 0,
+      mode: "concept",
+      imported: { trueTree: "x" },
+    });
   });
 });

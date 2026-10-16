@@ -11,6 +11,7 @@ import {
   decompressFromEncodedURIComponent,
 } from "lz-string";
 
+import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 
 export interface UrlState {
@@ -28,6 +29,13 @@ export interface UrlState {
     sim?: Partial<Exercise["sim"]>;
     analysis?: Partial<Exercise["analysis"]>;
     branchScale?: number;
+  };
+  /** Sandbox data pasted/uploaded by the student — not reproducible from
+   * `overrides`, so it is carried verbatim. `trueTree` is Newick text
+   * (not the parsed `Tree`) so it compresses like any other string. */
+  imported?: {
+    alignment?: Alignment;
+    trueTree?: string;
   };
 }
 
@@ -53,6 +61,9 @@ export function encode(s: UrlState): string {
   if (s.src === "sandbox") p.set("sb", "1");
   if (s.overrides !== undefined) {
     p.set("o", compressToEncodedURIComponent(JSON.stringify(s.overrides)));
+  }
+  if (s.imported !== undefined) {
+    p.set("d", compressToEncodedURIComponent(JSON.stringify(s.imported)));
   }
   return "?" + p.toString();
 }
@@ -138,6 +149,24 @@ export function decode(href: string): DecodeResult {
     state.overrides = raw as UrlState["overrides"];
   }
 
+  const dParam = params.get("d");
+  if (dParam !== null) {
+    const json = decompressFromEncodedURIComponent(dParam);
+    if (json === null || json === "") {
+      return { ok: false, reason: "the imported data could not be decompressed" };
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      return { ok: false, reason: "the imported data is not valid JSON" };
+    }
+    if (!isRecord(raw)) {
+      return { ok: false, reason: "the imported data is not an object" };
+    }
+    state.imported = raw as UrlState["imported"];
+  }
+
   return { ok: true, state };
 }
 
@@ -172,6 +201,7 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.x !== undefined && !isRecord(raw.x)) return null;
   if (raw.src !== undefined && raw.src !== "sandbox") return null;
   if (raw.overrides !== undefined && !isRecord(raw.overrides)) return null;
+  if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
 
   const state: UrlState = { v: 1, step: raw.step, mode: raw.mode };
   if (raw.lesson !== undefined) state.lesson = raw.lesson;
@@ -179,6 +209,9 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.src !== undefined) state.src = raw.src;
   if (raw.overrides !== undefined) {
     state.overrides = raw.overrides as UrlState["overrides"];
+  }
+  if (raw.imported !== undefined) {
+    state.imported = raw.imported as UrlState["imported"];
   }
   return state;
 }

@@ -2,7 +2,13 @@
 // URL on load and syncs it with history.replaceState on every state
 // change. A broken link toasts and falls back to the default lesson.
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Exercise } from "../engine/generated/Exercise";
@@ -76,5 +82,46 @@ describe("URL state", () => {
     expect(d.state.x?.id).toBe("nj-basics");
     expect(d.state.step).toBe(0);
     expect(d.state.mode).toBe("concept");
+  });
+
+  it("round-trips a sandbox-imported alignment through a shared link", async () => {
+    const fasta = [
+      ">T1\nACGT",
+      ">T2\nACGT",
+      ">T3\nACGA",
+      ">T4\nACGT",
+      ">T5\nACGG",
+      ">T6\nACGT",
+    ].join("\n");
+
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    fireEvent.change(screen.getByLabelText("Paste sequences or a tree"), {
+      target: { value: fasta },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    await screen.findByText("No true tree — import a Newick tree to compare");
+    await waitFor(() => expect(window.location.hash).toContain("#x="));
+    const sharedUrl = window.location.href;
+
+    // A fresh "student" opens the shared link with no prior state.
+    cleanup();
+    history.replaceState(null, "", sharedUrl);
+    render(<App />);
+
+    expect(
+      await screen.findByText(
+        "No true tree — import a Newick tree to compare",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("radio", { name: "Sandbox" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    // The imported alignment's own taxa are on screen, not the lesson's.
+    expect(screen.getAllByText("T1").length).toBeGreaterThan(0);
+    expect(screen.queryByText("A")).toBeNull();
   });
 });
