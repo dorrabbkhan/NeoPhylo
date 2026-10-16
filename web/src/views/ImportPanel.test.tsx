@@ -87,16 +87,14 @@ describe("ImportPanel — visibility", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("App enters sandbox through the import button, unlocking controls", async () => {
+  it("App enters sandbox through the mode switch, unlocking controls", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     // The lesson locks this select; sandbox unlocks it (spec §6.2).
     expect(
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,
     ).toBe(true);
-    fireEvent.click(
-      screen.getByRole("button", { name: /import your own data/i }),
-    );
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
     expect(screen.getByLabelText("Paste sequences or a tree")).toBeTruthy();
     expect(
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,

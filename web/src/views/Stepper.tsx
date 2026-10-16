@@ -22,6 +22,8 @@ export interface StepperProps {
   max: number;
   /** "x / max" RF readout, shown only when step === max; null hides it. */
   rfText: string | null;
+  /** No tree to compare against: show "RF: — (no true tree)" at the end. */
+  noTrueTree?: boolean;
   playing: boolean;
   onStep: (to: number) => void;
   onPlayToggle: () => void;
@@ -33,6 +35,7 @@ export function Stepper({
   step,
   max,
   rfText,
+  noTrueTree = false,
   playing,
   onStep,
   onPlayToggle,
@@ -128,6 +131,9 @@ export function Stepper({
       </span>
       {step === max && rfText !== null && (
         <span className="stepper-rf">RF = {rfText}</span>
+      )}
+      {step === max && noTrueTree && (
+        <span className="stepper-rf">RF: — (no true tree)</span>
       )}
     </div>
   );
