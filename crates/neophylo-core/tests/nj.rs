@@ -97,6 +97,50 @@ fn wikipedia5_steps() {
     assert!(!res.tree.rooted);
 }
 
+/// `la`, `lb`, `lc` recompute from `final_join.distance` (rows ordered
+/// `a`, `b`, `c`) with the spec §4.5 step 5 formulas.
+fn check_final_matrix(f: &NjFinal) {
+    let m = &f.distance;
+    assert_eq!(m.n, 3);
+    assert_eq!(m.data.len(), 9);
+    let dab = m.get(0, 1);
+    let dac = m.get(0, 2);
+    let dbc = m.get(1, 2);
+    for i in 0..3 {
+        assert_eq!(m.get(i, i), 0.0);
+        for j in 0..3 {
+            assert_eq!(m.get(i, j), m.get(j, i));
+        }
+    }
+    assert_close(f.la, (dab + dac - dbc) / 2.0);
+    assert_close(f.lb, (dab + dbc - dac) / 2.0);
+    assert_close(f.lc, (dac + dbc - dab) / 2.0);
+}
+
+#[test]
+fn final_matrix_consistent() {
+    // Wikipedia 5-taxon: the last three actives are d, e, u2 with
+    // d(d,e)=3, d(d,u2)=4, d(e,u2)=3 (worked example, hand-verified).
+    let json = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/worked/nj_wikipedia5.json"
+    ));
+    let worked: WorkedNj = serde_json::from_str(json).unwrap();
+    let input = DistanceMatrix::from_values(worked.labels, &worked.matrix);
+    let res = build_tree(&input, Method::Nj, BuildOptions { trace: true }).unwrap();
+    let Some(Trace::Nj { final_join, .. }) = res.trace else {
+        panic!("trace missing")
+    };
+    assert_matrix_close(
+        &final_join.distance,
+        &Matrix {
+            n: 3,
+            data: vec![0.0, 3.0, 4.0, 3.0, 0.0, 3.0, 4.0, 3.0, 0.0],
+        },
+    );
+    check_final_matrix(&final_join);
+}
+
 #[test]
 fn tie_rule() {
     // Every off-diagonal distance is 1, so every pair has the same Q and
@@ -385,8 +429,19 @@ fn arb_additive() -> impl Strategy<Value = (Tree, DistanceMatrix)> {
 proptest! {
     #[test]
     fn additive_recovery((truth, m) in arb_additive()) {
-        let res = build_tree(&m, Method::Nj, BuildOptions { trace: false }).unwrap();
+        let res = build_tree(&m, Method::Nj, BuildOptions { trace: true }).unwrap();
         prop_assert!(!res.tree.rooted);
+        let Some(Trace::Nj { final_join, .. }) = &res.trace else {
+            panic!("trace missing")
+        };
+        // Spec §4.5 step 5 formulas recompute the limb lengths from the
+        // stored 3x3 matrix (rows ordered a, b, c).
+        let fm = &final_join.distance;
+        prop_assert_eq!(fm.n, 3);
+        let (dab, dac, dbc) = (fm.get(0, 1), fm.get(0, 2), fm.get(1, 2));
+        prop_assert!((final_join.la - (dab + dac - dbc) / 2.0).abs() <= TOL);
+        prop_assert!((final_join.lb - (dab + dbc - dac) / 2.0).abs() <= TOL);
+        prop_assert!((final_join.lc - (dac + dbc - dab) / 2.0).abs() <= TOL);
         let want = edge_splits(&truth);
         let got = edge_splits(&res.tree);
         prop_assert_eq!(

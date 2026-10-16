@@ -291,6 +291,11 @@ button:disabled {
   overflow-x: auto;
 }
 
+.math-note {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 /* ---- SVG details ---- */
 
 .zero-len {

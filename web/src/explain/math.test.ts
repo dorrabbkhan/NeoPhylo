@@ -1,7 +1,8 @@
 /// <reference types="node" />
 // mathTex tests (plan Task 18, spec §6.2): the Math layer is KaTeX source
-// built from the trace's own numbers, each formatted with toFixed(4) and
-// trailing zeros trimmed. The Wikipedia 5-taxon NJ worked example is the
+// built from the trace's own numbers, each formatted with toFixed(3) and
+// trailing zeros trimmed (same precision as the heatmap cells). The
+// Wikipedia 5-taxon NJ worked example is the
 // oracle for the headline values (spec §4.5); a property test over the 5
 // ref fixtures — each driven through the real engine — checks that every
 // printed number is in that canonical form.
@@ -72,11 +73,17 @@ describe("mathTex (Wikipedia 5-taxon NJ)", () => {
     expect(text).toContain("= 3");
   });
 
-  it("adds a fixed line on a tie step", () => {
-    // Worked-example step 2 has tie: true.
-    expect(mathTex(wikiTrace, 1, wikiNames)).toContain(
-      "Tie: chosen by input order.",
-    );
+  it("shows both equal Q values on a four-node tie step", () => {
+    // Worked-example step 2 has tie: true with exactly 4 active nodes
+    // (c, d, e, u1): complementary pairs always share the minimum Q.
+    const lines = mathTex(wikiTrace, 1, wikiNames);
+    const tie = lines.find((l) => l.includes("always equal at four nodes"));
+    expect(tie).toBeDefined();
+    // Chosen (0,3) = (c,u1); the complement (1,2) = (d,e); both Q = -28.
+    expect(tie).toContain("Q(");
+    expect(tie).toContain("= -28");
+    // The generic notice is for ties with more than four active nodes.
+    expect(lines).not.toContain("Tie: chosen by input order.");
   });
 
   it("shows the three-way join formulas at the final position", () => {
@@ -103,7 +110,7 @@ describe("mathTex (Wikipedia 5-taxon NJ)", () => {
 const REFS = ["jc6", "jc7_long", "jc8_gaps", "jc12", "k80_10"];
 
 /** The task's formatting rule, stated independently of the implementation. */
-const canon = (v: number) => v.toFixed(4).replace(/\.?0+$/, "");
+const canon = (v: number) => v.toFixed(3).replace(/\.?0+$/, "");
 const NUM = /-?\d+(?:\.\d+)?/g;
 // Labels render inside \text{...}; their digits are names, not values.
 const TEXT_SPAN = /\\text\{[^}]*\}/g;
@@ -128,7 +135,7 @@ function tracesFor(ref: string): { trace: Trace; labels: string[] }[] {
 }
 
 describe("mathTex number formatting (5 ref fixtures)", () => {
-  it("prints every number as toFixed(4) with trailing zeros trimmed", () => {
+  it("prints every number as toFixed(3) with trailing zeros trimmed", () => {
     let stepsChecked = 0;
     for (const ref of REFS) {
       const traces = tracesFor(ref);
@@ -145,5 +152,25 @@ describe("mathTex number formatting (5 ref fixtures)", () => {
       }
     }
     expect(stepsChecked).toBeGreaterThan(0);
+  });
+});
+
+describe("mathTex tie notice", () => {
+  it("keeps the generic line for ties with more than four actives", () => {
+    // Hand-built 6-taxon matrix: all off-diagonal distances are 1, so
+    // every pair ties on step 1 (6 active nodes > 4).
+    const six = build(
+      ["t1", "t2", "t3", "t4", "t5", "t6"],
+      Array.from({ length: 36 }, (_, i) =>
+        Math.floor(i / 6) === i % 6 ? 0 : 1,
+      ),
+      "Nj",
+    );
+    const labels = names(six.tree);
+    const lines = mathTex(six.trace, 0, labels);
+    expect(lines).toContain("Tie: chosen by input order.");
+    expect(lines.some((l) => l.includes("always equal at four nodes"))).toBe(
+      false,
+    );
   });
 });

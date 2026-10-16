@@ -118,10 +118,9 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
 ## Task 17 checkpoint-6 fixes
 
 - Distance heatmap now shows the displayed step's active-cluster matrix
-  (steps[k].distance, or the last stored step past the end) labeled by
-  nodeName — previously it always showed the full leaf matrix. Chosen cells
-  are active-indexed in both views; NJ's final three-way join (no stored
-  matrix) shows the last stored step's matrix with no cell marked.
+  (steps[k].distance) labeled by nodeName — previously it always showed
+  the full leaf matrix. Chosen cells are active-indexed in both views;
+  NJ final join stores its 3×3 matrix in the trace (engine change).
 - New file src/views/stepMatrix.ts holds that selection (traceLength/stepsOf
   moved there too) so App.tsx stays near the 400-line guideline and the
   sync is unit-testable; no distances are ever computed in TypeScript.
@@ -137,8 +136,8 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
 - `mathTex`/`conceptText` take the zero-based stepper position (position k
   discusses join steps[k], matching stepMatrix.ts). NJ's extra final
   position renders `final_join`'s three l_x formulas; the distances
-  between the last three clusters are recovered by index lookup from the
-  last stored step's `distance`/`new_row` — no recomputation.
+  between the last three clusters are read from `final_join.distance`
+  (the stored 3×3 matrix, rows ordered a, b, c) — no recomputation.
 - The task only spelled out NJ's math lines; UPGMA's are by analogy:
   smallest d(i,j), h = d(i,j)/2, both branch lengths, one size-weighted
   d(u,k) example. UPGMA has no extra final position (its last join is a
@@ -152,3 +151,22 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   makes Vite glob the repo root and fail with "Denied ID AGENTS.md?url".
 - The empty-traces case (>50 taxa, no trace requested) shows a one-line
   note in the panel rather than hiding it.
+- Follow-up for Task 25: lazy-load KaTeX on first switch to Math mode (main bundle 512 kB).
+
+## Checkpoint-6 fixes (post-Task 18)
+
+- `NjFinal` gains `distance: Matrix` — the 3×3 matrix of the final
+  three-way join, rows ordered a, b, c (spec §4.5 step 5 records the
+  final step in the trace; the struct sketch there predates this field).
+  `#[serde(default)]` keeps fixtures/worked JSON deserializable; `Matrix`
+  derives `Default` for that. The heatmap's final position and the Math
+  layer's l_x lines now read it instead of reconstructing distances from
+  the last stored step.
+- Math layer precision reduced from `toFixed(4)` to `toFixed(3)` to match
+  the heatmap cells; a "Values shown rounded; calculations use full
+  precision." note sits under the Math panel.
+- Ties with exactly four active nodes get dedicated wording (concept:
+  "these two pairs always tie, and either choice gives the same tree";
+  math: both equal Q values with "(always equal at four nodes)") — at
+  four actives complementary pairs are algebraically guaranteed equal Q.
+  Ties with more actives keep "Tie: chosen by input order."
