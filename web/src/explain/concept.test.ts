@@ -68,11 +68,15 @@ describe("conceptText (Wikipedia 5-taxon NJ)", () => {
     );
   });
 
-  it("announces a tie at step 1", () => {
-    // Worked-example step 2 has tie: true (spec §6.3: ties are announced).
-    expect(conceptText(njTrace, 1, njNames)).toContain(
-      "Tie: chosen by input order.",
+  it("explains the always-equal tie at step 1", () => {
+    // Worked-example step 2 has tie: true with 4 active nodes (c, d, e,
+    // u1): complementary pairs always tie there (spec §6.3).
+    const t = conceptText(njTrace, 1, njNames);
+    expect(t).toContain(
+      "With four nodes left, these two pairs always tie, and either " +
+        "choice gives the same tree; we take the first by input order.",
     );
+    expect(t).not.toContain("Tie: chosen by input order.");
   });
 
   it("describes the final three-way join at the last position", () => {
@@ -80,6 +84,23 @@ describe("conceptText (Wikipedia 5-taxon NJ)", () => {
     // The last three clusters are d, e and u2 (nodeName of NodeId 6).
     for (const n of ["d", "e", "u2"]) expect(t).toContain(n);
     expect(t).toContain("central");
+  });
+});
+
+describe("conceptText tie notice", () => {
+  it("keeps the generic line for ties with more than four actives", () => {
+    // Hand-built 6-taxon matrix: all off-diagonal distances are 1, so
+    // every pair ties on step 1 (6 active nodes > 4).
+    const six = build(
+      ["t1", "t2", "t3", "t4", "t5", "t6"],
+      Array.from({ length: 36 }, (_, i) =>
+        Math.floor(i / 6) === i % 6 ? 0 : 1,
+      ),
+      "Nj",
+    );
+    const t = conceptText(six.trace, 0, names(six.tree));
+    expect(t).toContain("Tie: chosen by input order.");
+    expect(t).not.toContain("always tie");
   });
 });
 

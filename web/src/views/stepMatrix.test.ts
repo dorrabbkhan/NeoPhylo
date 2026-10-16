@@ -1,9 +1,10 @@
 /// <reference types="node" />
 // stepMatrix tests (spec §6.2): the heatmap must show the distance matrix
 // of the join highlighted at step k — trace.steps[k].distance — labelled
-// by the active clusters' nodeName. The oracle is the Wikipedia 5-taxon
-// NJ worked example (fixtures/worked/nj_wikipedia5.json), driven through
-// the real engine; no distances are recomputed in the test.
+// by the active clusters' nodeName; NJ's final position shows the stored
+// final_join.distance. The oracle is the Wikipedia 5-taxon NJ worked
+// example (fixtures/worked/nj_wikipedia5.json), driven through the real
+// engine; no distances are recomputed in the test.
 //
 // Like test/setup.ts, the fixture is read from cwd (vitest runs in web/)
 // because import.meta.url is an http URL under jsdom.
@@ -22,7 +23,10 @@ import { stepMatrix } from "./stepMatrix";
 interface Worked {
   labels: string[];
   matrix: { n: number; data: number[] };
-  steps: { distance: { n: number; data: number[] }; chosen: [number, number] }[];
+  steps: {
+    distance: { n: number; data: number[] };
+    chosen: [number, number];
+  }[];
 }
 
 const fixtureUrl = new URL(
@@ -71,18 +75,28 @@ describe("stepMatrix (Wikipedia 5-taxon NJ)", () => {
     expect(sm.chosen).toEqual(wiki.steps[1].chosen);
   });
 
-  it("keeps the last stored matrix at the final three-way join", () => {
-    const sm = view(3); // steps.length + 1 = final NJ position
-    expect(sm.labels).toEqual(["c", "d", "e", "u1"]);
-    expect(sm.values).toEqual(wiki.steps[1].distance.data);
+  it("shows the final join's own 3×3 matrix at the last step", () => {
+    // steps.length = 2, so position 2 is the final three-way join; its
+    // rows are the last three actives d, e, u2 (nodeName headers).
+    const sm = view(2);
+    expect(sm.view).toBe("distance");
+    expect(sm.labels).toEqual(["d", "e", "u2"]);
+    expect(sm.labels).toHaveLength(3);
+    expect(sm.values).toHaveLength(9);
+    expect(sm.values).toEqual([0, 3, 4, 3, 0, 3, 4, 3, 0]);
     // The final join has no single pair, so no cell is marked.
     expect(sm.chosen).toBeNull();
+    // Positions past the end keep showing the final join.
+    expect(view(3).values).toEqual(sm.values);
   });
 
   it("switches to the step's Q matrix in Q view", () => {
     const sm = view(0, "q");
     expect(sm.view).toBe("q");
-    expect(sm.values).toEqual((trace as { Nj: { steps: { q: { data: number[] } }[] } }).Nj.steps[0].q.data);
+    expect(sm.values).toEqual(
+      (trace as { Nj: { steps: { q: { data: number[] } }[] } }).Nj.steps[0].q
+        .data,
+    );
   });
 
   it("falls back to the full leaf matrix when there is no trace", () => {

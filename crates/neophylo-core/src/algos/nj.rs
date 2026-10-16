@@ -52,6 +52,11 @@ pub struct NjFinal {
     pub a: NodeId,
     pub b: NodeId,
     pub c: NodeId,
+    /// The 3x3 distance matrix used by the final three-way join, with
+    /// rows ordered `a`, `b`, `c`. Empty only when deserializing a trace
+    /// recorded before this field existed.
+    #[serde(default)]
+    pub distance: Matrix,
     /// `(d_ab + d_ac - d_bc) / 2`
     pub la: f64,
     /// `(d_ab + d_bc - d_ac) / 2`
@@ -179,6 +184,7 @@ pub(crate) fn run(
         a,
         b,
         c,
+        distance: Matrix { n: 3, data: d },
         la,
         lb,
         lc,

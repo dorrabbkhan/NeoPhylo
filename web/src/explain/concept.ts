@@ -15,6 +15,13 @@ function at(labels: string[], id: number): string {
 
 const TIE_LINE = "Tie: chosen by input order.";
 
+/** With four actives, complementary pairs always share the minimum Q and
+ * either join gives the same unrooted tree — say so instead of the
+ * generic tie notice. */
+const FOUR_NODE_TIE =
+  "With four nodes left, these two pairs always tie, and either choice " +
+  "gives the same tree; we take the first by input order.";
+
 /**
  * The plain-language explanation of the join shown at position `step`.
  *
@@ -45,7 +52,10 @@ export function conceptText(
     const text =
       `${a} and ${b} are joined next: after accounting for how far each ` +
       "is from everything else, they are the closest pair.";
-    return s.tie ? `${text}\n${TIE_LINE}` : text;
+    if (!s.tie) return text;
+    return s.active.length === 4
+      ? `${text}\n${FOUR_NODE_TIE}`
+      : `${text}\n${TIE_LINE}`;
   }
   const steps = trace.Upgma.steps;
   if (steps.length === 0) return "";
