@@ -32,6 +32,7 @@ import { ExplanationPanel } from "./ExplanationPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { Stepper } from "./Stepper";
 import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
+import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
 
@@ -98,6 +99,20 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [session, setSession] = useState<Session | null>(null);
   const [playing, setPlaying] = useState(false);
   const [hoverLeaf, setHoverLeaf] = useState<string | null>(null);
+
+  // Height of the side-by-side tree row, measured once for both panels
+  // so they share one leafSpacing and their rows line up (§6.1). The
+  // callback ref attaches the observer when .trees mounts — a mount-time
+  // effect would run while the loading placeholder is rendered instead.
+  const [treesHeight, setTreesHeight] = useState(0);
+  const treesRef = useCallback((el: HTMLDivElement | null) => {
+    if (el === null || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      setTreesHeight(entries[0].contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const dispatch = useCallback(
     (a: Action) => setSession((s) => (s === null ? s : reducer(s, a))),
@@ -185,6 +200,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const k = session.step;
   const isNj = trace !== null && "Nj" in trace;
   const nLeaf = inferred ? leafCount(inferred) : 0;
+
+  // Shared leaf spacing for both trees: the row height minus the
+  // caption, divided by the leaf count, clamped to 18–48 px.
+  const sharedSpacing = leafSpacingFor(
+    treesHeight - TREE_CAPTION_H,
+    Math.max(nLeaf, trueTree !== null ? leafCount(trueTree) : 0),
+  );
 
   // The heatmap content at step k: the displayed step's active-cluster
   // matrix (distance or Q), or the full leaf matrix without a trace.
@@ -326,7 +348,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
               {errorText(session.error)}
             </p>
           )}
-          <div className="trees">
+          <div className="trees" ref={treesRef}>
             {trueTree !== null && (
               <TreeView
                 title="True tree"
@@ -335,6 +357,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 highlight={trueHi}
                 wrong={NO_HIGHLIGHT}
                 clampNegative={session.clampNegative}
+                leafSpacing={sharedSpacing}
                 onHoverLeaf={onHoverLeaf}
               />
             )}
@@ -347,6 +370,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 wrong={wrong}
                 clampNegative={session.clampNegative}
                 visibleNodes={visibleNodes}
+                leafSpacing={sharedSpacing}
                 onHoverLeaf={onHoverLeaf}
               />
             )}

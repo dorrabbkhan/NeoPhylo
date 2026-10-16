@@ -10,8 +10,15 @@
 // - Leaf labels are SVG <text> children, so React escapes them and markup in
 //   a taxon name can never be parsed as HTML (Review Focus 2).
 
+import { useEffect, useRef, useState } from "react";
+
 import type { Tree } from "../engine/generated/Tree";
 import { layout, type LaidOutNode } from "../layout/phylogram";
+import {
+  leafFontSize,
+  leafSpacingFor,
+  labelRoomFor,
+} from "../layout/treePanel";
 import { nodeName } from "../state/names";
 
 export interface TreeViewProps {
@@ -21,20 +28,45 @@ export interface TreeViewProps {
   wrong: Set<number>;
   clampNegative: boolean;
   visibleNodes?: Set<number>;
+  /** Vertical distance between leaves in px. Both trees in a view share
+   * one value (passed by App) so their rows line up; when omitted, it is
+   * derived from the measured panel height. */
+  leafSpacing?: number;
   onHoverLeaf?: (label: string | null) => void;
   title: "True tree" | "Inferred tree";
 }
 
-// Fixed drawing geometry; the svg scales to its container via viewBox.
-// Leaf labels are at least 14px (Review Focus: readable in both themes).
-const LAYOUT_WIDTH = 400;
-const LEAF_SPACING = 24;
+// Drawing geometry. The panel is measured with a ResizeObserver; the
+// spacing/font/label-room math lives in src/layout/treePanel.ts.
 const PAD = 8;
 const LABEL_OFFSET = 4;
-const LABEL_SPACE = 140; // room for leaf labels to the right of the tree
-const FONT_SIZE = 14;
 const NODE_RADIUS = 3;
 const WRONG_PAD = 6;
+/** Fallback panel width before the first ResizeObserver callback (also
+ * used under jsdom, where the observer is a no-op stub). */
+const DEFAULT_PANEL_WIDTH = 560;
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+/** Measures the drawing box via ResizeObserver; {0,0} until it fires. */
+function usePanelSize(): [React.RefObject<HTMLDivElement | null>, Size] {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      setSize({ width: r.width, height: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, size];
+}
 
 interface Box {
   minX: number;
@@ -50,19 +82,35 @@ export function TreeView({
   wrong,
   clampNegative,
   visibleNodes,
+  leafSpacing,
   onHoverLeaf,
   title,
 }: TreeViewProps) {
+  const [boxRef, box] = usePanelSize();
+
+  const leaves = tree.nodes.reduce(
+    (n, node) => n + (node.children.length === 0 ? 1 : 0),
+    0,
+  );
+  const spacing = leafSpacing ?? leafSpacingFor(box.height, leaves);
+  const fontSize = leafFontSize(spacing);
+  const labelRoom = labelRoomFor(
+    tree.nodes.map((n) => n.label),
+    fontSize,
+  );
+  const panelWidth = box.width > 0 ? box.width : DEFAULT_PANEL_WIDTH;
+  const drawWidth = Math.max(80, panelWidth - labelRoom - PAD * 2);
+
   const laid = layout(tree, {
     kind: layoutKind,
     clampNegative,
-    leafSpacing: LEAF_SPACING,
-    width: LAYOUT_WIDTH,
+    leafSpacing: spacing,
+    width: drawWidth,
     visibleNodes,
   });
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
-  const width = laid.width + LABEL_SPACE + PAD * 2;
+  const width = laid.width + labelRoom + PAD * 2;
   const height = laid.height + PAD * 2;
   const tx = (x: number) => PAD + x;
   const ty = (y: number) => PAD + y;
@@ -99,119 +147,123 @@ export function TreeView({
   return (
     <figure className="tree-panel">
       <figcaption>{title}</figcaption>
-      <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
-        {laid.nodes.map((n) => {
-          const children = tree.nodes[n.id].children.filter((c) => byId.has(c));
-          const parent = tree.nodes[n.id].parent;
-          const hasVisibleParent = parent !== null && byId.has(parent);
-          const isHighlighted = highlight.has(n.id);
-          const strokeWidth = isHighlighted ? 3 : 1.5;
-          return (
-            <g
-              key={n.id}
-              data-node={n.id}
-              data-highlight={isHighlighted ? "true" : undefined}
-            >
-              {hasVisibleParent && (
-                <line
-                  className={branchClass(n)}
-                  x1={tx(n.parentX)}
-                  y1={ty(n.y)}
-                  x2={tx(n.x)}
-                  y2={ty(n.y)}
-                  stroke="currentColor"
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={n.negative ? "4 3" : undefined}
-                />
-              )}
-              {children.length > 0 && (
-                <line
-                  className="connector"
-                  x1={tx(n.x)}
-                  y1={ty(byId.get(children[0])!.y)}
-                  x2={tx(n.x)}
-                  y2={ty(byId.get(children[children.length - 1])!.y)}
-                  stroke="currentColor"
-                  strokeWidth={strokeWidth}
-                />
-              )}
-              <circle
-                cx={tx(n.x)}
-                cy={ty(n.y)}
-                r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
-                fill="currentColor"
-              />
-              {hasVisibleParent && tree.branches[n.id].length === 0 && (
-                <text
-                  className="zero-len"
-                  x={(tx(n.parentX) + tx(n.x)) / 2}
-                  y={ty(n.y) - 4}
-                  fontSize={FONT_SIZE - 3}
-                  textAnchor="middle"
-                >
-                  0
-                </text>
-              )}
-              {n.leaf ? (
-                <text
-                  x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
-                  y={ty(n.y)}
-                  fontSize={FONT_SIZE}
+      <div className="tree-canvas" ref={boxRef}>
+        <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
+          {laid.nodes.map((n) => {
+            const children = tree.nodes[n.id].children.filter((c) =>
+              byId.has(c),
+            );
+            const parent = tree.nodes[n.id].parent;
+            const hasVisibleParent = parent !== null && byId.has(parent);
+            const isHighlighted = highlight.has(n.id);
+            const strokeWidth = isHighlighted ? 3 : 1.5;
+            return (
+              <g
+                key={n.id}
+                data-node={n.id}
+                data-highlight={isHighlighted ? "true" : undefined}
+              >
+                {hasVisibleParent && (
+                  <line
+                    className={branchClass(n)}
+                    x1={tx(n.parentX)}
+                    y1={ty(n.y)}
+                    x2={tx(n.x)}
+                    y2={ty(n.y)}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={n.negative ? "4 3" : undefined}
+                  />
+                )}
+                {children.length > 0 && (
+                  <line
+                    className="connector"
+                    x1={tx(n.x)}
+                    y1={ty(byId.get(children[0])!.y)}
+                    x2={tx(n.x)}
+                    y2={ty(byId.get(children[children.length - 1])!.y)}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                  />
+                )}
+                <circle
+                  cx={tx(n.x)}
+                  cy={ty(n.y)}
+                  r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
                   fill="currentColor"
-                  dominantBaseline="middle"
-                  onMouseEnter={() => onHoverLeaf?.(n.label)}
-                  onMouseLeave={() => onHoverLeaf?.(null)}
-                >
-                  {n.label}
-                </text>
-              ) : (
-                isHighlighted && (
+                />
+                {hasVisibleParent && tree.branches[n.id].length === 0 && (
+                  <text
+                    className="zero-len"
+                    x={(tx(n.parentX) + tx(n.x)) / 2}
+                    y={ty(n.y) - 4}
+                    fontSize={fontSize - 3}
+                    textAnchor="middle"
+                  >
+                    0
+                  </text>
+                )}
+                {n.leaf ? (
                   <text
                     x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
                     y={ty(n.y)}
-                    fontSize={FONT_SIZE}
+                    fontSize={fontSize}
                     fill="currentColor"
                     dominantBaseline="middle"
+                    onMouseEnter={() => onHoverLeaf?.(n.label)}
+                    onMouseLeave={() => onHoverLeaf?.(null)}
                   >
-                    {nodeName(tree, n.id)}
+                    {n.label}
                   </text>
-                )
-              )}
-            </g>
-          );
-        })}
-        {[...wrong].map((id) => {
-          const box = cladeBox(id);
-          if (!box) return null;
-          const x = tx(box.minX) - WRONG_PAD;
-          const y = ty(box.minY) - WRONG_PAD;
-          const w = box.maxX - box.minX + WRONG_PAD * 2;
-          const h = box.maxY - box.minY + WRONG_PAD * 2;
-          return (
-            <g key={`wrong-${id}`} className="wrong">
-              <rect
-                x={x}
-                y={y}
-                width={w}
-                height={h}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeDasharray="1 3"
-                strokeLinecap="round"
-              />
-              <text
-                x={x + 2}
-                y={y + FONT_SIZE - 2}
-                fontSize={FONT_SIZE}
-                fill="currentColor"
-              >
-                ✕
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+                ) : (
+                  isHighlighted && (
+                    <text
+                      x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
+                      y={ty(n.y)}
+                      fontSize={fontSize}
+                      fill="currentColor"
+                      dominantBaseline="middle"
+                    >
+                      {nodeName(tree, n.id)}
+                    </text>
+                  )
+                )}
+              </g>
+            );
+          })}
+          {[...wrong].map((id) => {
+            const box = cladeBox(id);
+            if (!box) return null;
+            const x = tx(box.minX) - WRONG_PAD;
+            const y = ty(box.minY) - WRONG_PAD;
+            const w = box.maxX - box.minX + WRONG_PAD * 2;
+            const h = box.maxY - box.minY + WRONG_PAD * 2;
+            return (
+              <g key={`wrong-${id}`} className="wrong">
+                <rect
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={h}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeDasharray="1 3"
+                  strokeLinecap="round"
+                />
+                <text
+                  x={x + 2}
+                  y={y + fontSize - 2}
+                  fontSize={fontSize}
+                  fill="currentColor"
+                >
+                  ✕
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </figure>
   );
 }
