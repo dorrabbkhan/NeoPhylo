@@ -111,31 +111,41 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
             keep going:
           </p>
           <SaturationChart points={points} />
+          {session.alignmentOrigin === "imported" && (
+            <p>Your own data can't be re-simulated.</p>
+          )}
           <div className="notice-fixes">
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({
-                  type: "setSim",
-                  patch: {
-                    length: Math.min(SIM_MAX, session.exercise.sim.length * 2),
-                  },
-                })
-              }
-            >
-              Use longer sequences (×2)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({
-                  type: "setBranchScale",
-                  scale: session.branchScale * 0.5,
-                })
-              }
-            >
-              Use shorter branches (÷2)
-            </button>
+            {session.alignmentOrigin === "simulated" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    dispatch({
+                      type: "setSim",
+                      patch: {
+                        length: Math.min(
+                          SIM_MAX,
+                          session.exercise.sim.length * 2,
+                        ),
+                      },
+                    })
+                  }
+                >
+                  Use longer sequences (×2)
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    dispatch({
+                      type: "setBranchScale",
+                      scale: session.branchScale * 0.5,
+                    })
+                  }
+                >
+                  Use shorter branches (÷2)
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() =>
