@@ -18,6 +18,7 @@ web/dist/
 .DS_Store
 .vscode/
 .idea/
+.claude/
 
 # Fuzzing
 crates/neophylo-core/fuzz/target/
