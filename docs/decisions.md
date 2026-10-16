@@ -584,3 +584,41 @@ All three are plan gaps found at checkpoint 7.
   `apt-get download libavif16 libmanette-0.2-0 libyuv0 libgav1-2
 libhidapi-hidraw0`, `dpkg -x`, copy `*.so*` into both
   `~/.cache/ms-playwright/webkit-2370/minibrowser-{gtk,wpe}/sys/lib`.
+
+## CI: .github/workflows/ci.yml
+
+- The workflow delegates to `scripts/ci/*.sh`; YAML only installs the
+  toolchain each script assumes (rustup via `rust-toolchain.toml`,
+  wasm-pack, node via `.nvmrc`, R + rspm, phylip, Playwright browsers).
+- `.nvmrc` added (`24`) — the task required a `.nvmrc` for
+  `actions/setup-node`; `deploy.yml` already used Node 24 and local dev is
+  on v24.22.0.
+- `scripts/ci/e2e.sh` now passes `"$@"` through to `npx playwright test`
+  so each matrix leg selects one project and adds the `html` reporter
+  (config keeps `list`; CI passes `--reporter=list,html`). Unchanged
+  behavior when called bare locally.
+- Third-party actions are pinned to commit SHAs with a `# vX.Y.Z` comment
+  (checkout v7.0.1, setup-node v7.1.0, upload-artifact v7.0.2,
+  download-artifact v8.0.2, cache v6.1.0, Swatinem/rust-cache v2.9.2,
+  r-lib/actions v2.14.0). SHAs resolved via `git ls-remote` tag peels.
+- wasm-pack is installed as the pinned prebuilt musl tarball from
+  `wasm-bindgen/wasm-pack` v0.15.0 (sha256-verified) into `~/.cargo/bin`,
+  cached by `actions/cache` — the repo moved from `drager` to
+  `wasm-bindgen`, which broke the old `npm i -g wasm-pack` path used in
+  `deploy.yml` (see wasm-pack release notes; the npm path was never
+  republished for 0.14+).
+- The `r-and-fixtures` job regenerates fixtures through
+  `FIXTURES=1 scripts/ci/fixture-guard.sh` (which runs
+  `generate.R` + `generate_phylip.sh`, `git diff --exit-code
+fixtures/ref`, and an untracked-file check). If regeneration differs on
+  CI the job fails and reports the diff — fixtures are never updated
+  automatically; the owner judges version/locale drift.
+- `r-and-fixtures` needs Node + the `wasm-pkg` artifact because
+  `web/scripts/r-parity.mjs` imports `src/engine/pkg` and uses Node 24's
+  type stripping on `src/export/rscript.ts`.
+- The Playwright browser cache key embeds the installed
+  `@playwright/test` version plus the browser name, computed after
+  `npm ci`.
+- Check names for branch protection: `fixture-guard`, `rust`, `wasm`,
+  `web`, `e2e (chromium)`, `e2e (firefox)`, `e2e (webkit)`,
+  `r-and-fixtures`.
