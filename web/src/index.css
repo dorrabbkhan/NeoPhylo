@@ -265,6 +265,32 @@ button:disabled {
   background: var(--accent-bg);
 }
 
+/* ---- Explanation panel (spec §6.2) ---- */
+
+.mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.mode-toggle button {
+  flex: 1;
+}
+
+.mode-toggle button[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.explain-body p {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.math-line {
+  overflow-x: auto;
+}
+
 /* ---- SVG details ---- */
 
 .zero-len {

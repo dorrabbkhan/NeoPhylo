@@ -131,3 +131,24 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   stepper is always fully visible; tree panels are ≥260px and SVGs fill them.
 - Heatmap cell text picks dark/white from the viridis t value (threshold
   0.5), not from the interpolated color's luminance.
+
+## Task 18
+
+- `mathTex`/`conceptText` take the zero-based stepper position (position k
+  discusses join steps[k], matching stepMatrix.ts). NJ's extra final
+  position renders `final_join`'s three l_x formulas; the distances
+  between the last three clusters are recovered by index lookup from the
+  last stored step's `distance`/`new_row` — no recomputation.
+- The task only spelled out NJ's math lines; UPGMA's are by analogy:
+  smallest d(i,j), h = d(i,j)/2, both branch lengths, one size-weighted
+  d(u,k) example. UPGMA has no extra final position (its last join is a
+  normal step), so positions clamp to the last stored step.
+- `katex` + `@types/katex` added to web/package.json — KaTeX is named in
+  the spec's Tech Stack. Taxon labels are always emitted inside escaped
+  \text{...} so special characters can't break formulas; plain notices
+  (the tie line) carry no "=" and render as text.
+- Fixture reads in the new tests use cwd-relative resolve("../fixtures")
+  (vitest runs in web/): a dynamic new URL(`../../../${rel}`, import.meta.url)
+  makes Vite glob the repo root and fail with "Denied ID AGENTS.md?url".
+- The empty-traces case (>50 taxa, no trace requested) shows a one-line
+  note in the panel rather than hiding it.
