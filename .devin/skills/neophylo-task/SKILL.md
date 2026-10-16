@@ -1,9 +1,19 @@
 ---
 name: neophylo-task
-description: Implement one numbered task from the NeoPhylo v1 plan, test-first, on its own branch. Usage - /neophylo-task <task number>
+description: Implement one numbered task from a NeoPhylo plan, test-first, on its own branch. Usage - /neophylo-task [plan] <task number>
 ---
 
-You are implementing exactly ONE task from `docs/superpowers/plans/2026-10-15-neophylo-v1-plan.md`. The task number is the argument after the command. If no number was given, ask for one and stop.
+You are implementing exactly ONE task from a plan file. The arguments are `[<plan>] <task number>`. If no task number was given, ask for one and stop.
+
+## Plan selection
+
+Map `<plan>` to a file:
+
+- `v1` → `docs/superpowers/plans/2026-10-15-neophylo-v1-plan.md`
+- `v1.1` → `docs/superpowers/plans/2026-10-16-neophylo-v1.1-plan.md`
+- A missing `<plan>` (only a task number was given) means the newest file in `docs/superpowers/plans/` (by date in the filename).
+
+The matching spec is read from the plan's `**Spec:**` line, not hard-coded.
 
 ## Procedure
 
@@ -13,7 +23,7 @@ You are implementing exactly ONE task from `docs/superpowers/plans/2026-10-15-ne
    - `AGENTS.md`
    - the plan's "Global Constraints" and "Review Focus" sections
    - the full "### Task <N>:" section
-   - every spec section (§) that the task references, in `docs/superpowers/specs/2026-10-15-neophylo-design.md`
+   - every spec section (§) that the task references, in the spec file named on the plan's `**Spec:**` line
 4. Check the task's **Interfaces → Consumes** list against the code on main. If anything is missing or has a different name or signature, stop and report. Do not create stand-ins.
 5. Write the failing tests exactly as the task lists them, using the plan's values.
 6. Run them and confirm they fail for the expected reason. Show the output.
