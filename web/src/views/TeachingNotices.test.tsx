@@ -9,6 +9,7 @@ import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
@@ -136,7 +137,7 @@ describe("TeachingNotices — saturation", () => {
 describe("TeachingNotices — imported saturation", () => {
   // Four sequences differing at every site: each pair's observed
   // distance is 1.0, past the 0.75 JC69 ceiling → SaturatedMatrix.
-  const SAT4 = {
+  const SAT4: Alignment = {
     labels: ["T1", "T2", "T3", "T4"],
     seqs: [
       [65, 65, 65, 65, 65, 65, 65, 65], // AAAAAAAA
@@ -144,6 +145,7 @@ describe("TeachingNotices — imported saturation", () => {
       [71, 71, 71, 71, 71, 71, 71, 71], // GGGGGGGG
       [84, 84, 84, 84, 84, 84, 84, 84], // TTTTTTTT
     ],
+    alphabet: "dna",
   };
 
   it("offers only the p-distance fix — imported data can't be re-simulated", () => {

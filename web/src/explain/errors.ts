@@ -64,6 +64,16 @@ export function errorMessage(e: NeoError): ErrorMessage {
         title: "This exercise file has a problem",
         body: `Field "${e.field}": ${e.msg}. Fix the file and load it again.`,
       };
+    case "ModelAlphabetMismatch": {
+      // The named model belongs to the other alphabet (v1.1 spec §3.4).
+      const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";
+      const choices =
+        e.alphabet === "protein" ? "p, Kimura or JTT" : "p, JC69 or K80";
+      return {
+        title: `${e.model} doesn't fit this data`,
+        body: `${e.model} is for ${modelAlphabet}; this data is ${e.alphabet}. Choose ${choices}.`,
+      };
+    }
     default: {
       const _exhaustive: never = e;
       return _exhaustive;

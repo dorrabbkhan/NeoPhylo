@@ -1,14 +1,18 @@
-//! DNA sequences, alignments and FASTA import (spec §4.1).
+//! Sequences, alignments and FASTA import (spec §4.1, v1.1 §3.1).
 //!
-//! Input is case-insensitive and `U` is read as `T`. The accepted alphabet is
-//! the IUPAC nucleotide codes plus `-` and `?` (`ACGTRYKMSWBDHVN-?`); anything
-//! else is `NeoError::UnsupportedCharacter`. All sequences in an imported
-//! alignment must have the same length.
+//! Input is case-insensitive. The alphabet is auto-detected after parsing
+//! (v1.1 spec §3.1): DNA input validates exactly as v1 — `U` is read as
+//! `T`, the accepted letters are the IUPAC nucleotide codes plus `-` and
+//! `?` (`ACGTRYKMSWBDHVN-?`) — while protein input accepts the 20 standard
+//! amino acids plus `B Z J X U O * - ?` (all missing data, `U` kept as
+//! selenocysteine). Anything else is `NeoError::UnsupportedCharacter`.
+//! All sequences in an imported alignment must have the same length.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use ts_rs::TS;
 
+use crate::alphabet::{detect_alphabet, is_protein_char, Alphabet};
 use crate::error::NeoError;
 
 /// Maximum number of taxa accepted on import (spec §4.1).
@@ -16,13 +20,17 @@ pub const MAX_TAXA: usize = 200;
 /// Maximum number of sites accepted on import (spec §4.1).
 pub const MAX_SITES: usize = 100_000;
 
-/// An imported or simulated alignment. Sequences are uppercase ASCII with
-/// `U` already normalized to `T`.
+/// An imported or simulated alignment. Sequences are uppercase ASCII;
+/// in DNA mode `U` is normalized to `T`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Alignment {
     pub labels: Vec<String>,
     pub seqs: Vec<Vec<u8>>,
+    /// Detected at import or set by `with_alphabet`; `Dna` when absent
+    /// in v1 data.
+    #[serde(default)]
+    pub alphabet: Alphabet,
 }
 
 /// Bytes accepted in a sequence after uppercasing. `U` is handled separately
@@ -103,19 +111,12 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
                 })
             }
         };
+        // Characters are collected raw (uppercased) and validated only
+        // after the whole alignment is read, because the alphabet is
+        // detected from all sequences at once and it decides whether `U`
+        // means uracil (DNA) or selenocysteine (protein, missing).
         for &b in line.as_bytes() {
-            let norm = match b.to_ascii_uppercase() {
-                b'U' => b'T',
-                c if is_allowed(c) => c,
-                _ => {
-                    return Err(NeoError::UnsupportedCharacter {
-                        label: labels[idx].clone(),
-                        position: seqs[idx].len(),
-                        ch: b as char,
-                    })
-                }
-            };
-            seqs[idx].push(norm);
+            seqs[idx].push(b.to_ascii_uppercase());
             if seqs[idx].len() > MAX_SITES {
                 return Err(NeoError::Parse {
                     line: line_no,
@@ -134,6 +135,9 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
         });
     }
 
+    let alphabet = detect_alphabet(&seqs);
+    let seqs = validate(&labels, &seqs, alphabet, false)?;
+
     let expected = seqs[0].len();
     for (k, seq) in seqs.iter().enumerate() {
         if seq.len() != expected {
@@ -145,5 +149,54 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
         }
     }
 
-    Ok(Alignment { labels, seqs })
+    Ok(Alignment {
+        labels,
+        seqs,
+        alphabet,
+    })
+}
+
+/// Re-validate sequences against `alphabet` and return normalized copies
+/// (uppercase; `U`→`T` for DNA only). `strict_dna` accepts only
+/// `A C G T U N - ?` — used by `with_alphabet`, where an explicit
+/// "treat as DNA" should reject IUPAC ambiguity codes that would otherwise
+/// let a protein sequence pass — while `false` applies the v1 FASTA
+/// acceptance set.
+pub(crate) fn validate(
+    labels: &[String],
+    seqs: &[Vec<u8>],
+    alphabet: Alphabet,
+    strict_dna: bool,
+) -> Result<Vec<Vec<u8>>, NeoError> {
+    let mut out = Vec::with_capacity(seqs.len());
+    for (k, seq) in seqs.iter().enumerate() {
+        let mut norm = Vec::with_capacity(seq.len());
+        for (i, &b) in seq.iter().enumerate() {
+            let c = b.to_ascii_uppercase();
+            let ok = match alphabet {
+                Alphabet::Dna => {
+                    if strict_dna {
+                        matches!(c, b'A' | b'C' | b'G' | b'T' | b'U' | b'N' | b'-' | b'?')
+                    } else {
+                        is_allowed(c) || c == b'U'
+                    }
+                }
+                Alphabet::Protein => is_protein_char(c),
+            };
+            if !ok {
+                return Err(NeoError::UnsupportedCharacter {
+                    label: labels.get(k).cloned().unwrap_or_default(),
+                    position: i,
+                    ch: b as char,
+                });
+            }
+            norm.push(if alphabet == Alphabet::Dna && c == b'U' {
+                b'T'
+            } else {
+                c
+            });
+        }
+        out.push(norm);
+    }
+    Ok(out)
 }

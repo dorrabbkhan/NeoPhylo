@@ -83,6 +83,7 @@ function randomState(rand: () => number): UrlState {
         seqs: Array.from({ length: n }, () =>
           Array.from({ length: 20 }, () => Math.floor(rand() * 4)),
         ),
+        alphabet: "dna",
       };
     }
     if (rand() < 0.5) {
@@ -137,6 +138,7 @@ describe("encode/decode round trip", () => {
             [0, 1, 2, 3],
             [0, 1, 2, 0],
           ],
+          alphabet: "dna",
         },
         trueTree: "(A:0.1,B:0.2,C:0.3);",
       },
@@ -226,9 +228,7 @@ describe("migrate", () => {
     expect(
       migrate({ v: 1, step: 0, mode: "concept", overrides: 5 }),
     ).toBeNull();
-    expect(
-      migrate({ v: 1, step: 0, mode: "concept", imported: 5 }),
-    ).toBeNull();
+    expect(migrate({ v: 1, step: 0, mode: "concept", imported: 5 })).toBeNull();
     expect(
       migrate({ v: 1, step: 0, mode: "concept", imported: { trueTree: "x" } }),
     ).toEqual({

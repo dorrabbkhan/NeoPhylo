@@ -49,13 +49,15 @@ fn unequal_lengths() {
 
 #[test]
 fn unsupported_char() {
-    let err = parse_fasta(">a\nACXT\n").unwrap_err();
+    // 'X' is a protein character since v1.1 (detected as protein rather
+    // than rejected), so the offending input is now '#'.
+    let err = parse_fasta(">a\nAC#T\n").unwrap_err();
     assert_eq!(
         err,
         NeoError::UnsupportedCharacter {
             label: "a".to_string(),
             position: 2,
-            ch: 'X',
+            ch: '#',
         }
     );
 }

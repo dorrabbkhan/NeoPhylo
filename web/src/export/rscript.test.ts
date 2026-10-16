@@ -11,6 +11,7 @@ const ALN: Alignment = {
     [65, 67, 71, 65],
     [65, 67, 65, 84],
   ],
+  alphabet: "dna",
 };
 
 describe("exportR", () => {
@@ -18,11 +19,12 @@ describe("exportR", () => {
     const aln: Alignment = {
       labels: ["O'Brien\"s", "b", "c"],
       seqs: ALN.seqs,
+      alphabet: "dna",
     };
     const s = exportR(aln, "Jc69", "Nj");
     // Inside the double-quoted FASTA string, " must become \" while ' stays.
     expect(s).toContain("O'Brien\\\"s");
-    expect(s).not.toContain('O\'Brien"s');
+    expect(s).not.toContain("O'Brien\"s");
   });
 
   it("maps corrections and methods onto ape/phangorn calls", () => {
