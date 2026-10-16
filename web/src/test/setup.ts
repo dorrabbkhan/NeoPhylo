@@ -15,3 +15,13 @@ const wasmPath =
     ? fileURLToPath(wasmUrl)
     : resolve("src/engine/pkg/neophylo_wasm_bg.wasm");
 initSync({ module: readFileSync(wasmPath) });
+
+// jsdom has no ResizeObserver; a no-op stub lets components that measure
+// their panels mount in tests — they fall back to default geometry.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}

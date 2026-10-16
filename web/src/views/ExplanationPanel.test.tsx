@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine";
 import type { Trace } from "../engine/generated/Trace";
+import { mathTex } from "../explain/math";
 import { nodeName } from "../state/names";
 
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -92,5 +93,24 @@ describe("ExplanationPanel", () => {
         "Values shown rounded; calculations use full precision.",
       ),
     ).toBeTruthy();
+  });
+
+  it("renders each mathTex line as its own block element", () => {
+    render(
+      <ExplanationPanel
+        trace={trace}
+        step={0}
+        labels={labels}
+        mode="math"
+        dispatch={vi.fn()}
+      />,
+    );
+    const lines = mathTex(trace, 0, labels);
+    const formulaCount = lines.filter((l) => l.includes("=")).length;
+    const blocks = document.querySelectorAll(".math-line");
+    // One .math-line block per formula line, each a <p> (display: block).
+    expect(blocks).toHaveLength(formulaCount);
+    expect(blocks.length).toBeGreaterThan(0);
+    blocks.forEach((el) => expect(el.tagName).toBe("P"));
   });
 });
