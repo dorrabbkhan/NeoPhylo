@@ -130,8 +130,12 @@ p {
   min-width: 0;
 }
 
-.col-center > .error {
+/* Row 1 stacks the error alert and the §6.3 teaching notices. */
+.col-center > .notices {
   grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .trees {
@@ -225,6 +229,42 @@ p {
   border: 1px solid var(--danger);
   border-radius: 6px;
   color: var(--danger);
+}
+
+/* Teaching notices (spec §6.3) look like panels, not errors: accent
+ * border, body-color text, fixes in a wrapping button row. */
+.notice {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--fg);
+}
+
+.notice h2 {
+  margin: 0 0 4px;
+}
+
+.notice p {
+  margin: 0 0 6px;
+}
+
+.notice .notice-pairs {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.notice-fixes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.saturation-chart {
+  display: block;
+  max-width: 300px;
+  color: var(--fg);
 }
 
 /* ---- Controls ---- */
