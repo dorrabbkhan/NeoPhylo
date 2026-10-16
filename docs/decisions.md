@@ -558,3 +558,29 @@ All three are plan gaps found at checkpoint 7.
   Playwright's Firefox cannot Tab past the last page element (focus
   leaves the document and does not wrap), so targets earlier in the
   ring are reached with Shift+Tab — as a real keyboard user would.
+
+## CI & hygiene
+
+- LICENSE already held the canonical AGPL-3.0 text and the workspace
+  `license` fields were already set (commit c2606e5); verified
+  byte-identical to gnu.org's agpl-3.0.txt. Added the missing
+  `license = "AGPL-3.0-only"` to `crates/neophylo-core/fuzz/Cargo.toml`
+  (standalone workspace, so a literal value, not `license.workspace`).
+- Footer link: `REPO_URL` lives in `web/src/config.ts`; the
+  "Source code (AGPL-3.0)" anchor renders unconditionally in
+  `.app-footer`, so it is visible in both Lesson and Sandbox modes.
+  `.app-footer` is now a flex row (stepper grows, link pinned right).
+- `scripts/check.sh` split into `scripts/ci/`: fixture-guard.sh,
+  rust.sh, wasm.sh, web.sh, fuzz.sh, e2e.sh, r-parity.sh — same
+  execution order as before (guard/regen → rust → wasm → web → fuzz →
+  e2e → r-parity). Gates stay inside each script so they are
+  standalone-runnable: FUZZ=1, E2E=1, RPARITY=1 opt in; FIXTURES=1
+  regenerates; ALLOW_FIXTURE_CHANGE=1 skips the guard.
+- fixture-guard.sh takes the base commit from `$BASE` (default:
+  `git merge-base HEAD main`, used only when `main` exists — same
+  skip-if-no-main behavior as before).
+- Environment note (not committed): the fresh Playwright install pulled
+  `webkit-2370`, so the Task 23 sys-lib workaround had to be re-applied —
+  `apt-get download libavif16 libmanette-0.2-0 libyuv0 libgav1-2
+libhidapi-hidraw0`, `dpkg -x`, copy `*.so*` into both
+  `~/.cache/ms-playwright/webkit-2370/minibrowser-{gtk,wpe}/sys/lib`.

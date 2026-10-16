@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { REPO_URL } from "../config";
 import { initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
@@ -431,6 +432,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
             Step-through is available for 50 taxa or fewer
           </p>
         )}
+        <a className="repo-link" href={REPO_URL}>
+          Source code (AGPL-3.0)
+        </a>
       </footer>
     </div>
   );
