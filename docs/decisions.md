@@ -716,3 +716,45 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
 - `.devin/skills/neophylo-review`: accepts a PR number or task number,
   reviews `gh pr diff`, requires `gh pr checks` green, and posts the
   verdict via `gh pr review --comment`.
+
+## Task 2 (v1.1): protein fixtures
+
+- Files outside the Files block: `scripts/ci/fixture-guard.sh` — the
+  regeneration order is swapped to `generate_phylip.sh` then `generate.R`.
+  `generate.R` must read `ref/protein_*.json` back (protdist JTT tie check)
+  and is the last writer so `second_opinion` survives; `README.md` documents
+  the same order for manual runs.
+- Ambiguities resolved:
+  - `assert_no_nj_ties` now exempts exactly one case: at four active nodes a
+    min-Q pair and its algebraic complement always tie (Q(i,j) = Q(k,l)
+    identically), and either join gives the same split with identical branch
+    lengths, so it cannot bias a fixture. `p10_400` hit this benign tie
+    bit-for-bit; the DNA corpus previously escaped it only through float
+    noise. Ties between different splits still fail, at every n.
+  - `protein_p12_100` has three saturated Kimura pairs; `protdist` writes
+    `-1` for saturated cells (documented PHYLIP convention). Task 6's corpus
+    test should treat `-1` as `Saturated` rather than a numeric distance.
+  - `second_opinion.generator` records `phangorn <v> / ape <v>` (both
+    packages are used); the plan's sketch showed `phangorn <v>` only.
+  - protdist reaches Kimura after 3 `P` toggles on PHYLIP 3.697; the count
+    is read off the menu output each run, per the task.
+  - `as.phyDat` takes no `type =` argument on an `AAbin` (it dispatches to
+    `phyDat.AA`), and `ape::dist.aa` requires the matrix form
+    `as.matrix(aln)` — both produce the same values the task intends.
+- `worked/protdist_doc_jtt.json` was hand-entered from the plan's published
+  values and additionally verified locally: `protdist` 3.697 on the five
+  doc sequences reproduces all ten upper-triangle entries exactly.
+- Protein refs live at `ref/protein/<name>.json`, not the plan's flat
+  `ref/protein_<name>.json`: `tests/corpus.rs` flat-globs `ref/*.json` and
+  replays every fixture's input through `parse_fasta`, which cannot read
+  protein until Task 3. A subdirectory is skipped by that glob, keeping
+  the corpus DNA-only; Task 6 should glob `ref/protein/` (the fixture
+  guard bars touching `crates/` in this PR, so the corpus test itself
+  cannot be adjusted here).
+- `second_opinion` matrices are rounded to 8 decimals: `dist.ml` is an
+  iterative optimizer whose last ~1e-14 differs between BLAS/R builds, so
+  full-precision output made CI regeneration differ from local output.
+  8 decimals is still far finer than the ~0.1 protdist↔phangorn residual
+  it cross-checks.
+- Note for Task 6: max |protdist JTT − phangorn JTT| over this corpus is
+  ≈ 0.12 (second opinion is a cross-check, not a gate, per spec §6.1).
