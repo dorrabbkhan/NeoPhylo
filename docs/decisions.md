@@ -632,3 +632,49 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   the paths' least common ancestor, so the zip holds `pkg/` and
   `generated/` directly and must extract into `web/src/engine`, not the
   repo root (vitest failed to resolve `engine/pkg/neophylo_wasm.js`).
+
+## ci/netlify-deploy: Netlify deploy job + \_headers
+
+- `web/public/_headers` (new) — Vite copies `public/` verbatim into
+  `dist/`, so the file lands at `dist/_headers`. Verified against the real
+  build output: fingerprinted bundles are under `/assets/` (js, css,
+  KaTeX fonts, `neophylo_wasm_bg-*.wasm`); `index.html`, `sw.js`,
+  `registerSW.js`, `manifest.webmanifest` and `workbox-*.js` sit at root.
+  Additions beyond the task's header list:
+  - `/` alongside `/index.html` — browsers request `/`, and Netlify
+    matches header rules on the request path, not the resolved file.
+  - `/registerSW.js` — vite-plugin-pwa's unhashed SW registration script;
+    no-cache for the same reason as `sw.js`.
+  - `/workbox-*.js` — the content-hashed Workbox runtime lives at root,
+    not under `/assets/`; marked immutable like the hashed assets.
+  - `/*.wasm` is a mid-segment wildcard — allowed in header paths per
+    Netlify docs ("wildcards can be used at any place inside of a path
+    segment"); the redirects restriction does not apply. The wasm asset
+    matches both `/assets/*` (immutable) and `/*.wasm` (Content-Type).
+- vite base: `web/vite.config.ts` resolves `process.env.NEOPHYLO_BASE ?? "/"`
+  and the CI `web` job never sets `NEOPHYLO_BASE`, so the `dist` artifact
+  is already built for `/` — no config change needed for Netlify.
+- `deploy` job in `ci.yml`:
+  - `needs` includes `fixture-guard` (task requirement on PRs), which is
+    skipped on push by its own `if: pull_request`. A skipped need would
+    normally skip the dependent job, so `deploy` uses
+    `always() && !failure() && !cancelled()` plus the event guards —
+    identical gating on jobs that ran, tolerant of the intentional skip.
+  - Single job as tasked: `environment` resolves to `production` on push
+    and `preview` on PRs; job permissions are `contents: read` +
+    `pull-requests: write` for the sticky comment.
+  - Fork PRs never deploy: `pull_request` only when
+    `head.repo.full_name == github.repository`; `pull_request_target` is
+    not used anywhere.
+  - `netlify-cli` pinned via `npx --yes netlify-cli@27.13.0`;
+    `actions/github-script` pinned to the v9.0.0 commit SHA like the other
+    actions in the file.
+  - The PR comment carries a `<!-- neophylo-netlify-preview -->` marker so
+    a single comment is updated, not duplicated; visible text stays
+    "Preview: <url>".
+  - The only checkout is for `setup-node`'s `node-version-file: .nvmrc`;
+    the deploy itself works purely off the `dist` artifact.
+  - `npx --yes --package netlify-cli@27.13.0 netlify` — the package's bins
+    are `netlify`/`ntl`, not `netlify-cli`, so the bare
+    `npx netlify-cli@ver deploy` form fails to resolve an executable.
+- Requires repo secrets `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`.
