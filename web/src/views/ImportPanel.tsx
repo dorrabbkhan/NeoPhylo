@@ -17,6 +17,7 @@ import { engine } from "../engine";
 import type { NeoError } from "../engine/generated/NeoError";
 import { errorMessage } from "../explain/errors";
 import type { Action, Session } from "../state/session";
+import { hasImportedData } from "../state/session";
 
 export interface ImportPanelProps {
   session: Session;
@@ -109,13 +110,17 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
       </p>
       <button
         type="button"
-        onClick={() =>
-          dispatch({
-            type: "load",
-            exercise: session.exercise,
-            source: "lesson",
-          })
-        }
+        onClick={() => {
+          if (
+            hasImportedData(session) &&
+            !window.confirm(
+              "Leave sandbox? Your imported data will be cleared.",
+            )
+          ) {
+            return;
+          }
+          dispatch({ type: "exitSandbox" });
+        }}
       >
         Back to the lesson
       </button>

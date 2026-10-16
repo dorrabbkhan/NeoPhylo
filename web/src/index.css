@@ -97,6 +97,46 @@ p {
 .app-header {
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Lesson | Sandbox switch (spec §6.2): a two-option radiogroup where
+ * the checked option is filled with the accent color. */
+.mode-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-switch button {
+  font: inherit;
+  padding: 4px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mode-switch button + button {
+  border-left: 1px solid var(--border);
+}
+
+.mode-switch button[aria-checked="true"] {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.no-true-tree {
+  align-self: center;
+  justify-self: center;
+  padding: 16px;
+  color: var(--text);
+  text-align: center;
 }
 
 .app-grid {
@@ -386,11 +426,6 @@ button:disabled {
 }
 
 /* ---- Sandbox import (spec §3.1, §6.2) ---- */
-
-.sandbox-entry {
-  margin-top: 12px;
-  width: 100%;
-}
 
 .import-panel {
   margin-top: 12px;

@@ -133,6 +133,40 @@ describe("TeachingNotices — saturation", () => {
   });
 });
 
+describe("TeachingNotices — imported saturation", () => {
+  // Four sequences differing at every site: each pair's observed
+  // distance is 1.0, past the 0.75 JC69 ceiling → SaturatedMatrix.
+  const SAT4 = {
+    labels: ["T1", "T2", "T3", "T4"],
+    seqs: [
+      [65, 65, 65, 65, 65, 65, 65, 65], // AAAAAAAA
+      [67, 67, 67, 67, 67, 67, 67, 67], // CCCCCCCC
+      [71, 71, 71, 71, 71, 71, 71, 71], // GGGGGGGG
+      [84, 84, 84, 84, 84, 84, 84, 84], // TTTTTTTT
+    ],
+  };
+
+  it("offers only the p-distance fix — imported data can't be re-simulated", () => {
+    const s = reducer(loaded(NJ_BASICS), {
+      type: "importAlignment",
+      alignment: SAT4,
+    });
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.error?.kind).toBe("SaturatedMatrix");
+    renderNotices(s);
+    expect(
+      screen.queryByRole("button", { name: /longer sequences/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /shorter branches/i }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: /p-distance/i })).toBeTruthy();
+    expect(
+      screen.getByText("Your own data can't be re-simulated."),
+    ).toBeTruthy();
+  });
+});
+
 describe("TeachingNotices — negative branches", () => {
   it("shows the clamp toggle only when a negative branch exists", () => {
     const s = withNegativeBranch(loaded(NJ_BASICS));

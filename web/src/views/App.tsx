@@ -34,7 +34,7 @@ import { errorMessage } from "../explain/errors";
 import { defaultLessonJson } from "../lessons/default";
 import { usePromptGate } from "../lessons/promptGate";
 import type { Action, Session } from "../state/session";
-import { initialSession, reducer } from "../state/session";
+import { hasImportedData, initialSession, reducer } from "../state/session";
 
 import { Controls } from "./Controls";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -127,6 +127,27 @@ export function App({ exercise }: { exercise?: Exercise }) {
       if (label !== null) dispatch({ type: "hover", cell: null });
     },
     [dispatch],
+  );
+
+  // The header's Lesson|Sandbox switch. Entering sandbox keeps the
+  // current pipeline outputs so nothing jumps; leaving reloads the
+  // lesson and first asks when imported data would be lost.
+  const onSelectMode = useCallback(
+    (mode: Session["source"]) => {
+      if (session === null || mode === session.source) return;
+      if (mode === "sandbox") {
+        dispatch({ type: "enterSandbox" });
+        return;
+      }
+      if (
+        hasImportedData(session) &&
+        !window.confirm("Leave sandbox? Your imported data will be cleared.")
+      ) {
+        return;
+      }
+      dispatch({ type: "exitSandbox" });
+    },
+    [dispatch, session],
   );
 
   const inferred = session?.result?.tree ?? null;
@@ -230,6 +251,24 @@ export function App({ exercise }: { exercise?: Exercise }) {
     <div className="app">
       <header className="app-header">
         <h1>{session.exercise.title}</h1>
+        <div className="mode-switch" role="radiogroup" aria-label="Mode">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={session.source === "lesson"}
+            onClick={() => onSelectMode("lesson")}
+          >
+            Lesson
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={session.source === "sandbox"}
+            onClick={() => onSelectMode("sandbox")}
+          >
+            Sandbox
+          </button>
+        </div>
       </header>
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
@@ -242,22 +281,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
             simEnabled={session.alignmentOrigin === "simulated"}
             dispatch={dispatch}
           />
-          {session.source === "sandbox" ? (
+          {session.source === "sandbox" && (
             <ImportPanel session={session} dispatch={dispatch} />
-          ) : (
-            <button
-              type="button"
-              className="sandbox-entry"
-              onClick={() =>
-                dispatch({
-                  type: "load",
-                  exercise: session.exercise,
-                  source: "sandbox",
-                })
-              }
-            >
-              Import your own data
-            </button>
           )}
         </aside>
         <section className="col-center">
@@ -283,6 +308,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
             </div>
           )}
           <div className="trees" ref={treesRef}>
+            {trueTree === null && (
+              <p className="no-true-tree">
+                No true tree — import a Newick tree to compare
+              </p>
+            )}
             {trueTree !== null && (
               <TreeView
                 title="True tree"
@@ -339,6 +369,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             step={k}
             max={n}
             rfText={rfText}
+            noTrueTree={session.trueTree === null}
             playing={playing}
             onStep={onStep}
             onPlayToggle={onPlayToggle}
