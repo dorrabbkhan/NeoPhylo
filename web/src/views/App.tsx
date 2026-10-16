@@ -9,7 +9,8 @@
 //   (trace step k+1); at the end it is the last join — NJ's three-way
 //   final join highlights all three nodes and no single matrix cell.
 // - The heatmap shows the active clusters' pre-join matrix at step k
-//   (trace.steps[k].distance or .q), labelled by nodeName (stepMatrix.ts).
+//   (trace.steps[k].distance or .q), labelled by nodeName (stepMatrix.ts);
+//   NJ's final position shows final_join.distance, the stored 3×3 matrix.
 //
 // Hover sync (spec §6.2): a matrix cell highlights its two clusters in
 // both trees; a hovered leaf highlights its matrix row and column.

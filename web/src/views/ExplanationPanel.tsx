@@ -5,7 +5,8 @@
 //
 // Concept mode shows conceptText; Math mode renders each mathTex line
 // with KaTeX. Lines without "=" (the tie notice) are plain text, not
-// formulas.
+// formulas. Math mode ends with a rounding disclosure — displayed values
+// are 3-decimal, calculations use full precision.
 
 import { useMemo } from "react";
 import type { Dispatch } from "react";
@@ -48,9 +49,7 @@ function MathLine({ source }: { source: string }) {
       </p>
     );
   }
-  return (
-    <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />
-  );
+  return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export function ExplanationPanel({
@@ -80,19 +79,26 @@ export function ExplanationPanel({
       </div>
       <div className="explain-body" aria-live="polite">
         {trace === null ? (
-          <p>Step-by-step explanations appear once a tree with a trace is built.</p>
+          <p>
+            Step-by-step explanations appear once a tree with a trace is built.
+          </p>
         ) : mode === "concept" ? (
           conceptText(trace, step, labels)
             .split("\n")
             .map((line, i) => <p key={i}>{line}</p>)
         ) : (
-          mathTex(trace, step, labels).map((line, i) =>
-            isFormula(line) ? (
-              <MathLine key={i} source={line} />
-            ) : (
-              <p key={i}>{line}</p>
-            ),
-          )
+          <>
+            {mathTex(trace, step, labels).map((line, i) =>
+              isFormula(line) ? (
+                <MathLine key={i} source={line} />
+              ) : (
+                <p key={i}>{line}</p>
+              ),
+            )}
+            <p className="math-note">
+              Values shown rounded; calculations use full precision.
+            </p>
+          </>
         )}
       </div>
     </div>

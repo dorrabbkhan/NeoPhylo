@@ -102,6 +102,11 @@ describe("App shell", () => {
     fireEvent.change(slider, { target: { value: String(max) } });
     expect(screen.getByText(`step ${max} of ${max}`)).toBeTruthy();
     expect(screen.getByText(/RF = \d+ \/ \d+/)).toBeTruthy();
+    // The heatmap shows the final join's own 3×3 matrix, labeled by
+    // nodeName of the last three clusters.
+    const grid = screen.getByRole("grid", { name: "Distance matrix" });
+    expect(grid.getAttribute("aria-rowcount")).toBe("3");
+    expect(grid.querySelectorAll('[role="row"]')).toHaveLength(3);
   });
 
   it("re-simulates on a new seed, changing the matrix in the DOM", async () => {
@@ -142,9 +147,7 @@ describe("App shell", () => {
     const grid = await screen.findByRole("grid", { name: "Distance matrix" });
     expect(grid.getAttribute("aria-rowcount")).toBe("5");
     expect(grid.querySelectorAll('[role="row"]')).toHaveLength(5);
-    expect(
-      grid.querySelector('[aria-selected="true"]'),
-    ).not.toBeNull();
+    expect(grid.querySelector('[aria-selected="true"]')).not.toBeNull();
 
     fireEvent.keyDown(document.body, { key: "ArrowRight" });
     expect(grid.getAttribute("aria-rowcount")).toBe("4");

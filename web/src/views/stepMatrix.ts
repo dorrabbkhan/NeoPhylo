@@ -4,9 +4,9 @@
 //
 // At step k the join under discussion is steps[k] (the *next* join), so
 // both the distance and Q heatmaps show that step's pre-join matrices,
-// labeled by the active clusters' display names (state/names.ts). Once the
-// trace is exhausted — including NJ's final three-way join, which stores
-// no matrix — the last stored step's matrix stays on screen.
+// labeled by the active clusters' display names (state/names.ts). NJ's
+// extra final position shows the three-way join's own 3×3 matrix, stored
+// in the trace as final_join.distance.
 
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { NjStep } from "../engine/generated/NjStep";
@@ -28,8 +28,9 @@ export function stepsOf(trace: Trace): (NjStep | UpgmaStep)[] {
 }
 
 /** The trace record shown at step k: the join about to happen, or the
- * last join once the trace is exhausted (NJ's final three-way join has no
- * stored step, so the last pairwise join stays displayed). */
+ * last join once the trace is exhausted (UPGMA's last join clamps). NJ's
+ * final three-way join is not an NjStep; stepMatrix serves it from
+ * final_join before this is called. */
 export function stepFor(trace: Trace, k: number): NjStep | UpgmaStep | null {
   const steps = stepsOf(trace);
   if (steps.length === 0) return null;
@@ -59,7 +60,7 @@ export interface StepMatrix {
  * is on), labeled by `nodeName` of the step's active clusters — leaves
  * show taxon names, joined clusters show u1, u2, …. The chosen pair is
  * returned as indices into `labels`; it is null at NJ's final position
- * (three-way join, no pair).
+ * (three-way join, no pair), whose heatmap shows `final_join.distance`.
  *
  * Without a trace (>50 taxa, so step-through is off): the full leaf
  * distance matrix with taxon labels, nothing marked.
@@ -78,15 +79,26 @@ export function stepMatrix({
   inferred: Tree | null;
 }): StepMatrix | null {
   if (trace !== null && inferred !== null) {
+    if ("Nj" in trace && step >= trace.Nj.steps.length) {
+      // NJ's final three-way join stores its own 3×3 matrix in the trace;
+      // it has no Q matrix and no single pair to mark.
+      const f = trace.Nj.final_join;
+      return {
+        labels: [f.a, f.b, f.c].map((id) => nodeName(inferred, id)),
+        values: f.distance.data,
+        view: "distance",
+        chosen: null,
+        active: [f.a, f.b, f.c],
+      };
+    }
     const s = stepFor(trace, step);
     if (s !== null) {
       const q = matrixView === "q" && "q" in s;
-      const isNjEnd = "Nj" in trace && step >= trace.Nj.steps.length;
       return {
         labels: s.active.map((id) => nodeName(inferred, id)),
         values: q ? s.q.data : s.distance.data,
         view: q ? "q" : "distance",
-        chosen: isNjEnd ? null : s.chosen,
+        chosen: s.chosen,
         active: [...s.active],
       };
     }
