@@ -36,14 +36,16 @@ describe("loadLesson", () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.id).toBe("nj-basics");
-      expect(r.value.prompts).toHaveLength(2);
+      expect(r.value.prompts).toHaveLength(3);
     }
   });
 
   it("returns InvalidExercise when the fetch fails (missing lesson)", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.resolve(fakeResponse("not found", { ok: false, status: 404 }))),
+      vi.fn(() =>
+        Promise.resolve(fakeResponse("not found", { ok: false, status: 404 })),
+      ),
     );
     const r = await loadLesson("no-such-lesson");
     expect(r.ok).toBe(false);
