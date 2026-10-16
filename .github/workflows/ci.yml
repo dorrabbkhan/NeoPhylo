@@ -1,0 +1,190 @@
+# CI — the GitHub-side twin of scripts/check.sh. Every job delegates to a
+# scripts/ci/*.sh step so local and CI runs are identical; the YAML only
+# installs the toolchain each script assumes.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # PR-only: existing fixtures may not change in the same commit as code.
+  fixture-guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Fixture guard
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: scripts/ci/fixture-guard.sh
+
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rust toolchain
+        # rustup reads rust-toolchain.toml: stable + clippy/rustfmt +
+        # wasm32-unknown-unknown.
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: fmt + clippy + tests
+        run: scripts/ci/rust.sh
+
+  wasm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Cache wasm-pack
+        id: wasm-pack
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: ${{ runner.os }}-wasm-pack-0.15.0
+      - name: Install wasm-pack v0.15.0
+        if: steps.wasm-pack.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSLO https://github.com/wasm-bindgen/wasm-pack/releases/download/v0.15.0/wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz
+          echo "c09f971ecaed9a2efc80fdcea7a00ef6b53c7fadc8c57d1f61b53a6aa66b668a  wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz" | sha256sum -c -
+          tar xzf wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz
+          install -D -m 0755 wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack "$HOME/.cargo/bin/wasm-pack"
+      - name: wasm parity tests + build + generated-types diff + bundle size
+        run: scripts/ci/wasm.sh
+      - name: Upload wasm package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wasm-pkg
+          path: |
+            web/src/engine/pkg
+            web/src/engine/generated
+          retention-days: 1
+
+  web:
+    needs: wasm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download wasm package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wasm-pkg
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: lint + unit tests + build
+        run: scripts/ci/web.sh
+      - name: Upload web build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: web/dist
+          retention-days: 1
+
+  e2e:
+    needs: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download wasm package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wasm-pkg
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web dependencies
+        # Playwright + the dev/preview servers need node_modules; test
+        # selection itself stays in scripts/ci/e2e.sh.
+        working-directory: web
+        run: npm ci
+      - name: Playwright version
+        id: playwright-version
+        working-directory: web
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
+      - name: Install ${{ matrix.browser }}
+        working-directory: web
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: E2E (${{ matrix.browser }})
+        env:
+          E2E: "1"
+        run: scripts/ci/e2e.sh --project=${{ matrix.browser }} --reporter=list,html
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+
+  # Rebuilds the reference fixtures and fails on any drift — a version or
+  # locale difference must be judged by a human; CI never commits fixtures.
+  r-and-fixtures:
+    needs: wasm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          packages: |
+            ape
+            phangorn
+            jsonlite
+      - name: Install PHYLIP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y phylip
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Download wasm package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wasm-pkg
+      - name: Regenerate fixtures and diff against committed ref/
+        # FIXTURES=1 reruns generate.R + generate_phylip.sh, then
+        # git diff --exit-code fixtures/ref (plus an untracked-file check).
+        env:
+          FIXTURES: "1"
+        run: scripts/ci/fixture-guard.sh
+      - name: R export parity
+        env:
+          RPARITY: "1"
+        run: scripts/ci/r-parity.sh
