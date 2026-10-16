@@ -16,14 +16,23 @@
 // both trees; a hovered leaf highlights its matrix row and column.
 // `Session.hover` stores the matrix cell; the hovered leaf label is
 // local App state.
+//
+// Guided lessons (Task 21, spec §6.2): a predict_pair prompt with
+// at_step = s gates stepper position s-1 — the position where join s is
+// the pending join — until the student picks a matrix cell or two
+// leaves. While the question is open the correct pair is NOT marked
+// (no aria-selected cell, no tree highlight), so the prediction is
+// genuine; the pick reveals "Correct" or the right pair, then stepping
+// resumes. Pick state lives in `answered` (at_step → picked labels) and
+// resets whenever a different exercise is loaded.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
-import type { Tree } from "../engine/generated/Tree";
 import { errorMessage } from "../explain/errors";
 import { defaultLessonJson } from "../lessons/default";
+import { usePromptGate } from "../lessons/promptGate";
 import type { Action, Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 
@@ -31,54 +40,21 @@ import { Controls } from "./Controls";
 import { ExplanationPanel } from "./ExplanationPanel";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
+import { PromptCard } from "./PromptCard";
+import {
+  leafCount,
+  leafIdByLabel,
+  leafLabelSets,
+  stepEmphasis,
+} from "./stepEmphasis";
 import { Stepper } from "./Stepper";
-import { stepMatrix, stepsOf, traceLength } from "./stepMatrix";
+import { stepMatrix, traceLength } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
 import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
 
-/** Map of every node id to the set of leaf labels under it. */
-function leafLabelSets(tree: Tree): Map<number, Set<string>> {
-  const out = new Map<number, Set<string>>();
-  const dfs = (id: number): Set<string> => {
-    const cached = out.get(id);
-    if (cached) return cached;
-    const s = new Set<string>();
-    const node = tree.nodes[id];
-    if (node.children.length === 0 && node.label !== null) s.add(node.label);
-    for (const c of node.children) for (const l of dfs(c)) s.add(l);
-    out.set(id, s);
-    return s;
-  };
-  dfs(tree.root);
-  return out;
-}
-
-/** Leaf node ids by taxon label (labels are unique per alignment/tree). */
-function leafIdByLabel(tree: Tree): Map<string, number> {
-  const out = new Map<string, number>();
-  tree.nodes.forEach((n, id) => {
-    if (n.children.length === 0 && n.label !== null) out.set(n.label, id);
-  });
-  return out;
-}
-
-function sameSet<T>(a: Set<T>, b: Set<T>): boolean {
-  if (a.size !== b.size) return false;
-  for (const v of a) if (!b.has(v)) return false;
-  return true;
-}
-
-function leafCount(tree: Tree): number {
-  return tree.nodes.reduce(
-    (n, node) => n + (node.children.length === 0 ? 1 : 0),
-    0,
-  );
-}
-
 const NO_HIGHLIGHT = new Set<number>();
-const NO_LABELS: Set<string> = new Set();
 
 export function App({ exercise }: { exercise?: Exercise }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -156,7 +132,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const inferred = session?.result?.tree ?? null;
   const trace = session?.result?.trace ?? null;
   const trueTree = session?.trueTree ?? null;
-  const steps = useMemo(() => (trace ? stepsOf(trace) : []), [trace]);
   const inferSets = useMemo(
     () => (inferred ? leafLabelSets(inferred) : new Map<number, Set<string>>()),
     [inferred],
@@ -177,12 +152,29 @@ export function App({ exercise }: { exercise?: Exercise }) {
     [trueTree],
   );
 
+  // The stepper position and its heatmap must exist before the
+  // usePromptGate hook call — hooks run even while session is null.
+  const k = session?.step ?? 0;
+  const sm = stepMatrix({
+    trace,
+    step: k,
+    matrix: session?.matrix ?? null,
+    matrixView: session?.matrixView ?? "distance",
+    inferred,
+  });
+  const promptGate = usePromptGate({
+    prompts: session?.exercise.prompts,
+    position: k,
+    lessonMode: session?.source === "lesson",
+    sm,
+    leafSets: inferSets,
+  });
+
   if (session === null) {
     return <div className="app-loading">Loading…</div>;
   }
 
   const n = trace !== null ? traceLength(trace) : 0;
-  const k = session.step;
   const isNj = trace !== null && "Nj" in trace;
   const nLeaf = inferred ? leafCount(inferred) : 0;
 
@@ -193,113 +185,27 @@ export function App({ exercise }: { exercise?: Exercise }) {
     Math.max(nLeaf, trueTree !== null ? leafCount(trueTree) : 0),
   );
 
-  // The heatmap content at step k: the displayed step's active-cluster
-  // matrix (distance or Q), or the full leaf matrix without a trace.
-  const sm = stepMatrix({
+  // Unpack the prompt gate (src/lessons/promptGate.ts): gating hides the
+  // correct pair from the heatmap and the tree highlights.
+  const { shown: shownPrompts, gating, smShown, answerPair } = promptGate;
+
+  // Everything the views emphasize at step k (src/views/stepEmphasis.ts).
+  const { inferHi, trueHi, wrong, visibleNodes, matrixHover } = stepEmphasis({
     trace,
-    step: k,
-    matrix: session.matrix,
-    matrixView: session.matrixView,
+    k,
     inferred,
+    sm,
+    smShown,
+    inferSets,
+    inferLeafByLabel,
+    trueLeafByLabel,
+    matrix: session.matrix,
+    cellHover: session.hover,
+    hoverLeaf,
+    leafPick: promptGate.leafPick,
+    rf: session.rf,
+    taxa: session.alignment?.labels ?? null,
   });
-
-  // Highlighted nodes for the inferred tree: the next (or last) join plus
-  // whatever the pointer is over.
-  const chosenNodes: number[] = [];
-  if (isNj && k >= steps.length) {
-    // NJ's final three-way join: no single pair, highlight all three.
-    const f = trace!.Nj.final_join;
-    chosenNodes.push(f.a, f.b, f.c);
-  } else if (sm !== null && sm.active !== null && sm.chosen !== null) {
-    const [ci, cj] = sm.chosen;
-    chosenNodes.push(sm.active[ci], sm.active[cj]);
-  }
-
-  const inferHi = new Set<number>(chosenNodes);
-  const trueHi = new Set<number>();
-  // Emphasize the chosen pair's member taxa in the true tree too (§6.2:
-  // "the chosen pair is emphasized in every view").
-  for (const id of chosenNodes) {
-    for (const label of inferSets.get(id) ?? NO_LABELS) {
-      const t = trueLeafByLabel.get(label);
-      if (t !== undefined) trueHi.add(t);
-    }
-  }
-
-  // Hover: a matrix cell highlights its pair in both trees. When a trace
-  // step is shown the indices address `sm.active` clusters; without a
-  // trace they address leaf labels of the full matrix.
-  const cellHover = session.hover;
-  if (cellHover !== null && sm !== null && sm.active !== null) {
-    for (const idx of [cellHover.i, cellHover.j]) {
-      const id = sm.active[idx];
-      if (id === undefined) continue;
-      inferHi.add(id);
-      for (const label of inferSets.get(id) ?? NO_LABELS) {
-        const ft = trueLeafByLabel.get(label);
-        if (ft !== undefined) trueHi.add(ft);
-      }
-    }
-  } else if (cellHover !== null && session.matrix !== null) {
-    for (const idx of [cellHover.i, cellHover.j]) {
-      const label = session.matrix.labels[idx];
-      if (label === undefined) continue;
-      const fi = inferLeafByLabel.get(label);
-      const ft = trueLeafByLabel.get(label);
-      if (fi !== undefined) inferHi.add(fi);
-      if (ft !== undefined) trueHi.add(ft);
-    }
-  }
-  if (hoverLeaf !== null) {
-    const fi = inferLeafByLabel.get(hoverLeaf);
-    const ft = trueLeafByLabel.get(hoverLeaf);
-    if (fi !== undefined) inferHi.add(fi);
-    if (ft !== undefined) trueHi.add(ft);
-  }
-
-  // Visible nodes at step k: leaves plus nodes created by steps 1..k
-  // (NJ's central node only at the final position).
-  let visibleNodes: Set<number> | undefined;
-  if (inferred !== null && trace !== null) {
-    visibleNodes = new Set<number>();
-    for (let id = 0; id < nLeaf; id++) visibleNodes.add(id);
-    for (let i = 0; i < k && i < steps.length; i++) {
-      visibleNodes.add(steps[i].new_node);
-    }
-    if (isNj && k === n) visibleNodes.add(inferred.root);
-  }
-
-  // Clades of the inferred tree absent from the true tree (rf extra splits).
-  const wrong = new Set<number>();
-  if (inferred !== null && session.rf !== null && session.alignment !== null) {
-    const all = new Set(session.alignment.labels);
-    for (const split of session.rf.extra_in_inferred) {
-      const side = new Set(split.side);
-      const complement = new Set([...all].filter((l) => !side.has(l)));
-      for (const [id, labs] of inferSets) {
-        if (inferred.nodes[id].children.length === 0) continue;
-        if (sameSet(labs, side) || sameSet(labs, complement)) wrong.add(id);
-      }
-    }
-  }
-
-  // Leaf hover → highlight that leaf's matrix row and column: the row of
-  // the cluster containing the leaf when a step is shown, else the
-  // leaf's own row in the full matrix.
-  let matrixHover: { i: number; j: number } | { axis: number } | null =
-    cellHover;
-  if (hoverLeaf !== null) {
-    matrixHover = null;
-    if (sm !== null && sm.active !== null) {
-      const idx = sm.active.findIndex((id) =>
-        inferSets.get(id)?.has(hoverLeaf),
-      );
-      if (idx >= 0) matrixHover = { axis: idx };
-    } else if (session.matrix !== null) {
-      const idx = session.matrix.labels.indexOf(hoverLeaf);
-      if (idx >= 0) matrixHover = { axis: idx };
-    }
-  }
 
   const rfText =
     session.rf !== null ? `${session.rf.rf} / ${session.rf.max_rf}` : null;
@@ -363,6 +269,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
             )}
             <TeachingNotices session={session} dispatch={dispatch} />
           </div>
+          {shownPrompts.length > 0 && (
+            <div className="prompts">
+              {shownPrompts.map((p) => (
+                <PromptCard
+                  key={p.at_step}
+                  prompt={p}
+                  mode={session.mode}
+                  picked={promptGate.picked(p.at_step)}
+                  answer={answerPair}
+                />
+              ))}
+            </div>
+          )}
           <div className="trees" ref={treesRef}>
             {trueTree !== null && (
               <TreeView
@@ -374,6 +293,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 clampNegative={session.clampNegative}
                 leafSpacing={sharedSpacing}
                 onHoverLeaf={onHoverLeaf}
+                onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
               />
             )}
             {inferred !== null && (
@@ -387,17 +307,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 visibleNodes={visibleNodes}
                 leafSpacing={sharedSpacing}
                 onHoverLeaf={onHoverLeaf}
+                onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
               />
             )}
           </div>
-          {sm !== null && (
+          {smShown !== null && (
             <MatrixHeatmap
-              labels={sm.labels}
-              values={sm.values}
-              view={sm.view}
-              chosen={sm.chosen}
+              labels={smShown.labels}
+              values={smShown.values}
+              view={smShown.view}
+              chosen={smShown.chosen}
               hover={matrixHover}
               onHover={onHoverCell}
+              onPick={gating !== null ? promptGate.onPickCell : undefined}
             />
           )}
         </section>
@@ -420,6 +342,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             playing={playing}
             onStep={onStep}
             onPlayToggle={onPlayToggle}
+            gated={gating !== null}
           />
         )}
         {tooManyForSteps && (

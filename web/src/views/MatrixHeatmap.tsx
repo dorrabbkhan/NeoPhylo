@@ -237,6 +237,7 @@ export function MatrixHeatmap({
                 aria-rowindex={i + 1}
                 aria-label={`${labels[i]}, ${labels[j]}: ${saturated ? "saturated" : text}`}
                 tabIndex={focused[0] === i && focused[1] === j ? 0 : -1}
+                onClick={() => onPick?.(i, j)}
                 onKeyDown={onKeyDown(i, j)}
                 onFocus={() => {
                   setFocused([i, j]);
