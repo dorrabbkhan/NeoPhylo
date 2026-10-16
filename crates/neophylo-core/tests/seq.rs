@@ -63,6 +63,21 @@ fn unsupported_char() {
 }
 
 #[test]
+fn fasta_non_ascii() {
+    // 'Ń' is rejected with the original char — it must not be split
+    // into its UTF-8 bytes or truncated.
+    let err = parse_fasta(">a\nACŃT\n").unwrap_err();
+    assert_eq!(
+        err,
+        NeoError::UnsupportedCharacter {
+            label: "a".to_string(),
+            position: 2,
+            ch: 'Ń',
+        }
+    );
+}
+
+#[test]
 fn text_before_header() {
     let err = parse_fasta("ACGT\n>a\nACGT\n").unwrap_err();
     match err {

@@ -33,6 +33,22 @@ pub struct Alignment {
     pub alphabet: Alphabet,
 }
 
+/// Convert one sequence-data character to a byte. Non-ASCII input is
+/// rejected — never truncated — as `UnsupportedCharacter` carrying the
+/// original `char`; `position` is the 0-based index into the accumulated
+/// sequence. Taxon names/labels stay Unicode; only sequence data must
+/// be ASCII.
+pub(crate) fn seq_byte(label: &str, position: usize, c: char) -> Result<u8, NeoError> {
+    if !c.is_ascii() {
+        return Err(NeoError::UnsupportedCharacter {
+            label: label.to_string(),
+            position,
+            ch: c,
+        });
+    }
+    Ok(c as u8)
+}
+
 /// Bytes accepted in a sequence after uppercasing. `U` is handled separately
 /// because it is normalized to `T` rather than kept.
 fn is_allowed(b: u8) -> bool {
@@ -115,8 +131,9 @@ pub fn parse_fasta(text: &str) -> Result<Alignment, NeoError> {
         // after the whole alignment is read, because the alphabet is
         // detected from all sequences at once and it decides whether `U`
         // means uracil (DNA) or selenocysteine (protein, missing).
-        for &b in line.as_bytes() {
-            seqs[idx].push(b.to_ascii_uppercase());
+        for c in line.chars() {
+            let position = seqs[idx].len();
+            seqs[idx].push(seq_byte(&labels[idx], position, c)?.to_ascii_uppercase());
             if seqs[idx].len() > MAX_SITES {
                 return Err(NeoError::Parse {
                     line: line_no,
