@@ -205,11 +205,14 @@ jobs:
     # always() + !failure()/!cancelled() keeps the gate on every job that
     # actually ran while tolerating fixture-guard's intentional skip.
     needs: [rust, wasm, web, e2e, r-and-fixtures, fixture-guard]
+    # Dependabot PRs are same-repo but get no secrets, so the Netlify step
+    # would always fail on them — skip the job there entirely.
     if: >-
       always() && !failure() && !cancelled() &&
       (github.event_name == 'push' ||
        (github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository))
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'dependabot[bot]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
