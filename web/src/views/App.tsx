@@ -43,6 +43,7 @@ import {
 } from "../state/urlRestore";
 
 import { Controls } from "./Controls";
+import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
@@ -308,6 +309,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
           {session.source === "sandbox" && (
             <ImportPanel session={session} dispatch={dispatch} />
           )}
+          <ExportMenu
+            tree={inferred}
+            alignment={session.alignment}
+            correction={session.exercise.analysis.correction}
+            method={session.exercise.analysis.method}
+            clampNegative={session.clampNegative}
+          />
         </aside>
         <section className="col-center">
           <div className="notices">
