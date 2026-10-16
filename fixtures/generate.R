@@ -11,7 +11,7 @@
 # meaningless.
 #
 # For every alignment in fixtures/inputs/protein/*.fasta it additionally
-# merges a second opinion into ref/protein_<name>.json (written by
+# merges a second opinion into ref/protein/<name>.json (written by
 # generate_phylip.sh, which must run FIRST — see scripts/ci/fixture-guard.sh):
 # the NJ tie check runs on protdist's own JTT matrix, then
 # phangorn::dist.ml(model = "JTT") and ape::dist.aa(pairwise.deletion =
@@ -151,7 +151,7 @@ for (f in inputs) {
 
 # --- protein second opinion ----------------------------------------------
 # Runs AFTER generate_phylip.sh (scripts/ci/fixture-guard.sh holds that
-# order): the protdist JTT matrices are read back from ref/protein_*.json
+# order): the protdist JTT matrices are read back from ref/protein/*.json
 # for the NJ tie check, then the phangorn/ape results are merged into the
 # same files as "second_opinion".
 
@@ -164,7 +164,7 @@ pinputs <- if (dir.exists(pdir)) {
 
 for (f in pinputs) {
   name <- sub("\\.fasta$", "", basename(f))
-  ref_path <- file.path(outdir, paste0("protein_", name, ".json"))
+  ref_path <- file.path(outdir, "protein", paste0(name, ".json"))
   if (!file.exists(ref_path)) {
     stop(sprintf("%s not found; run fixtures/generate_phylip.sh first",
                  ref_path))
@@ -177,9 +177,14 @@ for (f in pinputs) {
   # engine is tested against exactly this matrix.
   assert_no_nj_ties(fixture$distances$JTT, name, "JTT")
 
-  m_jtt <- as.matrix(dist.ml(as.phyDat(aln), model = "JTT"))
-  m_p <- as.matrix(dist.aa(as.matrix(aln),
-                           pairwise.deletion = TRUE, scaled = TRUE))
+  # dist.ml is an iterative optimizer: its last ~1e-14 differs between
+  # BLAS/R builds, so second_opinion is rounded to 8 decimals to keep
+  # regeneration byte-stable across environments (still far finer than
+  # the residual it cross-checks, spec §6.2).
+  m_jtt <- round(as.matrix(dist.ml(as.phyDat(aln), model = "JTT")), 8)
+  m_p <- round(as.matrix(dist.aa(as.matrix(aln),
+                                 pairwise.deletion = TRUE,
+                                 scaled = TRUE)), 8)
 
   fixture$second_opinion <- list(
     generator = sprintf("phangorn %s / ape %s",

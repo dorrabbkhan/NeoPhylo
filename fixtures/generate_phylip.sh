@@ -12,9 +12,11 @@
 # Protein path (v1.1): every inputs/protein/*.fasta goes through protdist
 # (JTT default, then Kimura — the P toggle count is read off the menu
 # output, not assumed) and neighbor NJ on the JTT matrix, parsed into
-# ref/protein_<name>.json. generate.R then adds the phangorn second
-# opinion to those files, so it must run AFTER this script
-# (scripts/ci/fixture-guard.sh holds that order).
+# ref/protein/<name>.json (a subdirectory: the corpus test flat-globs
+# ref/*.json and cannot replay protein inputs until the engine learns
+# them). generate.R then adds the phangorn second opinion to those files,
+# so it must run AFTER this script (scripts/ci/fixture-guard.sh holds
+# that order).
 #
 # Usage: bash fixtures/generate_phylip.sh   (from anywhere)
 # Requires: dnadist, protdist + neighbor (on PATH or /usr/lib/phylip/bin),
@@ -234,7 +236,8 @@ fixture <- list(
   # second_opinion is merged in by fixtures/generate.R (runs after this
   # script; see scripts/ci/fixture-guard.sh).
 )
-out <- file.path(fixdir, "ref", paste0("protein_", name, ".json"))
+out <- file.path(fixdir, "ref", "protein", paste0(name, ".json"))
+dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
 writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA, pretty = TRUE), out)
 cat(sprintf("protein_%s: %d taxa, precision %d -> %s\n",
             name, length(d_jtt$labels), prec, out))

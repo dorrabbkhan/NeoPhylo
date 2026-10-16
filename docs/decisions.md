@@ -744,5 +744,17 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
 - `worked/protdist_doc_jtt.json` was hand-entered from the plan's published
   values and additionally verified locally: `protdist` 3.697 on the five
   doc sequences reproduces all ten upper-triangle entries exactly.
+- Protein refs live at `ref/protein/<name>.json`, not the plan's flat
+  `ref/protein_<name>.json`: `tests/corpus.rs` flat-globs `ref/*.json` and
+  replays every fixture's input through `parse_fasta`, which cannot read
+  protein until Task 3. A subdirectory is skipped by that glob, keeping
+  the corpus DNA-only; Task 6 should glob `ref/protein/` (the fixture
+  guard bars touching `crates/` in this PR, so the corpus test itself
+  cannot be adjusted here).
+- `second_opinion` matrices are rounded to 8 decimals: `dist.ml` is an
+  iterative optimizer whose last ~1e-14 differs between BLAS/R builds, so
+  full-precision output made CI regeneration differ from local output.
+  8 decimals is still far finer than the ~0.1 protdist↔phangorn residual
+  it cross-checks.
 - Note for Task 6: max |protdist JTT − phangorn JTT| over this corpus is
   ≈ 0.12 (second opinion is a cross-check, not a gate, per spec §6.1).

@@ -21,13 +21,16 @@ see `AGENTS.md` for the rules.
   `precision` is the number of printed decimals, so compare within
   `0.5·10^-precision`. PHYLIP has no p-distance, so `distances` has only
   `JC69` and `K80`.
-- `ref/protein_<name>.json` — PHYLIP `protdist` output for
+- `ref/protein/<name>.json` — PHYLIP `protdist` output for
   `inputs/protein/<name>.fasta`: `distances.JTT` (protdist default) and
-  `distances.Kimura`, plus `nj.JTT` from `neighbor`. Saturated Kimura
-  cells appear as `-1`, protdist's saturation marker. `second_opinion`
-  holds `phangorn::dist.ml(model = "JTT")` and `ape::dist.aa(pairwise.
-deletion = TRUE, scaled = TRUE)` at full precision — a cross-check, not
-  a gate (JTT implementations differ measurably).
+  `distances.Kimura`, plus `nj.JTT` from `neighbor`. They live in a
+  subdirectory so the corpus test's flat `ref/*.json` glob keeps seeing
+  only DNA fixtures until the engine learns protein (Task 6 globs
+  `ref/protein/`). Saturated Kimura cells appear as `-1`, protdist's
+  saturation marker. `second_opinion` holds `phangorn::dist.ml(model =
+"JTT")` and `ape::dist.aa(pairwise.deletion = TRUE, scaled = TRUE)`
+  rounded to 8 decimals (dist.ml is an iterative optimizer; the last
+  ~1e-14 differs between BLAS/R builds) — a cross-check, not a gate.
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/protdist_doc_jtt.json` — the 5-sequence test data from PHYLIP's
   `protdist` documentation read as protein, with the published JTT matrix
