@@ -87,5 +87,10 @@ describe("ExplanationPanel", () => {
       />,
     );
     expect(document.querySelector(".katex")).not.toBeNull();
+    expect(
+      screen.getByText(
+        "Values shown rounded; calculations use full precision.",
+      ),
+    ).toBeTruthy();
   });
 });

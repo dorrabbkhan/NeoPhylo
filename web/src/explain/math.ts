@@ -1,19 +1,19 @@
 // Math layer for the explanation panel (plan Task 18, spec §6.2 and §4.5).
 // Each line is KaTeX source with the step's own numbers substituted,
-// formatted to 4 decimals with trailing zeros trimmed (fmt). Every value
-// is read out of the trace record — no distances are recomputed in
-// TypeScript; the only arithmetic is index lookup into the stored
-// row-major matrices.
+// formatted to 3 decimals with trailing zeros trimmed (fmt) — the same
+// precision as the heatmap cells. Every value is read out of the trace
+// record — no distances are recomputed in TypeScript; the only arithmetic
+// is index lookup into the stored row-major matrices.
 
 import type { NjFinal } from "../engine/generated/NjFinal";
 import type { NjStep } from "../engine/generated/NjStep";
 import type { Trace } from "../engine/generated/Trace";
 import type { UpgmaStep } from "../engine/generated/UpgmaStep";
 
-/** Trace numbers render as `toFixed(4)` with trailing zeros (and a bare
- * decimal point) trimmed: 31 -> "31", 8.5 -> "8.5", -0.12345 -> "-0.1235". */
+/** Trace numbers render as `toFixed(3)` with trailing zeros (and a bare
+ * decimal point) trimmed: 31 -> "31", 8.5 -> "8.5", -0.12345 -> "-0.123". */
 export function fmt(v: number): string {
-  return v.toFixed(4).replace(/\.?0+$/, "");
+  return v.toFixed(3).replace(/\.?0+$/, "");
 }
 
 /** Characters that are unsafe inside KaTeX \text{...}. */
@@ -58,6 +58,16 @@ function firstRemaining(s: NjStep | UpgmaStep): number {
 
 const TIE_LINE = "Tie: chosen by input order.";
 
+/** Indices of the pair complementary to `chosen` among four actives —
+ * with four nodes the two complementary pairings always tie at the same
+ * Q, and either choice gives the same tree. */
+function complement(s: NjStep): [number, number] {
+  const rest = s.active
+    .map((_, idx) => idx)
+    .filter((idx) => idx !== s.chosen[0] && idx !== s.chosen[1]);
+  return [rest[0], rest[1]];
+}
+
 /** NJ Math lines (task order): R sums, the chosen Q, both δ formulas,
  * one example d(u,k), then the tie notice when the step tied. */
 function njStepLines(s: NjStep, labels: string[]): string[] {
@@ -84,53 +94,38 @@ function njStepLines(s: NjStep, labels: string[]): string[] {
         `\\frac{${fmt(cell(s.distance, i, k))} + ${fmt(cell(s.distance, j, k))} - ${fmt(dij)}}{2} = ${fmt(s.new_row[0])}`,
     );
   }
-  if (s.tie) lines.push(TIE_LINE);
-  return lines;
-}
-
-/** Distance between two of the final three clusters, recovered from the
- * last stored NJ step: pairs that were both still active come from its
- * `distance` matrix, pairs involving the node it made come from `new_row`
- * (whose order is the remaining active nodes' order). */
-function lastStepDist(s: NjStep, x: number, y: number): number | null {
-  if (x === y) return 0;
-  const xi = s.active.indexOf(x);
-  const yi = s.active.indexOf(y);
-  if (xi >= 0 && yi >= 0) return cell(s.distance, xi, yi);
-  if (x === s.new_node || y === s.new_node) {
-    const other = x === s.new_node ? y : x;
-    const rem = s.active.filter(
-      (_, idx) => idx !== s.chosen[0] && idx !== s.chosen[1],
-    );
-    const t = rem.indexOf(other);
-    if (t >= 0 && t < s.new_row.length) return s.new_row[t];
+  if (s.tie) {
+    if (n === 4) {
+      const [p, r] = complement(s);
+      lines.push(
+        `Q(${a},${b}) = Q(${at(labels, s.active[p])},${at(labels, s.active[r])}) = ${fmt(cell(s.q, p, r))} \\quad \\text{(always equal at four nodes)}`,
+      );
+    } else {
+      lines.push(TIE_LINE);
+    }
   }
-  return null;
+  return lines;
 }
 
 /** Lines for NJ's final three-way join (spec §4.5 step 5): the three
- * l formulas with the distances substituted when they are recoverable
- * from the last stored step. */
-function njFinalLines(steps: NjStep[], f: NjFinal, labels: string[]): string[] {
+ * l_x formulas with the distances read from the stored 3×3 matrix
+ * `final_join.distance` (rows ordered a, b, c). */
+function njFinalLines(f: NjFinal, labels: string[]): string[] {
   const a = at(labels, f.a);
   const b = at(labels, f.b);
   const c = at(labels, f.c);
-  const lines: string[] = [];
-  const last = steps.length > 0 ? steps[steps.length - 1] : null;
-  const dab = last ? lastStepDist(last, f.a, f.b) : null;
-  const dac = last ? lastStepDist(last, f.a, f.c) : null;
-  const dbc = last ? lastStepDist(last, f.b, f.c) : null;
-  if (dab !== null && dac !== null && dbc !== null) {
-    lines.push(
-      `d(${a},${b}) = ${fmt(dab)}, \\quad d(${a},${c}) = ${fmt(dac)}, \\quad d(${b},${c}) = ${fmt(dbc)}`,
-    );
-  }
-  lines.push(
-    `l_${a} = \\frac{d(${a},${b}) + d(${a},${c}) - d(${b},${c})}{2} = ${fmt(f.la)}`,
-    `l_${b} = \\frac{d(${a},${b}) + d(${b},${c}) - d(${a},${c})}{2} = ${fmt(f.lb)}`,
-    `l_${c} = \\frac{d(${a},${c}) + d(${b},${c}) - d(${a},${b})}{2} = ${fmt(f.lc)}`,
-  );
-  return lines;
+  const dab = cell(f.distance, 0, 1);
+  const dac = cell(f.distance, 0, 2);
+  const dbc = cell(f.distance, 1, 2);
+  return [
+    `d(${a},${b}) = ${fmt(dab)}, \\quad d(${a},${c}) = ${fmt(dac)}, \\quad d(${b},${c}) = ${fmt(dbc)}`,
+    `l_${a} = \\frac{d(${a},${b}) + d(${a},${c}) - d(${b},${c})}{2} = ` +
+      `\\frac{${fmt(dab)} + ${fmt(dac)} - ${fmt(dbc)}}{2} = ${fmt(f.la)}`,
+    `l_${b} = \\frac{d(${a},${b}) + d(${b},${c}) - d(${a},${c})}{2} = ` +
+      `\\frac{${fmt(dab)} + ${fmt(dbc)} - ${fmt(dac)}}{2} = ${fmt(f.lb)}`,
+    `l_${c} = \\frac{d(${a},${c}) + d(${b},${c}) - d(${a},${b})}{2} = ` +
+      `\\frac{${fmt(dac)} + ${fmt(dbc)} - ${fmt(dab)}}{2} = ${fmt(f.lc)}`,
+  ];
 }
 
 /** UPGMA Math lines: the chosen (smallest) distance, the new cluster's
@@ -177,8 +172,7 @@ export function mathTex(
   const k = Math.max(0, step);
   if ("Nj" in trace) {
     const steps = trace.Nj.steps;
-    if (k >= steps.length)
-      return njFinalLines(steps, trace.Nj.final_join, labels);
+    if (k >= steps.length) return njFinalLines(trace.Nj.final_join, labels);
     return njStepLines(steps[k], labels);
   }
   const steps = trace.Upgma.steps;
