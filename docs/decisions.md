@@ -246,3 +246,51 @@ One entry per task that deviated from the plan or spec. Newest at the bottom.
   - `TooFewTaxa`'s title interpolates `min` ("Need at least {min}
     sequences") so the verbatim string survives a future limit change;
     `Parse` interpolates `line` per the plan's "{line}" placeholder.
+
+## Task 21: lesson prompts and locks
+
+- Files outside the Files block:
+  - `web/src/views/App.tsx` — the only place prompt gating, PromptCard and
+    the pick handlers can be wired; it owns no prompt logic itself.
+  - `web/src/lessons/prompts.ts` + `web/src/lessons/promptGate.ts` — pure
+    at_step→position helpers plus a `usePromptGate` hook holding the
+    answered-pick map and the two-leaf pick state. Extracting them keeps
+    `App.tsx` under the ~400-line rule (356).
+  - `web/src/views/stepEmphasis.ts` — the chosen/hover/visible/wrong/
+    matrixHover derivation moved out of App so the prompt gate can
+    suppress the answer mark through `smShown`; same pattern as
+    `stepMatrix.ts`.
+  - `web/src/views/MatrixHeatmap.tsx` — cells call `onPick` on click (the
+    spec's "student clicks a matrix cell"); Enter/Space still work.
+  - `web/src/views/TreeView.tsx` — `onPickLeaf(label)` on leaf-label
+    clicks for the "two leaves" pick path.
+  - `web/vite.config.ts` — a small plugin serves `/exercises/*.json` from
+    the repo `exercises/` dir in dev and copies the `.json` files into the
+    build output (the plan's "copied to public/ at build").
+  - `web/src/index.css` — `.prompt-card` styles; all view styling lives
+    there.
+  - `web/package.json` + lock — `ajv@^8` devDependency; the task names ajv
+    for schema validation and draft 2020-12 needs v8 (`Ajv2020`).
+- Ambiguities resolved:
+  - `at_step` is the 1-based _join_ number (Prompt.ts docstring), so a
+    prompt shows at stepper position `at_step - 1` — the position where
+    that join is still pending. Task 23's nj-basics `at_step: 3` only
+    makes sense this way (position 3 is the three-way final join, which
+    has no pair to predict).
+  - While a predict_pair prompt is unanswered the correct pair is not
+    marked anywhere: `smShown` clears `chosen` and no tree highlight is
+    drawn. Otherwise the highlight would give the answer away.
+  - A predict_pair at a position with no pending pair renders like a
+    note instead of gating forever.
+  - Locked controls keep Task 17's disabled behavior and now also carry
+    `title="Fixed for this lesson."` on the control element itself.
+  - Pick rules: diagonal cells are ignored; clicking the same leaf twice
+    re-arms it; two leaves in one cluster count as a wrong answer.
+  - `schema.json` mirrors the engine, not a stricter ideal: unknown
+    properties allowed, `locked`/`prompts` optional, kappa required and
+    positive only under K80, and `at_step`/`seed`/`length` bounds match
+    serde's effective ranges. One accepted divergence: JSON Schema's
+    `integer` accepts `1.0` where serde's `u32` rejects it.
+  - Prompt cards live in the center column above the trees — next to the
+    matrix the student picks from — and follow the session's
+    concept/math mode; prompt.math renders as plain text, not KaTeX.
