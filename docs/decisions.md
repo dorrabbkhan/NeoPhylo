@@ -979,3 +979,28 @@ and the following ci/release entry. Both entries were kept verbatim.)
   - Owner sign-off: Newton (protdist-compatible) with Brent fallback; newton_never_worse guards it.
   - phangorn JTT differs by ~1–1.7% relative across all distance bands (systematic variant
     difference, not error); owner reviewed (Task 6).
+
+## Flaky-test fix: App.test.tsx "syncs the heatmap to the highlighted join"
+
+- Failed intermittently on main (seen in CI; ~2% locally — 1 failure in
+  50 runs). Failing assertion: `aria-rowcount` expected `"4"`, got `"5"`
+  — the ArrowRight keydown was silently dropped and the step never
+  advanced.
+- Root cause: `Stepper` attaches its global ←/→ handler to `window` in a
+  `useEffect`. `findByRole` resolves on the DOM commit (MutationObserver,
+  a microtask) while the session's `setSession` arrives from an async
+  init continuation outside `act`, so passive effects — including the
+  listener attach — are still queued when the test fires the key. The
+  event hits a `window` with no listener; nothing is retried.
+- Fix: new test helper `pressKey(key, target = document.body)` in
+  `web/src/test/keys.ts` — `await act(async () => {})` then
+  `fireEvent.keyDown`. It replaces every `document.body` keydown that
+  relies on the global listener (the other two sites had the same latent
+  race): App.test.tsx "syncs the heatmap …" and "shows only leaves at
+  step 0 …", plus App.prompts.test.tsx "gates the stepper …". Cell-
+  targeted keydowns (matrix grid navigation, Enter picks) go through
+  React's onKeyDown prop, not the window listener, and are unchanged.
+- Convention: tests must use `pressKey()` for global keyboard
+  shortcuts, never bare `fireEvent.keyDown(document.body, …)`.
+- Verified: 100 consecutive `vitest run src/views/App.test.tsx` passes
+  and 20 consecutive full web suite runs pass.
