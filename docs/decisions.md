@@ -851,3 +851,5 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     runners ship only `python3`) and installs `numpy==2.4.6` — the pinned
     version used to generate the committed constants — only when numpy is
     not already importable.
+  - JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
+    proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).

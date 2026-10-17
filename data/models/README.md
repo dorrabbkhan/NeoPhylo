@@ -19,7 +19,7 @@ The file itself contains no license grant. Its notice reads (verbatim):
 
 > S_ij = S_ji and PI_i for the Jones model based on the SWISSPROT
 > Version 22 data.
-> Rate Q_ij=S_ij*PI_j.
+> Rate Q_ij=S_ij\*PI_j.
 > The rest of the file is not used.
 > Prepared by Z. Yang, March 1995.
 >
@@ -30,7 +30,9 @@ The file itself contains no license grant. Its notice reads (verbatim):
 
 The underlying data is the published Jones, Taylor & Thornton (1992)
 empirical amino-acid replacement counts (CABIOS 8:275–282), which is
-reference data, not PHYLIP or PAML code. **owner: confirm license
-compatibility** — PAML itself is GPL-licensed; the constants we ship are
-derived from this published data file via `scripts/gen_models.py`, not
-copied from PHYLIP/PAML source.
+reference data, not PHYLIP or PAML code.
+
+**License:** taken from the PAML repository at the commit above, which is licensed GPL-3.0
+(older PAML releases were non-commercial; this copy is from the GPL-3.0 era). GPL-3.0 is compatible
+with NeoPhylo's AGPL-3.0-only; owner confirmed (v1.1 Task 5). Note: GPL-3.0 material cannot be
+included in a proprietary dual-licensed edition. Replace this source before any such licensing. — PAML itself is GPL-licensed; the constants we ship are derived from this published data file via `scripts/gen_models.py`, not copied from PHYLIP/PAML source.
