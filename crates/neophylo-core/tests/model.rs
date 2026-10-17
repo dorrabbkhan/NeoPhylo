@@ -7,6 +7,13 @@ use neophylo_core::model::{jtt_constants as jtt, JTT};
 
 const N: usize = 20;
 const TOL: f64 = 1e-12;
+/// The committed JTT constants are the spectral decomposition embedded
+/// in PHYLIP 3.697's `protdist.c` (see `data/models/jtt.dat`), carried
+/// verbatim so pair distances match the protdist oracle to its printed
+/// precision. That data was produced in the float32 era and is
+/// self-consistent only to ~1e-6, so exact-matrix identities checked
+/// here hold only to `DATA_TOL`.
+const DATA_TOL: f64 = 5e-6;
 
 fn mat_mul(a: &[[f64; N]; N], b: &[[f64; N]; N]) -> [[f64; N]; N] {
     let mut out = [[0.0; N]; N];
@@ -34,10 +41,11 @@ fn rate_matrix() -> [[f64; N]; N] {
 #[test]
 fn normalized() {
     // Q is scaled so -Σ πᵢ qᵢᵢ = 1: distances are expected substitutions
-    // per site (protdist units, 1.0 = 100 PAM).
+    // per site (protdist units, 1.0 = 100 PAM). Holds to ~1.0000028 —
+    // the embedded data's own normalization, not exact 1.
     let q = rate_matrix();
     let rate: f64 = (0..N).map(|i| jtt::FREQS[i] * q[i][i]).sum();
-    assert!((-rate - 1.0).abs() < TOL, "-Σ πᵢ qᵢᵢ = {}", -rate);
+    assert!((-rate - 1.0).abs() < DATA_TOL, "-Σ πᵢ qᵢᵢ = {}", -rate);
 }
 
 #[test]
@@ -70,7 +78,7 @@ fn p_zero_identity() {
     for (i, row) in p.iter().enumerate() {
         for (j, &p_ij) in row.iter().enumerate() {
             let want = if i == j { 1.0 } else { 0.0 };
-            assert!((p_ij - want).abs() < TOL, "P(0)[{i}][{j}] = {p_ij}");
+            assert!((p_ij - want).abs() < DATA_TOL, "P(0)[{i}][{j}] = {p_ij}");
         }
     }
 }
@@ -81,7 +89,7 @@ fn rows_sum_one() {
         let p = JTT.transition_probs(t);
         for (i, row) in p.iter().enumerate() {
             let sum: f64 = row.iter().sum();
-            assert!((sum - 1.0).abs() < TOL, "P({t}) row {i} sums to {sum}");
+            assert!((sum - 1.0).abs() < DATA_TOL, "P({t}) row {i} sums to {sum}");
         }
     }
 }

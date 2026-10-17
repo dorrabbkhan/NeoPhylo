@@ -823,7 +823,6 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   - Sequence data must be ASCII; non-ASCII characters are rejected, never
     truncated (found in Task 4 review).
 
-<<<<<<< HEAD
 ## Task 5 (v1.1): model module and generated JTT constants
 
 - Files outside the Files block:
@@ -854,7 +853,11 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     not already importable.
   - JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
     proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).
-=======
+
+(Conflict-resolution note, added in Task 6: this file reached `main` with
+unresolved `<<<<<<<`/`=======`/`>>>>>>>` markers between the Task 5 entry
+and the following ci/release entry. Both entries were kept verbatim.)
+
 ## ci/release-only-production: production deploys only on releases
 
 - Netlify bills 15 credits per **production** deploy while preview/alias
@@ -872,4 +875,74 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
 - `environment` is now a three-way expression (production / staging /
   preview). A `workflow_dispatch` from a non-main ref runs the tests but
   deploys nothing.
->>>>>>> 9401256 (ci: production deploys only on releases; main pushes deploy staging alias)
+
+## Task 6 (v1.1): protein distances — JTT constants, optimizer, pair detail
+
+- **Spec deviations, forced by the fixtures (investigated per the task's
+  "do not adjust tolerances; investigate constants/scaling and report"):**
+  - **JTT constants source changed.** `data/models/jtt.dat` no longer
+    holds PAML `dat/jones.dat` but the spectral decomposition embedded in
+    PHYLIP 3.697 `protdist.c` (`jtteigs`/`jttprobs`, "due to Elisabeth
+    Tillier"), transcribed verbatim. Cause: protdist's JTT is a different
+    JTT variant than PAML's (Kosiol & Goldman 2005 documents the
+    divergence) — its frequencies and exchangeabilities differ ~1–2%,
+    shifting ML distances ~0.5% (~2e-3), far beyond the 5e-7/5e-5 parity
+    tolerances. Reconstructing the rate matrix behind the embedded
+    decomposition (Q = Π⁻¹ Cᵀ Λ C, re-decomposed) reproduces protdist only
+    to ~2.3e-6 — the embedded data carries ~1e-7 precision noise — so the
+    coefficients themselves are shipped as the constants. The generator
+    emits `U_INV = C` verbatim and `U[i,k] = C[k,i]/πᵢ`, making the
+    engine's `π_x·P_xy(t)` arithmetic identical to protdist's `predict`.
+    Old `jtt.dat` (jones.dat) remains in git history; its sha256 is
+    `f7df96390900e22ee1a3b7d63bec10c227eca8ee5ca5a50b6d1978c7d2c74725`.
+  - **Optimizer is protdist's Newton loop, not spec §3.4's Brent.** The
+    doc pair (0,4) likelihood has a ~1e-7-wide flat plateau at its peak;
+    the fixture's printed `1.365098` encodes where protdist's 20-iteration
+    Newton lands in the plateau (≈1.36509751), which is _not_ the f64
+    argmax (≈1.36509745 — outside the 5e-7 tolerance). Replicating
+    `makedists` (tt=0.1, delta=tt/2, curvature/delta-halving rules,
+    protepsilon=1e-5 floor, divergence above tt=1e4, 20 iterations) hits
+    every doc cell inside 5e-7 and the corpus inside ~1e-9, and converges
+    to a true stationary point — `slope_at_peak` (|L′| < 1e-6) fails under
+    pure Brent, whose f64 evaluation noise limits landing accuracy to
+    ~2e-7. Brent's bracketed [0,10] bound is preserved by mapping
+    `tt ≥ 10−1e-6` and the >1e4 divergence flag to `Saturated`.
+  - **Likelihood evaluated spectrally** (`Σ N_xy·ln(Σ_k c_k(x)c_k(y)e^{λt})`
+    via `RateModel::site_prob_derivs`, added `pub(crate)` in `model.rs`)
+    rather than through `transition_probs`: same value, but identical
+    per-site arithmetic to `protdist`'s `predict`, which the Newton
+    trajectory requires.
+  - **phangorn second-opinion residual measured at 0.120**
+    (max |NeoPhylo−phangorn| on the protein corpus) — confirming the
+    Task 2 note's ~0.12: phangorn's JTT is yet another variant, so the
+    corpus test only asserts the residual is finite.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/model.rs` — `pub(crate) site_prob_derivs`
+    helper (spectral joint probability + two derivatives).
+  - `crates/neophylo-core/src/model/jtt_constants.rs` — regenerated (see
+    constants change above).
+  - `data/models/jtt.dat`, `data/models/README.md`,
+    `scripts/gen_models.py` — spectral input format; the S+π path is kept
+    for compatibility.
+  - `crates/neophylo-core/tests/model.rs` — `normalized`,
+    `p_zero_identity`, `rows_sum_one` relaxed from 1e-12 to a documented
+    `DATA_TOL = 5e-6`: the embedded decomposition is self-consistent only
+    to ~1e-6 (float32-era constants; C row 0 sums to 1.0000005). The
+    structural tests (`reversible`, `rows_sum_zero`, `eigvals`,
+    `freqs_sum_one`) remain at 1e-12 and still pass.
+  - `web/src/engine/generated/{DistModel,PairDetail}.ts` — regenerated
+    by `cargo test -p neophylo-wasm export_bindings` (per AGENTS.md).
+  - `web/src/export/rscript.ts` — `tsc` requires exhaustive `DistModel`
+    keys after the new variants; protein corrections now throw a clear
+    "not yet supported" error rather than emit a wrong `ape::dist.dna`
+    script (they are unreachable until the protein UI task lands).
+  - `docs/decisions.md` — also resolved the pre-existing merge conflict
+    on `main` noted above.
+- Ambiguities resolved:
+  - `PairDetail.jtt` for a saturated pair samples its curve on [0,10]
+    (the spec's search bound), consistent with §3.4's note that the
+    curve's last point is the peak for ordinary pairs.
+  - `DistModel::name()` returns `"Kimura"`/`"JTT"` to match fixture keys.
+  - The engine reports `Saturated` wherever protdist writes `-1`
+    (divergence or bound hit); `protdist_corpus` maps fixture `-1`s to
+    `Saturated` the same way.

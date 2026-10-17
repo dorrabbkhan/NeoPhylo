@@ -50,6 +50,26 @@ impl RateModel {
         }
         p
     }
+
+    /// Joint probability `π_x·P_xy(t)` of observing states `x` and `y`
+    /// after distance `t`, plus its first two derivatives in `t`.
+    ///
+    /// Evaluated spectrally as `Σ_k c_k(x)·c_k(y)·λ_k^m·exp(λ_k t)` for
+    /// m = 0, 1, 2, where `c` is the spectral coefficient matrix
+    /// (`u_inv`'s rows for the protdist-embedded JTT decomposition —
+    /// see `data/models/README.md`). This is the arithmetic
+    /// `protdist`'s `predict` performs, so the likelihood and Newton
+    /// trajectory in `protein_dist` reproduce the oracle bit-near.
+    pub(crate) fn site_prob_derivs(&self, x: usize, y: usize, t: f64) -> (f64, f64, f64) {
+        let (mut p, mut dp, mut d2p) = (0.0, 0.0, 0.0);
+        for m in 0..self.n {
+            let q = self.u_inv[m][x] * self.u_inv[m][y] * libm::exp(self.eigvals[m] * t);
+            p += q;
+            dp += self.eigvals[m] * q;
+            d2p += self.eigvals[m] * self.eigvals[m] * q;
+        }
+        (p, dp, d2p)
+    }
 }
 
 /// The JTT (Jones, Taylor & Thornton 1992) model (v1.1 spec §3.3).

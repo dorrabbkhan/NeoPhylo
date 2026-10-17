@@ -8,7 +8,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
 
-const APE_MODEL: Record<DistModel, string> = {
+const APE_MODEL: Record<Extract<DistModel, "P" | "Jc69" | "K80">, string> = {
   P: "raw",
   Jc69: "JC69",
   K80: "K80",
@@ -43,12 +43,18 @@ export function exportR(
   correction: DistModel,
   method: Method,
 ): string {
+  const model = APE_MODEL[correction as keyof typeof APE_MODEL];
+  if (model === undefined) {
+    // Protein corrections have no ape::dist.dna equivalent; the UI can't
+    // reach this until the protein workflow lands (v1.1 plan Task 7+).
+    throw new Error(`R export not yet supported for correction ${correction}`);
+  }
   const fasta = escapeR(toFasta(alignment));
   const build = method === "Upgma" ? "phangorn::upgma(d)" : "ape::nj(d)";
   return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
 fa <- "${fasta}"
 aln <- ape::read.dna(textConnection(fa), format = "fasta")
-d <- ape::dist.dna(aln, model = "${APE_MODEL[correction]}", pairwise.deletion = TRUE)
+d <- ape::dist.dna(aln, model = "${model}", pairwise.deletion = TRUE)
 tree <- ${build}
 ape::write.tree(tree)
 `;

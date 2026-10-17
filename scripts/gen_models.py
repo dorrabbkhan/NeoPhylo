@@ -2,9 +2,18 @@
 """Generate crates/neophylo-core/src/model/jtt_constants.rs from data/models/jtt.dat.
 
 Offline constants generator (v1.1 spec §3.3). Requires numpy; not a runtime
-dependency. `jtt.dat` is PAML's `dat/jones.dat`: a lower-triangular integer
-exchangeability matrix S followed by 20 frequencies, in ARNDCQEGHILKMFPSTWYV
-order; the file's trailing commentary is ignored.
+dependency. `jtt.dat` holds the JTT spectral decomposition embedded in PHYLIP
+3.697's `protdist.c` (E. Tillier): 20 eigenvalues followed by a 20x20 spectral
+coefficient matrix C, rows eigenvector-indexed and columns in
+ARNDCQEGHILKMFPSTWYV order. C's row 0 is the equilibrium frequency vector pi
+and C[m][a] = sqrt(pi_a) V[a,m], so the engine evaluates the joint site
+probability pi_x P_xy(t) = sum_m C[m,x] C[m,y] exp(lam_m t) in exactly the
+arithmetic protdist performs. The file's trailing commentary is ignored.
+
+(An exchangeabilities-plus-frequencies file in PAML jones.dat layout — 190
+lower-triangle values then 20 frequencies — is also accepted and converted
+by eigendecomposition, but the committed data file is the spectral one: only
+it reproduces protdist's printed distances, which the v1.1 fixtures test.)
 
   python3 scripts/gen_models.py           regenerate jtt_constants.rs
   python3 scripts/gen_models.py --check   verify the committed file instead:
@@ -14,11 +23,14 @@ order; the file's trailing commentary is ignored.
                                           the committed value (rtol 1e-12,
                                           atol 1e-14 for the ~0 eigenvalue).
 
-Math: Q_ij = S_ij * pi_j (i != j); diagonal = -row sum; Q is scaled so
--pi . diag(Q) = 1 (expected substitutions per site). The symmetric form
-A = Pi^{1/2} Q Pi^{-1/2} is eigendecomposed (numpy.linalg.eigh) and the
-constants emitted are U = Pi^{-1/2} V and U^{-1} = V^T Pi^{1/2}, so the
-engine needs no linear algebra: P(t) = U diag(exp(lambda t)) U^{-1}.
+Math (spectral input): pi = C[0]/sum(C[0]); EIGVALS = the stored eigenvalues;
+U_INV = C verbatim; U[i,k] = C[k,i]/pi_i. Then pi_a * P_ab(t) equals
+sum_m C[m,a] C[m,b] exp(lam_m t) exactly as protdist computes it.
+
+Math (S+pi input): Q_ij = S_ij * pi_j (i != j); diagonal = -row sum; Q is
+scaled so -pi . diag(Q) = 1 (expected substitutions per site). The symmetric
+form A = Pi^{1/2} Q Pi^{-1/2} is eigendecomposed (numpy.linalg.eigh) and the
+constants emitted are U = Pi^{-1/2} V and U^{-1} = V^T Pi^{1/2}.
 """
 
 import hashlib
@@ -40,28 +52,49 @@ RTOL = 1e-12
 ATOL = 1e-14  # regenerated ~0 eigenvalue is only stable to ~1e-16
 
 
-def parse_dat(text: str) -> np.ndarray:
-    """Lower-triangle counts + frequencies -> symmetric exchangeabilities, pi."""
+def tokens_of(text: str) -> list[str]:
+    """Whitespace tokens up to the '//' end-of-data marker."""
     toks: list[str] = []
     for line in text.splitlines():
         if "//" in line:  # PAML's "end of file" marker; the rest is commentary
             break
         toks += line.split()
+    return toks
+
+
+def parse_dat(text: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]:
+    """Parse the data file into (pi, eigvals, U, U_inv, source_label).
+
+    Two layouts are recognized by token count:
+      420 tokens — 20 eigenvalues then the 20x20 spectral coefficient
+          matrix C (row-major, the protdist embedded form). Emitted
+          verbatim: U_inv = C, U[i,k] = C[k,i]/pi_i, pi = C[0] renormalized.
+      210 tokens — PAML jones.dat layout: 190 lower-triangle
+          exchangeabilities then 20 frequencies; decomposed with eigh.
+    """
+    toks = tokens_of(text)
     n_tri = N * (N - 1) // 2
-    if len(toks) != n_tri + N:
-        raise ValueError(f"expected {n_tri + N} tokens, got {len(toks)}")
-    tri = [float(t) for t in toks[:n_tri]]
-    pi = np.array([float(t) for t in toks[n_tri:]])
-    s = np.zeros((N, N))
-    i = 0
-    for r in range(1, N):
-        for c in range(r):
-            s[r, c] = s[c, r] = tri[i]
-            i += 1
-    # The published frequencies sum to 1.000001; renormalize so the engine's
-    # pi is exact.
-    pi = pi / pi.sum()
-    return s, pi
+    if len(toks) == N + N * N:
+        lam = np.array([float(t) for t in toks[:N]])
+        c = np.array([float(t) for t in toks[N:]]).reshape(N, N)
+        pi = c[0] / c[0].sum()
+        u = np.array([[c[k, i] / pi[i] for k in range(N)] for i in range(N)])
+        return pi, lam, u, c.copy(), "spectral"
+    if len(toks) == n_tri + N:
+        tri = [float(t) for t in toks[:n_tri]]
+        pi = np.array([float(t) for t in toks[n_tri:]])
+        s = np.zeros((N, N))
+        i = 0
+        for r in range(1, N):
+            for col in range(r):
+                s[r, col] = s[col, r] = tri[i]
+                i += 1
+        # The published frequencies sum to ~1.000001; renormalize so the
+        # engine's pi is exact.
+        pi = pi / pi.sum()
+        lam, u, u_inv = build(s, pi)
+        return pi, lam, u, u_inv, "exchangeabilities"
+    raise ValueError(f"expected {N + N * N} (spectral) or {n_tri + N} (S+pi) tokens, got {len(toks)}")
 
 
 def build(s: np.ndarray, pi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -85,7 +118,7 @@ def f64_lit(x: float) -> str:
     return lit
 
 
-def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.ndarray) -> str:
+def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.ndarray, source: str) -> str:
     def arr1(v: np.ndarray) -> str:
         return "[" + ", ".join(f64_lit(x) for x in v) + "]"
 
@@ -95,13 +128,14 @@ def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.nda
 
     return f"""\
 //! GENERATED by scripts/gen_models.py from data/models/jtt.dat
-//! (PAML dat/jones.dat, sha256 {sha}).
+//! ({source}, sha256 {sha}).
 //! Do not edit by hand; regenerate with `python3 scripts/gen_models.py`.
 //! CI verifies this file with `python3 scripts/gen_models.py --check`.
 //!
-//! Layout (v1.1 spec §3.3): equilibrium frequencies FREQS, and Q's
-//! eigendecomposition U * diag(EIGVALS) * U_INV with Q normalized so
-//! -pi . diag(Q) = 1, in amino-acid order ARNDCQEGHILKMFPSTWYV.
+//! Layout (v1.1 spec §3.3): equilibrium frequencies FREQS, and the
+//! spectral decomposition U * diag(EIGVALS) * U_INV giving
+//! pi_i * P_ij(t) = sum_k C[k,i] C[k,j] exp(EIGVALS[k] t) with C = U_INV
+//! and U[i,k] = C[k,i]/pi_i, in amino-acid order ARNDCQEGHILKMFPSTWYV.
 
 // Constants are emitted at 17 significant digits for exact f64 round-trip;
 // the precision is deliberate, not excessive.
@@ -113,10 +147,11 @@ pub const FREQS: [f64; 20] = {arr1(pi)};
 /// Eigenvalues of the symmetric form Pi^(1/2) Q Pi^(-1/2).
 pub const EIGVALS: [f64; 20] = {arr1(lam)};
 
-/// Eigenvectors mapped back: U = Pi^(-1/2) V.
+/// U[i,k] = C[k,i]/pi_i (spectral-coefficient rows scaled by 1/pi).
 pub const U: [[f64; 20]; 20] = {arr2(u)};
 
-/// U_INV = V^T Pi^(1/2); U * U_INV = I.
+/// U_INV = C, the spectral coefficient matrix; pi_a * P_ab(t) =
+/// sum_k C[k,a] C[k,b] exp(lam_k t).
 pub const U_INV: [[f64; 20]; 20] = {arr2(u_inv)};
 """
 
@@ -142,11 +177,10 @@ def committed() -> tuple[str, dict[str, np.ndarray]]:
 def main() -> int:
     check = "--check" in sys.argv[1:]
     sha = hashlib.sha256(DAT.read_bytes()).hexdigest()
-    s, pi = parse_dat(DAT.read_text())
-    lam, u, u_inv = build(s, pi)
+    pi, lam, u, u_inv, source = parse_dat(DAT.read_text())
     if not check:
         OUT.parent.mkdir(parents=True, exist_ok=True)
-        OUT.write_text(emit(sha, lam, u, u_inv, pi))
+        OUT.write_text(emit(sha, lam, u, u_inv, pi, source))
         # Keep `cargo fmt --all --check` green for a regenerated file.
         if shutil.which("rustfmt"):
             subprocess.run(["rustfmt", "--edition", "2021", OUT], check=True)
