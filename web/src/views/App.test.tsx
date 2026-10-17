@@ -2,7 +2,13 @@
 // pipeline: the wasm module is initialized in src/test/setup.ts and every
 // render drives sim → dist → build → rf through the session reducer.
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Exercise } from "../engine/generated/Exercise";
@@ -149,6 +155,11 @@ describe("App shell", () => {
     expect(grid.querySelectorAll('[role="row"]')).toHaveLength(5);
     expect(grid.querySelector('[aria-selected="true"]')).not.toBeNull();
 
+    // The global ←/→ listener is attached by a Stepper useEffect.
+    // findByRole resolves on the DOM commit while passive effects are
+    // still queued, so a key fired now could be silently dropped —
+    // flush them first.
+    await act(async () => {});
     fireEvent.keyDown(document.body, { key: "ArrowRight" });
     expect(grid.getAttribute("aria-rowcount")).toBe("4");
     const rows = Array.from(grid.querySelectorAll('[role="row"]'));

@@ -979,3 +979,23 @@ and the following ci/release entry. Both entries were kept verbatim.)
   - Owner sign-off: Newton (protdist-compatible) with Brent fallback; newton_never_worse guards it.
   - phangorn JTT differs by ~1–1.7% relative across all distance bands (systematic variant
     difference, not error); owner reviewed (Task 6).
+
+## Flaky-test fix: App.test.tsx "syncs the heatmap to the highlighted join"
+
+- Failed intermittently on main (seen in CI; ~2% locally — 1 failure in
+  50 runs). Failing assertion: `aria-rowcount` expected `"4"`, got `"5"`
+  — the ArrowRight keydown was silently dropped and the step never
+  advanced.
+- Root cause: `Stepper` attaches its global ←/→ handler to `window` in a
+  `useEffect`. `findByRole` resolves on the DOM commit (MutationObserver,
+  a microtask) while the session's `setSession` arrives from an async
+  init continuation outside `act`, so passive effects — including the
+  listener attach — are still queued when the test fires the key. The
+  event hits a `window` with no listener; nothing is retried.
+- Fix: `await act(async () => {})` before `fireEvent.keyDown`, flushing
+  pending passive effects so the listener is attached before the event
+  dispatches. No retry/timeout/skip.
+- Verified: 100 consecutive `vitest run -t "syncs the heatmap"` passes.
+- Follow-up (not done here): "shows only leaves at step 0 and reveals
+  one internal node on →" in the same file fires a global keydown after
+  `findByRole` the same way — same latent race.
