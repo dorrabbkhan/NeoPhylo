@@ -9,11 +9,9 @@ ARNDCQEGHILKMFPSTWYV order. C's row 0 is the equilibrium frequency vector pi
 and C[m][a] = sqrt(pi_a) V[a,m], so the engine evaluates the joint site
 probability pi_x P_xy(t) = sum_m C[m,x] C[m,y] exp(lam_m t) in exactly the
 arithmetic protdist performs. The file's trailing commentary is ignored.
-
-(An exchangeabilities-plus-frequencies file in PAML jones.dat layout — 190
-lower-triangle values then 20 frequencies — is also accepted and converted
-by eigendecomposition, but the committed data file is the spectral one: only
-it reproduces protdist's printed distances, which the v1.1 fixtures test.)
+PHYLIP 3.696+ is BSD-2-Clause licensed; the generated file carries the
+upstream copyright notice and license text, as do `data/models/README.md`
+and `THIRD_PARTY_NOTICES.md`.
 
   python3 scripts/gen_models.py           regenerate jtt_constants.rs
   python3 scripts/gen_models.py --check   verify the committed file instead:
@@ -23,14 +21,9 @@ it reproduces protdist's printed distances, which the v1.1 fixtures test.)
                                           the committed value (rtol 1e-12,
                                           atol 1e-14 for the ~0 eigenvalue).
 
-Math (spectral input): pi = C[0]/sum(C[0]); EIGVALS = the stored eigenvalues;
-U_INV = C verbatim; U[i,k] = C[k,i]/pi_i. Then pi_a * P_ab(t) equals
+Math: pi = C[0]/sum(C[0]); EIGVALS = the stored eigenvalues; U_INV = C
+verbatim; U[i,k] = C[k,i]/pi_i. Then pi_a * P_ab(t) equals
 sum_m C[m,a] C[m,b] exp(lam_m t) exactly as protdist computes it.
-
-Math (S+pi input): Q_ij = S_ij * pi_j (i != j); diagonal = -row sum; Q is
-scaled so -pi . diag(Q) = 1 (expected substitutions per site). The symmetric
-form A = Pi^{1/2} Q Pi^{-1/2} is eigendecomposed (numpy.linalg.eigh) and the
-constants emitted are U = Pi^{-1/2} V and U^{-1} = V^T Pi^{1/2}.
 """
 
 import hashlib
@@ -56,58 +49,27 @@ def tokens_of(text: str) -> list[str]:
     """Whitespace tokens up to the '//' end-of-data marker."""
     toks: list[str] = []
     for line in text.splitlines():
-        if "//" in line:  # PAML's "end of file" marker; the rest is commentary
+        if "//" in line:  # the file's "end of data" marker; the rest is commentary
             break
         toks += line.split()
     return toks
 
 
-def parse_dat(text: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]:
-    """Parse the data file into (pi, eigvals, U, U_inv, source_label).
+def parse_dat(text: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Parse the data file into (pi, eigvals, U, U_inv).
 
-    Two layouts are recognized by token count:
-      420 tokens — 20 eigenvalues then the 20x20 spectral coefficient
-          matrix C (row-major, the protdist embedded form). Emitted
-          verbatim: U_inv = C, U[i,k] = C[k,i]/pi_i, pi = C[0] renormalized.
-      210 tokens — PAML jones.dat layout: 190 lower-triangle
-          exchangeabilities then 20 frequencies; decomposed with eigh.
+    One layout is recognized: 420 tokens — 20 eigenvalues then the 20x20
+    spectral coefficient matrix C (row-major, the protdist embedded form).
+    Emitted verbatim: U_inv = C, U[i,k] = C[k,i]/pi_i, pi = C[0] renormalized.
     """
     toks = tokens_of(text)
-    n_tri = N * (N - 1) // 2
-    if len(toks) == N + N * N:
-        lam = np.array([float(t) for t in toks[:N]])
-        c = np.array([float(t) for t in toks[N:]]).reshape(N, N)
-        pi = c[0] / c[0].sum()
-        u = np.array([[c[k, i] / pi[i] for k in range(N)] for i in range(N)])
-        return pi, lam, u, c.copy(), "spectral"
-    if len(toks) == n_tri + N:
-        tri = [float(t) for t in toks[:n_tri]]
-        pi = np.array([float(t) for t in toks[n_tri:]])
-        s = np.zeros((N, N))
-        i = 0
-        for r in range(1, N):
-            for col in range(r):
-                s[r, col] = s[col, r] = tri[i]
-                i += 1
-        # The published frequencies sum to ~1.000001; renormalize so the
-        # engine's pi is exact.
-        pi = pi / pi.sum()
-        lam, u, u_inv = build(s, pi)
-        return pi, lam, u, u_inv, "exchangeabilities"
-    raise ValueError(f"expected {N + N * N} (spectral) or {n_tri + N} (S+pi) tokens, got {len(toks)}")
-
-
-def build(s: np.ndarray, pi: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """(eigvals, U, U_inv) for Q normalized to -pi . diag(Q) = 1."""
-    q = s * pi[None, :]
-    np.fill_diagonal(q, -q.sum(axis=1))
-    q /= -(pi * np.diag(q)).sum()
-    sq = np.sqrt(pi)
-    a = np.diag(sq) @ q @ np.diag(1.0 / sq)
-    lam, v = np.linalg.eigh(a)
-    u = np.diag(1.0 / sq) @ v
-    u_inv = v.T @ np.diag(sq)
-    return lam, u, u_inv
+    if len(toks) != N + N * N:
+        raise ValueError(f"expected {N + N * N} (spectral) tokens, got {len(toks)}")
+    lam = np.array([float(t) for t in toks[:N]])
+    c = np.array([float(t) for t in toks[N:]]).reshape(N, N)
+    pi = c[0] / c[0].sum()
+    u = np.array([[c[k, i] / pi[i] for k in range(N)] for i in range(N)])
+    return pi, lam, u, c.copy()
 
 
 def f64_lit(x: float) -> str:
@@ -118,7 +80,7 @@ def f64_lit(x: float) -> str:
     return lit
 
 
-def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.ndarray, source: str) -> str:
+def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.ndarray) -> str:
     def arr1(v: np.ndarray) -> str:
         return "[" + ", ".join(f64_lit(x) for x in v) + "]"
 
@@ -128,7 +90,7 @@ def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.nda
 
     return f"""\
 //! GENERATED by scripts/gen_models.py from data/models/jtt.dat
-//! ({source}, sha256 {sha}).
+//! (PHYLIP protdist spectral data, sha256 {sha}).
 //! Do not edit by hand; regenerate with `python3 scripts/gen_models.py`.
 //! CI verifies this file with `python3 scripts/gen_models.py --check`.
 //!
@@ -136,6 +98,37 @@ def emit(sha: str, lam: np.ndarray, u: np.ndarray, u_inv: np.ndarray, pi: np.nda
 //! spectral decomposition U * diag(EIGVALS) * U_INV giving
 //! pi_i * P_ij(t) = sum_k C[k,i] C[k,j] exp(EIGVALS[k] t) with C = U_INV
 //! and U[i,k] = C[k,i]/pi_i, in amino-acid order ARNDCQEGHILKMFPSTWYV.
+//!
+//! The spectral data below is transcribed verbatim from the arrays
+//! `jtteigs` and `jttprobs` embedded in PHYLIP 3.697's `protdist.c`
+//! (decomposition due to Elisabeth Tillier). PHYLIP is distributed under
+//! the BSD-2-Clause license:
+//!
+//! Copyright (c) 1980-2014, Joseph Felsenstein
+//! All rights reserved.
+//!
+//! Redistribution and use in source and binary forms, with or without
+//! modification, are permitted provided that the following conditions are
+//! met:
+//!
+//! 1. Redistributions of source code must retain the above copyright
+//!    notice, this list of conditions and the following disclaimer.
+//!
+//! 2. Redistributions in binary form must reproduce the above copyright
+//!    notice, this list of conditions and the following disclaimer in the
+//!    documentation and/or other materials provided with the distribution.
+//!
+//! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+//! A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+//! HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+//! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+//! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+//! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Constants are emitted at 17 significant digits for exact f64 round-trip;
 // the precision is deliberate, not excessive.
@@ -177,10 +170,10 @@ def committed() -> tuple[str, dict[str, np.ndarray]]:
 def main() -> int:
     check = "--check" in sys.argv[1:]
     sha = hashlib.sha256(DAT.read_bytes()).hexdigest()
-    pi, lam, u, u_inv, source = parse_dat(DAT.read_text())
+    pi, lam, u, u_inv = parse_dat(DAT.read_text())
     if not check:
         OUT.parent.mkdir(parents=True, exist_ok=True)
-        OUT.write_text(emit(sha, lam, u, u_inv, pi, source))
+        OUT.write_text(emit(sha, lam, u, u_inv, pi))
         # Keep `cargo fmt --all --check` green for a regenerated file.
         if shutil.which("rustfmt"):
             subprocess.run(["rustfmt", "--edition", "2021", OUT], check=True)

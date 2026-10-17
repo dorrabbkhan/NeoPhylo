@@ -13,16 +13,20 @@ use std::path::PathBuf;
 use serde::Deserialize;
 
 use neophylo_core::algos::{build_tree, BuildOptions, Method};
-use neophylo_core::alphabet::{with_alphabet, Alphabet};
+use neophylo_core::alphabet::{protein_index, with_alphabet, Alphabet};
 use neophylo_core::compare::rf;
 use neophylo_core::dist::{compute, Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::matrix::Matrix;
 use neophylo_core::model::JTT;
 use neophylo_core::newick::parse_newick;
-use neophylo_core::protein_dist::{jtt_ml, jtt_pair_detail, kimura_from_p, pair_counts};
+use neophylo_core::protein_dist::{
+    jtt_ml, jtt_pair_detail, kimura_from_p, optimizer_estimates, pair_counts,
+};
 use neophylo_core::seq::{parse_fasta, Alignment};
 use neophylo_core::tree::Tree;
+use rand_chacha::ChaCha8Rng;
+use rand_core::{RngCore, SeedableRng};
 
 #[derive(Deserialize)]
 struct ProteinFixture {
@@ -408,12 +412,141 @@ fn dna_mismatch() {
     );
 }
 
+/// Draw one amino acid from `probs` (a distribution over the 20 states)
+/// using one uniform draw, `next_u64 / 2^64` as in `sim.rs`.
+fn draw_aa(rng: &mut ChaCha8Rng, probs: &[f64; 20]) -> usize {
+    let u = rng.next_u64() as f64 / 18446744073709551616.0;
+    let mut cum = 0.0;
+    for (i, &p) in probs.iter().enumerate() {
+        cum += p;
+        if u < cum {
+            return i;
+        }
+    }
+    19
+}
+
+/// A seeded JTT pair: parent drawn from `JTT.freqs`, child evolved over
+/// distance `t` via `transition_probs`. Returned as the pair count table.
+fn simulated_pair(rng: &mut ChaCha8Rng, len: usize, t: f64) -> [[u32; 20]; 20] {
+    let p = JTT.transition_probs(t);
+    let mut table = [[0u32; 20]; 20];
+    for _ in 0..len {
+        let x = draw_aa(rng, &JTT.freqs);
+        let y = draw_aa(rng, &p[x]);
+        table[x][y] += 1;
+    }
+    table
+}
+
+#[test]
+fn newton_never_worse() {
+    // Optimizer safety (Task 6 review): wherever the protdist Newton
+    // trajectory converges, its estimate must be at least as good a
+    // maximizer as the bounded Brent fallback (up to f64 noise).
+    let mut rng = ChaCha8Rng::seed_from_u64(0x6a09e667f3bcc909);
+    let mut checked = 0u32;
+    let mut fell_back = 0u32;
+    for k in 0..500 {
+        // Lengths 20–400; divergence from identical to near-saturated.
+        let len = 20 + (rng.next_u64() % 381) as usize;
+        let u = rng.next_u64() as f64 / 18446744073709551616.0;
+        let t = if k % 10 == 0 {
+            u * 0.05 // near-identical
+        } else {
+            u * 9.0 // up to the bound
+        };
+        let counts = simulated_pair(&mut rng, len, t);
+        let (newton, brent) = optimizer_estimates(&counts);
+        let Some(d_newton) = newton else {
+            fell_back += 1;
+            continue;
+        };
+        let l_newton = jtt_logl(&counts, d_newton);
+        let l_brent = jtt_logl(&counts, brent);
+        assert!(
+            l_newton >= l_brent - 1e-9,
+            "pair {k} (len {len}, t {t}): logL(newton {d_newton}) = {l_newton} \
+             < logL(brent {brent}) = {l_brent}"
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "no converged Newton pairs exercised");
+    eprintln!("newton_never_worse: {checked} compared, {fell_back} fell back to Brent");
+}
+
+#[test]
+fn optimizer_edge_cases() {
+    // Identical over comparable sites: exactly 0.0.
+    let mut identical = [[0u32; 20]; 20];
+    for (s, row) in identical.iter_mut().enumerate() {
+        row[s] = 20;
+    }
+    assert_eq!(jtt_ml(&identical), Cell::Value(0.0));
+
+    // One difference in 400 sites: small finite estimate, Newton and
+    // Brent agree closely.
+    let aln = parse_fasta(&format!(
+        ">a\n{}\n>b\n{}W\n",
+        "M".repeat(400),
+        "M".repeat(399)
+    ))
+    .unwrap();
+    let (counts, comparable, differences) = pair_counts(&aln.seqs[0], &aln.seqs[1]);
+    assert_eq!((comparable, differences), (400, 1));
+    let Cell::Value(d) = jtt_ml(&counts) else {
+        panic!("one difference in 400 sites must be finite")
+    };
+    assert!(d > 0.0 && d < 0.1, "one-diff-in-400 d̂ = {d}");
+    let (newton, brent) = optimizer_estimates(&counts);
+    let d_newton = newton.expect("one-diff pair must converge");
+    assert!(
+        (d_newton - brent).abs() < 1e-6,
+        "newton {d_newton} vs brent {brent}"
+    );
+
+    // Saturated: 50 A vs 50 W — likelihood still climbing at the bound.
+    let mut sat = [[0u32; 20]; 20];
+    sat[protein_index(b'A').unwrap() as usize][protein_index(b'W').unwrap() as usize] = 50;
+    assert_eq!(jtt_ml(&sat), Cell::Saturated);
+
+    // d̂ inside (5, 10): expected counts at t = 6 keep the bounded
+    // maximum interior.
+    let p = JTT.transition_probs(6.0);
+    let mut deep = [[0u32; 20]; 20];
+    for (x, row) in deep.iter_mut().enumerate() {
+        for (y, cell) in row.iter_mut().enumerate() {
+            *cell = (JTT.freqs[x] * p[x][y] * 4000.0).round() as u32;
+        }
+    }
+    match jtt_ml(&deep) {
+        Cell::Value(d) => assert!((5.0..10.0).contains(&d), "deep pair d̂ = {d}"),
+        Cell::Saturated => panic!("deep pair unexpectedly saturated"),
+    }
+
+    // Zero overlap at the matrix level: InsufficientOverlap, not a panic.
+    let aln = parse_fasta(">a\nM--AA\n>b\nXX-XX\n").unwrap();
+    assert_eq!(
+        compute(&aln, DistModel::Jtt).unwrap_err(),
+        NeoError::InsufficientOverlap {
+            a: "a".to_string(),
+            b: "b".to_string(),
+        }
+    );
+}
+
 #[test]
 fn phangorn_second_opinion() {
     // Spec §6.2: measure max |NeoPhylo − phangorn `dist.ml` JTT| over
     // the corpus and record it in docs/decisions.md. Asserted finite,
     // not gated — a Saturated engine cell makes the residual infinite.
+    // Printed grouped by NeoPhylo distance band for the Task 6 report.
+    let bands = [0.5, 1.0, 2.0, f64::INFINITY];
+    let band_names = ["d < 0.5", "0.5 <= d < 1", "1 <= d < 2", "d >= 2"];
+    let mut max_abs = [0.0f64; 4];
+    let mut max_rel = [0.0f64; 4];
     let mut worst = 0.0f64;
+    let mut worst_pair = String::new();
     for fx in load_protein_fixtures() {
         let aln = protein_alignment(&fx);
         let got = compute(&aln, DistModel::Jtt).unwrap_or_else(|e| panic!("{}: {e:?}", fx.name));
@@ -421,12 +554,31 @@ fn phangorn_second_opinion() {
         for i in 0..n {
             for j in (i + 1)..n {
                 match got.cells[i * n + j] {
-                    Cell::Value(g) => worst = worst.max((g - fx.second_opinion.jtt[i][j]).abs()),
+                    Cell::Value(g) => {
+                        let want = fx.second_opinion.jtt[i][j];
+                        let abs = (g - want).abs();
+                        let rel = abs / want.abs().max(1e-12);
+                        let b = bands.iter().position(|&hi| g < hi).unwrap();
+                        max_abs[b] = max_abs[b].max(abs);
+                        max_rel[b] = max_rel[b].max(rel);
+                        if abs > worst {
+                            worst = abs;
+                            worst_pair = format!(
+                                "{} {}-{} (NeoPhylo {g}, phangorn {want})",
+                                fx.name, fx.labels[i], fx.labels[j]
+                            );
+                        }
+                    }
                     Cell::Saturated => worst = f64::INFINITY,
                 }
             }
         }
     }
-    eprintln!("max |NeoPhylo - phangorn| JTT residual: {worst}");
+    eprintln!("phangorn JTT residuals by NeoPhylo distance band:");
+    eprintln!("  {:>14}  {:>10}  {:>10}", "band", "max |abs|", "max rel");
+    for (b, name) in band_names.iter().enumerate() {
+        eprintln!("  {name:>14}  {:>10.6}  {:>10.6}", max_abs[b], max_rel[b]);
+    }
+    eprintln!("max |NeoPhylo - phangorn| JTT residual: {worst} at {worst_pair}");
     assert!(worst.is_finite(), "phangorn residual is not finite");
 }

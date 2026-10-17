@@ -851,8 +851,14 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     runners ship only `python3`) and installs `numpy==2.4.6` — the pinned
     version used to generate the committed constants — only when numpy is
     not already importable.
-  - JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
-    proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).
+  - ~~JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
+    proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).~~
+    **Superseded in Task 6:** the PAML `jones.dat` data was replaced by the spectral decomposition
+    embedded in PHYLIP 3.697 `protdist.c` (parity reasons below). PHYLIP 3.696+ is BSD-2-Clause —
+    upstream `src/COPYRIGHT`, confirmed against the 3.697 tarball — so no GPL encumbrance remains and
+    the proprietary-dual-license blocker is gone. The notice is carried in `data/models/README.md`,
+    the generated `jtt_constants.rs` header, and `THIRD_PARTY_NOTICES.md`; the S+π input path was
+    removed from `scripts/gen_models.py` so the shipped model derives from PHYLIP only.
 
 (Conflict-resolution note, added in Task 6: this file reached `main` with
 unresolved `<<<<<<<`/`=======`/`>>>>>>>` markers between the Task 5 entry
@@ -905,25 +911,46 @@ and the following ci/release entry. Both entries were kept verbatim.)
     every doc cell inside 5e-7 and the corpus inside ~1e-9, and converges
     to a true stationary point — `slope_at_peak` (|L′| < 1e-6) fails under
     pure Brent, whose f64 evaluation noise limits landing accuracy to
-    ~2e-7. Brent's bracketed [0,10] bound is preserved by mapping
-    `tt ≥ 10−1e-6` and the >1e4 divergence flag to `Saturated`.
+    ~2e-7.
+  - **Brent fallback added on review.** Newton's result is accepted only
+    when the loop ends inside [0,10], finite, with a stationary slope
+    (|L′| ≤ 1e-6 per comparable site — a per-site threshold, since the
+    slope sums over sites). Step size alone is not the criterion: the
+    protepsilon floor can pin tt while the slope stays large, and
+    delta-halving can shrink steps while the iterate still drifts.
+    Anything else — non-convergence, non-finite, out of [0,10] — falls
+    back to a bounded Brent search on [0,10] (tol 1e-10 in d). The
+    bounded search also owns the `Saturated` call (maximum within 1e-6
+    of 10), replacing the earlier `tt ≥ 10−1e-6 || diverged` mapping,
+    since the Newton trajectory has no guarantee of finding the true
+    maximum near the bound. `newton_never_worse` (500 seeded random
+    pairs, lengths 20–400, near-identical to near-saturated) checks
+    logL(newton) ≥ logL(brent) − 1e-9 wherever Newton reports
+    convergence; `optimizer_estimates` is a `#[doc(hidden)]` test hook
+    exposing both argmaxes.
   - **Likelihood evaluated spectrally** (`Σ N_xy·ln(Σ_k c_k(x)c_k(y)e^{λt})`
     via `RateModel::site_prob_derivs`, added `pub(crate)` in `model.rs`)
     rather than through `transition_probs`: same value, but identical
     per-site arithmetic to `protdist`'s `predict`, which the Newton
     trajectory requires.
   - **phangorn second-opinion residual measured at 0.120**
-    (max |NeoPhylo−phangorn| on the protein corpus) — confirming the
+    (max |NeoPhylo−phangorn| on the protein corpus, protein_p12_100
+    P05–P08: NeoPhylo 7.708440, phangorn 7.588787) — confirming the
     Task 2 note's ~0.12: phangorn's JTT is yet another variant, so the
-    corpus test only asserts the residual is finite.
+    corpus test only asserts the residual is finite. By NeoPhylo
+    distance band, max |abs|/max rel: d<0.5 → 0.0033/0.011,
+    0.5–1 → 0.0082/0.0095, 1–2 → 0.0157/0.011, d≥2 → 0.120/0.017.
 - **Files outside the Files block:**
   - `crates/neophylo-core/src/model.rs` — `pub(crate) site_prob_derivs`
     helper (spectral joint probability + two derivatives).
   - `crates/neophylo-core/src/model/jtt_constants.rs` — regenerated (see
     constants change above).
   - `data/models/jtt.dat`, `data/models/README.md`,
-    `scripts/gen_models.py` — spectral input format; the S+π path is kept
-    for compatibility.
+    `scripts/gen_models.py` — spectral input format. The S+π
+    (PAML `jones.dat`) input path was removed on review, so the shipped
+    model derives from PHYLIP only; `THIRD_PARTY_NOTICES.md` at the repo
+    root carries the PHYLIP BSD-2 notice, as do `data/models/README.md`
+    and the generated `jtt_constants.rs` header.
   - `crates/neophylo-core/tests/model.rs` — `normalized`,
     `p_zero_identity`, `rows_sum_one` relaxed from 1e-12 to a documented
     `DATA_TOL = 5e-6`: the embedded decomposition is self-consistent only

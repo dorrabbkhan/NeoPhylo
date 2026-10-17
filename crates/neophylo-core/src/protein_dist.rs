@@ -32,6 +32,19 @@ const CURVE_POINTS: usize = 60;
 const NEWTON_ITERS: usize = 20;
 const PROTEPSILON: f64 = 1e-5;
 const DIVERGED: f64 = 1e4;
+// Newton acceptance: after the fixed iteration limit the result counts
+// as converged only when the logL slope is stationary per site. A small
+// last step is not sufficient: the `protepsilon` floor clamp can pin the
+// iterate while the slope stays large (near-identical pairs), and
+// delta-halving can shrink steps while the trajectory still drifts.
+// Anything else falls back to the bounded Brent search.
+const NEWTON_CONV_SLOPE: f64 = 1e-6;
+// Bounded Brent search on [0, D_MAX] (spec §3.4): absolute tolerance
+// 1e-10 in d.
+const BRENT_TOL: f64 = 1e-10;
+const BRENT_ITMAX: usize = 200;
+const CGOLD: f64 = 0.3819660112501051; // (3 - sqrt(5)) / 2
+const ZEPS: f64 = 1e-12;
 
 /// Count a protein pair into a 20×20 ordered-pair table `N_xy`
 /// (`PROTEIN_STATES` order), plus the comparable-site and difference
@@ -81,6 +94,29 @@ fn jtt_logl(counts: &[[u32; 20]; 20], d: f64) -> f64 {
     l
 }
 
+/// `logL`'s first two derivatives at `d` (protdist's `slope`/`curv`),
+/// plus whether any observed site pair's joint probability underflowed.
+fn logl_derivs(counts: &[[u32; 20]; 20], d: f64) -> (f64, f64, bool) {
+    let (mut slope, mut curv) = (0.0, 0.0);
+    let mut neginfinity = false;
+    for (x, row) in counts.iter().enumerate() {
+        for (y, &n) in row.iter().enumerate() {
+            if n == 0 {
+                continue;
+            }
+            let (p, dp, d2p) = JTT.site_prob_derivs(x, y, d);
+            if p <= 0.0 {
+                neginfinity = true;
+            } else {
+                let n = f64::from(n);
+                slope += n * dp / p;
+                curv += n * (d2p / p - dp * dp / (p * p));
+            }
+        }
+    }
+    (slope, curv, neginfinity)
+}
+
 /// protdist 3.697's pair-distance optimizer (`makedists`): a fixed 20
 /// Newton iterations on `slope = d(logL)/dt` and `curv = d²(logL)/dt²`,
 /// with delta-halving when the curvature is non-negative or any site
@@ -96,30 +132,17 @@ fn jtt_logl(counts: &[[u32; 20]; 20], d: f64) -> f64 {
 /// which Brent cannot reach through f64 evaluation noise.
 /// (docs/decisions.md, Task 6.)
 ///
-/// Returns `(d, diverged)`.
-fn newton_mle(counts: &[[u32; 20]; 20]) -> (f64, bool) {
+/// Returns `Some(d)` when the loop ends converged at a finite `d` inside
+/// `[0, D_MAX]`, `None` when it diverges, leaves the interval, goes
+/// non-finite, or has not settled within the iteration limit — the
+/// caller then falls back to [`brent_mle`].
+fn newton_mle(counts: &[[u32; 20]; 20]) -> Option<f64> {
     let mut tt = 0.1;
     let mut delta = tt / 2.0;
     let mut diverged = false;
     let mut it = 0;
     while it != NEWTON_ITERS {
-        let (mut slope, mut curv) = (0.0, 0.0);
-        let mut neginfinity = false;
-        for (x, row) in counts.iter().enumerate() {
-            for (y, &n) in row.iter().enumerate() {
-                if n == 0 {
-                    continue;
-                }
-                let (p, dp, d2p) = JTT.site_prob_derivs(x, y, tt);
-                if p <= 0.0 {
-                    neginfinity = true;
-                } else {
-                    let n = f64::from(n);
-                    slope += n * dp / p;
-                    curv += n * (d2p / p - dp * dp / (p * p));
-                }
-            }
-        }
+        let (slope, curv, neginfinity) = logl_derivs(counts, tt);
         it += 1;
         if !neginfinity {
             if curv < 0.0 {
@@ -142,13 +165,121 @@ fn newton_mle(counts: &[[u32; 20]; 20]) -> (f64, bool) {
             tt = PROTEPSILON;
         }
     }
-    (tt, diverged)
+    if diverged || !tt.is_finite() || !(0.0..=D_MAX).contains(&tt) {
+        return None;
+    }
+    // Convergence check at the final point: the trajectory counts as
+    // converged only at a stationary point of logL. The slope is summed
+    // over comparable sites, so its threshold scales with the site
+    // count. A floor-clamped or still-drifting iterate keeps a
+    // macroscopic slope and falls back to Brent — for a pair whose true
+    // maximum lies below `protepsilon`, the bounded search can land
+    // meaningfully closer to 0 than the floor.
+    let total = counts
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&n| f64::from(n))
+        .sum::<f64>();
+    let (slope, _, _) = logl_derivs(counts, tt);
+    if slope.abs() <= NEWTON_CONV_SLOPE * total.max(1.0) {
+        Some(tt)
+    } else {
+        None
+    }
+}
+
+/// Bounded Brent search for the `logL` maximum on `[0, D_MAX]` to an
+/// absolute tolerance of `BRENT_TOL` in `d` (spec §3.4). Fallback for
+/// the cases `newton_mle` cannot certify, and the decider for
+/// saturation: a bounded maximum within `SATURATED_EPS` of `D_MAX`
+/// means the likelihood is still climbing at the search boundary.
+fn brent_mle(counts: &[[u32; 20]; 20]) -> f64 {
+    // Minimize -logL; follows the canonical Brent structure with golden
+    // steps when the parabolic fit is unacceptable.
+    let f = |d: f64| -jtt_logl(counts, d);
+    let (mut a, mut b) = (0.0_f64, D_MAX);
+    let mut x = a + CGOLD * (b - a);
+    let mut w = x;
+    let mut v = x;
+    let mut fx = f(x);
+    let mut fw = fx;
+    let mut fv = fx;
+    let mut d: f64 = 0.0;
+    let mut e: f64 = 0.0;
+    for _ in 0..BRENT_ITMAX {
+        let xm = 0.5 * (a + b);
+        let tol1 = BRENT_TOL + ZEPS * x.abs();
+        let tol2 = 2.0 * tol1;
+        if (x - xm).abs() <= tol2 - 0.5 * (b - a) {
+            break;
+        }
+        if e.abs() > tol1 {
+            // Inverse-parabolic step through (x, w, v).
+            let r = (x - w) * (fx - fv);
+            let q = (x - v) * (fx - fw);
+            let p0 = (x - v) * q - (x - w) * r;
+            let q = 2.0 * (r - q);
+            let p = if q > 0.0 { -p0 } else { p0 };
+            let q = q.abs();
+            let etemp = e;
+            e = d;
+            if p.abs() >= (0.5 * q * etemp).abs() || p <= q * (a - x) || p >= q * (b - x) {
+                e = if x >= xm { a - x } else { b - x };
+                d = CGOLD * e;
+            } else {
+                d = p / q;
+                let u = x + d;
+                if u - a < tol2 || b - u < tol2 {
+                    d = tol1.copysign(xm - x);
+                }
+            }
+        } else {
+            e = if x >= xm { a - x } else { b - x };
+            d = CGOLD * e;
+        }
+        let u = if d.abs() >= tol1 {
+            x + d
+        } else {
+            x + tol1.copysign(d)
+        };
+        let fu = f(u);
+        if fu <= fx {
+            if u >= x {
+                a = x;
+            } else {
+                b = x;
+            }
+            v = w;
+            fv = fw;
+            w = x;
+            fw = fx;
+            x = u;
+            fx = fu;
+        } else {
+            if u < x {
+                a = u;
+            } else {
+                b = u;
+            }
+            if fu <= fw || w == x {
+                v = w;
+                fv = fw;
+                w = u;
+                fw = fu;
+            } else if fu <= fv || v == x || v == w {
+                v = u;
+                fv = fu;
+            }
+        }
+    }
+    x
 }
 
 /// The JTT maximum-likelihood distance for one pair's count table
 /// (spec §3.4). `d̂ = 0` exactly when the pair is identical over its
 /// comparable sites; `Saturated` when the likelihood is still climbing
-/// at `D_MAX`.
+/// at `D_MAX` — decided by the bounded search, since the Newton
+/// trajectory has no guarantee of reaching the true maximum there.
 pub fn jtt_ml(counts: &[[u32; 20]; 20]) -> Cell {
     let differences: u32 = counts
         .iter()
@@ -162,12 +293,28 @@ pub fn jtt_ml(counts: &[[u32; 20]; 20]) -> Cell {
         // pairs with `InsufficientOverlap` before reaching this.
         return Cell::Value(0.0);
     }
-    let (d, diverged) = newton_mle(counts);
-    if diverged || d >= D_MAX - SATURATED_EPS {
-        Cell::Saturated
-    } else {
-        Cell::Value(d)
+    // Primary: the protdist Newton trajectory. A converged result
+    // strictly inside the search interval is the estimate; anything near
+    // the bound or unconverged is adjudicated by the bounded Brent
+    // search, which owns the saturation call.
+    match newton_mle(counts) {
+        Some(d) if d < D_MAX - SATURATED_EPS => Cell::Value(d),
+        _ => {
+            let d = brent_mle(counts);
+            if d >= D_MAX - SATURATED_EPS {
+                Cell::Saturated
+            } else {
+                Cell::Value(d)
+            }
+        }
     }
+}
+
+/// Optimizer internals for tests (not public API): the Newton estimate
+/// (`None` when it did not converge) and the bounded Brent argmax.
+#[doc(hidden)]
+pub fn optimizer_estimates(counts: &[[u32; 20]; 20]) -> (Option<f64>, f64) {
+    (newton_mle(counts), brent_mle(counts))
 }
 
 /// The on-demand detail behind one pair's distance, for the "How was
