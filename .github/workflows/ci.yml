@@ -7,7 +7,9 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*']
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -198,7 +200,9 @@ jobs:
   # Deploys the web job's `dist` artifact to Netlify (task: ci/netlify-deploy).
   # Preview deploys for same-repo PRs only — fork PRs are excluded below so
   # they never see the Netlify secrets (and pull_request_target is never
-  # used). Pushes to main deploy production.
+  # used). Pushes to main deploy a free `main` alias (staging); production
+  # deploys only on v*.*.* tags or a manual run from main — Netlify charges
+  # credits per production deploy, so it is never triggered by a plain push.
   deploy:
     # fixture-guard only runs on pull_request (its own `if`), so its result
     # is "skipped" on push. A plain `needs` list would then skip this job;
@@ -207,7 +211,7 @@ jobs:
     needs: [rust, wasm, web, e2e, r-and-fixtures, fixture-guard]
     if: >-
       always() && !failure() && !cancelled() &&
-      (github.event_name == 'push' ||
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-24.04
@@ -215,7 +219,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    environment: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+    environment: >-
+      ${{
+        (startsWith(github.ref, 'refs/tags/v') ||
+         (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+        && 'production'
+        || (github.event_name == 'pull_request' && 'preview' || 'staging')
+      }}
     steps:
       # checkout only supplies .nvmrc to setup-node — the deploy itself
       # works purely off the `dist` artifact.
@@ -277,8 +287,27 @@ jobs:
                 body,
               });
             }
+      - name: Deploy staging to Netlify
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        # --alias main is a free deploy; the stable URL is
+        # main--<site>.netlify.app. No PR comment — the URL goes to the
+        # job summary instead.
+        run: |
+          npx --yes --package netlify-cli@27.13.0 netlify deploy \
+            --dir web/dist \
+            --alias main \
+            --json > netlify-deploy.json
+          url=$(node -p "require('./netlify-deploy.json').deploy_url")
+          echo "Staging URL: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Staging URL: $url"
       - name: Deploy production to Netlify
-        if: github.event_name == 'push'
+        # Only on a v*.*.* tag push or a manual run dispatched from main.
+        if: >-
+          startsWith(github.ref, 'refs/tags/v') ||
+          (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

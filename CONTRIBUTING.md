@@ -8,7 +8,7 @@ oracle, `libm` only, no unseeded RNG, the engine never panics, …) and
 ## Workflow
 
 - **Start with an issue.** Bug reports use the bug template; errors in
-  lessons or explanatory text use the *Science or teaching content error*
+  lessons or explanatory text use the _Science or teaching content error_
   template (see below).
 - **Larger changes go through spec/plan first.** New algorithms, models,
   file-format or UI changes start as a design spec and task plan under
@@ -22,6 +22,10 @@ oracle, `libm` only, no unseeded RNG, the engine never panics, …) and
 - **Record deviations.** If your change deviates from the plan, interfaces
   or spec, add a one-entry note to [`docs/decisions.md`](docs/decisions.md)
   in the same commit.
+- **Deploys:** `main` deploys to staging (`main--<site>.netlify.app`);
+  production updates only on version tags `v*.*.*` or the manual
+  "Deploy production" run — Netlify charges credits per production deploy.
+  Same-repo PRs get a free `pr-<n>` preview, commented on the PR.
 - **Fixtures are sacred.** Never edit anything in `fixtures/` by hand, and
   never change fixtures in the same PR as engine code. If a reference test
   fails, assume the implementation is wrong. Only a human maintainer may
@@ -48,7 +52,7 @@ Lesson JSON files, prompt text and the Concept/Math explanation layers are
 teaching content and get the same review rigor as code:
 
 - **Report errors** with the
-  [*Science or teaching content error*](https://github.com/dorrabbkhan/NeoPhylo/issues/new?template=content_error.yml)
+  [_Science or teaching content error_](https://github.com/dorrabbkhan/NeoPhylo/issues/new?template=content_error.yml)
   issue template — it asks for the lesson and step, the wrong text, the
   correct text and a reference.
 - **New lessons** are JSON files in `exercises/` validated against
