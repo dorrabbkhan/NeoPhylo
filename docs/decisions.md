@@ -822,3 +822,34 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     wasm boundary and can derive it then.
   - Sequence data must be ASCII; non-ASCII characters are rejected, never
     truncated (found in Task 4 review).
+
+## Task 5 (v1.1): model module and generated JTT constants
+
+- Files outside the Files block:
+  - `crates/neophylo-core/src/lib.rs` — required to register `pub mod model`
+    and re-export `JTT` / `RateModel`.
+- Ambiguities resolved:
+  - `jtt.dat` (PAML `dat/jones.dat`) frequencies sum to 1.000001; the
+    generator renormalizes π to exactly 1 before building Q. Without this
+    `freqs_sum_one` (1e-12) fails. Effect on distances is ~1e-6 relative,
+    far inside the Task 6 parity tolerance.
+  - `--check` compares regenerated vs committed constants at rtol 1e-12
+    plus atol 1e-14 (the task's "1e-12 relative" alone cannot hold for the
+    ~1e-16 stationary eigenvalue). It also verifies the header's embedded
+    input SHA-256 equals `jtt.dat`'s, covering the spec §6.2 checksum test.
+  - `model::jtt_constants` is `pub` so integration tests rebuild
+    `Q = U·diag(λ)·U⁻¹` from the committed constants (the plan's `normalized`
+    / `reversible` tests); `RateModel`'s eigendecomposition fields stay
+    private per the plan's sketch.
+  - `RateModel` keeps spec §3.3's `pub n: usize` field (= 20); the plan's
+    Produces sketch omitted it.
+  - The generated file carries a scoped
+    `#![allow(clippy::excessive_precision)]`: the 17-significant-digit
+    literals are deliberate (exact f64 round-trip), and clippy's 387 hits
+    on them were noise.
+  - `scripts/ci/rust.sh` uses `python3` (the task says `python`; Ubuntu
+    runners ship only `python3`) and installs `numpy==2.4.6` — the pinned
+    version used to generate the committed constants — only when numpy is
+    not already importable.
+  - JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
+    proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).
