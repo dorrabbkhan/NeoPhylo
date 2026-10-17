@@ -13,37 +13,48 @@ use ts_rs::TS;
 use crate::alphabet::{protein_index, Alphabet};
 use crate::error::NeoError;
 use crate::matrix::Matrix;
+use crate::protein_dist;
 use crate::seq::Alignment;
 
-/// Distance correction model (spec §4.3).
+/// Distance correction model (spec §4.3, v1.1 §3.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub enum DistModel {
     /// Uncorrected proportion of differences. Never saturates.
     P,
-    /// Jukes–Cantor 1969. Saturates at p ≥ 0.75.
+    /// Jukes–Cantor 1969 (DNA). Saturates at p ≥ 0.75.
     Jc69,
-    /// Kimura 1980 two-parameter. Saturates when either log argument
-    /// is non-positive.
+    /// Kimura 1980 two-parameter (DNA). Saturates when either log
+    /// argument is non-positive.
     K80,
+    /// Kimura protein correction (protein), `d = −ln(1 − p − 0.2p²)`.
+    /// Saturates when `1 − p − 0.2p² ≤ 0`.
+    Kimura,
+    /// JTT maximum-likelihood distance (protein). Saturates when the
+    /// likelihood still rises at the search bound.
+    Jtt,
 }
 
 impl DistModel {
-    /// The exercise-file spelling of the model name ("p", "JC69", "K80").
+    /// The exercise-file spelling of the model name ("p", "JC69",
+    /// "K80", "Kimura", "JTT").
     pub fn name(self) -> &'static str {
         match self {
             DistModel::P => "p",
             DistModel::Jc69 => "JC69",
             DistModel::K80 => "K80",
+            DistModel::Kimura => "Kimura",
+            DistModel::Jtt => "JTT",
         }
     }
 
-    /// Models valid for `alphabet` (v1.1 spec §3.4). `Kimura` and `Jtt`
-    /// join the protein arm in Task 6.
+    /// Models valid for `alphabet` (v1.1 spec §3.4).
     fn supports(self, alphabet: Alphabet) -> bool {
         match alphabet {
             Alphabet::Dna => matches!(self, DistModel::P | DistModel::Jc69 | DistModel::K80),
-            Alphabet::Protein => matches!(self, DistModel::P),
+            Alphabet::Protein => {
+                matches!(self, DistModel::P | DistModel::Kimura | DistModel::Jtt)
+            }
         }
     }
 }
@@ -175,6 +186,11 @@ fn distance(counts: &PairCounts, model: DistModel) -> Cell {
     let p = counts.differences as f64 / sites;
     match model {
         DistModel::P => Cell::Value(p),
+        // Unreachable: `supports` keeps protein models out of the DNA
+        // dispatch that calls this function, and `compute` handles
+        // protein pairs through `protein_dist` directly. A saturated
+        // cell is the honest fallthrough for a wrong model.
+        DistModel::Kimura | DistModel::Jtt => Cell::Saturated,
         // d = -3/4 ln(1 - 4p/3); saturated at p >= 0.75.
         DistModel::Jc69 => {
             if p >= 0.75 {
@@ -212,14 +228,40 @@ pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoE
     let mut cells = vec![Cell::Value(0.0); n * n];
     for i in 0..n {
         for j in (i + 1)..n {
-            let counts = pair_counts(&aln.seqs[i], &aln.seqs[j], aln.alphabet);
-            if counts.comparable == 0 {
-                return Err(NeoError::InsufficientOverlap {
-                    a: label(&aln.labels, i),
-                    b: label(&aln.labels, j),
-                });
-            }
-            let cell = distance(&counts, model);
+            let cell = match aln.alphabet {
+                Alphabet::Dna => {
+                    let counts = pair_counts(&aln.seqs[i], &aln.seqs[j], aln.alphabet);
+                    if counts.comparable == 0 {
+                        return Err(NeoError::InsufficientOverlap {
+                            a: label(&aln.labels, i),
+                            b: label(&aln.labels, j),
+                        });
+                    }
+                    distance(&counts, model)
+                }
+                Alphabet::Protein => {
+                    let (table, comparable, differences) =
+                        protein_dist::pair_counts(&aln.seqs[i], &aln.seqs[j]);
+                    if comparable == 0 {
+                        return Err(NeoError::InsufficientOverlap {
+                            a: label(&aln.labels, i),
+                            b: label(&aln.labels, j),
+                        });
+                    }
+                    let p = f64::from(differences) / f64::from(comparable);
+                    match model {
+                        DistModel::P => Cell::Value(p),
+                        DistModel::Kimura => protein_dist::kimura_from_p(p),
+                        DistModel::Jtt => protein_dist::jtt_ml(&table),
+                        other => {
+                            return Err(NeoError::ModelAlphabetMismatch {
+                                model: other.name().to_string(),
+                                alphabet: aln.alphabet,
+                            })
+                        }
+                    }
+                }
+            };
             cells[i * n + j] = cell;
             cells[j * n + i] = cell;
         }
@@ -235,7 +277,7 @@ pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoE
     })
 }
 
-fn label(labels: &[String], i: usize) -> String {
+pub(crate) fn label(labels: &[String], i: usize) -> String {
     labels
         .get(i)
         .cloned()

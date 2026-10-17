@@ -24,6 +24,9 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 6. The engine must not panic on any input. Return `NeoError`.
 7. Keep files single-purpose and under ~400 lines. One algorithm per file.
 8. Do not add dependencies beyond those named in the spec without saying why in the PR description.
+9. After editing, verify every changed file with `git diff` before committing; the edit tool has
+   silently failed to write in Tasks 4 and 6. If a write doesn't land, rewrite the whole file and
+   re-verify.
 
 ## Workflow
 
