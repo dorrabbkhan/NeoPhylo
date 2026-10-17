@@ -3,4 +3,4 @@
 /**
  * Substitution model for `simulate` (spec §4.2).
  */
-export type SimModel = "Jc69" | { "K80": { kappa: number, } };
+export type SimModel = "Jc69" | { "K80": { kappa: number, } } | "Jtt";
