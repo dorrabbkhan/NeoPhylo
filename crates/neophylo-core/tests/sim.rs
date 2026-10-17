@@ -97,7 +97,16 @@ fn golden_hashes() {
     }
 }
 
-/// Regenerate `fixtures/sim_golden.json`. Ignored by default:
+fn golden_jtt_path() -> String {
+    concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/sim_golden_jtt.json"
+    )
+    .to_string()
+}
+
+/// Regenerate `fixtures/sim_golden.json` and `fixtures/sim_golden_jtt.json`.
+/// Ignored by default:
 /// `cargo test -p neophylo-core --test sim -- --ignored regen_golden`.
 #[test]
 #[ignore]
@@ -129,6 +138,22 @@ fn regen_golden() {
     }
     out.push_str("  ]\n}\n");
     let path = golden_path();
+    std::fs::write(&path, out).unwrap();
+    eprintln!("wrote {path}");
+
+    // The JTT golden (v1.1 spec §3.5): same nj-basics tree, 1,000
+    // sites, seed 4. Kept in its own file so the fixture guard can
+    // distinguish the new protein golden from the frozen v1 hashes.
+    let sim = spec(SimModel::Jtt, 1_000, 4);
+    let tree = parse_newick(NJ_BASICS_TREE).unwrap();
+    let aln = simulate(&tree, &sim).unwrap();
+    let out = format!(
+        "{{\n  \"cases\": [\n    {{ \"name\": \"jtt_seed4\", \"tree\": \"{NJ_BASICS_TREE}\", \
+         \"model\": \"JTT\", \"length\": 1000, \"seed\": 4, \
+         \"fnv1a64\": \"{:016x}\" }}\n  ]\n}}\n",
+        fnv1a64(&aln)
+    );
+    let path = golden_jtt_path();
     std::fs::write(&path, out).unwrap();
     eprintln!("wrote {path}");
 }
