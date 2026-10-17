@@ -20,8 +20,9 @@ use rand_core::{RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::alphabet::Alphabet;
+use crate::alphabet::{protein_index, Alphabet, PROTEIN_STATES};
 use crate::error::NeoError;
+use crate::model::JTT;
 use crate::seq::Alignment;
 use crate::tree::Tree;
 
@@ -47,6 +48,10 @@ pub enum SimModel {
     /// Kimura 1980 two-parameter with transition/transversion ratio
     /// `kappa`.
     K80 { kappa: f64 },
+    /// Jones–Taylor–Thornton 1992 (protein): root draws from
+    /// `JTT.freqs`, branch transitions from `JTT.transition_probs(t)`
+    /// (v1.1 spec §3.5).
+    Jtt,
 }
 
 /// What to simulate: model, site count and the RNG seed.
@@ -119,11 +124,22 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
     let len = spec.length as usize;
     let mut seqs: Vec<Vec<u8>> = vec![Vec::new(); tree.nodes.len()];
 
-    // 1. The root sequence: `len` draws, each uniform over A/C/G/T.
+    // 1. The root sequence: `len` draws — uniform over A/C/G/T for the
+    //    DNA models, cumulative over `JTT.freqs` in PROTEIN_STATES order
+    //    for JTT (v1.1 spec §3.5).
     let mut root_seq = Vec::with_capacity(len);
-    for _ in 0..len {
-        let u = uniform(&mut rng);
-        root_seq.push(BASES[((u * 4.0) as usize).min(BASES.len() - 1)]);
+    match spec.model {
+        SimModel::Jtt => {
+            for _ in 0..len {
+                root_seq.push(sample_aa(&JTT.freqs, uniform(&mut rng)));
+            }
+        }
+        _ => {
+            for _ in 0..len {
+                let u = uniform(&mut rng);
+                root_seq.push(BASES[((u * 4.0) as usize).min(BASES.len() - 1)]);
+            }
+        }
     }
     seqs[tree.root.0 as usize] = root_seq;
 
@@ -149,7 +165,10 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
     Ok(Alignment {
         labels,
         seqs: out,
-        alphabet: Alphabet::Dna,
+        alphabet: match spec.model {
+            SimModel::Jtt => Alphabet::Protein,
+            _ => Alphabet::Dna,
+        },
     })
 }
 
@@ -161,10 +180,46 @@ fn uniform(rng: &mut ChaCha8Rng) -> f64 {
 /// Apply the mutations of a branch of length `d` to `parent`, consuming
 /// one uniform draw per site.
 fn evolve(parent: &[u8], d: f64, model: SimModel, rng: &mut ChaCha8Rng) -> Vec<u8> {
+    // JTT: P(d) is computed once per branch; each site then samples from
+    // the row of its parent's amino acid (v1.1 spec §3.5).
+    if model == SimModel::Jtt {
+        let p = JTT.transition_probs(d);
+        return parent
+            .iter()
+            .map(|&b| mutate_protein(b, &p, uniform(rng)))
+            .collect();
+    }
     parent
         .iter()
         .map(|&b| mutate(b, d, model, uniform(rng)))
         .collect()
+}
+
+/// Draw one amino-acid state by cumulative comparison over `probs` in
+/// `PROTEIN_STATES` order (v1.1 spec §3.5) — a frequency vector for the
+/// root, or a transition row `P(d)[x]` for a branch. A draw landing
+/// past the last cumulative value (rounding) picks the final state
+/// rather than panicking.
+fn sample_aa(probs: &[f64; 20], u: f64) -> u8 {
+    let mut cum = 0.0;
+    for (i, &p) in probs.iter().enumerate() {
+        cum += p;
+        if u < cum {
+            return PROTEIN_STATES[i];
+        }
+    }
+    PROTEIN_STATES[PROTEIN_STATES.len() - 1]
+}
+
+/// One protein site on one branch: the outcome `u` lands in over the
+/// cumulative row `P(d)[x]` (v1.1 spec §3.5). Characters outside the
+/// 20 standard states are never produced internally but pass through
+/// unchanged so a hand-built tree cannot be mutated into a panic.
+fn mutate_protein(aa: u8, p: &[[f64; 20]; 20], u: f64) -> u8 {
+    match protein_index(aa) {
+        Some(x) => sample_aa(&p[x as usize], u),
+        None => aa,
+    }
 }
 
 /// Transition target: A↔G and C↔T (same rule as `dist`).
@@ -225,6 +280,10 @@ fn mutate(base: u8, d: f64, model: SimModel, u: f64) -> u8 {
             let p_tv = 0.25 - 0.25 * e1;
             [1.0 - p_ti - 2.0 * p_tv, p_ti, p_tv, p_tv]
         }
+        // Unreachable: `evolve` samples JTT branches through
+        // `mutate_protein` with a per-branch P(d). "Same" is the
+        // honest fallthrough.
+        SimModel::Jtt => [1.0, 0.0, 0.0, 0.0],
     };
     let outs = outcomes(base);
     let mut cum = 0.0;
