@@ -178,7 +178,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
 
   const inferred = session?.result?.tree ?? null;
   const trace = session?.result?.trace ?? null;
-  const trueTree = session?.trueTree ?? null;
+  const referenceTree = session?.reference?.tree ?? null;
   const inferSets = useMemo(
     () => (inferred ? leafLabelSets(inferred) : new Map<number, Set<string>>()),
     [inferred],
@@ -194,9 +194,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
       inferred ? inferred.nodes.map((_, id) => nodeName(inferred, id)) : [],
     [inferred],
   );
-  const trueLeafByLabel = useMemo(
-    () => (trueTree ? leafIdByLabel(trueTree) : new Map<string, number>()),
-    [trueTree],
+  const referenceLeafByLabel = useMemo(
+    () =>
+      referenceTree ? leafIdByLabel(referenceTree) : new Map<string, number>(),
+    [referenceTree],
   );
 
   // The stepper position and its heatmap must exist before the
@@ -247,7 +248,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // caption, divided by the leaf count, clamped to 18–48 px.
   const sharedSpacing = leafSpacingFor(
     treesHeight - TREE_CAPTION_H,
-    Math.max(nLeaf, trueTree !== null ? leafCount(trueTree) : 0),
+    Math.max(nLeaf, referenceTree !== null ? leafCount(referenceTree) : 0),
   );
 
   // Unpack the prompt gate (src/lessons/promptGate.ts): gating hides the
@@ -263,7 +264,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
     smShown,
     inferSets,
     inferLeafByLabel,
-    trueLeafByLabel,
+    trueLeafByLabel: referenceLeafByLabel,
     matrix: session.matrix,
     cellHover: session.hover,
     hoverLeaf,
@@ -364,15 +365,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
             </div>
           )}
           <div className="trees" ref={treesRef}>
-            {trueTree === null && (
+            {referenceTree === null && (
               <p className="no-true-tree">
                 No true tree — import a Newick tree to compare
               </p>
             )}
-            {trueTree !== null && (
+            {referenceTree !== null && (
               <TreeView
                 title="True tree"
-                tree={trueTree}
+                tree={referenceTree}
                 layoutKind="phylogram"
                 highlight={trueHi}
                 wrong={NO_HIGHLIGHT}
@@ -425,7 +426,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             step={k}
             max={n}
             rfText={rfText}
-            noTrueTree={session.trueTree === null}
+            noTrueTree={session.reference === null}
             playing={playing}
             onStep={onStep}
             onPlayToggle={onPlayToggle}

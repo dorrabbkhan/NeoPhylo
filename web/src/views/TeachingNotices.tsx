@@ -87,9 +87,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
   const points = useMemo(
     () =>
       session.alignment !== null
-        ? chartPoints(session.alignment, session.trueTree)
+        ? chartPoints(session.alignment, session.reference?.tree ?? null)
         : [],
-    [session.alignment, session.trueTree],
+    [session.alignment, session.reference],
   );
 
   if (sat === null && !hasNegative && wrongClades === 0) return null;

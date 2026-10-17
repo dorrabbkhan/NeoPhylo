@@ -1073,3 +1073,39 @@ and the following ci/release entry. Both entries were kept verbatim.)
   Safe because `#x=` exercises are trusted objects (never re-parsed) and
   no code round-trips a serialized `Exercise` through `loadExercise`.
 - Owner sign-off: the plan's Task 8 protein_validation case 2 was wrong (A/C/G/T are valid amino acids). Declared alphabet is authoritative; embedded DNA-looking protein declared "protein" loads. Confirmed by owner 2026-10-17.
+## Task 9 (v1.1): web session reference/alphabet, URL v2
+
+- Files outside the Files block, all required by the `trueTree`/`trueTreeOrigin`
+  → `reference` rename and `v: 1` → `v: 2` bump: `web/src/state/urlRestore.ts`
+  (reads the renamed fields, writes `v: 2`), `web/src/views/App.tsx` and
+  `web/src/views/TeachingNotices.tsx` (read `reference.tree`), and the test
+  files `web/src/views/ImportPanel.test.tsx` and `web/src/views/App.url.test.tsx`
+  (assert on the renamed field / encode a `v: 2` state).
+- The plan says 12 capture cases but lists 13 items; all 13 were captured.
+- Ambiguities resolved:
+  - Embedded exercises keep `alignmentOrigin: "simulated"` rather than
+    Task 8's stand-in `"imported"`: their alignment is exercise data
+    reproduced by `recompute` from `data.fasta` (imported semantics —
+    never re-simulated — is satisfied by the parse, which is also what
+    makes `importTree` keep the embedded alignment while switching the
+    reference). With `"imported"`, `hasImportedData` would flag the
+    lesson's own data as user data, `sessionUrlState` would re-embed the
+    FASTA in every link, and a restored `?lesson=` link for an embedded
+    lesson would silently reopen in sandbox mode. The Task 8 test
+    asserting `"imported"` was updated.
+  - A simulated exercise with `reference: null` still gets the
+    `data.true_tree` as its `kind: "true"` reference (v1 parity: RF
+    against the sim tree); a declared reference with a different
+    topology is compared against, but simulation still runs along
+    `data.true_tree` (an imported reference is simulated along, per the
+    unchanged `importTree` rule).
+  - An imported tree is `kind: "true"` (the user supplies the truth to
+    compare against); Task 10 owns kind-aware tree titles.
+  - `migrate()` fills `alphabet: "dna"` on imported alignments missing
+    the field (v1 links), in both `#x=` and `?d=` paths; the engine's
+    serde default would make it DNA anyway.
+  - The corpus test compares matrices at JSON level (`JSON.stringify`
+    round-trip) because JSON cannot express `-0`, which the engine
+    legitimately produces for zero distances.
+- `imported.trueTree` stays the wire field name in v2 states; imported
+  trees are always kind "true" so no kind field is carried.

@@ -128,7 +128,7 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
  */
 export function sessionUrlState(s: Session, link: LinkKind): UrlState {
   return {
-    v: 1,
+    v: 2,
     step: s.step,
     mode: s.mode,
     ...(s.source === "sandbox" ? { src: "sandbox" as const } : {}),
@@ -151,8 +151,8 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
             ...(s.alignmentOrigin === "imported" && s.alignment !== null
               ? { alignment: s.alignment }
               : {}),
-            ...(s.trueTreeOrigin === "imported" && s.trueTree !== null
-              ? { trueTree: engine.writeNewick(s.trueTree) }
+            ...(s.reference?.origin === "imported"
+              ? { trueTree: engine.writeNewick(s.reference.tree) }
               : {}),
           },
         }
