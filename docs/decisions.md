@@ -973,3 +973,9 @@ and the following ci/release entry. Both entries were kept verbatim.)
   - The engine reports `Saturated` wherever protdist writes `-1`
     (divergence or bound hit); `protdist_corpus` maps fixture `-1`s to
     `Saturated` the same way.
+  - Owner sign-off: JTT variant = PHYLIP protdist (matches existing labs to printed precision);
+    BSD-2-Clause notice retained.
+  - Owner sign-off: model invariant tolerance 5e-6 (source data precision), was 1e-12.
+  - Owner sign-off: Newton (protdist-compatible) with Brent fallback; newton_never_worse guards it.
+  - phangorn JTT differs by ~1–1.7% relative across all distance bands (systematic variant
+    difference, not error); owner reviewed (Task 6).
