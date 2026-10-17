@@ -17,11 +17,19 @@ afterEach(cleanup);
 // Same content as src/lessons/default.ts but without prompts, so the
 // stepper isn't gated when checking the "no true tree" RF readout.
 const NJ_BASICS: Exercise = {
-  schema_version: 1,
+  schema_version: 2,
   id: "nj-basics",
   title: "How Neighbor-Joining works",
-  true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
-  sim: { model: "Jc69", length: 1000, seed: 42 },
+  alphabet: "dna",
+  data: {
+    kind: "simulated",
+    true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+    sim: { model: "Jc69", length: 1000, seed: 42 },
+  },
+  reference: {
+    newick: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+    kind: "true",
+  },
   analysis: { correction: "Jc69", method: "Nj" },
   locked: ["sim.model", "analysis.method"],
   prompts: [],

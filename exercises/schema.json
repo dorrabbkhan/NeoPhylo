@@ -1,53 +1,109 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NeoPhylo exercise file",
-  "description": "Lesson/exercise file format (design spec section 7). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, and sim.kappa is required only when sim.model is \"K80\". Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..).",
+  "description": "Lesson/exercise file format, schema v2 (v1.1 design spec section 3.6). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, and sim.kappa is required only when sim.model is \"K80\". Only schema_version 2 validates here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files must be v2. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..). Model/alphabet compatibility, embedded-FASTA character validity and reference label matching are semantic checks the engine performs; this schema only covers structure.",
   "type": "object",
-  "required": ["schema_version", "id", "title", "true_tree", "sim", "analysis"],
+  "required": ["schema_version", "id", "title", "alphabet", "data", "analysis"],
   "properties": {
-    "schema_version": { "type": "integer", "const": 1 },
+    "schema_version": { "const": 2 },
     "id": { "type": "string" },
     "title": { "type": "string" },
-    "true_tree": {
-      "type": "string",
-      "description": "Newick string; every non-root node must carry a branch length. Syntax is checked by the engine, not by this schema."
+    "alphabet": { "enum": ["dna", "protein"] },
+    "data": { "$ref": "#/$defs/data" },
+    "reference": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["newick", "kind"],
+          "properties": {
+            "newick": {
+              "type": "string",
+              "description": "Newick string for the reference tree; its leaf labels must equal the alignment's labels (checked by the engine)."
+            },
+            "kind": { "enum": ["true", "classification"] }
+          }
+        }
+      ]
     },
+    "analysis": { "$ref": "#/$defs/analysis" },
+    "locked": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Dotted control paths fixed for the lesson, e.g. \"sim.model\"."
+    },
+    "prompts": { "$ref": "#/$defs/prompts" }
+  },
+  "$defs": {
     "sim": {
       "type": "object",
       "required": ["model", "length", "seed"],
       "properties": {
-        "model": { "enum": ["JC69", "K80"] },
+        "model": { "enum": ["JC69", "K80", "JTT"] },
         "kappa": { "type": "number" },
         "length": { "type": "integer", "minimum": 10, "maximum": 10000 },
         "seed": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
       },
-      "allOf": [
-        {
-          "if": {
-            "properties": { "model": { "const": "K80" } },
-            "required": ["model"]
-          },
-          "then": {
-            "required": ["kappa"],
-            "properties": {
-              "kappa": { "type": "number", "exclusiveMinimum": 0 }
-            }
-          }
+      "allOf": [{ "$ref": "#/$defs/kappaForK80" }]
+    },
+    "kappaForK80": {
+      "if": {
+        "properties": { "model": { "const": "K80" } },
+        "required": ["model"]
+      },
+      "then": {
+        "required": ["kappa"],
+        "properties": {
+          "kappa": { "type": "number", "exclusiveMinimum": 0 }
         }
-      ]
+      }
     },
     "analysis": {
       "type": "object",
       "required": ["correction", "method"],
       "properties": {
-        "correction": { "enum": ["p", "JC69", "K80"] },
+        "correction": { "enum": ["p", "JC69", "K80", "Kimura", "JTT"] },
         "method": { "enum": ["NJ", "UPGMA"] }
       }
     },
-    "locked": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Dotted control paths fixed for the lesson, e.g. \"sim.model\"."
+    "data": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "true_tree", "sim"],
+          "properties": {
+            "kind": { "const": "simulated" },
+            "true_tree": {
+              "type": "string",
+              "description": "Newick string; every non-root node must carry a branch length. Syntax is checked by the engine, not by this schema."
+            },
+            "sim": { "$ref": "#/$defs/sim" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "fasta", "source"],
+          "properties": {
+            "kind": { "const": "embedded" },
+            "fasta": {
+              "type": "string",
+              "description": "Aligned FASTA text embedded in the lesson; it must parse and its characters must be valid under the declared alphabet (checked by the engine)."
+            },
+            "source": {
+              "type": "object",
+              "required": ["citation", "license", "accessions"],
+              "properties": {
+                "citation": { "type": "string" },
+                "license": { "type": "string" },
+                "accessions": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "prompts": {
       "type": "array",

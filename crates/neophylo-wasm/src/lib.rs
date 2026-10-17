@@ -15,9 +15,12 @@ use ts_rs::TS;
 use wasm_bindgen::prelude::*;
 
 use neophylo_core::algos::{BuildOptions, Method};
+use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::{DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::Exercise;
+use neophylo_core::phylip::NameMode;
+use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
 use neophylo_core::tree::Tree;
@@ -139,8 +142,65 @@ pub fn simulate(tree: JsValue, spec: JsValue) -> JsValue {
     )
 }
 
-/// Parse and validate a lesson JSON file (plan gap 3).
+/// Parse and validate a lesson JSON file (plan gap 3, v1.1 spec §3.6).
 #[wasm_bindgen]
 pub fn load_exercise(json: &str) -> JsValue {
     to_js::<Exercise>(neophylo_core::load_exercise(json))
+}
+
+/// The `parse_phylip` result: the alignment plus the name mode Auto
+/// actually used, so the UI can show it (v1.1 spec §3.2).
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct PhylipParseResult {
+    pub alignment: Alignment,
+    pub names_used: NameMode,
+}
+
+/// Parse PHYLIP text (sequential or interleaved) into an `Alignment`
+/// (v1.1 spec §3.2).
+#[wasm_bindgen]
+pub fn parse_phylip(text: &str, names: JsValue) -> JsValue {
+    to_js(arg::<NameMode>(names, "names").and_then(|names| {
+        neophylo_core::parse_phylip(text, names).map(|(alignment, names_used)| PhylipParseResult {
+            alignment,
+            names_used,
+        })
+    }))
+}
+
+/// Auto-detect an alignment's alphabet from its sequence data
+/// (v1.1 spec §3.1).
+#[wasm_bindgen]
+pub fn detect_alphabet(aln: JsValue) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").map(|a| neophylo_core::detect_alphabet(&a.seqs)))
+}
+
+/// Re-validate an alignment under a chosen alphabet; the override path
+/// (v1.1 spec §3.1).
+#[wasm_bindgen]
+pub fn with_alphabet(aln: JsValue, alphabet: JsValue) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<Alphabet>(alphabet, "alphabet")
+            .and_then(|alphabet| neophylo_core::with_alphabet(a, alphabet))
+    }))
+}
+
+/// The pair-panel detail for sequences `i` and `j` of a protein
+/// alignment (v1.1 spec §3.4).
+#[wasm_bindgen]
+pub fn jtt_pair_detail(aln: JsValue, i: usize, j: usize) -> JsValue {
+    to_js::<PairDetail>(
+        arg::<Alignment>(aln, "aln").and_then(|a| neophylo_core::jtt_pair_detail(&a, i, j)),
+    )
+}
+
+/// Serialize a `DistanceMatrix` as PHYLIP `neighbor` input
+/// (v1.1 spec §3.2).
+#[wasm_bindgen]
+pub fn write_phylip_matrix(m: JsValue, names: JsValue) -> JsValue {
+    to_js(arg::<DistanceMatrix>(m, "m").and_then(|m| {
+        arg::<NameMode>(names, "names")
+            .and_then(|names| neophylo_core::write_phylip_matrix(&m, names))
+    }))
 }

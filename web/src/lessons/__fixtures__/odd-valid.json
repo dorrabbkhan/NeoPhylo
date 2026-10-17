@@ -1,9 +1,14 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "odd-valid",
   "title": "Odd but valid",
-  "true_tree": "(A:0.1,B:0.2,C:0.3);",
-  "sim": { "model": "JC69", "kappa": -5, "length": 10, "seed": 9007199254740991 },
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2,C:0.3);",
+    "sim": { "model": "JC69", "kappa": -5, "length": 10, "seed": 9007199254740991 }
+  },
+  "reference": null,
   "analysis": { "correction": "p", "method": "UPGMA" },
   "prompts": [{ "at_step": 0, "type": "note", "concept": "hi", "math": null }],
   "unknown_field": { "nested": [1, 2, 3] }

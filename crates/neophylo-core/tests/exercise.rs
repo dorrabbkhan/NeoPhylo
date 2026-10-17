@@ -4,7 +4,7 @@
 use neophylo_core::algos::Method;
 use neophylo_core::dist::DistModel;
 use neophylo_core::error::NeoError;
-use neophylo_core::exercise::{load_exercise, PromptType};
+use neophylo_core::exercise::{load_exercise, ExerciseData, PromptType};
 use neophylo_core::sim::SimModel;
 
 /// The spec §7 example.
@@ -36,16 +36,17 @@ fn field_of(err: &NeoError) -> &str {
 #[test]
 fn valid_loads() {
     let ex = load_exercise(VALID).unwrap();
-    assert_eq!(ex.schema_version, 1);
+    // A v1 file loads as the normalized schema-v2 shape.
+    assert_eq!(ex.schema_version, 2);
     assert_eq!(ex.id, "nj-basics");
     assert_eq!(ex.title, "How Neighbor-Joining works");
-    assert_eq!(
-        ex.true_tree,
-        "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);"
-    );
-    assert_eq!(ex.sim.model, SimModel::Jc69);
-    assert_eq!(ex.sim.length, 1000);
-    assert_eq!(ex.sim.seed, 42);
+    let ExerciseData::Simulated { true_tree, sim } = &ex.data else {
+        panic!("expected Simulated data, got {:?}", ex.data)
+    };
+    assert_eq!(true_tree, "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);");
+    assert_eq!(sim.model, SimModel::Jc69);
+    assert_eq!(sim.length, 1000);
+    assert_eq!(sim.seed, 42);
     assert_eq!(ex.analysis.correction, DistModel::Jc69);
     assert_eq!(ex.analysis.method, Method::Nj);
     assert_eq!(ex.locked, vec!["sim.model", "analysis.method"]);
@@ -85,14 +86,23 @@ fn k80_sim_loads() {
         r#""sim": { "model": "K80", "kappa": 2.0, "length": 1000, "seed": 42 }"#,
     );
     let ex = load_exercise(&json).unwrap();
-    assert_eq!(ex.sim.model, SimModel::K80 { kappa: 2.0 });
+    let ExerciseData::Simulated { sim, .. } = &ex.data else {
+        panic!("expected Simulated data, got {:?}", ex.data)
+    };
+    assert_eq!(sim.model, SimModel::K80 { kappa: 2.0 });
 }
 
 #[test]
 fn bad_schema_version() {
-    let json = VALID.replace(r#""schema_version": 1"#, r#""schema_version": 2"#);
+    // Versions other than 1 and 2 are rejected.
+    let json = VALID.replace(r#""schema_version": 1"#, r#""schema_version": 3"#);
     let err = load_exercise(&json).unwrap_err();
     assert_eq!(field_of(&err), "schema_version");
+
+    // A v2 file in the v1 flat shape is missing `alphabet`.
+    let json = VALID.replace(r#""schema_version": 1"#, r#""schema_version": 2"#);
+    let err = load_exercise(&json).unwrap_err();
+    assert_eq!(field_of(&err), "alphabet");
 }
 
 #[test]

@@ -1025,3 +1025,51 @@ and the following ci/release entry. Both entries were kept verbatim.)
   shortcuts, never bare `fireEvent.keyDown(document.body, …)`.
 - Verified: 100 consecutive `vitest run src/views/App.test.tsx` passes
   and 20 consecutive full web suite runs pass.
+
+## Task 8: exercise schema v2
+
+- Files outside the Files block: `crates/neophylo-core/src/lib.rs`
+  (re-exports for the new public types), `src/dist.rs` (`supports` promoted
+  to `pub(crate)` so exercise validation can reuse the §3.4 table),
+  `src/phylip.rs` (`#[derive(TS)]` on `NameMode` so `PhylipParseResult.
+  names_used` generates a named type), `tests/exercise.rs` (v1 tests
+  updated to the normalized v2 `Exercise` shape), and the web bridge
+  needed to keep the build green against the new `Exercise` type:
+  `state/session.ts`, `state/url.ts`, `state/urlRestore.ts`,
+  `views/App.tsx`, `views/Controls.tsx`, `views/TeachingNotices.tsx`,
+  `lessons/lessons.test.ts`, and the `Exercise` literals in the
+  session/url/App/sandbox/TeachingNotices/ImportPanel tests.
+- The web bridge is deliberately minimal; Task 9 owns the real session
+  changes (`reference`, `alphabet`, URL `v: 2` + migrate). Until then:
+  `Session.trueTree`/`trueTreeOrigin` are unchanged, an embedded
+  exercise loads its FASTA as `alignmentOrigin: "imported"` with the
+  `reference` tree standing in for RF comparison, sim controls hide when
+  `exercise.data.kind` is "embedded", and `sessionUrlState` omits the
+  `sim` override for embedded data. Old `#x=` v1 exercises decode to the
+  wrong shape until Task 9's migrate() — URLs are still `v: 1`.
+- Spec-silent details resolved: a `schema_version: 2` file in flat v1
+  shape reports `InvalidExercise { field: "alphabet" }` (first missing
+  v2 field), not a version error. The declared alphabet is
+  authoritative for embedded data; detection is only a default, so a
+  declared-vs-detected mismatch is not an error (`ModelAlphabetMismatch`
+  remains only for model-vs-alphabet, e.g. a JTT sim declared "dna" or
+  a "JC69" correction on protein data). A normalized `Exercise` always
+  reports `schema_version: 2`, including migrated v1 inputs.
+- Review fixes: `session.ts` `load` re-tags an embedded alignment with
+  `withAlphabet(exercise.alphabet)` so a DNA-looking protein lesson can
+  run protein corrections; `exercises/schema.json` now validates
+  schema_version 2 only (the engine still accepts v1 for old links) and
+  `schema.test.ts` asserts every `exercises/*.json` declares version 2.
+  The `__fixtures__` files were converted to v2 so the schema/engine
+  agreement tests keep exercising their specific validation rules.
+  `load_v1` gained the DNA `supports` check for `analysis.correction`
+  and the `JTT` sim-model check — the shared `analysis()` parser accepts
+  the "Kimura"/"JTT" spellings, so without it a v1 exercise could load a
+  protein-only model and fail downstream instead of at load
+  (`ModelAlphabetMismatch`; regression tests `v1_rejects_protein_*`).
+- Wire vs file shape: `Exercise`'s derived serde emits engine spellings
+  (`"Jc69"`, `{ "K80": { "kappa": ... } }`) on the wasm boundary — the
+  file-shape mirror lives only inside `load_exercise`, exactly as v1 did.
+  Safe because `#x=` exercises are trusted objects (never re-parsed) and
+  no code round-trips a serialized `Exercise` through `loadExercise`.
+- Owner sign-off: the plan's Task 8 protein_validation case 2 was wrong (A/C/G/T are valid amino acids). Declared alphabet is authoritative; embedded DNA-looking protein declared "protein" loads. Confirmed by owner 2026-10-17.

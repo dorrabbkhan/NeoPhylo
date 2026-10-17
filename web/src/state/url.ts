@@ -13,6 +13,7 @@ import {
 
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
+import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface UrlState {
   /** Schema version; the only current version is 1 (spec §6.4). */
@@ -26,7 +27,7 @@ export interface UrlState {
   /** Present when the session is in sandbox mode. */
   src?: "sandbox";
   overrides?: {
-    sim?: Partial<Exercise["sim"]>;
+    sim?: Partial<SimSpec>;
     analysis?: Partial<Exercise["analysis"]>;
     branchScale?: number;
   };

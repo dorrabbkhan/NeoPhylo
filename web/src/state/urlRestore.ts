@@ -12,7 +12,7 @@ import { loadLesson } from "../lessons/loader";
 import { decode } from "./url";
 import type { UrlState } from "./url";
 import type { Session } from "./session";
-import { hasImportedData, reducer } from "./session";
+import { exerciseSim, hasImportedData, reducer } from "./session";
 
 /** How the loaded exercise should be shared: a built-in lesson links
  * by id (`?lesson=`), anything else is embedded in `#x=`. */
@@ -74,9 +74,14 @@ export async function resolveInitial(
     const o = fromUrl.overrides;
     ex = {
       ...ex,
-      sim: { ...ex.sim, ...o.sim },
       analysis: { ...ex.analysis, ...o.analysis },
     };
+    if (o.sim !== undefined && ex.data.kind === "simulated") {
+      ex = {
+        ...ex,
+        data: { ...ex.data, sim: { ...ex.data.sim, ...o.sim } },
+      };
+    }
   }
   return { exercise: ex, link, fromUrl, toast };
 }
@@ -128,7 +133,9 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
     mode: s.mode,
     ...(s.source === "sandbox" ? { src: "sandbox" as const } : {}),
     overrides: {
-      sim: s.exercise.sim,
+      ...(exerciseSim(s.exercise) !== null
+        ? { sim: exerciseSim(s.exercise)! }
+        : {}),
       analysis: s.exercise.analysis,
       ...(s.branchScale !== 1 ? { branchScale: s.branchScale } : {}),
     },

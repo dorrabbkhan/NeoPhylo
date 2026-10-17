@@ -34,7 +34,12 @@ import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
 import { usePromptGate } from "../lessons/promptGate";
 import type { Action, Session } from "../state/session";
-import { hasImportedData, initialSession, reducer } from "../state/session";
+import {
+  exerciseSim,
+  hasImportedData,
+  initialSession,
+  reducer,
+} from "../state/session";
 import { encode } from "../state/url";
 import {
   applyUrlState,
@@ -317,7 +322,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
           <Controls
-            sim={session.exercise.sim}
+            sim={exerciseSim(session.exercise)}
             analysis={session.exercise.analysis}
             locked={session.source === "sandbox" ? [] : session.exercise.locked}
             matrixView={session.matrixView}

@@ -24,6 +24,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use ts_rs::TS;
 
 use crate::alphabet::detect_alphabet;
 use crate::dist::{Cell, DistanceMatrix};
@@ -31,7 +32,8 @@ use crate::error::NeoError;
 use crate::seq::{seq_byte, validate, Alignment, MAX_SITES, MAX_TAXA};
 
 /// How taxon names are delimited in PHYLIP text (v1.1 spec §3.2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub enum NameMode {
     /// Name in the first 10 characters of the line.
     Strict,

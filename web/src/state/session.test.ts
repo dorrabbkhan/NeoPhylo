@@ -4,7 +4,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 
 import { engine } from "../engine/index";
-import { initialSession, reducer } from "./session";
+import { exerciseSim, initialSession, reducer } from "./session";
 import type { Session } from "./session";
 
 // The spec §7 example exercise file.
@@ -94,6 +94,35 @@ describe("session reducer", () => {
     expect(s.step).toBe(3);
   });
 
+  it("embedded data is tagged with the declared alphabet", () => {
+    // The protdist doc sequences detect as DNA but are declared
+    // protein; the declared alphabet is authoritative (v1.1 spec §3.6).
+    const EMBEDDED_JSON = `{
+      "schema_version": 2,
+      "id": "emb",
+      "title": "Embedded protein",
+      "alphabet": "protein",
+      "data": {
+        "kind": "embedded",
+        "fasta": ">Alpha\\nAACGTGGCCACAT\\n>Beta\\nAAGGTCGCCACAC\\n>Gamma\\nCAGTTCGCCACAA\\n>Delta\\nGAGATTTCCGCCT\\n>Epsilon\\nGAGATCTCCGCCC",
+        "source": { "citation": "test", "license": "CC0", "accessions": [] }
+      },
+      "reference": null,
+      "analysis": { "correction": "JTT", "method": "NJ" }
+    }`;
+    const ex = exercise(EMBEDDED_JSON);
+    const s = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.alignment?.alphabet).toBe("protein");
+    // A protein correction runs on the declared-alphabet alignment.
+    expect(s.matrix).not.toBeNull();
+  });
+
   it("setSim leaves an imported alignment unchanged", () => {
     const ex = exercise(EXERCISE_JSON);
     const loaded = reducer(emptySession(ex), {
@@ -117,7 +146,7 @@ describe("session reducer", () => {
     // Sim controls are a no-op while alignmentOrigin is "imported".
     expect(s).toBe(imported);
     expect(s.alignment).toBe(alignment);
-    expect(s.exercise.sim.seed).toBe(ex.sim.seed);
+    expect(exerciseSim(s.exercise)?.seed).toBe(exerciseSim(ex)?.seed);
   });
 
   it("importTree re-simulates the alignment from the new tree", () => {
@@ -146,7 +175,9 @@ describe("session reducer", () => {
     expect(s.error).toBeNull();
     expect(s.trueTree).toBe(parsed.value);
     // Deterministic seed: the alignment equals a fresh simulation.
-    const want = engine.simulate(parsed.value, ex.sim);
+    const sim = exerciseSim(ex);
+    if (sim === null) throw new Error("expected a simulated exercise");
+    const want = engine.simulate(parsed.value, sim);
     expect(want.ok).toBe(true);
     if (!want.ok) throw new Error("unreachable");
     expect(s.alignment).toEqual(want.value);

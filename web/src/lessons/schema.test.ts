@@ -1,6 +1,8 @@
 // Exercise schema tests (plan Task 21, spec §7): exercises/schema.json is
 // a JSON Schema draft 2020-12 mirroring the engine's load_exercise
-// checks. Every exercises/*.json (lesson files) must validate, and the
+// checks — for schema_version 2 files only. The engine still accepts v1
+// (old links), but repository lesson files must be v2. Every
+// exercises/*.json must validate and declare schema_version 2, and the
 // schema and engine must agree — both accept or both reject — on the
 // hand-made files in __fixtures__/ (Vitest runs with cwd = web/, so repo
 // files are resolved relative to "..").
@@ -28,6 +30,13 @@ const lessonFiles = () =>
     .sort();
 
 describe("exercises/schema.json", () => {
+  it("every exercises/*.json declares schema_version 2", () => {
+    for (const f of lessonFiles()) {
+      const json = JSON.parse(readFileSync(resolve(EXERCISES, f), "utf8"));
+      expect(json.schema_version, `${f} must be schema_version 2`).toBe(2);
+    }
+  });
+
   it("validates every exercises/*.json lesson file", () => {
     for (const f of lessonFiles()) {
       const json = JSON.parse(readFileSync(resolve(EXERCISES, f), "utf8"));

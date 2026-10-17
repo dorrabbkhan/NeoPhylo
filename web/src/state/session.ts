@@ -11,6 +11,7 @@ import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
 import type { RfResult } from "../engine/generated/RfResult";
+import type { SimSpec } from "../engine/generated/SimSpec";
 import type { Trace } from "../engine/generated/Trace";
 import type { Tree } from "../engine/generated/Tree";
 
@@ -39,9 +40,15 @@ export interface Session {
   trueTreeOrigin: "lesson" | "imported";
 }
 
+/** The sim spec of a simulated exercise; `null` for embedded data
+ * (v1.1 spec §3.6: embedded exercises never re-simulate). */
+export function exerciseSim(e: Exercise): SimSpec | null {
+  return e.data.kind === "simulated" ? e.data.sim : null;
+}
+
 export type Action =
   | { type: "load"; exercise: Exercise; source: Session["source"] }
-  | { type: "setSim"; patch: Partial<Exercise["sim"]> }
+  | { type: "setSim"; patch: Partial<SimSpec> }
   | { type: "setAnalysis"; patch: Partial<Exercise["analysis"]> }
   | { type: "importAlignment"; alignment: Alignment }
   | { type: "importTree"; tree: Tree }
@@ -101,10 +108,21 @@ export function recompute(s: Session): Session {
         step: 0,
       };
     }
-    const sim = engine.simulate(
-      scaleTree(s.trueTree, s.branchScale),
-      s.exercise.sim,
-    );
+    const spec = exerciseSim(s.exercise);
+    if (spec === null) {
+      // Embedded data never re-simulates; `load` stores it under the
+      // imported origin, so this is just a defensive stop.
+      return {
+        ...s,
+        alignment,
+        matrix: null,
+        result: null,
+        rf: null,
+        error: null,
+        step: 0,
+      };
+    }
+    const sim = engine.simulate(scaleTree(s.trueTree, s.branchScale), spec);
     if (!sim.ok) {
       return {
         ...s,
@@ -185,15 +203,56 @@ export function recompute(s: Session): Session {
 export function reducer(s: Session, a: Action): Session {
   switch (a.type) {
     case "load": {
-      const parsed = engine.parseNewick(a.exercise.true_tree);
+      // Simulated data needs its true tree; embedded data is parsed
+      // into an imported alignment and any `reference` supplies the
+      // comparison tree (v1.1 spec §3.6).
+      let trueTree: Tree | null = null;
+      let alignment: Alignment | null = null;
+      let alignmentOrigin: Session["alignmentOrigin"] = "simulated";
+      let error: NeoError | null = null;
+      if (a.exercise.data.kind === "simulated") {
+        const parsed = engine.parseNewick(a.exercise.data.true_tree);
+        if (parsed.ok) {
+          trueTree = parsed.value;
+        } else {
+          error = parsed.error;
+        }
+      } else {
+        const parsed = engine.parseFasta(a.exercise.data.fasta);
+        if (parsed.ok) {
+          // The declared alphabet is authoritative (v1.1 spec §3.6):
+          // re-tag DNA-looking protein data so protein corrections
+          // apply; load_exercise already validated the characters.
+          const tagged = engine.withAlphabet(
+            parsed.value,
+            a.exercise.alphabet,
+          );
+          if (tagged.ok) {
+            alignment = tagged.value;
+            alignmentOrigin = "imported";
+          } else {
+            error = tagged.error;
+          }
+        } else {
+          error = parsed.error;
+        }
+        if (a.exercise.reference !== null) {
+          const parsedRef = engine.parseNewick(a.exercise.reference.newick);
+          if (parsedRef.ok) {
+            trueTree = parsedRef.value;
+          } else if (error === null) {
+            error = parsedRef.error;
+          }
+        }
+      }
       const base: Session = {
         exercise: a.exercise,
-        trueTree: parsed.ok ? parsed.value : null,
-        alignment: null,
+        trueTree,
+        alignment,
         matrix: null,
         result: null,
         rf: null,
-        error: parsed.ok ? null : parsed.error,
+        error,
         step: 0,
         mode: s.mode,
         clampNegative: s.clampNegative,
@@ -202,18 +261,26 @@ export function reducer(s: Session, a: Action): Session {
         hover: null,
         source: a.source,
         trueTreeOrigin: "lesson",
-        alignmentOrigin: "simulated",
+        alignmentOrigin,
       };
-      return parsed.ok ? recompute(base) : base;
+      return error === null ? recompute(base) : base;
     }
-    case "setSim":
+    case "setSim": {
       // Simulation controls are inert while an imported alignment is in
       // place; otherwise the patch is stored and recompute re-simulates.
       if (s.alignmentOrigin === "imported") return s;
+      if (s.exercise.data.kind !== "simulated") return s;
       return recompute({
         ...s,
-        exercise: { ...s.exercise, sim: { ...s.exercise.sim, ...a.patch } },
+        exercise: {
+          ...s.exercise,
+          data: {
+            ...s.exercise.data,
+            sim: { ...s.exercise.data.sim, ...a.patch },
+          },
+        },
       });
+    }
     case "setAnalysis":
       // Analysis inputs do not affect simulation, so keep the alignment.
       return recompute({
@@ -281,7 +348,7 @@ export function reducer(s: Session, a: Action): Session {
 }
 
 /** A fresh session around `exercise`, before any pipeline has run.
- * Dispatch `load` to parse `exercise.true_tree` and simulate. */
+ * Dispatch `load` to parse the exercise's data and simulate or embed. */
 export function initialSession(exercise: Exercise): Session {
   return {
     exercise,

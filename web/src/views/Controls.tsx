@@ -17,7 +17,9 @@ import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface ControlsProps {
-  sim: SimSpec;
+  /** The exercise's sim spec; `null` for embedded data, which has no
+   * simulation controls (v1.1 spec §3.6). */
+  sim: SimSpec | null;
   analysis: Analysis;
   /** Locked field paths from the exercise, e.g. "sim.model". */
   locked: string[];
@@ -92,11 +94,14 @@ export function Controls({
   dispatch,
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
-  const simDisabled = !simEnabled;
+  const simDisabled = !simEnabled || sim === null;
 
-  const modelName = typeof sim.model === "string" ? "Jc69" : "K80";
+  const modelName =
+    sim === null || typeof sim.model === "string" ? "Jc69" : "K80";
   const kappa =
-    typeof sim.model === "string" ? KAPPA_DEFAULT : sim.model.K80.kappa;
+    sim === null || typeof sim.model === "string"
+      ? KAPPA_DEFAULT
+      : sim.model.K80.kappa;
 
   const setModel = (name: string) => {
     const model: SimModel = name === "K80" ? { K80: { kappa } } : "Jc69";
@@ -105,6 +110,8 @@ export function Controls({
 
   return (
     <div className="controls">
+      {sim !== null && (
+        <>
       <h2>Simulation</h2>
       <label className="field">
         <span>Model</span>
@@ -170,6 +177,8 @@ export function Controls({
           New seed
         </button>
       </div>
+        </>
+      )}
 
       <h2>Analysis</h2>
       <label className="field">

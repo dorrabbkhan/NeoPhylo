@@ -17,6 +17,8 @@ use wasm_bindgen_test::*;
 
 use neophylo_core::dist::{Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
+use neophylo_core::phylip::NameMode;
+use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::{SimModel, SimSpec};
 
@@ -201,6 +203,51 @@ fn none_serializes_as_null() {
         checked += 1;
     }
     assert!(checked >= 1, "tree must have at least one internal node");
+}
+
+// --- v1.1 exports (plan Task 8) ----------------------------------------------
+
+/// The protdist documentation alignment (plan Task 2), padded names.
+const PHYLIP_DOC: &str = "    5   13\n\
+    Alpha     AACGTGGCCACAT\n\
+    Beta      AAGGTCGCCACAC\n\
+    Gamma     CAGTTCGCCACAA\n\
+    Delta     GAGATTTCCGCCT\n\
+    Epsilon   GAGATCTCCGCCC\n";
+
+#[derive(Deserialize)]
+struct PhylipValue {
+    alignment: Alignment,
+    names_used: NameMode,
+}
+
+#[wasm_bindgen_test]
+fn parse_phylip_reports_names_used() {
+    let v: PhylipValue = ok_value(neophylo_wasm::parse_phylip(
+        PHYLIP_DOC,
+        to_js(&NameMode::Auto),
+    ));
+    assert_eq!(v.names_used, NameMode::Relaxed);
+    assert_eq!(v.alignment.labels[0], "Alpha");
+}
+
+#[wasm_bindgen_test]
+fn jtt_pair_detail_crosses() {
+    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(
+        ">a\nARNDCQEGHILK\n>b\nARNECQEGHILK\n",
+    ));
+    let res = neophylo_wasm::jtt_pair_detail(to_js(&aln), 0, 1);
+    // `d_hat` arrives as `number | null`, never `undefined`.
+    let value = js_sys::Reflect::get(&res, &JsValue::from_str("value")).unwrap();
+    let d_hat = js_sys::Reflect::get(&value, &JsValue::from_str("d_hat")).unwrap();
+    assert!(!d_hat.is_undefined(), "d_hat must never be undefined");
+    assert!(
+        d_hat.is_null() || d_hat.as_f64().is_some(),
+        "d_hat must be a number or null"
+    );
+    let detail: PairDetail = ok_value(res);
+    assert_eq!((detail.a, detail.b), (0, 1));
+    assert_eq!(detail.curve.len(), 60);
 }
 
 // --- errors are values -------------------------------------------------------

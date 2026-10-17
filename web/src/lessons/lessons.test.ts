@@ -53,18 +53,28 @@ describe("exercises/*.json lesson content", () => {
   it("no predict_pair targets a final join, and at_step stays in range", () => {
     for (const f of lessonFiles()) {
       const ex = load(f);
-      const tt = engine.parseNewick(ex.true_tree);
-      expect(tt.ok, `${f} true_tree parses`).toBe(true);
-      if (!tt.ok) continue;
 
-      // Number of joins / stepper positions, from the built trace when
-      // the pipeline succeeds, else from the tree's leaf count.
-      const leafCount = tt.value.nodes.filter(
-        (n) => n.children.length === 0,
-      ).length;
-      const sim = engine.simulate(tt.value, ex.sim);
-      const dm = sim.ok
-        ? engine.distances(sim.value, ex.analysis.correction)
+      // The alignment the lesson's pipeline sees, and its leaf count:
+      // simulated data needs the true tree first, embedded data is the
+      // FASTA itself (v1.1 spec §3.6).
+      let leafCount: number;
+      let alnRes;
+      if (ex.data.kind === "simulated") {
+        const tt = engine.parseNewick(ex.data.true_tree);
+        expect(tt.ok, `${f} true_tree parses`).toBe(true);
+        if (!tt.ok) continue;
+        leafCount = tt.value.nodes.filter(
+          (n) => n.children.length === 0,
+        ).length;
+        alnRes = engine.simulate(tt.value, ex.data.sim);
+      } else {
+        alnRes = engine.parseFasta(ex.data.fasta);
+        expect(alnRes.ok, `${f} embedded fasta parses`).toBe(true);
+        if (!alnRes.ok) continue;
+        leafCount = alnRes.value.labels.length;
+      }
+      const dm = alnRes.ok
+        ? engine.distances(alnRes.value, ex.analysis.correction)
         : null;
       const built =
         dm && dm.ok
