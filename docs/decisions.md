@@ -1072,3 +1072,4 @@ and the following ci/release entry. Both entries were kept verbatim.)
   file-shape mirror lives only inside `load_exercise`, exactly as v1 did.
   Safe because `#x=` exercises are trusted objects (never re-parsed) and
   no code round-trips a serialized `Exercise` through `loadExercise`.
+- Owner sign-off: the plan's Task 8 protein_validation case 2 was wrong (A/C/G/T are valid amino acids). Declared alphabet is authoritative; embedded DNA-looking protein declared "protein" loads. Confirmed by owner 2026-10-17.
