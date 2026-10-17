@@ -15,6 +15,7 @@ import type { NjStep } from "../engine/generated/NjStep";
 import { defaultLessonJson } from "../lessons/default";
 import { nodeName } from "../state/names";
 import { initialSession, reducer } from "../state/session";
+import { pressKey } from "../test/keys";
 import { App } from "./App";
 
 afterEach(cleanup);
@@ -94,7 +95,7 @@ describe("lesson prompts", () => {
     expect(prevButton().disabled).toBe(true);
     expect(slider().disabled).toBe(true);
     // Arrow keys are gated too.
-    fireEvent.keyDown(document.body, { key: "ArrowRight" });
+    await pressKey("ArrowRight");
     expect(screen.getByText(/step 0 of/)).toBeTruthy();
     // The answer is not marked while the question is open.
     expect(grid().querySelector('[aria-selected="true"]')).toBeNull();
