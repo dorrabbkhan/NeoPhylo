@@ -158,7 +158,21 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
         .sim
         .ok_or_else(|| bad("sim", "required for schema_version 1"))?;
     let sim = checked_sim(&sim)?;
+    // v1 exercises are always DNA; reject protein-only models at load
+    // rather than leaving them to fail downstream.
+    if matches!(sim.model, SimModel::Jtt) {
+        return Err(NeoError::ModelAlphabetMismatch {
+            model: sim_model_name(&sim.model).to_string(),
+            alphabet: Alphabet::Dna,
+        });
+    }
     let analysis = analysis(&f.analysis)?;
+    if !analysis.correction.supports(Alphabet::Dna) {
+        return Err(NeoError::ModelAlphabetMismatch {
+            model: analysis.correction.name().to_string(),
+            alphabet: Alphabet::Dna,
+        });
+    }
     let prompts = prompts(&f.prompts)?;
 
     let tree = parse_newick(&true_tree).map_err(|e| NeoError::InvalidExercise {

@@ -318,3 +318,37 @@ fn embedded_protein_loads() {
     );
     assert_eq!(ex.analysis.correction, DistModel::Jtt);
 }
+
+#[test]
+fn v1_rejects_protein_correction() {
+    // v1 exercises are always DNA; protein-only corrections are
+    // rejected at load, not left to fail downstream.
+    for correction in ["JTT", "Kimura"] {
+        let json = V1_SPEC_EXAMPLE.replace(
+            r#""correction": "JC69""#,
+            &format!(r#""correction": "{correction}""#),
+        );
+        let err = load_exercise(&json).unwrap_err();
+        match err {
+            NeoError::ModelAlphabetMismatch { model, alphabet } => {
+                assert_eq!(model, correction);
+                assert_eq!(alphabet, Alphabet::Dna);
+            }
+            other => panic!("expected ModelAlphabetMismatch, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn v1_rejects_protein_sim() {
+    // A JTT sim spec in a v1 (always DNA) exercise mismatches too.
+    let json = V1_SPEC_EXAMPLE.replace(r#""sim": { "model": "JC69""#, r#""sim": { "model": "JTT""#);
+    let err = load_exercise(&json).unwrap_err();
+    match err {
+        NeoError::ModelAlphabetMismatch { model, alphabet } => {
+            assert_eq!(model, "JTT");
+            assert_eq!(alphabet, Alphabet::Dna);
+        }
+        other => panic!("expected ModelAlphabetMismatch, got {other:?}"),
+    }
+}

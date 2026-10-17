@@ -1062,6 +1062,11 @@ and the following ci/release entry. Both entries were kept verbatim.)
   `schema.test.ts` asserts every `exercises/*.json` declares version 2.
   The `__fixtures__` files were converted to v2 so the schema/engine
   agreement tests keep exercising their specific validation rules.
+  `load_v1` gained the DNA `supports` check for `analysis.correction`
+  and the `JTT` sim-model check — the shared `analysis()` parser accepts
+  the "Kimura"/"JTT" spellings, so without it a v1 exercise could load a
+  protein-only model and fail downstream instead of at load
+  (`ModelAlphabetMismatch`; regression tests `v1_rejects_protein_*`).
 - Wire vs file shape: `Exercise`'s derived serde emits engine spellings
   (`"Jc69"`, `{ "K80": { "kappa": ... } }`) on the wasm boundary — the
   file-shape mirror lives only inside `load_exercise`, exactly as v1 did.
