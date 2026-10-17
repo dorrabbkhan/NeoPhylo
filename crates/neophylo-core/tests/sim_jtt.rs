@@ -209,3 +209,31 @@ fn jtt_beats_p_in_aggregate() {
         "mean |JTT - true| = {jtt_mean} not less than mean |p - true| = {p_mean}"
     );
 }
+
+/// `P(t)` rows are probability rows only to the embedded-constants
+/// precision (~5e-6, Task 6's `DATA_TOL`), so a uniform draw can land
+/// past a row's cumulative sum. `sample_aa` must then assign the last
+/// state — never index past the row — for the root draw and every
+/// `mutate_protein` site. This test pins both the row tolerance and the
+/// no-panic simulation at t = 10, where the row-sum drift is worst.
+#[test]
+fn jtt_rows_and_sampling() {
+    for t in [0.01, 1.0, 10.0] {
+        let p = JTT.transition_probs(t);
+        for (x, row) in p.iter().enumerate() {
+            let sum: f64 = row.iter().sum();
+            assert!(
+                (sum - 1.0).abs() <= 5e-6,
+                "P({t}) row {x} sums to {sum}, not 1 ± 5e-6"
+            );
+        }
+    }
+
+    let tree = parse_newick("(A:10.0,B:10.0);").unwrap();
+    let aln = simulate(&tree, &spec(SimModel::Jtt, 10_000, 5)).unwrap();
+    assert_eq!(aln.alphabet, Alphabet::Protein);
+    for seq in &aln.seqs {
+        assert_eq!(seq.len(), 10_000);
+        assert!(seq.iter().all(|&b| protein_index(b).is_some()));
+    }
+}
