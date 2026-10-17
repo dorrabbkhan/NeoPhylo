@@ -25,7 +25,10 @@ pub use alphabet::{detect_alphabet, protein_index, with_alphabet, Alphabet, PROT
 pub use compare::{rf, RfResult, Split};
 pub use dist::{compute, Cell, DistModel, DistanceMatrix};
 pub use error::NeoError;
-pub use exercise::{load_exercise, Analysis, Exercise, Prompt, PromptType};
+pub use exercise::{
+    load_exercise, Analysis, Exercise, ExerciseData, Prompt, PromptType, Reference, ReferenceKind,
+    Source,
+};
 pub use matrix::Matrix;
 pub use model::{RateModel, JTT};
 pub use newick::{parse_newick, write_newick};

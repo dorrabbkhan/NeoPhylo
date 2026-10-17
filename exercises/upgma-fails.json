@@ -1,9 +1,17 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "upgma-fails",
   "title": "When UPGMA fails: the molecular clock",
-  "true_tree": "((A:0.02,B:0.5):0.02,(C:0.05,D:0.05):0.05,E:0.02);",
-  "sim": { "model": "JC69", "length": 1000, "seed": 42 },
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.02,B:0.5):0.02,(C:0.05,D:0.05):0.05,E:0.02);",
+    "sim": { "model": "JC69", "length": 1000, "seed": 42 }
+  },
+  "reference": {
+    "newick": "((A:0.02,B:0.5):0.02,(C:0.05,D:0.05):0.05,E:0.02);",
+    "kind": "true"
+  },
   "analysis": { "correction": "JC69", "method": "UPGMA" },
   "locked": ["sim.model", "analysis.correction"],
   "prompts": [

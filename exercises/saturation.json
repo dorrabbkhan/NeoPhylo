@@ -1,9 +1,17 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "saturation",
   "title": "Saturation and distance correction",
-  "true_tree": "((A:0.8,B:0.7):0.5,(C:0.5,D:0.8):0.5,(E:0.6,F:0.5):0.5);",
-  "sim": { "model": "JC69", "length": 50, "seed": 42 },
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.8,B:0.7):0.5,(C:0.5,D:0.8):0.5,(E:0.6,F:0.5):0.5);",
+    "sim": { "model": "JC69", "length": 50, "seed": 42 }
+  },
+  "reference": {
+    "newick": "((A:0.8,B:0.7):0.5,(C:0.5,D:0.8):0.5,(E:0.6,F:0.5):0.5);",
+    "kind": "true"
+  },
   "analysis": { "correction": "JC69", "method": "NJ" },
   "locked": ["sim.model"],
   "prompts": [

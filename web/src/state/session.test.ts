@@ -4,7 +4,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 
 import { engine } from "../engine/index";
-import { initialSession, reducer } from "./session";
+import { exerciseSim, initialSession, reducer } from "./session";
 import type { Session } from "./session";
 
 // The spec §7 example exercise file.
@@ -117,7 +117,7 @@ describe("session reducer", () => {
     // Sim controls are a no-op while alignmentOrigin is "imported".
     expect(s).toBe(imported);
     expect(s.alignment).toBe(alignment);
-    expect(s.exercise.sim.seed).toBe(ex.sim.seed);
+    expect(exerciseSim(s.exercise)?.seed).toBe(exerciseSim(ex)?.seed);
   });
 
   it("importTree re-simulates the alignment from the new tree", () => {
@@ -146,7 +146,9 @@ describe("session reducer", () => {
     expect(s.error).toBeNull();
     expect(s.trueTree).toBe(parsed.value);
     // Deterministic seed: the alignment equals a fresh simulation.
-    const want = engine.simulate(parsed.value, ex.sim);
+    const sim = exerciseSim(ex);
+    if (sim === null) throw new Error("expected a simulated exercise");
+    const want = engine.simulate(parsed.value, sim);
     expect(want.ok).toBe(true);
     if (!want.ok) throw new Error("unreachable");
     expect(s.alignment).toEqual(want.value);

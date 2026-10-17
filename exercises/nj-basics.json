@@ -1,9 +1,17 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "nj-basics",
   "title": "How Neighbor-Joining works",
-  "true_tree": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);",
-  "sim": { "model": "JC69", "length": 1000, "seed": 42 },
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);",
+    "sim": { "model": "JC69", "length": 1000, "seed": 42 }
+  },
+  "reference": {
+    "newick": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);",
+    "kind": "true"
+  },
   "analysis": { "correction": "JC69", "method": "NJ" },
   "locked": ["sim.model", "analysis.correction", "analysis.method"],
   "prompts": [

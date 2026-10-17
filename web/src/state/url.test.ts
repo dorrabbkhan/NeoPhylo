@@ -40,16 +40,22 @@ function randomExercise(rand: () => number): Exercise {
     { length: n },
     (_, i) => `${pick(LABEL_POOL)}_${i}`,
   );
+  const trueTree = `(${labels.map((l) => `'${l}':0.1`).join(",")});`;
   return {
-    schema_version: 1,
+    schema_version: 2,
     id: `ex-${Math.floor(rand() * 1e6)}`,
     title: `Random "${pick(LABEL_POOL)}" lesson`,
-    true_tree: `(${labels.map((l) => `'${l}':0.1`).join(",")});`,
-    sim: {
-      model: pick(SIM_MODELS),
-      length: 10 + Math.floor(rand() * 9990),
-      seed: Math.floor(rand() * 1e6),
+    alphabet: "dna",
+    data: {
+      kind: "simulated",
+      true_tree: trueTree,
+      sim: {
+        model: pick(SIM_MODELS),
+        length: 10 + Math.floor(rand() * 9990),
+        seed: Math.floor(rand() * 1e6),
+      },
     },
+    reference: { newick: trueTree, kind: "true" },
     analysis: { correction: pick(CORRECTIONS), method: pick(METHODS) },
     locked: [],
     prompts: [],
@@ -108,11 +114,19 @@ describe("encode/decode round trip", () => {
     const s: UrlState = {
       v: 1,
       x: {
-        schema_version: 1,
+        schema_version: 2,
         id: "weird",
         title: "Labels",
-        true_tree: "('O\\'Brien':0.1,'Homo sapiens':0.2,'<b>x</b>':0.3);",
-        sim: { model: { K80: { kappa: 1.5 } }, length: 100, seed: 1 },
+        alphabet: "dna",
+        data: {
+          kind: "simulated",
+          true_tree: "('O\\'Brien':0.1,'Homo sapiens':0.2,'<b>x</b>':0.3);",
+          sim: { model: { K80: { kappa: 1.5 } }, length: 100, seed: 1 },
+        },
+        reference: {
+          newick: "('O\\'Brien':0.1,'Homo sapiens':0.2,'<b>x</b>':0.3);",
+          kind: "true",
+        },
         analysis: { correction: "P", method: "Nj" },
         locked: [],
         prompts: [],

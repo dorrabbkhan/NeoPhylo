@@ -49,7 +49,7 @@ impl DistModel {
     }
 
     /// Models valid for `alphabet` (v1.1 spec §3.4).
-    fn supports(self, alphabet: Alphabet) -> bool {
+    pub(crate) fn supports(self, alphabet: Alphabet) -> bool {
         match alphabet {
             Alphabet::Dna => matches!(self, DistModel::P | DistModel::Jc69 | DistModel::K80),
             Alphabet::Protein => {

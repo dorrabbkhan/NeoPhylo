@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
-import { initialSession, reducer } from "../state/session";
+import { exerciseSim, initialSession, reducer } from "../state/session";
 
 import { TeachingNotices } from "./TeachingNotices";
 
@@ -24,22 +24,35 @@ afterEach(cleanup);
 // [[0,1],[1,2],[1,3],[2,3]] — pairs A–B, B–C, B–D, C–D (verified against
 // the wasm build).
 const SATURATING: Exercise = {
-  schema_version: 1,
+  schema_version: 2,
   id: "sat",
   title: "Saturation demo",
-  true_tree: "((A:5,B:5):5,C:5,D:5);",
-  sim: { model: "Jc69", length: 10, seed: 1 },
+  alphabet: "dna",
+  data: {
+    kind: "simulated",
+    true_tree: "((A:5,B:5):5,C:5,D:5);",
+    sim: { model: "Jc69", length: 10, seed: 1 },
+  },
+  reference: { newick: "((A:5,B:5):5,C:5,D:5);", kind: "true" },
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
 };
 
 const NJ_BASICS: Exercise = {
-  schema_version: 1,
+  schema_version: 2,
   id: "nj-basics",
   title: "How Neighbor-Joining works",
-  true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
-  sim: { model: "Jc69", length: 1000, seed: 42 },
+  alphabet: "dna",
+  data: {
+    kind: "simulated",
+    true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+    sim: { model: "Jc69", length: 1000, seed: 42 },
+  },
+  reference: {
+    newick: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+    kind: "true",
+  },
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
@@ -103,21 +116,27 @@ describe("TeachingNotices — saturation", () => {
   it('"Use longer sequences" doubles sim.length', () => {
     const holder = renderNotices(loaded(SATURATING));
     fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
-    expect(holder.s.exercise.sim.length).toBe(20);
+    expect(exerciseSim(holder.s.exercise)?.length).toBe(20);
   });
 
   it('"Use longer sequences" is capped at 10,000', () => {
     const s = loaded(SATURATING);
     const big: Session = {
       ...s,
-      exercise: {
-        ...s.exercise,
-        sim: { ...s.exercise.sim, length: 6000 },
-      },
+      exercise:
+        s.exercise.data.kind === "simulated"
+          ? {
+              ...s.exercise,
+              data: {
+                ...s.exercise.data,
+                sim: { ...s.exercise.data.sim, length: 6000 },
+              },
+            }
+          : s.exercise,
     };
     const holder = renderNotices(big);
     fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
-    expect(holder.s.exercise.sim.length).toBe(10000);
+    expect(exerciseSim(holder.s.exercise)?.length).toBe(10000);
   });
 
   it('"Use shorter branches" halves branchScale', () => {

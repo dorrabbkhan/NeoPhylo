@@ -18,12 +18,18 @@ import { App } from "./App";
 afterEach(cleanup);
 
 // Same content as src/lessons/default.ts (spec §7 example).
+const NJ_BASICS_TREE = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
 const NJ_BASICS: Exercise = {
-  schema_version: 1,
+  schema_version: 2,
   id: "nj-basics",
   title: "How Neighbor-Joining works",
-  true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
-  sim: { model: "Jc69", length: 1000, seed: 42 },
+  alphabet: "dna",
+  data: {
+    kind: "simulated",
+    true_tree: NJ_BASICS_TREE,
+    sim: { model: "Jc69", length: 1000, seed: 42 },
+  },
+  reference: { newick: NJ_BASICS_TREE, kind: "true" },
   analysis: { correction: "Jc69", method: "Nj" },
   locked: ["sim.model", "analysis.method"],
   prompts: [],
@@ -37,12 +43,18 @@ function caterpillar(n: number): string {
   return `${s};`;
 }
 
+const SIXTY_TREE = caterpillar(60);
 const SIXTY: Exercise = {
-  schema_version: 1,
+  schema_version: 2,
   id: "sixty",
   title: "Sixty taxa",
-  true_tree: caterpillar(60),
-  sim: { model: "Jc69", length: 20, seed: 7 },
+  alphabet: "dna",
+  data: {
+    kind: "simulated",
+    true_tree: SIXTY_TREE,
+    sim: { model: "Jc69", length: 20, seed: 7 },
+  },
+  reference: { newick: SIXTY_TREE, kind: "true" },
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],

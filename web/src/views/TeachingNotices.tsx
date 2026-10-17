@@ -12,6 +12,7 @@ import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Tree } from "../engine/generated/Tree";
 import type { Action, Session } from "../state/session";
+import { exerciseSim } from "../state/session";
 
 import type { ChartPoint } from "./SaturationChart";
 import { SaturationChart } from "./SaturationChart";
@@ -128,7 +129,7 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
                       patch: {
                         length: Math.min(
                           SIM_MAX,
-                          session.exercise.sim.length * 2,
+                          (exerciseSim(session.exercise)?.length ?? 0) * 2,
                         ),
                       },
                     })
