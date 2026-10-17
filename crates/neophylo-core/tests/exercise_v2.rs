@@ -6,6 +6,7 @@ use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::DistModel;
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::{load_exercise, ExerciseData, PromptType, Reference, ReferenceKind};
+use neophylo_core::seq::parse_fasta;
 use neophylo_core::sim::SimModel;
 
 /// The v1 spec §7 example, verbatim.
@@ -209,8 +210,9 @@ fn protein_correction_mismatch() {
 }
 
 /// An embedded-data exercise body; `{0}` is the FASTA text, `{1}` the
-/// declared alphabet, `{2}` the reference JSON (or `null`).
-fn embedded(fasta: &str, alphabet: &str, reference: &str) -> String {
+/// declared alphabet, `{2}` the correction, `{3}` the reference JSON
+/// (or `null`).
+fn embedded(fasta: &str, alphabet: &str, correction: &str, reference: &str) -> String {
     format!(
         r#"{{
   "schema_version": 2,
@@ -223,28 +225,51 @@ fn embedded(fasta: &str, alphabet: &str, reference: &str) -> String {
     "source": {{ "citation": "test", "license": "CC BY 4.0", "accessions": ["P00000"] }}
   }},
   "reference": {reference},
-  "analysis": {{ "correction": "JTT", "method": "NJ" }},
+  "analysis": {{ "correction": "{correction}", "method": "NJ" }},
   "locked": [],
   "prompts": []
 }}"#
     )
 }
 
+/// The PHYLIP protdist documentation sequences (v1.1 spec §3.5): all
+/// A/C/G/T, so they detect as DNA, yet every character is also a valid
+/// amino acid.
+const PROTDIST_DOC: &str =
+    ">Alpha\\nAACGTGGCCACAT\\n>Beta\\nAAGGTCGCCACAC\\n>Gamma\\nCAGTTCGCCACAA\\n>Delta\\nGAGATTTCCGCCT\\n>Epsilon\\nGAGATCTCCGCCC";
+
 #[test]
-fn embedded_dna_declared_protein() {
-    // Every standard DNA character is also a valid protein character, so
-    // the mismatch surfaces at the detection check; an input exotic
-    // enough to fail protein validation first would give
-    // UnsupportedCharacter instead.
-    let json = embedded(">a\\nACGTACGT\\n>b\\nACGTACGA", "protein", "null");
+fn embedded_dna_looking_protein_loads() {
+    // The declared alphabet is authoritative; detection is only a
+    // default. DNA-looking protein data declared "protein" loads, and
+    // the exercise's alphabet is Protein.
+    let json = embedded(PROTDIST_DOC, "protein", "JTT", "null");
+    let ex = load_exercise(&json).unwrap();
+    assert_eq!(ex.alphabet, Alphabet::Protein);
+    match &ex.data {
+        ExerciseData::Embedded { fasta, .. } => {
+            // The embedded FASTA really does detect as DNA — the
+            // declared-vs-detected mismatch is not an error.
+            let aln = parse_fasta(fasta).unwrap();
+            assert_eq!(aln.alphabet, Alphabet::Dna);
+            // …and the declared alphabet is what tags it downstream.
+            let aln = neophylo_core::with_alphabet(aln, ex.alphabet).unwrap();
+            assert_eq!(aln.alphabet, Alphabet::Protein);
+        }
+        other => panic!("expected Embedded, got {other:?}"),
+    }
+}
+
+#[test]
+fn embedded_protein_declared_dna_rejected() {
+    // A real protein sequence declared "dna": 'E' (position 1, after
+    // the valid IUPAC char 'M') is not a DNA character.
+    let json = embedded(">a\\nMEVQLGLGR\\n>b\\nMEVQLGLGA", "dna", "JC69", "null");
     let err = load_exercise(&json).unwrap_err();
-    assert!(
-        matches!(
-            err,
-            NeoError::UnsupportedCharacter { .. } | NeoError::ModelAlphabetMismatch { .. }
-        ),
-        "expected UnsupportedCharacter or ModelAlphabetMismatch, got {err:?}"
-    );
+    match err {
+        NeoError::UnsupportedCharacter { ch, .. } => assert_eq!(ch, 'E'),
+        other => panic!("expected UnsupportedCharacter, got {other:?}"),
+    }
 }
 
 #[test]
@@ -253,6 +278,7 @@ fn reference_label_mismatch() {
     let json = embedded(
         ">a\\nARNDCQEGHILK\\n>b\\nARNDCQEGHILM",
         "protein",
+        "JTT",
         r#"{ "newick": "(a:0.1,q:0.2);", "kind": "classification" }"#,
     );
     let err = load_exercise(&json).unwrap_err();
@@ -269,6 +295,7 @@ fn embedded_protein_loads() {
     let json = embedded(
         ">Human\\nMGHFTEED\\n>Mouse\\nMGHFTEEN",
         "protein",
+        "JTT",
         r#"{ "newick": "(Human:0.1,Mouse:0.2);", "kind": "classification" }"#,
     );
     let ex = load_exercise(&json).unwrap();

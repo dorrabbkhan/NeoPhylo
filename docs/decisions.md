@@ -1049,11 +1049,19 @@ and the following ci/release entry. Both entries were kept verbatim.)
   wrong shape until Task 9's migrate() — URLs are still `v: 1`.
 - Spec-silent details resolved: a `schema_version: 2` file in flat v1
   shape reports `InvalidExercise { field: "alphabet" }` (first missing
-  v2 field), not a version error. An embedded FASTA whose detected
-  alphabet disagrees with the declared one reuses
-  `ModelAlphabetMismatch` with `model` set to the declared alphabet's
-  name rather than adding a variant. A normalized `Exercise` always
+  v2 field), not a version error. The declared alphabet is
+  authoritative for embedded data; detection is only a default, so a
+  declared-vs-detected mismatch is not an error (`ModelAlphabetMismatch`
+  remains only for model-vs-alphabet, e.g. a JTT sim declared "dna" or
+  a "JC69" correction on protein data). A normalized `Exercise` always
   reports `schema_version: 2`, including migrated v1 inputs.
+- Review fixes: `session.ts` `load` re-tags an embedded alignment with
+  `withAlphabet(exercise.alphabet)` so a DNA-looking protein lesson can
+  run protein corrections; `exercises/schema.json` now validates
+  schema_version 2 only (the engine still accepts v1 for old links) and
+  `schema.test.ts` asserts every `exercises/*.json` declares version 2.
+  The `__fixtures__` files were converted to v2 so the schema/engine
+  agreement tests keep exercising their specific validation rules.
 - Wire vs file shape: `Exercise`'s derived serde emits engine spellings
   (`"Jc69"`, `{ "K80": { "kappa": ... } }`) on the wasm boundary — the
   file-shape mirror lives only inside `load_exercise`, exactly as v1 did.

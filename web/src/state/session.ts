@@ -220,8 +220,19 @@ export function reducer(s: Session, a: Action): Session {
       } else {
         const parsed = engine.parseFasta(a.exercise.data.fasta);
         if (parsed.ok) {
-          alignment = parsed.value;
-          alignmentOrigin = "imported";
+          // The declared alphabet is authoritative (v1.1 spec §3.6):
+          // re-tag DNA-looking protein data so protein corrections
+          // apply; load_exercise already validated the characters.
+          const tagged = engine.withAlphabet(
+            parsed.value,
+            a.exercise.alphabet,
+          );
+          if (tagged.ok) {
+            alignment = tagged.value;
+            alignmentOrigin = "imported";
+          } else {
+            error = tagged.error;
+          }
         } else {
           error = parsed.error;
         }

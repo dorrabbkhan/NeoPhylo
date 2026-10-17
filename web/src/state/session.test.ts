@@ -94,6 +94,35 @@ describe("session reducer", () => {
     expect(s.step).toBe(3);
   });
 
+  it("embedded data is tagged with the declared alphabet", () => {
+    // The protdist doc sequences detect as DNA but are declared
+    // protein; the declared alphabet is authoritative (v1.1 spec §3.6).
+    const EMBEDDED_JSON = `{
+      "schema_version": 2,
+      "id": "emb",
+      "title": "Embedded protein",
+      "alphabet": "protein",
+      "data": {
+        "kind": "embedded",
+        "fasta": ">Alpha\\nAACGTGGCCACAT\\n>Beta\\nAAGGTCGCCACAC\\n>Gamma\\nCAGTTCGCCACAA\\n>Delta\\nGAGATTTCCGCCT\\n>Epsilon\\nGAGATCTCCGCCC",
+        "source": { "citation": "test", "license": "CC0", "accessions": [] }
+      },
+      "reference": null,
+      "analysis": { "correction": "JTT", "method": "NJ" }
+    }`;
+    const ex = exercise(EMBEDDED_JSON);
+    const s = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.alignment?.alphabet).toBe("protein");
+    // A protein correction runs on the declared-alphabet alignment.
+    expect(s.matrix).not.toBeNull();
+  });
+
   it("setSim leaves an imported alignment unchanged", () => {
     const ex = exercise(EXERCISE_JSON);
     const loaded = reducer(emptySession(ex), {

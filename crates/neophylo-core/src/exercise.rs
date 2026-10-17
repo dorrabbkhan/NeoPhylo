@@ -222,19 +222,13 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
             )
         }
         DataFile::Embedded { fasta, source } => {
+            // The declared alphabet is authoritative: characters must
+            // be valid under it (`with_alphabet` gives
+            // UnsupportedCharacter). Detection is only a default for
+            // interactive imports, so a declared-vs-detected mismatch —
+            // e.g. DNA-looking protein data — is not an error.
             let parsed = parse_fasta(&fasta)?;
-            let detected = parsed.alphabet;
-            // The declared alphabet is authoritative: characters must be
-            // valid under it, and detection must agree — a mismatch
-            // means the lesson metadata is wrong, not the student's
-            // input. `model` carries the declared alphabet's name.
             let aln = with_alphabet(parsed, alphabet)?;
-            if detected != alphabet {
-                return Err(NeoError::ModelAlphabetMismatch {
-                    model: alphabet.name().to_string(),
-                    alphabet: detected,
-                });
-            }
             (ExerciseData::Embedded { fasta, source }, aln.labels)
         }
     };
