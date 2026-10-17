@@ -823,6 +823,7 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   - Sequence data must be ASCII; non-ASCII characters are rejected, never
     truncated (found in Task 4 review).
 
+<<<<<<< HEAD
 ## Task 5 (v1.1): model module and generated JTT constants
 
 - Files outside the Files block:
@@ -853,3 +854,22 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
     not already importable.
   - JTT data license: GPL-3.0 (PAML repo, commit 368238e); compatible with AGPL-3.0-only. Blocks a
     proprietary dual license until replaced with a permissive or original-paper source (owner, Task 5).
+=======
+## ci/release-only-production: production deploys only on releases
+
+- Netlify bills 15 credits per **production** deploy while preview/alias
+  deploys are free, so `ci.yml` no longer runs `netlify deploy --prod` on
+  every push to `main`. Production now deploys only on `v*.*.*` tag pushes
+  and on `workflow_dispatch` runs of `main`; `environment: production`
+  resolves only for those two triggers.
+- Pushes to `main` deploy a free `--alias main` deploy instead
+  (`main--<site>.netlify.app`), reported via `$GITHUB_STEP_SUMMARY` — no
+  PR comment (there is no PR to comment on).
+- PR previews are unchanged (`--alias pr-<n>`, same-repo PRs only).
+- Tag-triggered runs keep the full test gate: `deploy`'s `needs` list is
+  untouched and `web` builds `dist` from the checked-out tag, so the
+  artifact deployed is exactly the tagged code.
+- `environment` is now a three-way expression (production / staging /
+  preview). A `workflow_dispatch` from a non-main ref runs the tests but
+  deploys nothing.
+>>>>>>> 9401256 (ci: production deploys only on releases; main pushes deploy staging alias)

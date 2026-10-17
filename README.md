@@ -91,6 +91,12 @@ for the full testing strategy.
   task plan are in [`docs/superpowers/`](docs/superpowers/); the working
   rules are in [`AGENTS.md`](AGENTS.md) and decisions/deviations are logged
   in [`docs/decisions.md`](docs/decisions.md).
+- **Deploys:** every push to `main` deploys to staging at
+  `main--<site>.netlify.app` (URL also printed in the CI job summary);
+  production updates only on version tags `v*.*.*` or the manual
+  "Deploy production" workflow run — each production deploy costs Netlify
+  credits, so plain pushes never trigger one. Same-repo PRs get free
+  `pr-<n>` previews.
 - **Docs media:** the screenshot and GIF above are regenerated with
   `web/scripts/record-media.mjs` (Playwright video → ffmpeg → GIF).
 
