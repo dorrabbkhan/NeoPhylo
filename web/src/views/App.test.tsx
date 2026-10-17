@@ -3,7 +3,6 @@
 // render drives sim → dist → build → rf through the session reducer.
 
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -13,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Exercise } from "../engine/generated/Exercise";
 import { initialSession, reducer } from "../state/session";
+import { pressKey } from "../test/keys";
 import { App } from "./App";
 
 afterEach(cleanup);
@@ -83,7 +83,7 @@ describe("App shell", () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     expect(nodeCount(svgByTitle("Inferred tree"))).toBe(5);
-    fireEvent.keyDown(document.body, { key: "ArrowRight" });
+    await pressKey("ArrowRight");
     expect(nodeCount(svgByTitle("Inferred tree"))).toBe(6);
   });
 
@@ -155,12 +155,7 @@ describe("App shell", () => {
     expect(grid.querySelectorAll('[role="row"]')).toHaveLength(5);
     expect(grid.querySelector('[aria-selected="true"]')).not.toBeNull();
 
-    // The global ←/→ listener is attached by a Stepper useEffect.
-    // findByRole resolves on the DOM commit while passive effects are
-    // still queued, so a key fired now could be silently dropped —
-    // flush them first.
-    await act(async () => {});
-    fireEvent.keyDown(document.body, { key: "ArrowRight" });
+    await pressKey("ArrowRight");
     expect(grid.getAttribute("aria-rowcount")).toBe("4");
     const rows = Array.from(grid.querySelectorAll('[role="row"]'));
     expect(rows).toHaveLength(4);

@@ -992,10 +992,15 @@ and the following ci/release entry. Both entries were kept verbatim.)
   init continuation outside `act`, so passive effects — including the
   listener attach — are still queued when the test fires the key. The
   event hits a `window` with no listener; nothing is retried.
-- Fix: `await act(async () => {})` before `fireEvent.keyDown`, flushing
-  pending passive effects so the listener is attached before the event
-  dispatches. No retry/timeout/skip.
-- Verified: 100 consecutive `vitest run -t "syncs the heatmap"` passes.
-- Follow-up (not done here): "shows only leaves at step 0 and reveals
-  one internal node on →" in the same file fires a global keydown after
-  `findByRole` the same way — same latent race.
+- Fix: new test helper `pressKey(key, target = document.body)` in
+  `web/src/test/keys.ts` — `await act(async () => {})` then
+  `fireEvent.keyDown`. It replaces every `document.body` keydown that
+  relies on the global listener (the other two sites had the same latent
+  race): App.test.tsx "syncs the heatmap …" and "shows only leaves at
+  step 0 …", plus App.prompts.test.tsx "gates the stepper …". Cell-
+  targeted keydowns (matrix grid navigation, Enter picks) go through
+  React's onKeyDown prop, not the window listener, and are unchanged.
+- Convention: tests must use `pressKey()` for global keyboard
+  shortcuts, never bare `fireEvent.keyDown(document.body, …)`.
+- Verified: 100 consecutive `vitest run src/views/App.test.tsx` passes
+  and 20 consecutive full web suite runs pass.
