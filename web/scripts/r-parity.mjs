@@ -76,18 +76,19 @@ function runR(script) {
 }
 
 /**
- * `write.tree(tree)` at top level prints R's vector form — one line like
- * `[1] "((A:1,B:2):3,C:4);"` — so pull the Newick out of the quotes and
- * undo R's own string escaping (\" and \\).
+ * `cat(write.tree(tree), "\n")` prints the bare Newick line — that's the
+ * primary form. The old quoted vector form `[1] "((A:1,B:2):3,C:4);"`
+ * is still accepted for robustness (escaping undone: \" and \\).
  */
 function extractNewick(stdout) {
+  for (const line of stdout.trim().split("\n")) {
+    if (/^\(.*\);$/.test(line.trim())) return line.trim();
+  }
   for (const line of stdout.trim().split("\n")) {
     const m = /^\[\d+\] "(.*)"\s*$/.exec(line);
     if (m !== null && m[1].endsWith(";")) {
       return m[1].replaceAll('\\"', '"').replaceAll("\\\\", "\\");
     }
-    // A bare Newick line also counts (e.g. if output style changes).
-    if (/^\(.*\);$/.test(line.trim())) return line.trim();
   }
   return null;
 }

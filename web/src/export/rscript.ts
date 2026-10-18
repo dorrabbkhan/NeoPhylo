@@ -40,8 +40,8 @@ function toFasta(aln: Alignment): string {
 }
 
 /**
- * The equivalent analysis as an R script. `write.tree` prints the
- * Newick tree on stdout, which is what the parity job compares.
+ * The equivalent analysis as an R script. `cat(write.tree(tree))`
+ * prints the bare Newick line on stdout, which the parity job reads.
  */
 export function exportR(
   alignment: Alignment,
@@ -63,7 +63,7 @@ fa <- "${fasta}"
 aln <- ape::read.dna(textConnection(fa), format = "fasta")
 d <- ape::dist.dna(aln, model = "${model}", pairwise.deletion = TRUE)
 tree <- ${build}
-ape::write.tree(tree)
+cat(ape::write.tree(tree), "\\n")
 `;
 }
 
@@ -121,7 +121,7 @@ tree <- tryCatch(${build}, error = function(e) e)
 if (inherits(tree, "error")) {
   cat("# tree building failed:", conditionMessage(tree), "\n")
 } else {
-  ape::write.tree(tree)
+  cat(ape::write.tree(tree), "\\n")
 }
 write.table(format(m, digits = 15), file = stdout(), sep = " ",
             row.names = FALSE, col.names = FALSE, quote = FALSE)

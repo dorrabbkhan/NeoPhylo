@@ -34,7 +34,7 @@ describe("exportR", () => {
     const nj = exportR(ALN, "Jc69", "Nj");
     expect(nj).toContain("pairwise.deletion = TRUE");
     expect(nj).toContain("nj(d)");
-    expect(nj).toContain("write.tree(tree)");
+    expect(nj).toContain('cat(ape::write.tree(tree), "\\n")');
     const upgma = exportR(ALN, "Jc69", "Upgma");
     expect(upgma).toContain("phangorn::upgma(d)");
     expect(upgma).not.toContain("nj(d)");
@@ -67,7 +67,7 @@ describe("exportR protein (v1.1 spec §5.6)", () => {
     expect(s).toContain("scaled = TRUE");
     expect(s).not.toContain("dist.dna");
     expect(s).toContain("nj(");
-    expect(s).toContain("write.tree(tree)");
+    expect(s).toContain('cat(ape::write.tree(tree), "\\n")');
   });
 
   it("Kimura: -log(1 - p - 0.2*p^2) from that proportion", () => {
