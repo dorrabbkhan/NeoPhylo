@@ -151,6 +151,65 @@ function defaultSimModel(a: Alphabet): SimModel {
   return a === "protein" ? "Jtt" : "Jc69";
 }
 
+/** The alphabet a simulation model produces (JTT → protein). */
+function simModelAlphabet(m: SimModel): Alphabet {
+  return SIM_MODEL_NAMES.dna.includes(simModelName(m)) ? "dna" : "protein";
+}
+
+/**
+ * Bring the session's models in line with `s.alphabet` (v1.1 spec
+ * §5.1): a correction — or, on simulated data, a sim model — that is
+ * invalid for the alphabet silently switches to the alphabet's
+ * default (DNA → JC69, protein → JTT) and the switch is reported in
+ * `notice`; an unchanged session keeps its identity and its `notice`.
+ *
+ * Every reducer path that can change the alphabet or the data calls
+ * this before `recompute` — `load` (including embedded), `setAlphabet`,
+ * `importAlignment`, `importTree`, `enterSandbox` and `exitSandbox` —
+ * so a model/alphabet mismatch becomes the default-plus-notice instead
+ * of a stuck `ModelAlphabetMismatch` (checkpoint 10: importing protein
+ * after the DNA lesson errored with JC69 kept). Callers set `alphabet`
+ * to the alphabet the action will display before calling. */
+export function reconcileModels(s: Session): Session {
+  const target = s.alphabet;
+  let exercise = s.exercise;
+  const switches: string[] = [];
+  if (!CORRECTIONS[target].includes(exercise.analysis.correction)) {
+    const c = defaultCorrection(target);
+    exercise = {
+      ...exercise,
+      analysis: { ...exercise.analysis, correction: c },
+    };
+    switches.push(`correction to ${DIST_LABEL[c]}`);
+  }
+  if (
+    exercise.data.kind === "simulated" &&
+    !SIM_MODEL_NAMES[target].includes(
+      simModelName(exercise.data.sim.model),
+    )
+  ) {
+    const m = defaultSimModel(target);
+    exercise = {
+      ...exercise,
+      data: {
+        ...exercise.data,
+        sim: { ...exercise.data.sim, model: m },
+      },
+    };
+    switches.push(
+      `the simulation model to ${SIM_LABEL[simModelName(m)]}`,
+    );
+  }
+  if (switches.length === 0) return s;
+  return {
+    ...s,
+    exercise,
+    notice: `Switched ${switches.join(" and ")} because this data is now ${
+      target === "dna" ? "DNA" : "protein"
+    }.`,
+  };
+}
+
 /** Number of steps in a trace. NJ records the final three-way join
  * separately (spec §4.5 step 5 is part of the trace), so it counts one
  * extra position beyond `steps`. */
@@ -348,7 +407,11 @@ export function reducer(s: Session, a: Action): Session {
         alignmentOrigin:
           a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
       };
-      return error === null ? recompute(base) : base;
+      // reconcileModels keeps a declared-alphabet exercise consistent
+      // even when the file pairs it with a foreign model (the schema
+      // validates this, so it is belt-and-braces for custom `#x=` links).
+      const reconciled = reconcileModels(base);
+      return error === null ? recompute(reconciled) : reconciled;
     }
     case "setSim": {
       // Simulation controls are inert unless the alignment is
@@ -381,45 +444,18 @@ export function reducer(s: Session, a: Action): Session {
       });
     case "setAlphabet": {
       // The alphabet override (badge's "Treat as protein/DNA", v1.1
-      // spec §5.1). Any model that is invalid for the target alphabet
-      // silently switches to that alphabet's default (DNA → JC69,
-      // protein → JTT) and the switch is reported in `notice` — never
-      // a stuck error state (Review Focus 3).
+      // spec §5.1). reconcileModels switches any model that is invalid
+      // for the target alphabet to that alphabet's default and reports
+      // the switch in `notice` — never a stuck error state (Review
+      // Focus 3).
       const target = a.alphabet;
-      let exercise = s.exercise;
-      const switches: string[] = [];
-      if (!CORRECTIONS[target].includes(exercise.analysis.correction)) {
-        const c = defaultCorrection(target);
-        exercise = {
-          ...exercise,
-          analysis: { ...exercise.analysis, correction: c },
-        };
-        switches.push(`correction to ${DIST_LABEL[c]}`);
-      }
-      if (
-        exercise.data.kind === "simulated" &&
-        !SIM_MODEL_NAMES[target].includes(
-          simModelName(exercise.data.sim.model),
-        )
-      ) {
-        const m = defaultSimModel(target);
-        exercise = {
-          ...exercise,
-          data: {
-            ...exercise.data,
-            sim: { ...exercise.data.sim, model: m },
-          },
-        };
-        switches.push(
-          `the simulation model to ${SIM_LABEL[simModelName(m)]}`,
-        );
-      }
-      const notice =
-        switches.length === 0
-          ? null
-          : `Switched ${switches.join(" and ")} because this data is now ${
-              target === "dna" ? "DNA" : "protein"
-            }.`;
+      const reconciled = reconcileModels({
+        ...s,
+        alphabet: target,
+        notice: null,
+      });
+      const exercise = reconciled.exercise;
+      const notice = reconciled.notice;
       if (s.alignmentOrigin === "simulated") {
         // Simulated data regenerates from sim.model in `recompute`, so
         // the model switch above is what produces the target alphabet;
@@ -456,30 +492,51 @@ export function reducer(s: Session, a: Action): Session {
       // An imported alignment is compared against an imported
       // reference tree only: the lesson's reference is a different leaf
       // set, so it is cleared (no comparison, no RF) instead of
-      // erroring. `recompute` picks up `alphabet` from the alignment.
-      return recompute({
-        ...s,
-        alignment: a.alignment,
-        alignmentOrigin: "imported",
-        source: "sandbox",
-        notice: null,
-        reference: s.reference?.origin === "imported" ? s.reference : null,
-      });
-    case "importTree":
+      // erroring. `recompute` picks up `alphabet` from the alignment;
+      // reconcileModels first brings the correction (and, on simulated
+      // lessons, the sim model) in line with it, so e.g. a protein
+      // import under JC69 switches to JTT with a notice instead of
+      // erroring (checkpoint 10).
+      return recompute(
+        reconcileModels({
+          ...s,
+          alignment: a.alignment,
+          alphabet: a.alignment.alphabet,
+          alignmentOrigin: "imported",
+          source: "sandbox",
+          notice: null,
+          reference:
+            s.reference?.origin === "imported" ? s.reference : null,
+        }),
+      );
+    case "importTree": {
       // The imported tree becomes the reference (kind "true": it is
       // treated as the truth to compare against). The alignment
       // returns to the exercise's own origin — simulated data is
       // re-simulated along the new tree (spec §3.1); embedded data is
       // re-parsed from `data.fasta` and compared against it.
-      return recompute({
-        ...s,
-        reference: { tree: a.tree, kind: "true", origin: "imported" },
-        notice: null,
-        alignment: null,
-        alignmentOrigin:
-          s.exercise.data.kind === "embedded" ? "embedded" : "simulated",
-        source: "sandbox",
-      });
+      const alignmentOrigin: Session["alignmentOrigin"] =
+        s.exercise.data.kind === "embedded" ? "embedded" : "simulated";
+      // The post-action alphabet is the declared one for embedded data
+      // and the sim model's own alphabet for simulated data — not
+      // `s.alphabet`, which may still describe an imported alignment
+      // this action discards.
+      const alphabet: Alphabet =
+        s.exercise.data.kind === "embedded"
+          ? s.exercise.alphabet
+          : simModelAlphabet(s.exercise.data.sim.model);
+      return recompute(
+        reconcileModels({
+          ...s,
+          reference: { tree: a.tree, kind: "true", origin: "imported" },
+          notice: null,
+          alignment: null,
+          alignmentOrigin,
+          alphabet,
+          source: "sandbox",
+        }),
+      );
+    }
     case "step": {
       const max = s.result?.trace ? traceLength(s.result.trace) : 0;
       return { ...s, step: Math.max(0, Math.min(a.to, max)) };
@@ -501,11 +558,14 @@ export function reducer(s: Session, a: Action): Session {
       // Sandbox keeps the current pipeline outputs — same exercise,
       // same seed — so nothing on screen jumps. It only unlocks the
       // controls and shows the import panel (both read `source`).
-      return { ...s, source: "sandbox" };
+      // reconcileModels is a no-op on an already-consistent session;
+      // it runs here so every alphabet/data path stays covered.
+      return reconcileModels({ ...s, source: "sandbox" });
     case "exitSandbox":
       // Reload the current lesson from scratch. The exercise is
-      // re-dispatched through `load` with a fresh `prompts` array so
-      // the prompt gate (which resets on the array's identity)
+      // re-dispatched through `load` — which reconciles the models
+      // against the lesson's alphabet — with a fresh `prompts` array
+      // so the prompt gate (which resets on the array's identity)
       // forgets the student's picks.
       return reducer(s, {
         type: "load",

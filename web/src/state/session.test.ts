@@ -458,9 +458,90 @@ describe("v1.1 session state (reference, alphabet)", () => {
     });
     expect(s.alignment).toBe(parsed.value);
     expect(s.alphabet).toBe("protein");
-    // The lesson's JC69 correction is DNA-only, so the engine reports
-    // the mismatch; Task 10 auto-switches the correction in the UI.
-    expect(s.error?.kind).toBe("ModelAlphabetMismatch");
+    // reconcileModels runs before recompute: the DNA-only JC69
+    // correction switches to JTT with a notice instead of erroring
+    // (checkpoint 10).
+    expect(s.error).toBeNull();
+    expect(s.exercise.analysis.correction).toBe("Jtt");
+    expect(s.notice).toContain("JTT");
+  });
+});
+
+describe("reconcileModels on import (v1.1 Task 10, checkpoint 10)", () => {
+  it("JC69 → import protein gives JTT plus the notice", () => {
+    // The simulated DNA lesson pairs JC69 correction with a JC69 sim
+    // model; a protein import must switch both to JTT, not error.
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const parsed = engine.parseFasta(
+      ">p1\nMKVL\n>p2\nMKIL\n>p3\nMRVL\n>p4\nMKVA",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const s = reducer(loaded, {
+      type: "importAlignment",
+      alignment: parsed.value,
+    });
+    expect(s.error).toBeNull();
+    expect(s.alphabet).toBe("protein");
+    expect(s.exercise.analysis.correction).toBe("Jtt");
+    expect(exerciseSim(s.exercise)?.model).toBe("Jtt");
+    expect(s.notice).toBe(
+      "Switched correction to JTT and the simulation model to JTT " +
+        "because this data is now protein.",
+    );
+    expect(s.matrix?.labels).toHaveLength(4);
+    expect(s.result).not.toBeNull();
+  });
+
+  it("JTT → import DNA PHYLIP gives JC69 plus the notice", () => {
+    // The embedded protein lesson declares JTT; a DNA PHYLIP import
+    // must switch the correction to JC69, not error (checkpoint 10).
+    const ex = exercise(EMBEDDED_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(loaded.alphabet).toBe("protein");
+    expect(loaded.exercise.analysis.correction).toBe("Jtt");
+    const parsed = engine.parsePhylip(
+      "4 4\nTax1      ACGT\nTax2      ACGT\nTax3      ACGA\nTax4      ACGC\n",
+      "Auto",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.alignment.alphabet).toBe("dna");
+    const s = reducer(loaded, {
+      type: "importAlignment",
+      alignment: parsed.value.alignment,
+    });
+    expect(s.error).toBeNull();
+    expect(s.alphabet).toBe("dna");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expect(s.notice).toBe(
+      "Switched correction to JC69 because this data is now DNA.",
+    );
+    expect(s.result).not.toBeNull();
+  });
+
+  it("enterSandbox keeps the models reconciled", () => {
+    // Covered paths must leave every select value inside its options;
+    // enterSandbox routes through reconcileModels like the rest.
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const s = reducer(loaded, { type: "enterSandbox" });
+    expect(s.source).toBe("sandbox");
+    expect(s.error).toBeNull();
+    expect(s.notice).toBeNull();
   });
 });
 

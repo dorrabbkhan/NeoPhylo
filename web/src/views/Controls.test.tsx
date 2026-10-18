@@ -152,6 +152,52 @@ describe("Controls — sim model round-trip (label ↔ SimModel)", () => {
   );
 });
 
+describe("Controls — select value is always a displayed option", () => {
+  // Review item (checkpoint 10): a select whose value is not among its
+  // options renders inconsistently across browsers, so the reducer's
+  // reconcileModels keeps the session consistent and these tests pin
+  // the invariant per alphabet.
+  it.each([
+    [
+      "dna",
+      { model: { K80: { kappa: 3 } }, length: 100, seed: 1 } as SimSpec,
+      "K80" as const,
+    ],
+    [
+      "protein",
+      { model: "Jtt", length: 100, seed: 1 } as SimSpec,
+      "Kimura" as const,
+    ],
+  ])("on the %s alphabet", (alphabet, sim, correction) => {
+    render(
+      <Controls
+        {...props({
+          alphabet: alphabet as Alphabet,
+          sim,
+          analysis: { correction, method: "Nj" },
+        })}
+      />,
+    );
+    for (const label of [
+      "Simulation model",
+      "Distance correction",
+      "Tree-building method",
+    ]) {
+      const select = screen.getByLabelText(label) as HTMLSelectElement;
+      const values = Array.from(select.options).map((o) => o.value);
+      expect(values, `${label} on ${alphabet}`).toContain(select.value);
+    }
+  });
+
+  it("the empty model option holds the null-sim value", () => {
+    render(<Controls {...props({ sim: null, simEnabled: false })} />);
+    const select = screen.getByLabelText(
+      "Simulation model",
+    ) as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toContain("");
+  });
+});
+
 describe("Controls — non-simulatable data", () => {
   it("shows disabled sim controls with no model name when sim is null", () => {
     // Embedded/imported data has no sim spec: the simulation section

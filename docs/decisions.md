@@ -1176,3 +1176,27 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `App.tsx`): the "Treat as" override is shown only on imported or
     embedded data. On simulated data the badge just names the alphabet
     — the sim model menu controls it, respecting lesson locks.
+- Review fixes, round 2 (found at checkpoint 10):
+  - `reconcileModels(session)` in `session.ts` centralizes the
+    model/alphabet reconciliation that `setAlphabet` used to do inline:
+    a correction or sim model invalid for the current alphabet switches
+    to the alphabet's default (DNA → JC69, protein → JTT) with a
+    notice. It now runs on every alphabet/data path — `load` (including
+    embedded), `setAlphabet`, `importAlignment` (FASTA and PHYLIP),
+    `importTree`, `enterSandbox`, `exitSandbox` (via `load`) — because
+    importing protein after the DNA lesson errored with JC69 kept, and
+    importing DNA PHYLIP under JTT errored the other way.
+  - `importTree` reconciles against the alphabet the action will
+    display — the declared alphabet for embedded data, the sim model's
+    own alphabet (`simModelAlphabet`) for simulated data — not the
+    stale `session.alphabet`, which can still describe the imported
+    alignment the action discards.
+  - The negative-branch notice no longer says "the trace is never
+    altered"; it now reads "The calculated value is shown unchanged;
+    use 'set to zero' to draw it as 0."
+  - New tests: `web/e2e/alphabet.spec.ts` (default lesson → Sandbox →
+    import `fixtures/inputs/protein/p6_150.fasta` gives the protein
+    badge, JTT selected and a 6×6 matrix; nj-basics shows the badge
+    with no override button), reducer cases for both reconciliation
+    directions in `session.test.ts`, and a per-alphabet "select value
+    ∈ displayed options" invariant in `Controls.test.tsx`.
