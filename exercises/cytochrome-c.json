@@ -47,7 +47,7 @@
     {
       "at_step": 7,
       "type": "note",
-      "concept": "The tree is complete — and it matches the accepted classification in every clade. Plants out first, fungi and animals as closest relatives, and inside the animals, vertebrates and mammals together. It still earned the vertebrates the hard way: the smallest distance in the whole matrix is horse–chicken at 0.119, even though horse is much closer to human — with a short, slowly evolving protein a handful of substitutions decides which pair looks closest. NJ recovers anyway because it joins by Q — relative closeness — not by raw distance.",
+      "concept": "The tree is complete — and it matches the accepted classification in every clade. We draw it with the plant as the outgroup, as biologists usually do. NJ itself builds an unrooted tree, so where the root goes comes from outside knowledge, not from these sequences. Drawn that way, fungi and animals are closest relatives, and inside the animals the vertebrates and mammals group together. It still earned the vertebrates the hard way: the smallest distance in the whole matrix is horse–chicken at 0.119, even though horse is much closer to human — with a short, slowly evolving protein a handful of substitutions decides which pair looks closest. NJ recovers anyway because it joins by Q — relative closeness — not by raw distance.",
       "math": "RF counts clades present in one tree but not the other: here every clade of the classification is present — nothing missing, nothing extra. The Q score is what rescued the vertebrates; the smallest distance was not the truest pair."
     }
   ]
