@@ -13,16 +13,22 @@ import type { Alphabet } from "../engine/generated/Alphabet";
 import type { Action, Session } from "../state/session";
 
 export interface AlphabetBadgeProps {
+  /** Declared alphabet currently in force for the alignment. */
   alphabet: Alphabet;
-  /** Where the active alignment comes from; the "Treat as" override is
-   * offered only on imported or embedded (real) data. */
+  /** Where the alignment came from; the override only exists for real
+   * (imported/embedded) data — simulated data's alphabet follows the
+   * sim model menu instead (v1.1 spec §5.1, checkpoint 10). */
   alignmentOrigin: Session["alignmentOrigin"];
+  /** The override is sandbox-only: in a lesson it would bypass the
+   * exercise's declared alphabet (checkpoint 12). */
+  source: Session["source"];
   dispatch: Dispatch<Action>;
 }
 
 export function AlphabetBadge({
   alphabet,
   alignmentOrigin,
+  source,
   dispatch,
 }: AlphabetBadgeProps) {
   const other: Alphabet = alphabet === "protein" ? "dna" : "protein";
@@ -31,7 +37,7 @@ export function AlphabetBadge({
       <span className="alphabet-badge-label">
         {alphabet === "protein" ? "Protein · 20 amino acids" : "DNA"}
       </span>
-      {alignmentOrigin !== "simulated" && (
+      {source === "sandbox" && alignmentOrigin !== "simulated" && (
         <button
           type="button"
           onClick={() => dispatch({ type: "setAlphabet", alphabet: other })}

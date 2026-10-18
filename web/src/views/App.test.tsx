@@ -265,9 +265,19 @@ describe("v1.1 alphabet badge and reference labels", () => {
     ).toBeTruthy();
   });
 
-  it("overriding to DNA switches JTT to JC69 with a notice, no error", async () => {
+  it("hides the alphabet override on embedded data in a lesson", async () => {
+    // Checkpoint 12: the override is Sandbox-only — in a lesson the
+    // author chose the alphabet deliberately.
     render(<App exercise={CLASSIFY} />);
     await screen.findByRole("img", { name: "Inferred tree" });
+    expect(screen.getByText("Protein · 20 amino acids")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Treat as/ })).toBeNull();
+  });
+
+  it("sandbox keeps embedded data and shows the override there", async () => {
+    render(<App exercise={CLASSIFY} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
     fireEvent.click(screen.getByRole("button", { name: "Treat as DNA" }));
     expect((await screen.findByRole("status")).textContent).toBe(
       "Switched correction to JC69 because this data is now DNA.",

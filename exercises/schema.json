@@ -122,6 +122,13 @@
           "reveal": {
             "type": ["string", "null"],
             "description": "Optional explanation a predict_pair card shows only after the student picks (e.g. why the closest pair is not the answer); must not spoil the question."
+          },
+          "reveal_pair": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Optional pair of taxon labels: the answered prompt card shows a \"Show a vs b\" button opening the pair-detail panel, and the next step's explanation keeps a \"Revisit\" link. Both labels must be alignment taxon names — checked by the engine at load, not by this schema."
           }
         }
       }

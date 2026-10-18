@@ -27,7 +27,7 @@ function props(overrides: Partial<ControlsProps> = {}): ControlsProps {
     locked: [],
     matrixView: "distance",
     qAvailable: false,
-    simEnabled: true,
+    alignmentOrigin: "simulated",
     alphabet: "dna",
     dispatch: () => {},
     ...overrides,
@@ -190,7 +190,9 @@ describe("Controls — select value is always a displayed option", () => {
   });
 
   it("the empty model option holds the null-sim value", () => {
-    render(<Controls {...props({ sim: null, simEnabled: false })} />);
+    render(
+      <Controls {...props({ sim: null, alignmentOrigin: "imported" })} />,
+    );
     const select = screen.getByLabelText(
       "Simulation model",
     ) as HTMLSelectElement;
@@ -198,12 +200,51 @@ describe("Controls — select value is always a displayed option", () => {
   });
 });
 
+describe("Controls — embedded data", () => {
+  it("collapses the Simulation section to a real-sequences line", () => {
+    // Checkpoint 12: embedded lesson data shows "Real sequences: not
+    // simulated." and no sim controls at all — not even disabled ones.
+    render(
+      <Controls {...props({ sim: null, alignmentOrigin: "embedded" })} />,
+    );
+    expect(
+      screen.getByText("Real sequences: not simulated."),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Simulation model")).toBeNull();
+    expect(screen.queryByLabelText("Length")).toBeNull();
+    expect(screen.queryByLabelText("Seed")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "New seed" }),
+    ).toBeNull();
+  });
+});
+
+describe("Controls — gated Distance/Q", () => {
+  it("disables the toggle with an after-you-answer tooltip", () => {
+    render(<Controls {...props({ qAvailable: true, qGated: true })} />);
+    const toggle = screen.getByRole("switch", { name: "Distance / Q" });
+    expect((toggle as HTMLButtonElement).disabled).toBe(true);
+    expect(toggle.title).toBe("Available after you answer.");
+  });
+
+  it("enables the toggle when no prompt gates", () => {
+    render(<Controls {...props({ qAvailable: true })} />);
+    const toggle = screen.getByRole("switch", {
+      name: "Distance / Q",
+    }) as HTMLButtonElement;
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.title).toBe("");
+  });
+});
+
 describe("Controls — non-simulatable data", () => {
   it("shows disabled sim controls with no model name when sim is null", () => {
-    // Embedded/imported data has no sim spec: the simulation section
-    // renders but every control is disabled with the real-sequences
-    // tooltip and the model menu shows no model.
-    render(<Controls {...props({ sim: null, simEnabled: false })} />);
+    // Imported data has no sim spec: the simulation section renders but
+    // every control is disabled with the real-sequences tooltip and the
+    // model menu shows no model.
+    render(
+      <Controls {...props({ sim: null, alignmentOrigin: "imported" })} />,
+    );
     const select = screen.getByLabelText(
       "Simulation model",
     ) as HTMLSelectElement;

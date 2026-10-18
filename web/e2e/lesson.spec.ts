@@ -9,6 +9,7 @@ import { test, expect } from "@playwright/test";
 import {
   answerPredictPrompt,
   minCell,
+  minQCell,
   readStep,
   stepToEnd,
   waitForApp,
@@ -40,15 +41,17 @@ test.describe("nj-basics", () => {
     await expect(next).toBeDisabled();
 
     // Premise (checkpoint 7): the closest pair is not the pair NJ joins.
+    // The Q toggle is disabled while a prompt gates (checkpoint 12), so
+    // the min-Q cell is computed from the distance matrix.
     const distMin = await minCell(page);
-    const qToggle = page.getByRole("switch", { name: "Distance / Q" });
-    await qToggle.click();
-    const qMin = await minCell(page);
-    await qToggle.click();
+    const qMin = await minQCell(page);
     expect(
       distMin,
       "lesson premise: min-distance cell differs from min-Q cell at join 3",
     ).not.toBe(qMin);
+    await expect(
+      page.getByRole("switch", { name: "Distance / Q" }),
+    ).toBeDisabled();
 
     // Picking the closest pair is wrong and reveals why.
     const cells = page.locator('[role="gridcell"]');

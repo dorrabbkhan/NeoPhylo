@@ -320,6 +320,57 @@ fn embedded_protein_loads() {
 }
 
 #[test]
+fn reveal_pair_labels_checked_against_alignment() {
+    // Checkpoint 12: a prompt's `reveal_pair` names two alignment taxa;
+    // a label absent from the alignment fails at load with the field
+    // named — for simulated data the labels are the true tree's leaves.
+    let good = V2_SIMULATED.replace(
+        r#""prompts": []"#,
+        r#""prompts": [{ "at_step": 1, "type": "predict_pair", "concept": "?",
+          "reveal_pair": ["A", "B"] }]"#,
+    );
+    let ex = load_exercise(&good).unwrap();
+    assert_eq!(
+        ex.prompts[0].reveal_pair,
+        Some(["A".to_string(), "B".to_string()])
+    );
+
+    // Absent label → InvalidExercise on prompts.0.reveal_pair.
+    let bad = V2_SIMULATED.replace(
+        r#""prompts": []"#,
+        r#""prompts": [{ "at_step": 1, "type": "predict_pair", "concept": "?",
+          "reveal_pair": ["A", "Zz"] }]"#,
+    );
+    let err = load_exercise(&bad).unwrap_err();
+    match err {
+        NeoError::InvalidExercise { field, .. } => {
+            assert_eq!(field, "prompts.0.reveal_pair")
+        }
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+
+    // Same check for embedded data — labels come from the FASTA.
+    let json = embedded(
+        ">a\\nARNDCQEGHILK\\n>b\\nARNDCQEGHILM",
+        "protein",
+        "JTT",
+        "null",
+    )
+    .replace(
+        r#""prompts": []"#,
+        r#""prompts": [{ "at_step": 1, "type": "note", "concept": "n",
+          "reveal_pair": ["a", "q"] }]"#,
+    );
+    let err = load_exercise(&json).unwrap_err();
+    match err {
+        NeoError::InvalidExercise { field, .. } => {
+            assert_eq!(field, "prompts.0.reveal_pair")
+        }
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+}
+
+#[test]
 fn v1_rejects_protein_correction() {
     // v1 exercises are always DNA; protein-only corrections are
     // rejected at load, not left to fail downstream.

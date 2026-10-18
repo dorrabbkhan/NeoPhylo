@@ -178,4 +178,48 @@ describe("lesson prompts", () => {
     expect(method.disabled).toBe(true);
     expect(method.title).toBe("Fixed for this lesson.");
   });
+
+  it("conceals the answer while a predict_pair prompt is open", async () => {
+    // Checkpoint 12: a gating prompt hides everything that would spoil
+    // the answer — the explanation's pair names/Q values, the marked
+    // matrix cell and tree highlights, and the Distance/Q switch.
+    const ex = exercise();
+    const { chosen, labels } = firstJoin(ex);
+    render(<App exercise={ex} />);
+    await screen.findByText(firstQuestion());
+
+    // The explanation is a predict-first placeholder in both modes…
+    const placeholder =
+      "Make your prediction first; the explanation appears after you answer.";
+    expect(screen.getByText(placeholder)).toBeTruthy();
+    // …and it names neither member of the joining pair.
+    const body = document.querySelector(".explain-body")!;
+    expect(body.textContent).not.toContain(labels[0]);
+    expect(body.textContent).not.toContain(labels[1]);
+
+    // The Distance/Q switch is disabled — the lowest Q IS the answer.
+    const qToggle = screen.getByRole("switch", {
+      name: "Distance / Q",
+    }) as HTMLButtonElement;
+    expect(qToggle.disabled).toBe(true);
+    expect(qToggle.title).toBe("Available after you answer.");
+
+    // No answer mark: no chosen matrix cell, and the chosen pair's
+    // clusters are not lit in the tree. (A single leaf may still be
+    // lit by the focus-rescue's hover mark — that follows the student's
+    // own pointer, not the answer.)
+    expect(grid().querySelector('[aria-selected="true"]')).toBeNull();
+    const inferSvg = document.querySelector(
+      'svg[aria-label="Inferred tree"]',
+    )!;
+    const hi = Array.from(
+      inferSvg.querySelectorAll('[data-highlight="true"]'),
+    ).map((el) => el.textContent);
+    expect(hi).not.toEqual(expect.arrayContaining(labels));
+
+    // Answering restores the normal explanation and the toggle.
+    fireEvent.keyDown(cell(chosen[0], chosen[1]), { key: "Enter" });
+    expect(screen.queryByText(placeholder)).toBeNull();
+    expect(qToggle.disabled).toBe(false);
+  });
 });

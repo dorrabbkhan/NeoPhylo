@@ -173,9 +173,12 @@ export function stepEmphasis({
     if (isNj && k === traceLength(trace)) visibleNodes.add(inferred.root);
   }
 
-  // Clades of the inferred tree absent from the true tree (RF splits).
+  // Clades of the inferred tree absent from the true tree (RF splits) —
+  // a result verdict, so it only shows at the final position (checkpoint
+  // 12). Without a trace the completed tree is always shown.
   const wrong = new Set<number>();
-  if (inferred !== null && rf !== null && taxa !== null) {
+  const atEnd = trace === null || k >= traceLength(trace);
+  if (atEnd && inferred !== null && rf !== null && taxa !== null) {
     const all = new Set(taxa);
     for (const split of rf.extra_in_inferred) {
       const side = new Set(split.side);

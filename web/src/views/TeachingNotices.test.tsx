@@ -14,6 +14,7 @@ import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
 import { exerciseSim, initialSession, reducer } from "../state/session";
 
+import { traceLength } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
 
 afterEach(cleanup);
@@ -250,9 +251,17 @@ describe("TeachingNotices — negative branches", () => {
 });
 
 describe("TeachingNotices — RF result", () => {
+  // The RF notice is a result verdict, so it only renders once the
+  // stepper reaches the final position (checkpoint 12): step sessions
+  // to the trace end before asserting.
+  function atEnd(s: Session): Session {
+    const trace = s.result?.trace ?? null;
+    return { ...s, step: trace === null ? s.step : traceLength(trace) };
+  }
+
   it('rf = 2 shows "differs … in 1 clade" (rf/2 clades per side)', () => {
     const s: Session = {
-      ...loaded(NJ_BASICS),
+      ...atEnd(loaded(NJ_BASICS)),
       rf: {
         rf: 2,
         max_rf: 4,
@@ -267,9 +276,27 @@ describe("TeachingNotices — RF result", () => {
     ).toBeTruthy();
   });
 
-  it("pluralizes and shows no notice when rf = 0", () => {
+  it("stays silent before the final step even when RF > 0", () => {
+    // Mid-trace position 0 with a nonzero RF result: the verdict is
+    // withheld until the student reaches the end.
     const s: Session = {
       ...loaded(NJ_BASICS),
+      step: 0,
+      rf: {
+        rf: 2,
+        max_rf: 4,
+        normalized: 0.5,
+        missing_in_inferred: [{ side: ["A", "B"] }],
+        extra_in_inferred: [{ side: ["A", "C"] }],
+      },
+    };
+    renderNotices(s);
+    expect(screen.queryByText(/differs from the true tree/)).toBeNull();
+  });
+
+  it("pluralizes and shows no notice when rf = 0", () => {
+    const s: Session = {
+      ...atEnd(loaded(NJ_BASICS)),
       rf: {
         rf: 4,
         max_rf: 4,
@@ -303,7 +330,7 @@ describe("TeachingNotices — RF result", () => {
 
   it("names an accepted classification instead of a true tree (v1.1 Task 10)", () => {
     const s: Session = {
-      ...loaded(NJ_BASICS),
+      ...atEnd(loaded(NJ_BASICS)),
       reference: {
         ...loaded(NJ_BASICS).reference!,
         kind: "classification",

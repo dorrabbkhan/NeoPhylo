@@ -66,4 +66,22 @@ describe("exercises/schema.json", () => {
       `ajv=${schemaOk} engine=${engineOk} for ${file}`,
     ).toBe(engineOk);
   });
+
+  it("schema accepts a bad reveal_pair; the engine rejects its label", () => {
+    // reveal_pair label membership is a semantic check the JSON schema
+    // cannot express — exercises/schema.json only constrains the shape.
+    const text = readFileSync(
+      resolve(FIXTURES, "bad-reveal-pair.json"),
+      "utf8",
+    );
+    expect(validate(JSON.parse(text))).toBe(true);
+    const r = engine.loadExercise(text);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.kind).toBe("InvalidExercise");
+      if (r.error.kind === "InvalidExercise") {
+        expect(r.error.field).toContain("reveal_pair");
+      }
+    }
+  });
 });

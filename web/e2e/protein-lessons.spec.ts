@@ -28,13 +28,12 @@ test.describe("protein-models", () => {
     await answerPredictPrompt(page);
     await expect(page.locator(".prompt-verdict.correct")).toHaveText("Correct");
 
-    // The reveal invites opening the pair panel on the misleading pair;
-    // answering cleared the gate, so the C–F cell opens the dialog.
-    await expect(page.getByText(/Now click the C–F cell/)).toBeVisible();
-    await page
-      .getByRole("gridcell", { name: /^(C, F|F, C):/ })
-      .first()
-      .click();
+    // The reveal names the "Show C vs F" button on the answered card;
+    // it opens the pair panel for the misleading pair.
+    await expect(page.locator(".prompt-reveal")).toContainText(
+      'The "Show C vs F" button',
+    );
+    await page.getByRole("button", { name: "Show C vs F" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("How was this distance computed?")).toBeVisible();
@@ -91,11 +90,14 @@ test.describe("cytochrome-c", () => {
       .click();
     await expect(page.locator(".prompt-verdict.correct")).toHaveText("Correct");
 
-    // The reveal invites the pair panel on the smallest-distance pair.
-    await expect(page.getByText(/Click the horse–chicken cell/)).toBeVisible();
+    // The reveal names the "Show horse vs chicken" button on the
+    // answered card; it opens the pair panel on the smallest-distance
+    // pair.
+    await expect(page.locator(".prompt-reveal")).toContainText(
+      'The "Show horse vs chicken" button',
+    );
     await page
-      .getByRole("gridcell", { name: /^(horse, chicken|chicken, horse):/ })
-      .first()
+      .getByRole("button", { name: "Show horse vs chicken" })
       .click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

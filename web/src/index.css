@@ -198,6 +198,26 @@ p {
   margin: 0;
 }
 
+/* The inferred tree's grid cell: tree plus the final-step unrooted
+ * caption stacked underneath (checkpoint 12). */
+.tree-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.tree-col .tree-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.unrooted-note {
+  color: var(--fg);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
 .tree-panel figcaption {
   color: var(--fg);
   font-weight: 500;
@@ -612,6 +632,26 @@ button:disabled {
 .prompt-math {
   font-family: var(--mono);
   font-size: 13px;
+}
+
+/* "Show a vs b" on an answered card: a plain control, secondary to the
+ * verdict and reveal text (checkpoint 12). */
+.prompt-show-pair {
+  display: block;
+  margin-top: 4px;
+}
+
+/* "Revisit: a vs b" keeps a reveal-pair link available the step after
+ * its prompt — a small text control under the explanation (checkpoint
+ * 12). */
+.explain .revisit {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* ---- Pair panel: "How was this distance computed?" (v1.1 spec §5.2, Task 11) ---- */

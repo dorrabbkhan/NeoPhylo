@@ -20,6 +20,7 @@ function props(overrides: Partial<AlphabetBadgeProps> = {}): AlphabetBadgeProps 
   return {
     alphabet: "dna",
     alignmentOrigin: "imported",
+    source: "sandbox",
     dispatch: () => {},
     ...overrides,
   };
@@ -75,4 +76,15 @@ describe("AlphabetBadge", () => {
     expect(screen.getByText("DNA")).toBeTruthy();
     expect(overrideButton()).toBeNull();
   });
+
+  it.each(["imported", "embedded"] as Session["alignmentOrigin"][])(
+    "hides the override in a lesson on %s data",
+    (alignmentOrigin) => {
+      // Checkpoint 12: the override is Sandbox-only — a lesson's
+      // alphabet is the author's deliberate choice.
+      render(<AlphabetBadge {...props({ alignmentOrigin, source: "lesson" })} />);
+      expect(screen.getByText("DNA")).toBeTruthy();
+      expect(overrideButton()).toBeNull();
+    },
+  );
 });

@@ -3,8 +3,8 @@
 // pick reveals "Correct" or the right pair, followed by the concept/math
 // text. A note prompt only displays.
 
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Prompt } from "../engine/generated/Prompt";
 import { PromptCard } from "./PromptCard";
@@ -15,6 +15,7 @@ const PREDICT: Prompt = {
   concept: "Which two taxa will join first?",
   math: "Find the minimum Q(i,j).",
   reveal: null,
+  reveal_pair: null,
 };
 
 const NOTE: Prompt = {
@@ -23,6 +24,7 @@ const NOTE: Prompt = {
   concept: "Joins so far.",
   math: null,
   reveal: null,
+  reveal_pair: null,
 };
 
 afterEach(cleanup);
@@ -112,5 +114,40 @@ describe("PromptCard", () => {
     expect(
       screen.getByText("u1 and u2 are closest, but NJ joins E and F."),
     ).toBeTruthy();
+  });
+
+  it("offers the reveal_pair detail only after answering", () => {
+    // checkpoint 12: a prompt with reveal_pair gets a "Show a vs b"
+    // button once answered — it must not appear while still gating.
+    const onShowPair = vi.fn();
+    const prompt: Prompt = {
+      ...PREDICT,
+      reveal_pair: ["horse", "chicken"],
+    };
+    const { rerender } = render(
+      <PromptCard
+        prompt={prompt}
+        mode="concept"
+        picked={null}
+        answer={["A", "B"]}
+        onShowPair={onShowPair}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Show horse vs chicken/ }),
+    ).toBeNull();
+    rerender(
+      <PromptCard
+        prompt={prompt}
+        mode="concept"
+        picked={["A", "B"]}
+        answer={["A", "B"]}
+        onShowPair={onShowPair}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show horse vs chicken" }),
+    );
+    expect(onShowPair).toHaveBeenCalledWith(["horse", "chicken"]);
   });
 });

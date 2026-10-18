@@ -113,4 +113,48 @@ describe("ExplanationPanel", () => {
     expect(blocks.length).toBeGreaterThan(0);
     blocks.forEach((el) => expect(el.tagName).toBe("P"));
   });
+
+  it("hides the explanation behind a predict-first placeholder when gated", () => {
+    // Checkpoint 12: while a predict_pair prompt is unanswered, both
+    // modes show only the placeholder — the text names the answer pair
+    // and the math shows the winning Q values.
+    for (const mode of ["concept", "math"] as const) {
+      const { unmount } = render(
+        <ExplanationPanel
+          trace={trace}
+          step={0}
+          labels={labels}
+          mode={mode}
+          dispatch={vi.fn()}
+          gated
+        />,
+      );
+      expect(
+        screen.getByText(
+          "Make your prediction first; the explanation appears after you answer.",
+        ),
+      ).toBeTruthy();
+      unmount();
+    }
+  });
+
+  it("keeps a Revisit link that opens the pair panel", () => {
+    // checkpoint 12: after answering a reveal_pair prompt and stepping
+    // on, the explanation keeps a link back to that pair's detail.
+    const onShow = vi.fn();
+    render(
+      <ExplanationPanel
+        trace={trace}
+        step={1}
+        labels={labels}
+        mode="concept"
+        dispatch={vi.fn()}
+        revisit={{ pair: ["horse", "chicken"], onShow }}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Revisit: horse vs chicken" }),
+    );
+    expect(onShow).toHaveBeenCalled();
+  });
 });

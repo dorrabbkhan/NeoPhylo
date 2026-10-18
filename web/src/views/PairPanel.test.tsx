@@ -390,6 +390,7 @@ describe("PairPanel wiring in App", () => {
           concept: "Which pair joins first?",
           math: null,
           reveal: null,
+          reveal_pair: null,
         },
       ],
     };

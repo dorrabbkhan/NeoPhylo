@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "bad-reveal-pair",
+  "title": "Bad reveal pair",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "Which pair joins?",
+      "reveal_pair": ["A", "Zz"]
+    }
+  ]
+}

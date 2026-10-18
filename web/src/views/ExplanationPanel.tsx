@@ -30,6 +30,14 @@ export interface ExplanationPanelProps {
   labels: string[];
   mode: Session["mode"];
   dispatch: Dispatch<Action>;
+  /** An unanswered predict_pair prompt gates this position: both layers
+   * show only "make your prediction first" — the text names the joined
+   * pair and the math shows Q values, either would spoil the answer
+   * (checkpoint 12). */
+  gated?: boolean;
+  /** A reveal_pair prompt one step back keeps a small "Revisit: a vs b"
+   * link here (checkpoint 12): reopen the pair-detail dialog. */
+  revisit?: { pair: [string, string]; onShow: () => void } | null;
 }
 
 /** mathTex lines are KaTeX source unless they carry no formula at all —
@@ -60,12 +68,19 @@ export function ExplanationPanel({
   labels,
   mode,
   dispatch,
+  gated = false,
+  revisit = null,
 }: ExplanationPanelProps) {
   return (
     <div className="explain">
       <ModeToggle mode={mode} dispatch={dispatch} />
       <div className="explain-body" aria-live="polite">
-        {trace === null ? (
+        {gated ? (
+          <p>
+            Make your prediction first; the explanation appears after you
+            answer.
+          </p>
+        ) : trace === null ? (
           <p>
             Step-by-step explanations appear once a tree with a trace is built.
           </p>
@@ -88,6 +103,11 @@ export function ExplanationPanel({
           </>
         )}
       </div>
+      {revisit !== null && (
+        <button type="button" className="revisit" onClick={revisit.onShow}>
+          Revisit: {revisit.pair[0]} vs {revisit.pair[1]}
+        </button>
+      )}
     </div>
   );
 }

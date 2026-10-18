@@ -1364,3 +1364,36 @@ and the following ci/release entry. Both entries were kept verbatim.)
   specs. Files outside the Files block: `Stepper.tsx`, `Stepper.test.tsx`,
   `App.tsx`, `App.test.tsx`, `lesson.spec.ts`, `a11y.spec.ts` — all
   required by this owner-gate change.
+
+## Checkpoint 12 lesson UX fixes
+
+- **Conceal answers while a predict_pair gates.** The explanation panel now shows
+  "Make your prediction first; the explanation appears after you answer." in both
+  modes — the concept/math text names the joining pair and shows its Q values,
+  so it had to be replaced wholesale, not blurred (checkpoint-7 styling already
+  hid the marked matrix cell). The Distance/Q switch is disabled with the
+  tooltip "Available after you answer." and the heatmap is pinned to distances
+  (`smShown` in `App.tsx`): the minimum-Q cell IS the answer, so the Q view
+  would hand it out. Tree highlights of the joining pair are suppressed
+  (stepEmphasis uses `smShown`); hover marks on the student's own picks remain.
+- **RF result and wrong-clade outlines are final-step only.** The RF verdict
+  appeared mid-trace whenever `session.rf` existed; `TeachingNotices` and
+  `stepEmphasis` now require the final position (or a completed tree with no
+  trace) before the verdict or red outlines render.
+- **`reveal_pair: [label_a, label_b]`** is a new optional Prompt field
+  (engine-validated against the alignment/tree labels — the JSON schema only
+  checks the shape). An answered card offers "Show a vs b" which opens the
+  pair-detail dialog, and the next step's explanation keeps a "Revisit: a vs b"
+  link. Wired on protein-models (["C","F"]) and cytochrome-c
+  (["horse","chicken"]); both reveals now point at the button instead of a
+  matrix cell. Fixes 1–2 affect all lessons with prompts since v1.
+- **Alphabet override is Sandbox-only.** "Treat as DNA/protein" moved from
+  any non-simulated alignment to `source === "sandbox"` only — in a lesson the
+  author chose the alphabet deliberately.
+- **Embedded alignments collapse Simulation to one line.** "Real sequences:
+  not simulated." replaces the section; imported data keeps the disabled
+  controls (a user import should still show what would have run).
+- **Unrooted-tree caption at the final step** on NJ lessons with a reference:
+  "NJ builds an unrooted tree, drawn here from an arbitrary point. It can look
+  different from the reference even when every grouping matches; compare the
+  groupings, not the shape." Display-only; a display reroot is on the roadmap.

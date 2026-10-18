@@ -13,7 +13,7 @@
 import { useState } from "react";
 import type { Dispatch } from "react";
 
-import type { Action } from "../state/session";
+import type { Action, Session } from "../state/session";
 import {
   CORRECTIONS,
   DIST_LABEL,
@@ -28,8 +28,8 @@ import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface ControlsProps {
-  /** The exercise's sim spec; `null` for embedded data, whose controls
-   * render disabled with no model name (v1.1 spec §3.6). */
+  /** The exercise's sim spec; `null` for embedded data, whose section
+   * collapses to "Real sequences: not simulated." (checkpoint 12). */
   sim: SimSpec | null;
   analysis: Analysis;
   /** Locked field paths from the exercise, e.g. "sim.model". */
@@ -37,9 +37,14 @@ export interface ControlsProps {
   matrixView: "distance" | "q";
   /** The "Distance / Q" switch is NJ-only and needs a trace (spec §6.1). */
   qAvailable: boolean;
-  /** False while an imported or embedded alignment is in place (sim
-   * controls inert — the data can't be re-simulated). */
-  simEnabled: boolean;
+  /** True while an unanswered predict_pair prompt gates the step: the
+   * lowest Q is the answer, so the switch is disabled with a tooltip
+   * (checkpoint 12). */
+  qGated?: boolean;
+  /** Where the alignment came from: "simulated" enables the sim fields,
+   * "imported" disables them with the real-sequences tooltip, and
+   * "embedded" collapses the section to a single line (checkpoint 12). */
+  alignmentOrigin: Session["alignmentOrigin"];
   /** The active alphabet: model menus are filtered to the models valid
    * for it (v1.1 spec §5.1). */
   alphabet: Alphabet;
@@ -108,15 +113,18 @@ export function Controls({
   locked,
   matrixView,
   qAvailable,
-  simEnabled,
+  qGated = false,
+  alignmentOrigin,
   alphabet,
   dispatch,
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
+  const simEnabled = alignmentOrigin === "simulated";
   const simDisabled = !simEnabled || sim === null;
   // A disabled sim control always says why: a non-re-simulatable
-  // alignment (imported/embedded) wins over a lesson lock, and so does
-  // a missing sim spec (embedded data).
+  // alignment (imported) wins over a lesson lock, and so does a missing
+  // sim spec. Embedded data never reaches these controls — the section
+  // renders its single real-data line instead.
   const simTitle = (path: string) =>
     !simEnabled || sim === null
       ? REAL_SEQUENCES_TOOLTIP
@@ -155,6 +163,10 @@ export function Controls({
   return (
     <div className="controls">
       <h2>Simulation</h2>
+      {alignmentOrigin === "embedded" ? (
+        <p className="sim-real">Real sequences: not simulated.</p>
+      ) : (
+        <>
       <label className="field">
         <span>Model</span>
         <select
@@ -224,6 +236,8 @@ export function Controls({
           New seed
         </button>
       </div>
+        </>
+      )}
 
       <h2>Analysis</h2>
       <label className="field">
@@ -273,6 +287,8 @@ export function Controls({
           role="switch"
           aria-checked={matrixView === "q"}
           className="matrix-toggle"
+          disabled={qGated}
+          title={qGated ? "Available after you answer." : undefined}
           onClick={() =>
             dispatch({
               type: "setMatrixView",
