@@ -55,6 +55,7 @@ import { ExplanationPanel } from "./ExplanationPanel";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
+import { PhylipHelp } from "./PhylipHelp";
 import { PromptCard } from "./PromptCard";
 import {
   leafCount,
@@ -82,6 +83,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // (v1.1 spec §5.2): only cells whose labels are still taxon names —
   // not joined clusters u1, u2, … — resolve to alignment sequences.
   const [pair, setPair] = useState<[string, string] | null>(null);
+  // "Coming from PHYLIP?" help dialog, opened from the header (§5.5).
+  const [phylipHelp, setPhylipHelp] = useState(false);
 
   // Height of the side-by-side tree row, measured once for both panels
   // so they share one leafSpacing and their rows line up (§6.1). The
@@ -380,6 +383,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
             Sandbox
           </button>
         </div>
+        <button
+          type="button"
+          className="phylip-help-open"
+          onClick={() => setPhylipHelp(true)}
+        >
+          Coming from PHYLIP?
+        </button>
       </header>
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
@@ -409,6 +419,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             correction={session.exercise.analysis.correction}
             method={session.exercise.analysis.method}
             clampNegative={session.clampNegative}
+            matrix={session.matrix}
           />
         </aside>
         <section className="col-center">
@@ -549,6 +560,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
           Source code (AGPL-3.0)
         </a>
       </footer>
+      {phylipHelp && <PhylipHelp onClose={() => setPhylipHelp(false)} />}
       {pairDetail !== null && session.alignment !== null && (
         <PairPanel
           aln={session.alignment}
