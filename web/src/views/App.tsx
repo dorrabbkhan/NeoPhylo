@@ -29,7 +29,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { REPO_URL } from "../config";
-import { initEngine } from "../engine";
+import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
 import { usePromptGate } from "../lessons/promptGate";
@@ -54,6 +54,7 @@ import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
+import { PairPanel } from "./PairPanel";
 import { PromptCard } from "./PromptCard";
 import {
   leafCount,
@@ -76,6 +77,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [hoverLeaf, setHoverLeaf] = useState<string | null>(null);
   const [link, setLink] = useState<LinkKind>({ kind: "custom" });
   const [toast, setToast] = useState<string | null>(null);
+  // The open pair panel's sequences, stored as the picked cell's labels
+  // (v1.1 spec §5.2): only cells whose labels are still taxon names —
+  // not joined clusters u1, u2, … — resolve to alignment sequences.
+  const [pair, setPair] = useState<[string, string] | null>(null);
 
   // Height of the side-by-side tree row, measured once for both panels
   // so they share one leafSpacing and their rows line up (§6.1). The
@@ -218,6 +223,28 @@ export function App({ exercise }: { exercise?: Exercise }) {
     sm,
     leafSets: inferSets,
   });
+
+  // Pair panel (v1.1 spec §5.2): in protein mode with no predict
+  // prompt gating, activating a matrix cell opens "How was this
+  // distance computed?" — the engine's jttPairDetail for the picked
+  // pair of taxa.
+  const onPickPairCell = useCallback(
+    (i: number, j: number) => {
+      if (sm === null) return;
+      setPair([sm.labels[i], sm.labels[j]]);
+    },
+    [sm],
+  );
+  const pairDetail = useMemo(() => {
+    const aln = session?.alignment ?? null;
+    if (pair === null || aln === null || session?.alphabet !== "protein") {
+      return null;
+    }
+    const i = aln.labels.indexOf(pair[0]);
+    const j = aln.labels.indexOf(pair[1]);
+    if (i < 0 || j < 0) return null;
+    return engine.jttPairDetail(aln, i, j);
+  }, [pair, session]);
 
   // Focus rescue (§6.5): landing on a gated position disables the
   // stepper control under focus and the browser drops focus to <body>;
@@ -422,7 +449,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
               chosen={smShown.chosen}
               hover={matrixHover}
               onHover={onHoverCell}
-              onPick={gating !== null ? promptGate.onPickCell : undefined}
+              onPick={
+                gating !== null
+                  ? promptGate.onPickCell
+                  : session.alphabet === "protein"
+                    ? onPickPairCell
+                    : undefined
+              }
             />
           )}
         </section>
@@ -460,6 +493,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
           Source code (AGPL-3.0)
         </a>
       </footer>
+      {pairDetail !== null && session.alignment !== null && (
+        <PairPanel
+          aln={session.alignment}
+          detail={pairDetail}
+          onClose={() => setPair(null)}
+        />
+      )}
     </div>
   );
 }

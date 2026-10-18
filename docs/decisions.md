@@ -1200,3 +1200,45 @@ and the following ci/release entry. Both entries were kept verbatim.)
     with no override button), reducer cases for both reconciliation
     directions in `session.test.ts`, and a per-alphabet "select value
     ∈ displayed options" invariant in `Controls.test.tsx`.
+
+## Task 11 (v1.1): pair panel and likelihood curve
+
+- Files outside the Files block (all "Modify"; the block listed only
+  Creates):
+  - `web/src/views/App.tsx`: the Files block has no entry for wiring,
+    but Consumes is the heatmap's `onPick` and the panel opens "when a
+    matrix cell is activated" — App owns `onPick`. Added the `pair`
+    state, `onPickPairCell` and the `pairDetail` memo, branched
+    `onPick`, and rendered `<PairPanel>` at the `.app` root.
+  - `web/src/index.css`: styles for `.pair-panel*`, `.pair-seqs`,
+    `.pair-numbers`, `.likelihood-curve` and the Okabe-Ito
+    property-class tints, same as prior tasks recorded their view CSS.
+  - `web/e2e/pair-panel.spec.ts`: a new e2e spec rather than an edit
+    to `a11y.spec.ts`. The required "axe has no violations" test can
+    only run in e2e — `@axe-core/playwright` is the only axe binding
+    in the dependency list, and adding `axe-core`/jest-axe for jsdom
+    would be a new dependency the plan doesn't name.
+- Ambiguities resolved:
+  - `PairPanel`'s `detail` prop is typed `Result<PairDetail>` (the
+    `engine.jttPairDetail` return), not `PairDetail`: Review Focus 5
+    requires the panel to render the "no comparable sites" message
+    *inside the open panel*, and only the engine `Result` carries the
+    `InsufficientOverlap` error. Other engine errors fall back to the
+    shared `errorMessage` text, so the panel can never crash the app.
+  - "A matrix cell is activated": the pick stores the cell's cluster
+    labels; the panel opens only when both labels are taxon names
+    resolvable to alignment sequences. Cells involving a joined
+    cluster (u1, u2, …) — which appear in the distance view from step
+    1 on — do not open it, since `jtt_pair_detail` is defined over
+    alignment sequences only. The diagonal is allowed: an i==j pick is
+    a genuine identical-pair detail (d̂ = 0).
+  - "No predict prompt is active" is implemented as `gating === null`
+    (the unanswered `predict_pair` at this position). An answered or
+    `note` prompt does not block the panel.
+  - d̂ in the Math lines uses `fmt` (3 decimals, trailing zeros
+    trimmed) to match the explanation panel's math convention; the
+    numbers row uses `toFixed(3)` so the identical pair reads
+    "0.000" as the task's test requires.
+  - The peak marker sits on the curve at d̂ by linear interpolation
+    between the two bracketing samples; `d_hat` is not a curve grid
+    point in general.
