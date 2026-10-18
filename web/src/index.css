@@ -613,3 +613,246 @@ button:disabled {
   font-family: var(--mono);
   font-size: 13px;
 }
+
+/* ---- Pair panel: "How was this distance computed?" (v1.1 spec §5.2, Task 11) ---- */
+
+.pair-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.pair-panel {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  max-width: min(560px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 14px 18px;
+}
+
+.pair-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pair-panel-head h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--text-h);
+}
+
+.pair-panel-head .pair-names {
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* The in-panel Concept/Math toggle is the same component (and styling)
+ * as the explanation column's — it sits in the header so it stays
+ * inside the dialog's focus trap (checkpoint 11). */
+.pair-panel-head .mode-toggle {
+  margin-bottom: 0;
+  align-self: center;
+}
+
+.pair-panel-head .mode-toggle button {
+  flex: none;
+  padding: 2px 8px;
+}
+
+.pair-panel .close {
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/* The aligned sequences: a grid of fixed-width columns, one per site —
+ * position number, top residue, marker cell, bottom residue (checkpoint
+ * 11; blank text cells used to collapse and misalign the markers).
+ * Property classes use light Okabe-Ito tints behind dark text —
+ * colorblind-safe and contrast-safe in both color schemes; meaning is
+ * never carried by color alone (the marker cells and dimming do that
+ * work). */
+.pair-seqs {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--panel);
+}
+
+.pair-seq-legend {
+  flex: 0 0 90px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pair-seq-legend .seq-label {
+  height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.pair-seq-strip {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.pair-seq-grid {
+  display: flex;
+}
+
+.pair-col {
+  flex: 0 0 auto;
+  width: 1.7ch;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.pair-col > span {
+  height: 20px;
+  line-height: 20px;
+}
+
+.pair-col .pair-pos {
+  font-size: 9px;
+  line-height: 20px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pair-col .pair-marker {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.pair-seqs [data-missing] {
+  opacity: 0.4;
+}
+
+.pair-seqs .aa-hydro {
+  background: rgba(0, 114, 178, 0.22);
+  color: #241f2e;
+}
+
+.pair-seqs .aa-polar {
+  background: rgba(0, 158, 115, 0.22);
+  color: #241f2e;
+}
+
+.pair-seqs .aa-pos {
+  background: rgba(213, 94, 0, 0.22);
+  color: #241f2e;
+}
+
+.pair-seqs .aa-neg {
+  background: rgba(204, 121, 167, 0.32);
+  color: #241f2e;
+}
+
+.pair-seqs .aa-special {
+  background: rgba(240, 228, 66, 0.45);
+  color: #241f2e;
+}
+
+.pair-numbers {
+  display: flex;
+  gap: 18px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.pair-numbers div {
+  display: flex;
+  flex-direction: column;
+}
+
+.pair-numbers dt {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.pair-numbers dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.likelihood-curve {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  margin-bottom: 10px;
+  color: var(--fg);
+}
+
+.likelihood-curve .axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.likelihood-curve .curve {
+  stroke: var(--accent-text);
+  stroke-width: 1.8;
+}
+
+.likelihood-curve .peak-line {
+  stroke: var(--accent-text);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.likelihood-curve .peak-marker {
+  fill: var(--accent-text);
+}
+
+.likelihood-curve .axis-label {
+  font-size: 9px;
+  fill: var(--text);
+}
+
+.likelihood-curve .below-range-mark {
+  fill: var(--text);
+  opacity: 0.6;
+}
+
+.pair-concept {
+  margin: 0 0 8px;
+}
+
+.pair-math .math-line {
+  margin: 0 0 4px;
+}
+
+.pair-no-overlap {
+  margin: 8px 0;
+}

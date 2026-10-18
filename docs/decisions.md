@@ -1200,3 +1200,74 @@ and the following ci/release entry. Both entries were kept verbatim.)
     with no override button), reducer cases for both reconciliation
     directions in `session.test.ts`, and a per-alphabet "select value
     ∈ displayed options" invariant in `Controls.test.tsx`.
+
+## Task 11 (v1.1): pair panel and likelihood curve
+
+- Files outside the Files block (all "Modify"; the block listed only
+  Creates):
+  - `web/src/views/App.tsx`: the Files block has no entry for wiring,
+    but Consumes is the heatmap's `onPick` and the panel opens "when a
+    matrix cell is activated" — App owns `onPick`. Added the `pair`
+    state, `onPickPairCell` and the `pairDetail` memo, branched
+    `onPick`, and rendered `<PairPanel>` at the `.app` root.
+  - `web/src/index.css`: styles for `.pair-panel*`, `.pair-seqs`,
+    `.pair-numbers`, `.likelihood-curve` and the Okabe-Ito
+    property-class tints, same as prior tasks recorded their view CSS.
+  - `web/e2e/pair-panel.spec.ts`: a new e2e spec rather than an edit
+    to `a11y.spec.ts`. The required "axe has no violations" test can
+    only run in e2e — `@axe-core/playwright` is the only axe binding
+    in the dependency list, and adding `axe-core`/jest-axe for jsdom
+    would be a new dependency the plan doesn't name.
+- Ambiguities resolved:
+  - `PairPanel`'s `detail` prop is typed `Result<PairDetail>` (the
+    `engine.jttPairDetail` return), not `PairDetail`: Review Focus 5
+    requires the panel to render the "no comparable sites" message
+    *inside the open panel*, and only the engine `Result` carries the
+    `InsufficientOverlap` error. Other engine errors fall back to the
+    shared `errorMessage` text, so the panel can never crash the app.
+  - "A matrix cell is activated": the pick stores the cell's cluster
+    labels; the panel opens only when both labels are taxon names
+    resolvable to alignment sequences. Cells involving a joined
+    cluster (u1, u2, …) — which appear in the distance view from step
+    1 on — do not open it, since `jtt_pair_detail` is defined over
+    alignment sequences only. The diagonal is allowed: an i==j pick is
+    a genuine identical-pair detail (d̂ = 0).
+  - "No predict prompt is active" is implemented as `gating === null`
+    (the unanswered `predict_pair` at this position). An answered or
+    `note` prompt does not block the panel.
+  - d̂ in the Math lines uses `fmt` (3 decimals, trailing zeros
+    trimmed) to match the explanation panel's math convention; the
+    numbers row uses `toFixed(3)` so the identical pair reads
+    "0.000" as the task's test requires.
+  - The peak marker sits on the curve at d̂ by linear interpolation
+    between the two bracketing samples; `d_hat` is not a curve grid
+    point in general.
+
+## Task 11 (v1.1) checkpoint-11 fixes
+
+- **Explanation follows `Session.mode`.** The panel used to render the
+  Concept sentence and the KaTeX lines at once and had no mode control
+  of its own, while the main toggle sits outside the dialog's focus
+  trap. The panel now renders only the active mode's text and carries
+  the same toggle component in its header — `ModeToggle`, extracted
+  from `ExplanationPanel` into `web/src/views/ModeToggle.tsx` — bound
+  to the same `Session.mode` via `setMode`, so switching in either
+  place switches both. Spec §5.2 gained the line "The panel's
+  explanation follows the global Concept/Math mode and has its own
+  synced toggle."
+- **Sequence comparison is a column grid.** The marker row was a text
+  string of "×"/spaces whose blank cells collapsed, misaligning
+  markers; the strip is now one fixed-width `.pair-col` per alignment
+  position (position number every 10 columns, top residue,
+  ×-or-blank marker cell, bottom residue) inside a horizontally
+  scrolling `.pair-seq-strip`, with a static label legend beside it.
+  No text strings carry alignment spacing.
+- **Likelihood y-window.** logL crashes toward −690 near d = 0 (the
+  engine floors probabilities at 1e-300), flattening the drawn peak.
+  The y-axis now shows [logL̂ − 15, logL̂] — [max logL − 15, max logL]
+  when saturated — plotting starts at the first sample with finite
+  logL inside the window, samples below the window clip to the bottom
+  edge and get a small `below-range` triangle marker, and ticks label
+  d at 0/d̂/right edge and logL at the window's top and bottom.
+  `LikelihoodCurve` takes the new `loglHat` prop straight from
+  `PairDetail.logl_hat`.
