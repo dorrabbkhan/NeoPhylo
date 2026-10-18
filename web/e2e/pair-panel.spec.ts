@@ -85,7 +85,9 @@ test.describe("pair panel", () => {
     ).toBeVisible();
 
     // The main toggle follows the same Session.mode after the dialog
-    // closes.
+    // closes. Tab moves Concept → Math, Enter switches again.
+    await page.keyboard.press("Tab");
+    await expect(mathBtn).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(mathBtn).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Escape");
