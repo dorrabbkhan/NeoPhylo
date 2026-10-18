@@ -1397,3 +1397,44 @@ and the following ci/release entry. Both entries were kept verbatim.)
   "NJ builds an unrooted tree, drawn here from an arbitrary point. It can look
   different from the reference even when every grouping matches; compare the
   groupings, not the shape." Display-only; a display reroot is on the roadmap.
+
+## Task 13 (v1.1): export additions and "Coming from PHYLIP?"
+
+- **Files outside the Files block:**
+  - `web/src/index.css` — styles for `.phylip-help-open`,
+    `.phylip-help-map` and `.phylip-note`; all view styling lives there.
+  - `web/src/views/App.tsx` is the Files block's "the header (help
+    entry)" — the header markup lives there, and it is also the only
+    place that owns the session's `matrix` for the new `ExportMenu`
+    prop.
+- Ambiguities resolved:
+  - **JTT parity is a relative tolerance.** `JTT_REL_TOL = 0.02` in
+    `web/scripts/r-parity.mjs` (points at Task 6's measured ~1–1.7%
+    relative phangorn↔protdist difference). An absolute tolerance fails
+    on distant pairs — e.g. protein_p12_100 P05–P08 differs by 0.120 in
+    absolute terms.
+  - **Protein parity compares distances, not trees.** The exported R
+    script prints the distance matrix after the tree via
+    `write.table(format(m, digits = 15), quote = FALSE)`; a 1–2%
+    relative JTT difference would sink the DNA-style patristic check at
+    1e-6. p and Kimura are still checked to 1e-9.
+  - The protein script wraps `nj`/`upgma` in `tryCatch` — unestimable
+    (NaN) distances make tree building fail in R, while the engine
+    reports `Saturated` cells and still runs NJ itself. The printed
+    matrix is what parity consumes; a `# tree building failed:` line
+    documents the failure for users.
+  - The plan's `phyDat(..., type = "AA")` is emitted as
+    `phyDat(as.character(aln), type = "AA")` — `as.phyDat` ignores
+    `type` on an `AAbin` (Task 2 note), while `phyDat` accepts it.
+  - **The `neighbor` round-trip lives inside `r-parity.mjs`** (it needs
+    the wasm engine for the matrix, NJ tree and RF); `r-parity.sh`
+    locates the binary the way `generate_phylip.sh` does and passes it
+    as `PHYLIP_NEIGHBOR`, failing fast when PHYLIP is absent.
+    `write_phylip_matrix` output is fed to `neighbor` verbatim and the
+    outtree is compared to NeoPhylo's own NJ tree, RF = 0.
+  - `ExportMenu.matrix` is the session's leaf `DistanceMatrix`;
+    `phylipMatrix()` reports `relaxed` by the engine's own Auto rule
+    (any name > 10 chars) and `saturated` so the UI can note the
+    `-1.000000` convention (§3.2).
+  - `PhylipHelp.test.tsx` sits next to its component (the established
+    co-location convention) and also covers the header button.
