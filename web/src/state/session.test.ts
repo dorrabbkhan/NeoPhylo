@@ -11,6 +11,8 @@ import {
   reducer,
 } from "./session";
 import type { Session } from "./session";
+import { encode } from "./url";
+import { sessionUrlState } from "./urlRestore";
 
 // The spec §7 example exercise file.
 const EXERCISE_JSON = `{
@@ -113,9 +115,9 @@ describe("session reducer", () => {
     });
     expect(s.error).toBeNull();
     // The alignment is exercise data, not user-imported data: the
-    // origin stays "simulated" (recompute parses data.fasta), so
+    // origin is "embedded" (recompute parses data.fasta), so
     // hasImportedData is false and shared links don't re-embed it.
-    expect(s.alignmentOrigin).toBe("simulated");
+    expect(s.alignmentOrigin).toBe("embedded");
     expect(hasImportedData(s)).toBe(false);
     expect(s.alphabet).toBe("protein");
     expect(s.alignment?.alphabet).toBe("protein");
@@ -364,13 +366,14 @@ describe("v1.1 session state (reference, alphabet)", () => {
     expect(s.rf).not.toBeNull();
   });
 
-  it("embedded_not_resimulated: setSim leaves the embedded alignment unchanged", () => {
+  it("embedded_origin: an embedded exercise has origin 'embedded' and setSim is a no-op", () => {
     const ex = exercise(EMBEDDED_JSON);
     const loaded = reducer(emptySession(ex), {
       type: "load",
       exercise: ex,
       source: "lesson",
     });
+    expect(loaded.alignmentOrigin).toBe("embedded");
     expect(loaded.alignment).not.toBeNull();
     const s = reducer(loaded, { type: "setSim", patch: { seed: 99 } });
     // Sim controls are a no-op on embedded data, as for an import.
@@ -378,10 +381,43 @@ describe("v1.1 session state (reference, alphabet)", () => {
     expect(s.alignment).toBe(loaded.alignment);
   });
 
+  it("embedded_link_size: a shared link for an embedded lesson carries no FASTA", () => {
+    const ex = exercise(EMBEDDED_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    // Lesson links address the exercise by id; the alignment is lesson
+    // data and is never copied into `imported`.
+    const state = sessionUrlState(loaded, { kind: "lesson" });
+    expect(state.lesson).toBe("emb");
+    expect(state.imported).toBeUndefined();
+    const url = encode(state);
+    expect(url.startsWith("?lesson=emb")).toBe(true);
+    expect(url).not.toContain("d=");
+    expect(url).not.toContain("AACGTGGCC");
+    // Even when the exercise travels as `#x=` (custom link), the
+    // alignment must not be duplicated into `imported`.
+    const custom = sessionUrlState(loaded, { kind: "custom" });
+    expect(custom.imported).toBeUndefined();
+    // An embedded lesson plus an imported reference tree encodes the
+    // tree but still not the lesson's own alignment.
+    const parsed = engine.parseNewick(
+      "((Alpha:1,Beta:1):1,(Gamma:1,(Delta:1,Epsilon:1):1):1);",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const withTree = reducer(loaded, { type: "importTree", tree: parsed.value });
+    const treeState = sessionUrlState(withTree, { kind: "lesson" });
+    expect(treeState.imported?.trueTree).not.toBeUndefined();
+    expect(treeState.imported?.alignment).toBeUndefined();
+  });
+
   it("importTree on embedded data re-parses the FASTA, never simulates", () => {
-    // importTree flips alignmentOrigin to "simulated" so the imported
-    // tree becomes the reference; for embedded data recompute re-parses
-    // data.fasta (imported semantics: never re-simulated), giving the
+    // importTree returns alignmentOrigin to the exercise's own origin
+    // so the imported tree becomes the reference; for embedded data
+    // recompute re-parses data.fasta (never re-simulated), giving the
     // identical alignment back and an RF against the imported tree.
     const ex = exercise(EMBEDDED_JSON);
     const loaded = reducer(emptySession(ex), {
@@ -396,6 +432,7 @@ describe("v1.1 session state (reference, alphabet)", () => {
     if (!parsed.ok) throw new Error("unreachable");
     const s = reducer(loaded, { type: "importTree", tree: parsed.value });
     expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("embedded");
     expect(s.reference?.origin).toBe("imported");
     expect(s.alignment).toEqual(loaded.alignment);
     expect(s.alignment?.alphabet).toBe("protein");

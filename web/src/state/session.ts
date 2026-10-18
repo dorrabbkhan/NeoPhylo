@@ -36,14 +36,13 @@ export interface Session {
     origin: "lesson" | "imported";
   } | null;
   alignment: Alignment | null;
-  /** Whether `alignment` comes from the exercise or was user-imported.
-   * While `'imported'`, sim controls are inert and `recompute` keeps the
-   * user's data. Embedded exercises keep `'simulated'` here too — their
-   * alignment is exercise data reproduced by `recompute` from
-   * `data.fasta`, never re-simulated (v1.1 spec §3.6) — so embedded
-   * lessons don't count as "imported data" for sandbox prompts or
-   * shared links. */
-  alignmentOrigin: "simulated" | "imported";
+  /** Where `alignment` comes from. `'simulated'`: simulated along the
+   * true tree by `recompute` (sim controls live). `'embedded'`: parsed
+   * from `data.fasta` by `recompute` (v1.1 spec §3.6 — never
+   * re-simulated, and it is lesson data, so it does not count as
+   * "imported data" for sandbox prompts or shared links).
+   * `'imported'`: user-provided; `recompute` keeps it untouched. */
+  alignmentOrigin: "simulated" | "imported" | "embedded";
   /** The active alignment's alphabet, or the exercise's declared
    * alphabet before/without one. `importAlignment` sets it from the
    * parsed alignment (v1.1 plan Task 9). */
@@ -122,57 +121,59 @@ function failed(s: Session, e: Session["error"]): Session {
  * saturated matrix is still displayed, spec §6.3).
  *
  * `alignmentOrigin` decides the alignment source: `'imported'` keeps the
- * user's alignment untouched, while `'simulated'` reproduces the
- * exercise's data — simulated along the true tree for `kind:
- * "simulated"` exercises, or parsed from `data.fasta` for `embedded`
- * ones (never re-simulated, v1.1 spec §3.6). A trace is requested only
- * when the alignment has at most 50 taxa (Global Constraints).
+ * user's alignment untouched, `'embedded'` re-parses `data.fasta`
+ * (never re-simulated, v1.1 spec §3.6), and `'simulated'` re-simulates
+ * along the true tree. A trace is requested only when the alignment has
+ * at most 50 taxa (Global Constraints).
  */
 export function recompute(s: Session): Session {
   let alignment = s.alignment;
   let alphabet: Alphabet = s.exercise.alphabet;
-  if (s.alignmentOrigin === "simulated") {
+  if (s.alignmentOrigin === "embedded") {
+    // Re-parse `data.fasta` and tag it with the declared alphabet (the
+    // declared alphabet is authoritative, v1.1 spec §3.6).
     alignment = null;
-    if (s.exercise.data.kind === "embedded") {
-      // Embedded data has imported-alignment semantics — it is never
-      // re-simulated — so recompute re-parses `data.fasta` and tags it
-      // with the declared alphabet (the declared alphabet is
-      // authoritative, v1.1 spec §3.6).
-      const parsed = engine.parseFasta(s.exercise.data.fasta);
+    if (s.exercise.data.kind !== "embedded") {
+      // Unreachable: the origin is set from data.kind at load.
+      // Defensive stop.
+      return { ...failed(s, null), alignment, alphabet };
+    }
+    const parsed = engine.parseFasta(s.exercise.data.fasta);
+    if (!parsed.ok) {
+      return { ...failed(s, parsed.error), alignment, alphabet };
+    }
+    const tagged = engine.withAlphabet(parsed.value, s.exercise.alphabet);
+    if (!tagged.ok) {
+      return { ...failed(s, tagged.error), alignment, alphabet };
+    }
+    alignment = tagged.value;
+  } else if (s.alignmentOrigin === "simulated") {
+    alignment = null;
+    const spec = exerciseSim(s.exercise);
+    if (spec === null || s.exercise.data.kind !== "simulated") {
+      // Unreachable: the origin is "simulated" only for simulated
+      // data. Defensive stop.
+      return { ...failed(s, null), alignment, alphabet };
+    }
+    // The sim source is an imported reference tree when the user
+    // imported one (v1 importTree semantics), otherwise the
+    // exercise's true_tree — not `reference.tree`, which may be a
+    // different declared comparison tree.
+    let simTree: Tree;
+    if (s.reference !== null && s.reference.origin === "imported") {
+      simTree = s.reference.tree;
+    } else {
+      const parsed = engine.parseNewick(s.exercise.data.true_tree);
       if (!parsed.ok) {
         return { ...failed(s, parsed.error), alignment, alphabet };
       }
-      const tagged = engine.withAlphabet(parsed.value, s.exercise.alphabet);
-      if (!tagged.ok) {
-        return { ...failed(s, tagged.error), alignment, alphabet };
-      }
-      alignment = tagged.value;
-    } else {
-      const spec = exerciseSim(s.exercise);
-      if (spec === null) {
-        // Unreachable: data.kind is "simulated" here. Defensive stop.
-        return { ...failed(s, null), alignment, alphabet };
-      }
-      // The sim source is an imported reference tree when the user
-      // imported one (v1 importTree semantics), otherwise the
-      // exercise's true_tree — not `reference.tree`, which may be a
-      // different declared comparison tree.
-      let simTree: Tree;
-      if (s.reference !== null && s.reference.origin === "imported") {
-        simTree = s.reference.tree;
-      } else {
-        const parsed = engine.parseNewick(s.exercise.data.true_tree);
-        if (!parsed.ok) {
-          return { ...failed(s, parsed.error), alignment, alphabet };
-        }
-        simTree = parsed.value;
-      }
-      const sim = engine.simulate(scaleTree(simTree, s.branchScale), spec);
-      if (!sim.ok) {
-        return { ...failed(s, sim.error), alignment, alphabet };
-      }
-      alignment = sim.value;
+      simTree = parsed.value;
     }
+    const sim = engine.simulate(scaleTree(simTree, s.branchScale), spec);
+    if (!sim.ok) {
+      return { ...failed(s, sim.error), alignment, alphabet };
+    }
+    alignment = sim.value;
   }
   if (alignment === null) {
     // Imported origin with nothing imported yet: nothing to analyze.
@@ -273,15 +274,17 @@ export function reducer(s: Session, a: Action): Session {
         branchScale: 1,
         hover: null,
         source: a.source,
-        alignmentOrigin: "simulated",
+        alignmentOrigin:
+          a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
       };
       return error === null ? recompute(base) : base;
     }
     case "setSim": {
-      // Simulation controls are inert while an imported alignment is in
-      // place or the exercise embeds its data; otherwise the patch is
-      // stored and recompute re-simulates.
-      if (s.alignmentOrigin === "imported") return s;
+      // Simulation controls are inert unless the alignment is
+      // re-simulatable — an imported alignment keeps the user's data
+      // and an embedded alignment is fixed lesson data; otherwise the
+      // patch is stored and recompute re-simulates.
+      if (s.alignmentOrigin !== "simulated") return s;
       if (s.exercise.data.kind !== "simulated") return s;
       return recompute({
         ...s,
@@ -317,14 +320,16 @@ export function reducer(s: Session, a: Action): Session {
       });
     case "importTree":
       // The imported tree becomes the reference (kind "true": it is
-      // treated as the truth to compare against). Simulated data is
-      // re-simulated along it (spec §3.1); embedded data is compared
-      // against it without being re-simulated.
+      // treated as the truth to compare against). The alignment
+      // returns to the exercise's own origin — simulated data is
+      // re-simulated along the new tree (spec §3.1); embedded data is
+      // re-parsed from `data.fasta` and compared against it.
       return recompute({
         ...s,
         reference: { tree: a.tree, kind: "true", origin: "imported" },
         alignment: null,
-        alignmentOrigin: "simulated",
+        alignmentOrigin:
+          s.exercise.data.kind === "embedded" ? "embedded" : "simulated",
         source: "sandbox",
       });
     case "step": {
@@ -338,10 +343,9 @@ export function reducer(s: Session, a: Action): Session {
     case "setMatrixView":
       return { ...s, matrixView: a.view };
     case "setBranchScale":
-      // Scaling only affects simulated data; it is inert while an
-      // imported alignment is in place or the data is embedded.
-      if (s.alignmentOrigin === "imported") return s;
-      if (s.exercise.data.kind === "embedded") return s;
+      // Scaling only affects simulation; it is inert while the
+      // alignment is imported or embedded.
+      if (s.alignmentOrigin !== "simulated") return s;
       return recompute({ ...s, branchScale: a.scale });
     case "hover":
       return { ...s, hover: a.cell };
@@ -371,7 +375,8 @@ export function initialSession(exercise: Exercise): Session {
     reference: null,
     alphabet: exercise.alphabet,
     alignment: null,
-    alignmentOrigin: "simulated",
+    alignmentOrigin:
+      exercise.data.kind === "embedded" ? "embedded" : "simulated",
     matrix: null,
     result: null,
     rf: null,
@@ -388,7 +393,8 @@ export function initialSession(exercise: Exercise): Session {
 
 /** True when the session holds user-imported data (an alignment or a
  * reference tree) that `exitSandbox` would clear — the UI confirms
- * before leaving sandbox in that case. */
+ * before leaving sandbox in that case. An embedded alignment is lesson
+ * data, not user data, so it never counts. */
 export function hasImportedData(s: Session): boolean {
   return (
     s.alignmentOrigin === "imported" || s.reference?.origin === "imported"

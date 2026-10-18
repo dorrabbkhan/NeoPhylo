@@ -1083,16 +1083,23 @@ and the following ci/release entry. Both entries were kept verbatim.)
   (assert on the renamed field / encode a `v: 2` state).
 - The plan says 12 capture cases but lists 13 items; all 13 were captured.
 - Ambiguities resolved:
-  - Embedded exercises keep `alignmentOrigin: "simulated"` rather than
-    Task 8's stand-in `"imported"`: their alignment is exercise data
-    reproduced by `recompute` from `data.fasta` (imported semantics —
-    never re-simulated — is satisfied by the parse, which is also what
-    makes `importTree` keep the embedded alignment while switching the
-    reference). With `"imported"`, `hasImportedData` would flag the
-    lesson's own data as user data, `sessionUrlState` would re-embed the
-    FASTA in every link, and a restored `?lesson=` link for an embedded
-    lesson would silently reopen in sandbox mode. The Task 8 test
-    asserting `"imported"` was updated.
+  - Embedded exercises get a third `alignmentOrigin`, `"embedded"`,
+    replacing both Task 8's stand-in `"imported"` and the interim
+    `"simulated"` workaround: `recompute` parses `data.fasta` for
+    `"embedded"`, simulates only for `"simulated"`, and never touches
+    `"imported"`. `importTree` restores the exercise's own origin
+    (`"embedded"` or `"simulated"`), so the embedded alignment is
+    re-parsed — not re-simulated — against the imported reference.
+    `"embedded"` does not count as user data: `hasImportedData` stays
+    false, `sessionUrlState` never writes the lesson FASTA into
+    `imported`, and the sim controls and the re-simulation saturation
+    fixes ("Use longer sequences", "Use shorter branches") are
+    disabled/hidden for `"embedded"` exactly as for `"imported"`,
+    with the "real sequences" tooltip on disabled sim controls so no
+    control is visible and inert. Tests `embedded_origin`,
+    `embedded_link_size` and `embedded_saturation_fixes` cover the
+    three-valued origin; the earlier `embedded_not_resimulated` case
+    was folded into `embedded_origin`.
   - A simulated exercise with `reference: null` still gets the
     `data.true_tree` as its `kind: "true"` reference (v1 parity: RF
     against the sim tree); a declared reference with a different

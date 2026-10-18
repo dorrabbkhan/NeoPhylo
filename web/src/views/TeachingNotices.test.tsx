@@ -188,6 +188,47 @@ describe("TeachingNotices — imported saturation", () => {
   });
 });
 
+describe("TeachingNotices — embedded saturation", () => {
+  // Embedded DNA exercise whose sequences differ at every site: the
+  // same all-saturated alignment as the imported case above.
+  const EMB_SAT: Exercise = {
+    schema_version: 2,
+    id: "emb-sat",
+    title: "Embedded saturation",
+    alphabet: "dna",
+    data: {
+      kind: "embedded",
+      fasta: ">T1\nAAAAAAAA\n>T2\nCCCCCCCC\n>T3\nGGGGGGGG\n>T4\nTTTTTTTT",
+      source: { citation: "test", license: "CC0", accessions: [] },
+    },
+    reference: null,
+    analysis: { correction: "Jc69", method: "Nj" },
+    locked: [],
+    prompts: [],
+  };
+
+  it("embedded_saturation_fixes: offers only the p-distance fix", () => {
+    const s = loaded(EMB_SAT);
+    expect(s.alignmentOrigin).toBe("embedded");
+    expect(s.error?.kind).toBe("SaturatedMatrix");
+    renderNotices(s);
+    // The re-simulation fixes are hidden — lesson data can't be
+    // re-simulated, exactly as for an import.
+    expect(
+      screen.queryByRole("button", { name: /longer sequences/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /shorter branches/i }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: /p-distance/i })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This lesson uses real sequences; they can't be re-simulated.",
+      ),
+    ).toBeTruthy();
+  });
+});
+
 describe("TeachingNotices — negative branches", () => {
   it("shows the clamp toggle only when a negative branch exists", () => {
     const s = withNegativeBranch(loaded(NJ_BASICS));

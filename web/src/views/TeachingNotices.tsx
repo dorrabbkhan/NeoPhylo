@@ -118,6 +118,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
           {session.alignmentOrigin === "imported" && (
             <p>Your own data can't be re-simulated.</p>
           )}
+          {session.alignmentOrigin === "embedded" && (
+            <p>This lesson uses real sequences; they can't be re-simulated.</p>
+          )}
           <div className="notice-fixes">
             {session.alignmentOrigin === "simulated" && (
               <>
