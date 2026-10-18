@@ -2,7 +2,9 @@
 // Every change dispatches setSim or setAnalysis; the session reducer
 // re-runs the pipeline synchronously. Fields named in exercise.locked
 // render disabled with the "Fixed for this lesson." tooltip (Task 21),
-// and all sim controls are inert while an imported alignment is in place.
+// and all sim controls are inert while an imported or embedded
+// alignment is in place — disabled, with the "real sequences" tooltip
+// (no control is left visible and inert).
 //
 // Number inputs keep a local text copy so typing multi-digit values is
 // not clobbered by clamping: a commit only happens when the typed value
@@ -26,7 +28,8 @@ export interface ControlsProps {
   matrixView: "distance" | "q";
   /** The "Distance / Q" switch is NJ-only and needs a trace (spec §6.1). */
   qAvailable: boolean;
-  /** False while an imported alignment is in place (sim controls inert). */
+  /** False while an imported or embedded alignment is in place (sim
+   * controls inert — the data can't be re-simulated). */
   simEnabled: boolean;
   dispatch: Dispatch<Action>;
 }
@@ -34,6 +37,8 @@ export interface ControlsProps {
 const KAPPA_DEFAULT = 2;
 const MAX_SEED = Number.MAX_SAFE_INTEGER;
 const LOCKED_TOOLTIP = "Fixed for this lesson.";
+const REAL_SEQUENCES_TOOLTIP =
+  "This lesson uses real sequences; they can't be re-simulated.";
 
 function NumberField({
   label,
@@ -42,7 +47,7 @@ function NumberField({
   max,
   step,
   disabled,
-  locked = false,
+  title,
   onCommit,
 }: {
   label: string;
@@ -51,8 +56,9 @@ function NumberField({
   max: number;
   step?: number;
   disabled?: boolean;
-  /** Lesson-locked field: disabled input plus the §6.2 tooltip. */
-  locked?: boolean;
+  /** Tooltip explaining why the field is disabled (locked, or the
+   * alignment can't be re-simulated). */
+  title?: string;
   onCommit: (v: number) => void;
 }) {
   const [text, setText] = useState(String(value));
@@ -73,7 +79,7 @@ function NumberField({
         step={step}
         value={text}
         disabled={disabled}
-        title={locked ? LOCKED_TOOLTIP : undefined}
+        title={title}
         onChange={(e) => {
           setText(e.target.value);
           const v = e.target.valueAsNumber;
@@ -95,6 +101,14 @@ export function Controls({
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
   const simDisabled = !simEnabled || sim === null;
+  // A disabled sim control always says why: a non-re-simulatable
+  // alignment (imported/embedded) wins over a lesson lock.
+  const simTitle = (path: string) =>
+    !simEnabled
+      ? REAL_SEQUENCES_TOOLTIP
+      : isLocked(path)
+        ? LOCKED_TOOLTIP
+        : undefined;
 
   const modelName =
     sim === null || typeof sim.model === "string" ? "Jc69" : "K80";
@@ -119,7 +133,7 @@ export function Controls({
           aria-label="Simulation model"
           value={modelName}
           disabled={simDisabled || isLocked("sim.model")}
-          title={isLocked("sim.model") ? LOCKED_TOOLTIP : undefined}
+          title={simTitle("sim.model")}
           onChange={(e) => setModel(e.target.value)}
         >
           <option value="Jc69">JC69</option>
@@ -134,7 +148,7 @@ export function Controls({
           max={100}
           step={0.1}
           disabled={simDisabled || isLocked("sim.model")}
-          locked={isLocked("sim.model")}
+          title={simTitle("sim.model")}
           onCommit={(v) =>
             dispatch({
               type: "setSim",
@@ -149,7 +163,7 @@ export function Controls({
         min={10}
         max={10000}
         disabled={simDisabled || isLocked("sim.length")}
-        locked={isLocked("sim.length")}
+        title={simTitle("sim.length")}
         onCommit={(v) =>
           dispatch({ type: "setSim", patch: { length: Math.round(v) } })
         }
@@ -161,7 +175,7 @@ export function Controls({
           min={0}
           max={MAX_SEED}
           disabled={simDisabled || isLocked("sim.seed")}
-          locked={isLocked("sim.seed")}
+          title={simTitle("sim.seed")}
           onCommit={(v) =>
             dispatch({ type: "setSim", patch: { seed: Math.round(v) } })
           }
@@ -169,7 +183,7 @@ export function Controls({
         <button
           type="button"
           disabled={simDisabled || isLocked("sim.seed")}
-          title={isLocked("sim.seed") ? LOCKED_TOOLTIP : undefined}
+          title={simTitle("sim.seed")}
           onClick={() =>
             dispatch({ type: "setSim", patch: { seed: sim.seed + 1 } })
           }

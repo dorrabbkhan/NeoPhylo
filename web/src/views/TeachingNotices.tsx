@@ -87,9 +87,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
   const points = useMemo(
     () =>
       session.alignment !== null
-        ? chartPoints(session.alignment, session.trueTree)
+        ? chartPoints(session.alignment, session.reference?.tree ?? null)
         : [],
-    [session.alignment, session.trueTree],
+    [session.alignment, session.reference],
   );
 
   if (sat === null && !hasNegative && wrongClades === 0) return null;
@@ -117,6 +117,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
           <SaturationChart points={points} />
           {session.alignmentOrigin === "imported" && (
             <p>Your own data can't be re-simulated.</p>
+          )}
+          {session.alignmentOrigin === "embedded" && (
+            <p>This lesson uses real sequences; they can't be re-simulated.</p>
           )}
           <div className="notice-fixes">
             {session.alignmentOrigin === "simulated" && (

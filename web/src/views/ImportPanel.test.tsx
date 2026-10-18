@@ -66,7 +66,7 @@ function renderPanel(initial: Session) {
           dispatch={(a) => setS((cur) => reducer(cur, a))}
         />
         <div data-testid="inferred">{String(s.result !== null)}</div>
-        <div data-testid="true-tree">{String(s.trueTree !== null)}</div>
+        <div data-testid="true-tree">{String(s.reference !== null)}</div>
       </>
     );
   }
@@ -160,7 +160,7 @@ describe("ImportPanel — Newick", () => {
     paste("(x:0.1,y:0.2,z:0.3);");
     expect(screen.getByTestId("true-tree").textContent).toBe("true");
     const labels = holder.s
-      .trueTree!.nodes.filter((n) => n.children.length === 0)
+      .reference!.tree.nodes.filter((n) => n.children.length === 0)
       .map((n) => n.label);
     expect(labels).toEqual(["x", "y", "z"]);
   });

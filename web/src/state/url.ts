@@ -11,13 +11,17 @@ import {
   decompressFromEncodedURIComponent,
 } from "lz-string";
 
+import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface UrlState {
-  /** Schema version; the only current version is 1 (spec §6.4). */
-  v: 1;
+  /** Schema version; the current version is 2 (v1.1 spec §3.6: v1
+   * payloads — including `#x=` exercises in the v1 file shape — are
+   * converted by `migrate`). Only `#x=` fragment payloads carry `v`;
+   * `?lesson=` query links are version-free and always decode as v2. */
+  v: 2;
   /** Built-in lesson id, when the exercise came from exercises/. */
   lesson?: string;
   /** A full custom exercise, when one was imported. */
@@ -44,7 +48,7 @@ type DecodeResult =
   | { ok: true; state: UrlState }
   | { ok: false; reason: string };
 
-const DEFAULT_STATE: UrlState = { v: 1, step: 0, mode: "concept" };
+const DEFAULT_STATE: UrlState = { v: 2, step: 0, mode: "concept" };
 
 /**
  * Serialize `s` for `history.replaceState`. The returned string is a
@@ -165,7 +169,7 @@ export function decode(href: string): DecodeResult {
     if (!isRecord(raw)) {
       return { ok: false, reason: "the imported data is not an object" };
     }
-    state.imported = raw as UrlState["imported"];
+    state.imported = normalizeImported(raw);
   }
 
   return { ok: true, state };
@@ -179,23 +183,42 @@ function validStep(x: unknown): x is number {
   return typeof x === "number" && Number.isInteger(x) && x >= 0;
 }
 
+/** v1 `imported` payloads carried alignments without the `alphabet`
+ * field (Task 3 added it with serde default `dna`). Fill that default
+ * so downstream code sees a complete `Alignment`; everything else is
+ * left untouched. */
+function normalizeImported(raw: Record<string, unknown>): UrlState["imported"] {
+  const alignment = raw.alignment;
+  if (isRecord(alignment) && alignment.alphabet === undefined) {
+    return {
+      ...(raw as unknown as UrlState["imported"]),
+      alignment: { ...alignment, alphabet: "dna" } as unknown as Alignment,
+    };
+  }
+  return raw as unknown as UrlState["imported"];
+}
+
 /**
- * Convert a raw parsed payload into a current UrlState. v1 payloads are
- * validated field by field; the v0 format carried only step and mode,
- * which are lifted out while everything else is dropped. Any other or
- * missing version returns null (spec §6.4: invalid state loads the
- * default lesson).
+ * Convert a raw parsed payload into a current UrlState. v1 and v2
+ * payloads are validated field by field; the v0 format carried only
+ * step and mode, which are lifted out while everything else is dropped.
+ * Any other or missing version returns null (spec §6.4: invalid state
+ * loads the default lesson).
+ *
+ * v1 → v2 (v1.1 spec §3.6): a custom `x` exercise in the v1 file shape
+ * (flat `true_tree`/`sim`) is normalized through `engine.loadExercise`,
+ * and imported alignments gain the `alphabet` default.
  */
 export function migrate(raw: unknown): UrlState | null {
   if (!isRecord(raw)) return null;
   if (raw.v === 0) {
     return {
-      v: 1,
+      v: 2,
       step: validStep(raw.step) ? raw.step : 0,
       mode: raw.mode === "math" ? "math" : "concept",
     };
   }
-  if (raw.v !== 1) return null;
+  if (raw.v !== 1 && raw.v !== 2) return null;
   if (!validStep(raw.step)) return null;
   if (raw.mode !== "concept" && raw.mode !== "math") return null;
   if (raw.lesson !== undefined && typeof raw.lesson !== "string") return null;
@@ -204,15 +227,25 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.overrides !== undefined && !isRecord(raw.overrides)) return null;
   if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
 
-  const state: UrlState = { v: 1, step: raw.step, mode: raw.mode };
+  const state: UrlState = { v: 2, step: raw.step, mode: raw.mode };
   if (raw.lesson !== undefined) state.lesson = raw.lesson;
-  if (raw.x !== undefined) state.x = raw.x as Exercise;
+  if (raw.x !== undefined) {
+    if (raw.v === 1) {
+      const migrated = engine.loadExercise(JSON.stringify(raw.x));
+      if (!migrated.ok) return null;
+      state.x = migrated.value;
+    } else {
+      // v2 exercises are trusted objects — never re-parsed (the wire
+      // shape is the engine's serde shape, not the file shape).
+      state.x = raw.x as Exercise;
+    }
+  }
   if (raw.src !== undefined) state.src = raw.src;
   if (raw.overrides !== undefined) {
     state.overrides = raw.overrides as UrlState["overrides"];
   }
   if (raw.imported !== undefined) {
-    state.imported = raw.imported as UrlState["imported"];
+    state.imported = normalizeImported(raw.imported);
   }
   return state;
 }

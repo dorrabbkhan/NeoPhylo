@@ -102,8 +102,9 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
   if (fromUrl.src === "sandbox") {
     s = reducer(s, { type: "enterSandbox" });
   }
-  // Tree first: importTree always resets the alignment to "simulated",
-  // so importing it after an alignment would wipe the alignment back out.
+  // Tree first: importTree always resets the alignment to the
+  // exercise's own origin, so importing it after an alignment would
+  // wipe the alignment back out.
   if (fromUrl.imported?.trueTree !== undefined) {
     const r = engine.parseNewick(fromUrl.imported.trueTree);
     if (r.ok) s = reducer(s, { type: "importTree", tree: r.value });
@@ -128,7 +129,7 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
  */
 export function sessionUrlState(s: Session, link: LinkKind): UrlState {
   return {
-    v: 1,
+    v: 2,
     step: s.step,
     mode: s.mode,
     ...(s.source === "sandbox" ? { src: "sandbox" as const } : {}),
@@ -151,8 +152,8 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
             ...(s.alignmentOrigin === "imported" && s.alignment !== null
               ? { alignment: s.alignment }
               : {}),
-            ...(s.trueTreeOrigin === "imported" && s.trueTree !== null
-              ? { trueTree: engine.writeNewick(s.trueTree) }
+            ...(s.reference?.origin === "imported"
+              ? { trueTree: engine.writeNewick(s.reference.tree) }
               : {}),
           },
         }
