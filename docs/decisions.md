@@ -1271,3 +1271,33 @@ and the following ci/release entry. Both entries were kept verbatim.)
   d at 0/d̂/right edge and logL at the window's top and bottom.
   `LikelihoodCurve` takes the new `loglHat` prop straight from
   `PairDetail.logl_hat`.
+
+## Task 12 (v1.1) protein lessons
+
+- **`protein-models` seed.** The plan's search ran against the real wasm
+  engine (same pipeline the app uses): seeds in order at length 300 on a
+  7-taxon true tree with F's branch 3× the others. Seed **39** is the
+  first where NJ-on-p gives RF > 0 (RF = 2) and NJ-on-JTT gives RF = 0.
+  Under p the wrong join is step 4: E+(A,B) wins a tie over (C,D)+(F,G)
+  at Q = −0.698333 while the correct E+(F,G) sits at −0.694167 — the
+  reveal sends students to the C–F pair panel (p = 0.42, JTT = 0.61).
+- **`protein-models` starts on correction `p`** (the failing default the
+  lesson fixes), with `sim.model` and `analysis.method` locked so the
+  correction menu is the teaching lever — same pattern as
+  `upgma-fails` leaving Method open.
+- **`cytochrome-c` data.** Eight UniProtKB reviewed cytochrome c
+  sequences (P99999, P00002, P62897, P62894, P67881, Q640U4, Q6IQM2,
+  P00044) aligned with MAFFT v7.525 (`--auto`, installed via the
+  bioconda conda package because MAFFT was not present on the worker).
+  Species, accessions, the exact command and the classification source
+  are in `docs/lessons/cytochrome-c-provenance.md`; the owner verifies
+  them at the PR gate. NJ join 5 is a tie under JTT, so the only
+  predict prompt targets join 1 (human+macaque). The reference Newick
+  encodes the accepted unrooted grouping with unit lengths; the
+  inferred NJ/JTT tree differs from it in 4 clades (RF 8/10), which the
+  closing note discusses as the lesson's point.
+- **No lesson index/menu exists** — lessons are served dynamically by
+  `?lesson=<id>` — so the Files block's conditional "modify the lesson
+  index/menu" was a no-op.
+- **Files outside the Files block:** `docs/decisions.md` itself (this
+  entry — the workflow requires decisions in the same PR).

@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "id": "cytochrome-c",
+  "title": "Cytochrome c: a real protein tree",
+  "alphabet": "protein",
+  "data": {
+    "kind": "embedded",
+    "fasta": ">human\n-----MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGIIWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE\n>macaque\n-----MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGITWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE\n>mouse\n-----MGDVEKGKKIFVQKCAQCHTVEKGGKHKTGPNLHGLFGRKTGQAAGFSYTDANKNKGITWGEDTLMEYLENPKKYIPGTKMIFAGIKKKGERADLIAYLKKATNE\n>cow\n-----MGDVEKGKKIFVQKCAQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGFSYTDANKNKGITWGEETLMEYLENPKKYIPGTKMIFAGIKKKGEREDLIAYLKKATNE\n>chicken\n-----MGDIEKGKKIFVQKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAEGFSYTDANKNKGITWGEDTLMEYLENPKKYIPGTKMIFAGIKKKSERVDLIAYLKDATSK\n>frog\n-----MGDVEKGKKIFVQKCAQCHTVEKTGKHKTGPNLWGLFGRKTGQAPGFSYTDANKSKGIVWGEDTLFEYLENPKKYIPGTKMIFAGIKKKNERADLIAYLKKSTSE\n>zebrafish\n-----MGDVEKGKKVFVQKCAQCHTVENGGKHKVGPNLWGLFGRKTGQAEGFSYTDANKSKGIVWGEDTLMEYLENPKKYIPGTKMIFAGIKKKGERADLIAYLKSATS-\n>yeast\nMTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIKKNVLWDENNMSEYLTNPKKYIPGTKMAFGGLKKEKDRNDLITYLKKACE-",
+    "source": {
+      "citation": "UniProt Consortium, UniProtKB (uniprot.org); aligned with MAFFT v7.525",
+      "license": "CC BY 4.0",
+      "accessions": ["P99999", "P00002", "P62897", "P62894", "P67881", "Q640U4", "Q6IQM2", "P00044"]
+    }
+  },
+  "reference": {
+    "newick": "((zebrafish:1,yeast:1):1,frog:1,(chicken:1,(cow:1,(mouse:1,(human:1,macaque:1):1):1):1):1);",
+    "kind": "classification"
+  },
+  "analysis": { "correction": "JTT", "method": "NJ" },
+  "locked": ["analysis.method"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "This is real data: cytochrome c, a ~110-site protein found in almost every eukaryote, from eight species — human, macaque, mouse, cow, chicken, frog, zebrafish and yeast. The sequences come from UniProt (CC BY 4.0) and were aligned with MAFFT; the reference panel shows the accepted classification, not a known true tree.",
+      "math": "Cytochrome c is small and ancient: even the deepest pair (yeast–frog) carries a JTT distance of only ~0.65 substitutions per site — long, but well below the saturation ceiling."
+    },
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "Neighbor-Joining starts from the JTT distance matrix. Which two species join first?",
+      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. The smallest off-diagonal cell is also the smallest Q here — the two lineages are barely different.",
+      "reveal": "Human and macaque differ at only ~1% of comparable sites — JTT puts them 0.010 apart, the smallest distance in the matrix. Now click the human–yeast cell to open \"How was this distance computed?\": the same sequences sit 0.579 apart, the largest distance — yet still far from saturated."
+    },
+    {
+      "at_step": 4,
+      "type": "note",
+      "concept": "Look at the tree so far: yeast — a fungus — has just attached to the primate group. The accepted classification places yeast outside all the animals, but its distance to every animal is nearly identical (~0.6), so NJ slid it onto the longest edge in the tree.",
+      "math": "The yeast row of the matrix is almost flat: 0.58–0.65 to every animal. When all distances to a taxon look the same, its placement is decided by tiny differences that the data can barely support."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "The tree is complete. It recovers the primate pair and groups the mammals — but the RF count says it differs from the accepted classification in 4 clades: frog paired with zebrafish, cow with mouse instead of primates-plus-mouse, and yeast landed inside the animals rather than as the outgroup. 110 conserved sites tell close relatives apart clearly, but the deepest splits need far more data than one small protein provides.",
+      "math": "Every yeast–animal distance is near 0.6 expected substitutions per site. At that depth each 110-site estimate carries enough noise to reorder the deep joins; nothing in this matrix can firmly say where the fungus attaches."
+    }
+  ]
+}

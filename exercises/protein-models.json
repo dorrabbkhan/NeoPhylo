@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "id": "protein-models",
+  "title": "Protein distances: when counting isn't enough",
+  "alphabet": "protein",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.10,B:0.10):0.10,(C:0.12,D:0.08):0.15,(E:0.10,(F:0.30,G:0.10):0.08):0.05);",
+    "sim": { "model": "JTT", "length": 300, "seed": 39 }
+  },
+  "reference": {
+    "newick": "((A:0.10,B:0.10):0.10,(C:0.12,D:0.08):0.15,(E:0.10,(F:0.30,G:0.10):0.08):0.05);",
+    "kind": "true"
+  },
+  "analysis": { "correction": "p", "method": "NJ" },
+  "locked": ["sim.model", "analysis.method"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "These are protein sequences evolved under the JTT model, but the matrix on screen is the plain p-distance: the fraction of sites that differ. Which two taxa join first?",
+      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j, where d is the observed fraction of differing sites. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins.",
+      "reveal": "C and D join first — they are genuinely closest. Now click the C–F cell to open \"How was this distance computed?\": the count says 0.42, but JTT's likelihood estimate is 0.61. F evolved three times faster than its neighbours, so many of its sites were substituted more than once and the count never saw them."
+    },
+    {
+      "at_step": 4,
+      "type": "note",
+      "concept": "Four clusters remain: E, the (C,D) pair, the (A,B) pair and the (F,G) pair. On the true tree E sits next to (F,G) — but F raced ahead on its long branch, and the raw counts make that neighbourhood look no closer than the others.",
+      "math": "A branch of 0.30 accumulates about 30 changes per 100 sites, but two changes can hit the same site — the second erases the first from the count. Long branches always look shorter under p."
+    },
+    {
+      "at_step": 6,
+      "type": "note",
+      "concept": "The tree is complete, but RF = 2: counting differences pulled E toward the (A,B) group instead of (F,G). Every underestimate was largest along F's fast lineage, which reshaped the join order. Switch the Correction control to JTT — it scores each observed difference against how likely that amino-acid exchange is — and the same sequences recover the true tree (RF = 0).",
+      "math": "JTT finds the branch length d that maximizes log L(d) = Σ N_xy ln(π_x P_xy(d)): pairs that differ often between frequently exchanged amino acids score less distance than the same count between rare-exchange pairs. Click any cell to see this fit for a pair."
+    }
+  ]
+}
