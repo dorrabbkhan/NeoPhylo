@@ -201,7 +201,12 @@ export function PairPanel({ aln, detail, onClose }: PairPanelProps) {
 
         {d !== null && (
           <>
-            <div className="pair-seqs">
+            <div
+              className="pair-seqs"
+              role="group"
+              aria-label="Aligned sequences"
+              tabIndex={0}
+            >
               <SeqRow label={labels[0]} seq={seqA} other={seqB} />
               <div className="pair-marker-row" aria-hidden="true">
                 <span className="seq-label" />
