@@ -1322,3 +1322,26 @@ and the following ci/release entry. Both entries were kept verbatim.)
   not the smallest distance (horse–chicken 0.119 is the matrix minimum).
   The predict reveal exploits that; the e2e picks the fungi cell
   directly because the generic min-distance helper would be wrong.
+
+### Task 12 owner gate, pass 2 — rooting and Drosophila isoform
+
+- **Rooting corrected.** The owner pointed out animals and fungi are
+  sister groups (Opisthokonta) with plants outside, so the reference is
+  now written as a ladder rooted on wheat:
+  `(wheat,((yeast,neurospora),(drosophila,(zebrafish,(chicken,(horse,human))))))`.
+  Same unrooted splits as the previous fungi-outgroup rooting, so
+  re-rooting alone does not change the RF.
+- **Drosophila isoform swapped.** UniProt expression data show P04657
+  (cytochrome c-1, Cyt-c-d) is the minor form — "constant, but
+  relatively low levels" (testis spermatid + 34 tissues) — while P84029
+  (cytochrome c-2, Cyt-c-p) is the somatic form — "varying, but
+  relatively high levels" (300+ tissues). The alignment was rebuilt
+  with P84029 and the prompt distances re-derived from the new matrix.
+- **RF improved 2/10 → 0/10.** With the somatic isoform the NJ/JTT tree
+  recovers every clade of the classification, including the vertebrate
+  ordering. Join 5 (chicken + mammals) is a trace-flagged tie, so the
+  closing note still teaches "close vertebrates are barely resolved"
+  honestly instead of a false miss.
+- **Prompt consequence:** the predict pair (fungi first, Q-vs-distance
+  point) is unchanged; the closing note now asserts RF = 0 with the tie
+  caveat rather than the previous single-clade miss.

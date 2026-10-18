@@ -100,13 +100,12 @@ test.describe("cytochrome-c", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
 
-    // The completed tree recovers the deep groups — fungi, animals,
-    // vertebrates — and differs from the classification in exactly one
-    // clade (chicken + zebrafish instead of chicken + mammals).
+    // The completed tree matches the classification exactly — every
+    // clade recovered, RF = 0.
     await stepToEnd(page);
     expect(await readStep(page)).toEqual({ k: 6, max: 6 });
     await expect(page.locator(".stepper-rf")).toHaveText(
-      "differs from the accepted classification in 1 clade",
+      "differs from the accepted classification in 0 clades",
     );
   });
 });

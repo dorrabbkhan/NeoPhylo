@@ -5,15 +5,15 @@
   "alphabet": "protein",
   "data": {
     "kind": "embedded",
-    "fasta": ">human\n-------MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGIIWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE\n>horse\n-------MGDVEKGKKIFVQKCAQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGFTYTDANKNKGITWKEETLMEYLENPKKYIPGTKMIFAGIKKKTEREDLIAYLKKATNE\n>chicken\n-------MGDIEKGKKIFVQKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAEGFSYTDANKNKGITWGEDTLMEYLENPKKYIPGTKMIFAGIKKKSERVDLIAYLKDATSK\n>zebrafish\n-------MGDVEKGKKVFVQKCAQCHTVENGGKHKVGPNLWGLFGRKTGQAEGFSYTDANKSKGIVWGEDTLMEYLENPKKYIPGTKMIFAGIKKKGERADLIAYLKSATS-\n>drosophila\n-----MGSGDAENGKKIFVQKCAQCHTYEVGGKHKVGPNLGGVVGRKCGTAAGYKYTDANIKKGVTWTEGNLDEYLKDPKKYIPGTKMVFAGLKKAEERADLIAFLKSNK--\n>wheat\nASFSEAPPGNPDAGAKIFKTKCAQCHTVDAGAGHKQGPNLHGLFGRQSGTTAGYSYSAANKNKAVEWEENTLYDYLLNPKKYIPGTKMVFPGLKKPQDRADLIAYLKKATSS\n>yeast\n--MTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIKKNVLWDENNMSEYLTNPKKYIPGTKMAFGGLKKEKDRNDLITYLKKACE-\n>neurospora\n---MGFSAGDSKKGANLFKTRCAQCHTLEEGGGNKIGPALHGLFGRKTGSVDGYAYTDANKQKGITWDENTLFEYLENPKKYIPGTKMAFGGLKKDKDRNDIITFMKEATA-",
+    "fasta": ">human\n-------MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGIIWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE\n>horse\n-------MGDVEKGKKIFVQKCAQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGFTYTDANKNKGITWKEETLMEYLENPKKYIPGTKMIFAGIKKKTEREDLIAYLKKATNE\n>chicken\n-------MGDIEKGKKIFVQKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAEGFSYTDANKNKGITWGEDTLMEYLENPKKYIPGTKMIFAGIKKKSERVDLIAYLKDATSK\n>zebrafish\n-------MGDVEKGKKVFVQKCAQCHTVENGGKHKVGPNLWGLFGRKTGQAEGFSYTDANKSKGIVWGEDTLMEYLENPKKYIPGTKMIFAGIKKKGERADLIAYLKSATS-\n>drosophila\n---MGVPAGDVEKGKKLFVQRCAQCHTVEAGGKHKVGPNLHGLIGRKTGQAAGFAYTDANKAKGITWNEDTLFEYLENPKKYIPGTKMIFAGLKKPNERGDLIAYLKSATK-\n>wheat\nASFSEAPPGNPDAGAKIFKTKCAQCHTVDAGAGHKQGPNLHGLFGRQSGTTAGYSYSAANKNKAVEWEENTLYDYLLNPKKYIPGTKMVFPGLKKPQDRADLIAYLKKATSS\n>yeast\n--MTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIKKNVLWDENNMSEYLTNPKKYIPGTKMAFGGLKKEKDRNDLITYLKKACE-\n>neurospora\n---MGFSAGDSKKGANLFKTRCAQCHTLEEGGGNKIGPALHGLFGRKTGSVDGYAYTDANKQKGITWDENTLFEYLENPKKYIPGTKMAFGGLKKDKDRNDIITFMKEATA-",
     "source": {
       "citation": "UniProt Consortium, UniProtKB (uniprot.org); aligned with MAFFT v7.525",
       "license": "CC BY 4.0",
-      "accessions": ["P99999", "P00004", "P67881", "Q6IQM2", "P04657", "P00068", "P00044", "P00048"]
+      "accessions": ["P99999", "P00004", "P67881", "Q6IQM2", "P84029", "P00068", "P00044", "P00048"]
     }
   },
   "reference": {
-    "newick": "((yeast:1,neurospora:1):1,(wheat:1,(drosophila:1,(zebrafish:1,(chicken:1,(horse:1,human:1):1):1):1):1):1);",
+    "newick": "(wheat:1,((yeast:1,neurospora:1):1,(drosophila:1,(zebrafish:1,(chicken:1,(horse:1,human:1):1):1):1):1):1);",
     "kind": "classification"
   },
   "analysis": { "correction": "JTT", "method": "NJ" },
@@ -23,7 +23,7 @@
       "at_step": 1,
       "type": "note",
       "concept": "This is real data: cytochrome c, a ~110-site protein found in almost every eukaryote, from eight species spanning the deepest splits in the tree of life — human, horse, chicken, zebrafish, Drosophila, wheat, yeast and Neurospora. The sequences come from UniProt (CC BY 4.0) and were aligned with MAFFT; the reference panel shows the accepted classification, not a known true tree.",
-      "math": "Cytochrome c is small and ancient: even the deepest pair (Drosophila–Neurospora) carries a JTT distance of only ~0.74 substitutions per site — long, but well below the saturation ceiling."
+      "math": "Cytochrome c is small and ancient: even the deepest pair (wheat–Neurospora) carries a JTT distance of only ~0.64 substitutions per site — long, but well below the saturation ceiling."
     },
     {
       "at_step": 1,
@@ -35,20 +35,20 @@
     {
       "at_step": 3,
       "type": "note",
-      "concept": "Two joins in, the deepest divide is already visible: the fungi paired, wheat attached to them, and now the insect joins that side. Nothing here says wheat is a fungus — in an unrooted tree, \"plants and fungi\" versus \"animals\" is simply the deepest split, and NJ found it from the far end.",
-      "math": "A tree read as unrooted has no direction: a leaf grafted near an outgroup root marks where the ingroup/outgroup edge sits, not which side is older."
+      "concept": "Two joins in, the deepest divide is drawn: the fungi paired, wheat attached to them, and the insect is about to join nearest that split on the animal side. Read it as an unrooted tree — the split it found is \"animals versus plants and fungi\". Root it on wheat, as the reference does, and the same split reads differently: plants out first, with fungi and animals as each other's closest relatives — the opisthokonts.",
+      "math": "A tree read as unrooted has no direction: the same bipartition supports \"plants + fungi\" versus \"animals\", and choosing where the root sits on it is what makes plants the outgroup and Opisthokonta a clade."
     },
     {
       "at_step": 5,
       "type": "note",
-      "concept": "Only the vertebrates are left on the animal side — and look at the matrix: every distance among human, horse, chicken and zebrafish is 0.10–0.18, a tiny corner compared to the 0.4–0.7 separating the big groups. The last joins order these four, and this is exactly where a short protein is weakest.",
-      "math": "Within-vertebrate distances run 0.10–0.18 while animal-to-fungus runs 0.4–0.7. The tree has plenty of signal for the old splits and very little for the young ones."
+      "concept": "The non-animal side is finished and the mammals have paired — only the vertebrates are left to order: human+horse, chicken and zebrafish. Look at the matrix corner they share: every distance among the four vertebrates is 0.10–0.18, a sliver next to the 0.45–0.64 crossing the deep divide. The last joins make the weakest decisions in the whole tree.",
+      "math": "Within-vertebrate distances run 0.10–0.18 against 0.45–0.64 across the deep divide. The tree has plenty of signal for the old splits and very little for the young ones."
     },
     {
       "at_step": 7,
       "type": "note",
-      "concept": "The tree is complete, and it differs from the accepted classification in only 1 clade. The big divisions are all right: fungi together, plant-and-fungi versus animals, vertebrates together, mammals together. The single miss is inside the vertebrates — chicken pairs with zebrafish instead of sitting next to the mammals. That is the honest limit of one short, slowly evolving protein: 110 conserved sites resolve billion-year-old splits but cannot reliably order four vertebrates that are all less than 0.2 apart.",
-      "math": "RF counts clades present in one tree but not the other. Here the missing clade is {chicken, mammals}: the inferred tree substitutes the equally short alternative {chicken, zebrafish}."
+      "concept": "The tree is complete — and it matches the accepted classification exactly. Plants out first, fungi and animals as closest relatives, and inside the animals, vertebrates and mammals together: one small protein recovered every clade, RF = 0. It earned it the hard way — the deep splits are easy at distances of 0.45–0.64, and even the vertebrates, all under 0.2 apart, came out right, though the last join was a tie the engine broke by input order. On a closer or larger set, do not expect this much.",
+      "math": "RF counts clades present in one tree but not the other. Here every clade of the classification is present in the inferred tree — nothing missing, nothing extra — while the tied last join shows how thin the vertebrate signal was."
     }
   ]
 }
