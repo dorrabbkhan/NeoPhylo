@@ -14,6 +14,14 @@ import { useState } from "react";
 import type { Dispatch } from "react";
 
 import type { Action } from "../state/session";
+import {
+  CORRECTIONS,
+  DIST_LABEL,
+  SIM_LABEL,
+  SIM_MODEL_NAMES,
+  simModelName,
+} from "../state/session";
+import type { Alphabet } from "../engine/generated/Alphabet";
 import type { Analysis } from "../engine/generated/Analysis";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
@@ -31,6 +39,9 @@ export interface ControlsProps {
   /** False while an imported or embedded alignment is in place (sim
    * controls inert — the data can't be re-simulated). */
   simEnabled: boolean;
+  /** The active alphabet: model menus are filtered to the models valid
+   * for it (v1.1 spec §5.1). */
+  alphabet: Alphabet;
   dispatch: Dispatch<Action>;
 }
 
@@ -97,6 +108,7 @@ export function Controls({
   matrixView,
   qAvailable,
   simEnabled,
+  alphabet,
   dispatch,
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
@@ -110,15 +122,15 @@ export function Controls({
         ? LOCKED_TOOLTIP
         : undefined;
 
-  const modelName =
-    sim === null || typeof sim.model === "string" ? "Jc69" : "K80";
+  const modelName = sim === null ? "Jc69" : simModelName(sim.model);
   const kappa =
     sim === null || typeof sim.model === "string"
       ? KAPPA_DEFAULT
       : sim.model.K80.kappa;
 
   const setModel = (name: string) => {
-    const model: SimModel = name === "K80" ? { K80: { kappa } } : "Jc69";
+    const model: SimModel =
+      name === "K80" ? { K80: { kappa } } : name === "Jtt" ? "Jtt" : "Jc69";
     dispatch({ type: "setSim", patch: { model } });
   };
 
@@ -136,8 +148,11 @@ export function Controls({
           title={simTitle("sim.model")}
           onChange={(e) => setModel(e.target.value)}
         >
-          <option value="Jc69">JC69</option>
-          <option value="K80">K80</option>
+          {SIM_MODEL_NAMES[alphabet].map((m) => (
+            <option key={m} value={m}>
+              {SIM_LABEL[m]}
+            </option>
+          ))}
         </select>
       </label>
       {modelName === "K80" && (
@@ -211,9 +226,11 @@ export function Controls({
             })
           }
         >
-          <option value="P">p (uncorrected)</option>
-          <option value="Jc69">JC69</option>
-          <option value="K80">K80</option>
+          {CORRECTIONS[alphabet].map((c) => (
+            <option key={c} value={c}>
+              {c === "P" ? "p (uncorrected)" : DIST_LABEL[c]}
+            </option>
+          ))}
         </select>
       </label>
       <label className="field">

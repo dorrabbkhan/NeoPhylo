@@ -15,6 +15,8 @@
 import { useEffect } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
+import type { ReferenceKind } from "../engine/generated/ReferenceKind";
+
 export interface StepperProps {
   /** Current step, 0..max. */
   step: number;
@@ -22,6 +24,13 @@ export interface StepperProps {
   max: number;
   /** "x / max" RF readout, shown only when step === max; null hides it. */
   rfText: string | null;
+  /** Kind of the reference tree. For "classification" the RF readout is
+   * replaced by "differs from the accepted classification in N
+   * clade(s)" (v1.1 spec §5.3). */
+  referenceKind?: ReferenceKind;
+  /** Clades in the reference missing from the inferred tree — the N in
+   * the classification readout. */
+  rfClades?: number;
   /** No tree to compare against: show "RF: — (no true tree)" at the end. */
   noTrueTree?: boolean;
   playing: boolean;
@@ -35,6 +44,8 @@ export function Stepper({
   step,
   max,
   rfText,
+  referenceKind,
+  rfClades,
   noTrueTree = false,
   playing,
   onStep,
@@ -129,8 +140,14 @@ export function Stepper({
       <span className="stepper-status">
         step {step} of {max}
       </span>
-      {step === max && rfText !== null && (
+      {step === max && rfText !== null && referenceKind !== "classification" && (
         <span className="stepper-rf">RF = {rfText}</span>
+      )}
+      {step === max && rfText !== null && referenceKind === "classification" && (
+        <span className="stepper-rf">
+          differs from the accepted classification in {rfClades ?? 0} clade
+          {(rfClades ?? 0) === 1 ? "" : "s"}
+        </span>
       )}
       {step === max && noTrueTree && (
         <span className="stepper-rf">RF: — (no true tree)</span>

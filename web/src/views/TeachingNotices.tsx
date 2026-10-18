@@ -188,7 +188,11 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
       {wrongClades > 0 && (
         <section className="notice" aria-label="Tree comparison">
           <p>
-            {`Your tree differs from the true tree in ${wrongClades} clade${wrongClades === 1 ? "" : "s"} — outlined in the inferred tree.`}
+            {`Your tree differs from the ${
+              session.reference?.kind === "classification"
+                ? "accepted classification"
+                : "true tree"
+            } in ${wrongClades} clade${wrongClades === 1 ? "" : "s"} — outlined in the inferred tree.`}
           </p>
         </section>
       )}

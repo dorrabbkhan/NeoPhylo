@@ -88,4 +88,37 @@ describe("errorMessage", () => {
       }).body,
     ).toContain("true_tree");
   });
+
+  it("names the model's alphabet and the valid corrections (v1.1 Task 10)", () => {
+    expect(
+      errorMessage({
+        kind: "ModelAlphabetMismatch",
+        model: "JC69",
+        alphabet: "protein",
+      }).body,
+    ).toBe(
+      "JC69 is for DNA; this data is protein. Choose p, Kimura or JTT.",
+    );
+    expect(
+      errorMessage({
+        kind: "ModelAlphabetMismatch",
+        model: "JTT",
+        alphabet: "dna",
+      }).body,
+    ).toBe("JTT is for protein; this data is DNA. Choose p, JC69 or K80.");
+  });
+
+  it("tells the user to align ragged sequences first (Review Focus 2)", () => {
+    expect(
+      errorMessage({
+        kind: "UnequalLengths",
+        label: "b",
+        expected: 8,
+        got: 5,
+      }).body,
+    ).toContain(
+      "Sequences must be aligned (same length, with gaps) before " +
+        "building a tree. Align them first, e.g. with Clustal Omega or MAFFT.",
+    );
+  });
 });

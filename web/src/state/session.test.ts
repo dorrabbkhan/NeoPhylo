@@ -463,3 +463,92 @@ describe("v1.1 session state (reference, alphabet)", () => {
     expect(s.error?.kind).toBe("ModelAlphabetMismatch");
   });
 });
+
+describe("setAlphabet (v1.1 Task 10)", () => {
+  it("Review Focus 3: overriding to DNA with JTT selected switches to JC69 with a notice", () => {
+    // The embedded protein exercise declares JTT; its sequences are all
+    // A/C/G/T, so "Treat as DNA" reinterprets them cleanly.
+    const ex = exercise(EMBEDDED_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(loaded.alphabet).toBe("protein");
+    const s = reducer(loaded, { type: "setAlphabet", alphabet: "dna" });
+    expect(s.error).toBeNull();
+    expect(s.alphabet).toBe("dna");
+    expect(s.alignment?.alphabet).toBe("dna");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expect(s.notice).toBe(
+      "Switched correction to JC69 because this data is now DNA.",
+    );
+    expect(s.result).not.toBeNull();
+  });
+
+  it("a simulated override switches the sim model to the target alphabet's default", () => {
+    // DNA lesson → "Treat as protein": Jc69 cannot produce protein, so
+    // the sim model and the correction both switch to JTT and the
+    // alignment is re-simulated as protein.
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const s = reducer(loaded, { type: "setAlphabet", alphabet: "protein" });
+    expect(s.error).toBeNull();
+    expect(s.alphabet).toBe("protein");
+    expect(s.alignment?.alphabet).toBe("protein");
+    expect(exerciseSim(s.exercise)?.model).toBe("Jtt");
+    expect(s.exercise.analysis.correction).toBe("Jtt");
+    expect(s.notice).toBe(
+      "Switched correction to JTT and the simulation model to JTT " +
+        "because this data is now protein.",
+    );
+    expect(s.result).not.toBeNull();
+  });
+
+  it("a failed override keeps the data and reports the error", () => {
+    // Real protein letters cannot be reinterpreted as DNA:
+    // withAlphabet returns UnsupportedCharacter, the alignment is kept
+    // and the error is shown — never a stuck state.
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const parsed = engine.parseFasta(
+      ">p1\nMKVL\n>p2\nMKIL\n>p3\nMRVL\n>p4\nMKVA",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    let s = reducer(loaded, {
+      type: "importAlignment",
+      alignment: parsed.value,
+    });
+    expect(s.alphabet).toBe("protein");
+    // Fix the JC69-on-protein mismatch so only the override error shows.
+    s = reducer(s, {
+      type: "setAnalysis",
+      patch: { correction: "Jtt" },
+    });
+    expect(s.error).toBeNull();
+    s = reducer(s, { type: "setAlphabet", alphabet: "dna" });
+    expect(s.error?.kind).toBe("UnsupportedCharacter");
+    expect(s.alphabet).toBe("protein");
+    expect(s.alignment).toBe(parsed.value);
+  });
+
+  it("is a no-op when the data already has the target alphabet", () => {
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const s = reducer(loaded, { type: "setAlphabet", alphabet: "dna" });
+    expect(s).toBe(loaded);
+  });
+});

@@ -9,11 +9,13 @@ import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
 import type { BuildResult } from "../engine/generated/BuildResult";
+import type { DistModel } from "../engine/generated/DistModel";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
 import type { ReferenceKind } from "../engine/generated/ReferenceKind";
 import type { RfResult } from "../engine/generated/RfResult";
+import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 import type { Trace } from "../engine/generated/Trace";
 import type { Tree } from "../engine/generated/Tree";
@@ -58,6 +60,10 @@ export interface Session {
   branchScale: number; // default 1; multiplies true-tree lengths before simulate
   hover: { i: number; j: number } | null;
   source: "lesson" | "sandbox";
+  /** A one-line notice set by `setAlphabet` when the override silently
+   * switched a model to the new alphabet's default (v1.1 spec §5.1).
+   * Cleared by the next action that changes models or data. */
+  notice: string | null;
 }
 
 /** The sim spec of a simulated exercise; `null` for embedded data
@@ -70,6 +76,7 @@ export type Action =
   | { type: "load"; exercise: Exercise; source: Session["source"] }
   | { type: "setSim"; patch: Partial<SimSpec> }
   | { type: "setAnalysis"; patch: Partial<Exercise["analysis"]> }
+  | { type: "setAlphabet"; alphabet: Alphabet }
   | { type: "importAlignment"; alignment: Alignment }
   | { type: "importTree"; tree: Tree }
   | { type: "step"; to: number }
@@ -80,6 +87,52 @@ export type Action =
   | { type: "hover"; cell: Session["hover"] }
   | { type: "enterSandbox" }
   | { type: "exitSandbox" };
+
+/** Corrections valid for each alphabet, in menu order (v1.1 spec
+ * §5.1). The first non-`P` entry is the alphabet's default. */
+export const CORRECTIONS: Record<Alphabet, DistModel[]> = {
+  dna: ["P", "Jc69", "K80"],
+  protein: ["P", "Kimura", "Jtt"],
+};
+
+/** Display labels for the correction menu and `notice` text. */
+export const DIST_LABEL: Record<DistModel, string> = {
+  P: "p",
+  Jc69: "JC69",
+  K80: "K80",
+  Kimura: "Kimura",
+  Jtt: "JTT",
+};
+
+/** The simple name of a `SimModel` (the K80 parameter is a detail). */
+export type SimModelName = "Jc69" | "K80" | "Jtt";
+
+/** Sim models valid for each alphabet, in menu order (v1.1 spec §5.1). */
+export const SIM_MODEL_NAMES: Record<Alphabet, SimModelName[]> = {
+  dna: ["Jc69", "K80"],
+  protein: ["Jtt"],
+};
+
+/** Display labels for the simulation menu and `notice` text. */
+export const SIM_LABEL: Record<SimModelName, string> = {
+  Jc69: "JC69",
+  K80: "K80",
+  Jtt: "JTT",
+};
+
+export function simModelName(m: SimModel): SimModelName {
+  return m === "Jtt" ? "Jtt" : typeof m === "string" ? "Jc69" : "K80";
+}
+
+/** The alphabet's default correction (v1.1 spec §5.1: protein → JTT). */
+function defaultCorrection(a: Alphabet): DistModel {
+  return a === "protein" ? "Jtt" : "Jc69";
+}
+
+/** The alphabet's default simulation model (protein → JTT). */
+function defaultSimModel(a: Alphabet): SimModel {
+  return a === "protein" ? "Jtt" : "Jc69";
+}
 
 /** Number of steps in a trace. NJ records the final three-way join
  * separately (spec §4.5 step 5 is part of the trace), so it counts one
@@ -274,6 +327,7 @@ export function reducer(s: Session, a: Action): Session {
         branchScale: 1,
         hover: null,
         source: a.source,
+        notice: null,
         alignmentOrigin:
           a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
       };
@@ -288,6 +342,7 @@ export function reducer(s: Session, a: Action): Session {
       if (s.exercise.data.kind !== "simulated") return s;
       return recompute({
         ...s,
+        notice: null,
         exercise: {
           ...s.exercise,
           data: {
@@ -301,11 +356,85 @@ export function reducer(s: Session, a: Action): Session {
       // Analysis inputs do not affect simulation, so keep the alignment.
       return recompute({
         ...s,
+        notice: null,
         exercise: {
           ...s.exercise,
           analysis: { ...s.exercise.analysis, ...a.patch },
         },
       });
+    case "setAlphabet": {
+      // The alphabet override (badge's "Treat as protein/DNA", v1.1
+      // spec §5.1). Any model that is invalid for the target alphabet
+      // silently switches to that alphabet's default (DNA → JC69,
+      // protein → JTT) and the switch is reported in `notice` — never
+      // a stuck error state (Review Focus 3).
+      const target = a.alphabet;
+      let exercise = s.exercise;
+      const switches: string[] = [];
+      if (!CORRECTIONS[target].includes(exercise.analysis.correction)) {
+        const c = defaultCorrection(target);
+        exercise = {
+          ...exercise,
+          analysis: { ...exercise.analysis, correction: c },
+        };
+        switches.push(`correction to ${DIST_LABEL[c]}`);
+      }
+      if (
+        exercise.data.kind === "simulated" &&
+        !SIM_MODEL_NAMES[target].includes(
+          simModelName(exercise.data.sim.model),
+        )
+      ) {
+        const m = defaultSimModel(target);
+        exercise = {
+          ...exercise,
+          data: {
+            ...exercise.data,
+            sim: { ...exercise.data.sim, model: m },
+          },
+        };
+        switches.push(
+          `the simulation model to ${SIM_LABEL[simModelName(m)]}`,
+        );
+      }
+      const notice =
+        switches.length === 0
+          ? null
+          : `Switched ${switches.join(" and ")} because this data is now ${
+              target === "dna" ? "DNA" : "protein"
+            }.`;
+      if (s.alignmentOrigin === "simulated") {
+        // Simulated data regenerates from sim.model in `recompute`, so
+        // the model switch above is what produces the target alphabet;
+        // reinterpreting the current sequences via withAlphabet would
+        // either be discarded or fail on real protein letters.
+        if (exercise === s.exercise) return s;
+        return recompute({ ...s, exercise, notice });
+      }
+      // Imported or embedded data is reinterpreted in place. A
+      // successful override turns the alignment into user data — for
+      // embedded data staying "embedded" would make `recompute`
+      // re-parse data.fasta and undo the override.
+      if (s.alignment === null) {
+        return exercise === s.exercise ? s : recompute({ ...s, exercise, notice });
+      }
+      if (s.alignment.alphabet === target && exercise === s.exercise) {
+        return s;
+      }
+      const tagged = engine.withAlphabet(s.alignment, target);
+      if (!tagged.ok) {
+        // The override failed on real protein letters: keep the data
+        // and show the error — never a stuck state.
+        return { ...s, error: tagged.error, notice: null };
+      }
+      return recompute({
+        ...s,
+        exercise,
+        notice,
+        alignment: tagged.value,
+        alignmentOrigin: "imported",
+      });
+    }
     case "importAlignment":
       // An imported alignment is compared against an imported
       // reference tree only: the lesson's reference is a different leaf
@@ -316,6 +445,7 @@ export function reducer(s: Session, a: Action): Session {
         alignment: a.alignment,
         alignmentOrigin: "imported",
         source: "sandbox",
+        notice: null,
         reference: s.reference?.origin === "imported" ? s.reference : null,
       });
     case "importTree":
@@ -327,6 +457,7 @@ export function reducer(s: Session, a: Action): Session {
       return recompute({
         ...s,
         reference: { tree: a.tree, kind: "true", origin: "imported" },
+        notice: null,
         alignment: null,
         alignmentOrigin:
           s.exercise.data.kind === "embedded" ? "embedded" : "simulated",
@@ -388,6 +519,7 @@ export function initialSession(exercise: Exercise): Session {
     branchScale: 1,
     hover: null,
     source: "lesson",
+    notice: null,
   };
 }
 

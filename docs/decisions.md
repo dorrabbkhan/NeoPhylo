@@ -1116,3 +1116,47 @@ and the following ci/release entry. Both entries were kept verbatim.)
     legitimately produces for zero distances.
 - `imported.trueTree` stays the wire field name in v2 states; imported
   trees are always kind "true" so no kind field is carried.
+
+## Task 10 (v1.1): alphabet badge, model menus, PHYLIP import, reference labels
+
+- Files outside the Files block:
+  - `web/src/state/session.ts` and `web/src/state/session.test.ts`: the
+    task's Produces interface is a *reducer action* (`setAlphabet`), so
+    the session reducer had to change; the tests exercise it.
+  - `web/src/views/TreeView.tsx`: `title` widened from the
+    `"True tree" | "Inferred tree"` union to `string` so App can pass
+    the classification caption (the Files block changes titles "via
+    App.tsx"; the prop type had to follow).
+  - `web/src/views/TeachingNotices.tsx` (+ test): the tree-comparison
+    notice is the other "RF text" (spec §5.3); it now says "accepted
+    classification" for `kind: "classification"`, matching the Stepper
+    wording.
+  - `web/src/index.css`: styles for `.alphabet-badge`,
+    `.alphabet-notice` and `.phylip-names`.
+  - `web/src/views/Controls.test.tsx` is a new test file (the Files
+    block's "their tests"); there was no Controls test before.
+- Ambiguities resolved:
+  - `setAlphabet` sets a new `Session.notice: string | null` (Session
+    had no notice field). It renders as a `role="status"` line in the
+    notices area and is cleared by the next model- or data-changing
+    action so it can't go stale.
+  - For `alignmentOrigin === "simulated"` the override does not call
+    `withAlphabet`: `recompute` re-simulates from `sim.model`, so the
+    sim model switches to the target alphabet's default and the
+    alignment is re-simulated (calling `withAlphabet` would either be
+    discarded or spuriously fail on real protein letters). Imported and
+    embedded alignments are reinterpreted via `withAlphabet` as the
+    spec says; a successful embedded override flips the origin to
+    `"imported"`, because staying "embedded" would re-parse
+    `data.fasta` and undo it. A failed `withAlphabet` keeps the data
+    and stores the error — never a stuck state.
+  - The classification readout's N is `rf.missing_in_inferred.length`,
+    matching the existing "differs … in N clade(s)" notice count (the
+    outlined clades), not the raw RF distance.
+  - The PHYLIP names toggle keeps the last pasted text in component
+    state and re-parses with the chosen mode forced; a failed re-parse
+    shows the parse error in-panel and keeps the previous alignment.
+  - `docs/media/sandbox-{dna,protein,phylip}.png`: the task requires a
+    PR "with screenshots of DNA and protein sandbox"; `gh` cannot
+    attach images to a PR, so they are committed (the repo's existing
+    screenshot location) and referenced in the PR body.

@@ -36,7 +36,9 @@ export interface TreeViewProps {
   /** Called with the leaf's label on click — predict_pair prompts use
    * two leaf picks as an answer (Task 21); unset otherwise. */
   onPickLeaf?: (label: string) => void;
-  title: "True tree" | "Inferred tree";
+  /** Panel caption and the svg's accessible name. "True tree" /
+   * "Inferred tree", or the classification variant (v1.1 spec §5.3). */
+  title: string;
 }
 
 // Drawing geometry. The panel is measured with a ResizeObserver; the

@@ -300,4 +300,27 @@ describe("TeachingNotices — RF result", () => {
     renderNotices(zero);
     expect(screen.queryByText(/differs from the true tree/)).toBeNull();
   });
+
+  it("names an accepted classification instead of a true tree (v1.1 Task 10)", () => {
+    const s: Session = {
+      ...loaded(NJ_BASICS),
+      reference: {
+        ...loaded(NJ_BASICS).reference!,
+        kind: "classification",
+      },
+      rf: {
+        rf: 2,
+        max_rf: 4,
+        normalized: 0.5,
+        missing_in_inferred: [{ side: ["A", "B"] }],
+        extra_in_inferred: [{ side: ["A", "C"] }],
+      },
+    };
+    renderNotices(s);
+    expect(
+      screen.getByText(
+        /Your tree differs from the accepted classification in 1 clade\b/,
+      ),
+    ).toBeTruthy();
+  });
 });
