@@ -30,7 +30,8 @@
       "type": "predict_pair",
       "concept": "The matrix shows JTT-corrected distances. The smallest cell is horse–chicken at 0.119 — yet that pair will not join first, because NJ scores pairs by Q, which also counts how far each lineage is from everything else. Which two species join first?",
       "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. The two fungi sit far from every animal and plant — their large row sums R pull their Q below every other pair's.",
-      "reveal": "The two fungi join first: yeast–Neurospora at 0.464 wins on Q even though it is nowhere near the smallest distance. Click the horse–chicken cell to open \"How was this distance computed?\": at 0.119 it is the matrix minimum, but each vertebrate stays close to all the others, so their pair scores worse on Q."
+      "reveal": "The two fungi join first: yeast–Neurospora at 0.464 wins on Q even though it is nowhere near the smallest distance. The \"Show horse vs chicken\" button below opens \"How was this distance computed?\" for that pair: at 0.119 it is the matrix minimum, but each vertebrate stays close to all the others, so their pair scores worse on Q.",
+      "reveal_pair": ["horse", "chicken"]
     },
     {
       "at_step": 3,

@@ -64,6 +64,7 @@ import {
 } from "./stepEmphasis";
 import { Stepper } from "./Stepper";
 import { stepMatrix, traceLength } from "./stepMatrix";
+import type { StepMatrix } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
 import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
@@ -281,7 +282,26 @@ export function App({ exercise }: { exercise?: Exercise }) {
 
   // Unpack the prompt gate (src/lessons/promptGate.ts): gating hides the
   // correct pair from the heatmap and the tree highlights.
-  const { shown: shownPrompts, gating, smShown, answerPair } = promptGate;
+  const { shown: shownPrompts, gating, answerPair } = promptGate;
+
+  // The shown matrix while a predict_pair prompt is open: the marked
+  // cell is cleared and the view is pinned to distances — the lowest Q
+  // value IS the answer, so the Q matrix would hand it to the student
+  // (checkpoint 12).
+  const smShown: StepMatrix | null =
+    gating === null
+      ? sm
+      : (() => {
+          const pinned = stepMatrix({
+            trace,
+            step: k,
+            matrix: session.matrix,
+            matrixView: "distance",
+            inferred,
+          });
+          const base = pinned ?? sm;
+          return base === null ? null : { ...base, chosen: null };
+        })();
 
   // Everything the views emphasize at step k (src/views/stepEmphasis.ts).
   const { inferHi, trueHi, wrong, visibleNodes, matrixHover } = stepEmphasis({
@@ -303,6 +323,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
 
   const rfText =
     session.rf !== null ? `${session.rf.rf} / ${session.rf.max_rf}` : null;
+
+  // An answered reveal_pair prompt leaves a "Revisit" link on the step
+  // right after its own — the position where that join shows as
+  // just-completed (checkpoint 12).
+  const revisit =
+    session.source === "lesson"
+      ? (session.exercise.prompts.find(
+          (p) =>
+            p.reveal_pair !== null &&
+            p.at_step === k &&
+            promptGate.picked(p.at_step) !== null,
+        )?.reveal_pair ?? null)
+      : null;
 
   // Center-column error banner. SaturatedMatrix is covered by the §6.3
   // teaching notice; in sandbox mode pipeline errors are shown under the
@@ -352,6 +385,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         <aside className="col-controls" aria-label="Controls">
           <AlphabetBadge
             alphabet={session.alphabet}
+            source={session.source}
             alignmentOrigin={session.alignmentOrigin}
             dispatch={dispatch}
           />
@@ -362,7 +396,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
             locked={session.source === "sandbox" ? [] : session.exercise.locked}
             matrixView={session.matrixView}
             qAvailable={isNj && trace !== null}
-            simEnabled={session.alignmentOrigin === "simulated"}
+            qGated={gating !== null}
+            alignmentOrigin={session.alignmentOrigin}
             dispatch={dispatch}
           />
           {session.source === "sandbox" && (
@@ -399,6 +434,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                   mode={session.mode}
                   picked={promptGate.picked(p.at_step)}
                   answer={answerPair}
+                  onShowPair={setPair}
                 />
               ))}
             </div>
@@ -427,18 +463,31 @@ export function App({ exercise }: { exercise?: Exercise }) {
               />
             )}
             {inferred !== null && (
-              <TreeView
-                title="Inferred tree"
-                tree={inferred}
-                layoutKind="phylogram"
-                highlight={inferHi}
-                wrong={wrong}
-                clampNegative={session.clampNegative}
-                visibleNodes={visibleNodes}
-                leafSpacing={sharedSpacing}
-                onHoverLeaf={onHoverLeaf}
-                onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
-              />
+              <div className="tree-col">
+                <TreeView
+                  title="Inferred tree"
+                  tree={inferred}
+                  layoutKind="phylogram"
+                  highlight={inferHi}
+                  wrong={wrong}
+                  clampNegative={session.clampNegative}
+                  visibleNodes={visibleNodes}
+                  leafSpacing={sharedSpacing}
+                  onHoverLeaf={onHoverLeaf}
+                  onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
+                />
+                {/* NJ's tree is unrooted; the arbitrary drawing point can
+                    make a correct tree look different from the reference
+                    (checkpoint 12). Only a verdict caption — final step. */}
+                {isNj && k === n && referenceTree !== null && (
+                  <p className="unrooted-note">
+                    NJ builds an unrooted tree, drawn here from an arbitrary
+                    point. It can look different from the reference even when
+                    every grouping matches; compare the groupings, not the
+                    shape.
+                  </p>
+                )}
+              </div>
             )}
           </div>
           {smShown !== null && (
@@ -466,6 +515,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
             labels={explainLabels}
             mode={session.mode}
             dispatch={dispatch}
+            gated={gating !== null}
+            revisit={
+              revisit !== null
+                ? { pair: revisit, onShow: () => setPair(revisit) }
+                : null
+            }
           />
         </aside>
       </main>

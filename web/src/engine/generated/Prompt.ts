@@ -14,4 +14,11 @@ at_step: number, type: PromptType, concept: string, math: string | null,
  * student picks — used for "the closest pair is not the answer"
  * reveals (checkpoint 7); a lesson must not spoil the question.
  */
-reveal: string | null, };
+reveal: string | null, 
+/**
+ * Optional pair of taxon labels: the answered card offers a
+ * "Show a vs b" button opening the pair-detail panel, and the next
+ * step's explanation keeps a "Revisit" link (checkpoint 12). Both
+ * labels must be alignment taxon names — checked at load.
+ */
+reveal_pair: [string, string] | null, };

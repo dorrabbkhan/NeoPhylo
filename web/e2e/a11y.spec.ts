@@ -14,7 +14,7 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 
-import { minCell, readStep, stepToEnd, waitForApp } from "./helpers";
+import { minQCell, readStep, stepToEnd, waitForApp } from "./helpers";
 
 const LESSONS = ["nj-basics", "upgma-fails", "saturation"] as const;
 const PREVIEW_URL = "http://localhost:4174";
@@ -131,23 +131,13 @@ async function arrowToCell(page: Page, ti: number, tj: number): Promise<void> {
   throw new Error(`could not reach cell (${ti}, ${tj})`);
 }
 
-/** Answer a gating predict_pair prompt with the keyboard only: switch
- * to the Q view (NJ joins the minimum Q), Tab into the grid, arrow to
- * the minimum off-diagonal cell and press Enter. */
+/** Answer a gating predict_pair prompt with the keyboard only: compute
+ * the minimum-Q cell from the distance matrix (the Distance/Q switch is
+ * disabled while a prompt gates — checkpoint 12), Tab into the grid,
+ * arrow to it and press Enter. */
 async function answerPromptWithKeyboard(page: Page): Promise<void> {
-  const qSwitch = page.getByRole("switch", { name: "Distance / Q" });
-  if (
-    (await qSwitch.count()) > 0 &&
-    (await qSwitch.getAttribute("aria-checked")) === "false"
-  ) {
-    await tabUntil(
-      page,
-      (f) => f.role === "switch" && f.text === "Distance / Q",
-    );
-    await page.keyboard.press("Space");
-  }
   const cells = page.locator('[role="gridcell"]');
-  const idx = await minCell(page);
+  const idx = await minQCell(page);
   if (idx < 0) throw new Error("no off-diagonal matrix cell found");
   const ti = Number(await cells.nth(idx).getAttribute("data-i"));
   const tj = Number(await cells.nth(idx).getAttribute("data-j"));

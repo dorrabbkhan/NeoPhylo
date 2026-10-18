@@ -17,13 +17,22 @@ export interface PromptCardProps {
   /** The joining pair's cluster labels; null when this position has no
    * pair (the card then renders like a note). */
   answer: [string, string] | null;
+  /** Opens the pair-detail dialog for the prompt's `reveal_pair`
+   * (checkpoint 12); the card only shows the button when this is set. */
+  onShowPair?: (pair: [string, string]) => void;
 }
 
 /** Pair equality ignores order — a join is a set of two clusters. */
 const samePair = (a: [string, string], b: [string, string]) =>
   (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
 
-export function PromptCard({ prompt, mode, picked, answer }: PromptCardProps) {
+export function PromptCard({
+  prompt,
+  mode,
+  picked,
+  answer,
+  onShowPair,
+}: PromptCardProps) {
   const predicting =
     prompt.type === "predict_pair" && picked === null && answer !== null;
   const answered =
@@ -47,6 +56,15 @@ export function PromptCard({ prompt, mode, picked, answer }: PromptCardProps) {
       <p className="prompt-concept">{prompt.concept}</p>
       {answered && prompt.reveal !== null && (
         <p className="prompt-reveal">{prompt.reveal}</p>
+      )}
+      {answered && prompt.reveal_pair !== null && onShowPair !== undefined && (
+        <button
+          type="button"
+          className="prompt-show-pair"
+          onClick={() => onShowPair(prompt.reveal_pair as [string, string])}
+        >
+          Show {prompt.reveal_pair[0]} vs {prompt.reveal_pair[1]}
+        </button>
       )}
       {predicting && (
         <p className="prompt-hint">

@@ -1,9 +1,10 @@
 // Guided-lesson prompt gate (plan Task 21, spec §6.2). A useState hook so
 // App stays near the file-size guideline: it owns the answered picks and
 // the half-finished two-leaf pick, and computes everything the render
-// needs — which prompts show, whether the stepper is gated, the answer
-// pair, and a step matrix with the correct pair unmarked while a
-// predict_pair question is open.
+// needs — which prompts show, whether the stepper is gated, and the
+// answer pair. The *shown* matrix (correct pair unmarked, distance view
+// pinned while a predict_pair question is open — the lowest Q would be
+// the answer) is composed by App, which owns stepMatrix.
 //
 // Answers reset when `prompts` changes identity (a different exercise was
 // loaded — the exercise object and its array are stable across
@@ -34,8 +35,6 @@ export interface PromptGate {
   gating: Prompt | null;
   /** True while the stepper should be blocked. */
   gated: boolean;
-  /** `sm` with the correct pair unmarked while gating; `sm` otherwise. */
-  smShown: StepMatrix | null;
   /** The pending join's cluster labels, or null when there is no pair. */
   answerPair: [string, string] | null;
   /** The student's pick for the prompt at join step `at`, if answered. */
@@ -101,10 +100,6 @@ export function usePromptGate({
     sm !== null && sm.chosen !== null
       ? [sm.labels[sm.chosen[0]], sm.labels[sm.chosen[1]]]
       : null;
-  // While a predict prompt is unanswered the correct pair is hidden: no
-  // marked cell in the heatmap, no highlight in the trees.
-  const smShown = gating !== null && sm !== null ? { ...sm, chosen: null } : sm;
-
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
     setLeafPick(null);
@@ -138,7 +133,6 @@ export function usePromptGate({
     shown,
     gating,
     gated: gating !== null,
-    smShown,
     answerPair,
     picked: (at) => answered.get(at) ?? null,
     leafPick,

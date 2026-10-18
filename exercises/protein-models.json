@@ -20,7 +20,8 @@
       "type": "predict_pair",
       "concept": "These are protein sequences evolved under the JTT model, but the matrix on screen is the plain p-distance: the fraction of sites that differ. Which two taxa join first?",
       "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j, where d is the observed fraction of differing sites. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins.",
-      "reveal": "C and D join first — they are genuinely closest. Now click the C–F cell to open \"How was this distance computed?\": the count says 0.42, but JTT's likelihood estimate is 0.61. F evolved three times faster than its neighbours, so many of its sites were substituted more than once and the count never saw them."
+      "reveal": "C and D join first — they are genuinely closest. The \"Show C vs F\" button below opens \"How was this distance computed?\" for that pair: the count says 0.42, but JTT's likelihood estimate is 0.61. F evolved three times faster than its neighbours, so many of its sites were substituted more than once and the count never saw them.",
+      "reveal_pair": ["C", "F"]
     },
     {
       "at_step": 4,

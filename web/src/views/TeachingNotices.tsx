@@ -16,6 +16,7 @@ import { exerciseSim } from "../state/session";
 
 import type { ChartPoint } from "./SaturationChart";
 import { SaturationChart } from "./SaturationChart";
+import { traceLength } from "./stepMatrix";
 
 export interface TeachingNoticesProps {
   session: Session;
@@ -80,7 +81,14 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
   const hasNegative = (session.result?.tree.branches ?? []).some(
     (b) => (b.length ?? 0) < 0,
   );
-  const wrongClades = session.rf?.missing_in_inferred.length ?? 0;
+  // The RF comparison is a verdict on the finished tree — it shows only
+  // at the final stepper position (checkpoint 12). Without a trace the
+  // completed tree is always on screen.
+  const trace = session.result?.trace ?? null;
+  const atEnd = trace === null || session.step >= traceLength(trace);
+  const wrongClades = atEnd
+    ? (session.rf?.missing_in_inferred.length ?? 0)
+    : 0;
 
   // Chart points are only needed while the saturation panel is on
   // screen; the engine call is memoized on the pipeline inputs.

@@ -125,6 +125,12 @@ pub struct Prompt {
     /// student picks — used for "the closest pair is not the answer"
     /// reveals (checkpoint 7); a lesson must not spoil the question.
     pub reveal: Option<String>,
+    /// Optional pair of taxon labels: the answered card offers a
+    /// "Show a vs b" button opening the pair-detail panel, and the next
+    /// step's explanation keeps a "Revisit" link (checkpoint 12). Both
+    /// labels must be alignment taxon names — checked at load.
+    #[serde(default)]
+    pub reveal_pair: Option<[String; 2]>,
 }
 
 /// Parse and validate an exercise file. `schema_version` must be 1 or 2;
@@ -173,13 +179,14 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
             alphabet: Alphabet::Dna,
         });
     }
-    let prompts = prompts(&f.prompts)?;
-
     let tree = parse_newick(&true_tree).map_err(|e| NeoError::InvalidExercise {
         field: "true_tree".to_string(),
         msg: e.to_string(),
     })?;
     check_branch_lengths(&tree)?;
+    // Prompts validate against the true tree's leaf labels — v1 data is
+    // always simulated along it, so those are the alignment's labels.
+    let prompts = prompts(&f.prompts, &tree.leaf_labels())?;
 
     Ok(Exercise {
         schema_version: 2,
@@ -255,7 +262,7 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
     }
 
     let reference = reference(f.reference, &labels)?;
-    let prompts = prompts(&f.prompts)?;
+    let prompts = prompts(&f.prompts, &labels)?;
 
     Ok(Exercise {
         schema_version: 2,
@@ -360,7 +367,10 @@ fn reference(f: Option<ReferenceFile>, labels: &[String]) -> Result<Option<Refer
 }
 
 /// Convert the file's prompt array, reporting the index of a bad `type`.
-fn prompts(fs: &[PromptFile]) -> Result<Vec<Prompt>, NeoError> {
+/// `labels` are the alignment's taxon names: a `reveal_pair` must name
+/// two of them (checkpoint 12 — the button opens the pair panel, which
+/// resolves the pair by label).
+fn prompts(fs: &[PromptFile], labels: &[String]) -> Result<Vec<Prompt>, NeoError> {
     let mut prompts = Vec::with_capacity(fs.len());
     for (i, p) in fs.iter().enumerate() {
         let r#type = match p.kind.as_str() {
@@ -373,12 +383,23 @@ fn prompts(fs: &[PromptFile]) -> Result<Vec<Prompt>, NeoError> {
                 ))
             }
         };
+        if let Some(pair) = &p.reveal_pair {
+            for label in pair {
+                if !labels.iter().any(|l| l == label) {
+                    return Err(bad(
+                        &format!("prompts.{i}.reveal_pair"),
+                        &format!("label '{label}' is not in the alignment"),
+                    ));
+                }
+            }
+        }
         prompts.push(Prompt {
             at_step: p.at_step,
             r#type,
             concept: p.concept.clone(),
             math: p.math.clone(),
             reveal: p.reveal.clone(),
+            reveal_pair: p.reveal_pair.clone(),
         });
     }
     Ok(prompts)
@@ -481,4 +502,6 @@ struct PromptFile {
     math: Option<String>,
     #[serde(default)]
     reveal: Option<String>,
+    #[serde(default)]
+    reveal_pair: Option<[String; 2]>,
 }

@@ -3,10 +3,10 @@
 //
 // `answerPredictPrompt` answers the gating predict_pair prompt with the
 // genuinely correct pair without peeking at the marked cell (which the
-// gate hides anyway): NJ joins the minimum of the Q matrix and UPGMA the
-// minimum distance, so the helper switches to the Q view when the
-// Distance/Q toggle exists, picks the minimum off-diagonal cell, and
-// restores the view it found.
+// gate hides anyway). The Q view can't help: the toggle is disabled
+// while a prompt gates (checkpoint 12), so the helper computes Q from
+// the distance matrix itself — Q(i,j) = (n-2)·d(i,j) − R_i − R_j —
+// exactly as a student is meant to. UPGMA joins the minimum distance.
 
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
@@ -50,25 +50,58 @@ export async function minCell(page: Page): Promise<number> {
   return best;
 }
 
-/** Toggle the matrix into the Q view if it isn't there already; returns
- * whether the helper switched it (callers restore the view they found). */
-async function withQView(page: Page): Promise<boolean> {
-  const qToggle = page.getByRole("switch", { name: "Distance / Q" });
-  const switched =
-    (await qToggle.count()) > 0 &&
-    (await qToggle.getAttribute("aria-checked")) === "false";
-  if (switched) await qToggle.click();
-  return switched;
+/** Locator index of the minimum-Q off-diagonal cell, computed from the
+ * on-screen distance matrix: Q(i,j) = (n−2)·d(i,j) − R_i − R_j, where
+ * R_i is row i's total distance. Needed because the Distance/Q toggle
+ * is disabled while a predict prompt gates (checkpoint 12). */
+export async function minQCell(page: Page): Promise<number> {
+  const cells = page.locator('[role="gridcell"]');
+  const count = await cells.count();
+  const d = new Map<string, number>(); // "i,j" with i < j → distance
+  const locator: number[] = []; // locator index for each (i, j)
+  let n = 0;
+  for (let c = 0; c < count; c++) {
+    const cell = cells.nth(c);
+    const i = Number(await cell.getAttribute("data-i"));
+    const j = Number(await cell.getAttribute("data-j"));
+    if (j <= i) continue;
+    n = Math.max(n, i + 1, j + 1);
+    const label = (await cell.getAttribute("aria-label")) ?? "";
+    d.set(`${i},${j}`, Number(label.slice(label.lastIndexOf(":") + 1)));
+    locator.push(c);
+  }
+  if (locator.length === 0) return -1;
+  const dist = (a: number, b: number): number => {
+    const v = a < b ? d.get(`${a},${b}`) : d.get(`${b},${a}`);
+    return v ?? 0;
+  };
+  const row = Array.from({ length: n }, (_, i) => {
+    let s = 0;
+    for (let j = 0; j < n; j++) if (j !== i) s += dist(i, j);
+    return s;
+  });
+  let best = -1;
+  let bestQ = Infinity;
+  const pairs = Array.from(d.keys(), (k) => k.split(",").map(Number));
+  for (const [i, j] of pairs) {
+    const q = (n - 2) * dist(i, j) - row[i] - row[j];
+    if (q < bestQ) {
+      bestQ = q;
+      best = locator[pairs.findIndex(([a, b]) => a === i && b === j)];
+    }
+  }
+  return best;
 }
 
 /** Answer the gating predict_pair prompt with the correct pair. */
 export async function answerPredictPrompt(page: Page): Promise<void> {
-  const switchedToQ = await withQView(page);
-  const best = await minCell(page);
+  // NJ joins the minimum-Q pair (the Q toggle exists but is disabled
+  // while gated); without a trace the method is UPGMA → min distance.
+  const isNj =
+    (await page.getByRole("switch", { name: "Distance / Q" }).count()) > 0;
+  const best = isNj ? await minQCell(page) : await minCell(page);
   if (best < 0) throw new Error("no off-diagonal matrix cell found");
   await page.locator('[role="gridcell"]').nth(best).click();
-  if (switchedToQ)
-    await page.getByRole("switch", { name: "Distance / Q" }).click();
 }
 
 /** Step to the last position, answering predict_pair prompts on the way. */
