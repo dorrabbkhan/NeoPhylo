@@ -1301,3 +1301,24 @@ and the following ci/release entry. Both entries were kept verbatim.)
   index/menu" was a no-op.
 - **Files outside the Files block:** `docs/decisions.md` itself (this
   entry — the workflow requires decisions in the same PR).
+
+### Task 12 owner gate — species set replaced
+
+- **Why:** the first set (4 near-identical mammals + frog + fish + yeast)
+  gave RF 8/10 with yeast sliding onto the primate group — cytochrome c
+  carries too little signal among mammals and a lone long branch attaches
+  arbitrarily, which made a misleading showcase. The owner directed a
+  Fitch & Margoliash (1967)-style set spanning deep divergences.
+- **New set (8):** human P99999, horse P00004, chicken P67881,
+  zebrafish Q6IQM2, Drosophila P04657 (Cyt-c-d, the somatic isoform —
+  Cyt-c-p P84029 is larval/testis), wheat P00068 (single canonical gene,
+  also in the original 1967 alignment; Arabidopsis rejected — two
+  paralogues), yeast P00044, Neurospora crassa P00048.
+- **Result:** NJ/JTT recovers all three deep groups (fungi, animals,
+  vertebrates) and differs from the classification in **1 clade**
+  (RF = 2/10): chicken pairs with zebrafish instead of the mammals —
+  the "close vertebrates are uncertain" point the lesson now teaches.
+- **Prompt consequence:** join 1 is the fungi pair — the smallest Q but
+  not the smallest distance (horse–chicken 0.119 is the matrix minimum).
+  The predict reveal exploits that; the e2e picks the fungi cell
+  directly because the generic min-distance helper would be wrong.

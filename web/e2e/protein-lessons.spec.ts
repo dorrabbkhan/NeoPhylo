@@ -77,17 +77,22 @@ test.describe("cytochrome-c", () => {
       page.getByText(/sequences come from UniProt \(CC BY 4\.0\)/),
     ).toBeVisible();
 
-    // The predict at join 1 gates; the answer is human + macaque, the
-    // smallest distance in the matrix.
-    await answerPredictPrompt(page);
+    // The predict at join 1 gates. The answer is yeast + neurospora —
+    // the smallest Q, NOT the smallest distance (horse–chicken is), which
+    // is the point of the prompt: the generic min-distance picker would
+    // be wrong here, so the test picks the fungi cell directly.
+    await page
+      .getByRole("gridcell", {
+        name: /^(yeast, neurospora|neurospora, yeast):/,
+      })
+      .first()
+      .click();
     await expect(page.locator(".prompt-verdict.correct")).toHaveText("Correct");
 
-    // The reveal invites the pair panel on the deepest pair.
-    await expect(
-      page.getByText(/click the human–yeast cell/),
-    ).toBeVisible();
+    // The reveal invites the pair panel on the smallest-distance pair.
+    await expect(page.getByText(/Click the horse–chicken cell/)).toBeVisible();
     await page
-      .getByRole("gridcell", { name: /^(human, yeast|yeast, human):/ })
+      .getByRole("gridcell", { name: /^(horse, chicken|chicken, horse):/ })
       .first()
       .click();
     const dialog = page.getByRole("dialog");
@@ -95,12 +100,13 @@ test.describe("cytochrome-c", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
 
-    // The completed tree disagrees with the classification in 4 clades;
-    // the stepper uses the classification wording (spec §5.3).
+    // The completed tree recovers the deep groups — fungi, animals,
+    // vertebrates — and differs from the classification in exactly one
+    // clade (chicken + zebrafish instead of chicken + mammals).
     await stepToEnd(page);
     expect(await readStep(page)).toEqual({ k: 6, max: 6 });
     await expect(page.locator(".stepper-rf")).toHaveText(
-      "differs from the accepted classification in 4 clades",
+      "differs from the accepted classification in 1 clade",
     );
   });
 });
