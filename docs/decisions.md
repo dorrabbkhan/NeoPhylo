@@ -1271,3 +1271,96 @@ and the following ci/release entry. Both entries were kept verbatim.)
   d at 0/d̂/right edge and logL at the window's top and bottom.
   `LikelihoodCurve` takes the new `loglHat` prop straight from
   `PairDetail.logl_hat`.
+
+## Task 12 (v1.1) protein lessons
+
+- **`protein-models` seed.** The plan's search ran against the real wasm
+  engine (same pipeline the app uses): seeds in order at length 300 on a
+  7-taxon true tree with F's branch 3× the others. Seed **39** is the
+  first where NJ-on-p gives RF > 0 (RF = 2) and NJ-on-JTT gives RF = 0.
+  Under p the wrong join is step 4: E+(A,B) wins a tie over (C,D)+(F,G)
+  at Q = −0.698333 while the correct E+(F,G) sits at −0.694167 — the
+  reveal sends students to the C–F pair panel (p = 0.42, JTT = 0.61).
+- **`protein-models` starts on correction `p`** (the failing default the
+  lesson fixes), with `sim.model` and `analysis.method` locked so the
+  correction menu is the teaching lever — same pattern as
+  `upgma-fails` leaving Method open.
+- **`cytochrome-c` data.** Eight UniProtKB reviewed cytochrome c
+  sequences (P99999, P00002, P62897, P62894, P67881, Q640U4, Q6IQM2,
+  P00044) aligned with MAFFT v7.525 (`--auto`, installed via the
+  bioconda conda package because MAFFT was not present on the worker).
+  Species, accessions, the exact command and the classification source
+  are in `docs/lessons/cytochrome-c-provenance.md`; the owner verifies
+  them at the PR gate. NJ join 5 is a tie under JTT, so the only
+  predict prompt targets join 1 (human+macaque). The reference Newick
+  encodes the accepted unrooted grouping with unit lengths; the
+  inferred NJ/JTT tree differs from it in 4 clades (RF 8/10), which the
+  closing note discusses as the lesson's point.
+- **No lesson index/menu exists** — lessons are served dynamically by
+  `?lesson=<id>` — so the Files block's conditional "modify the lesson
+  index/menu" was a no-op.
+- **Files outside the Files block:** `docs/decisions.md` itself (this
+  entry — the workflow requires decisions in the same PR).
+
+### Task 12 owner gate — species set replaced
+
+- **Why:** the first set (4 near-identical mammals + frog + fish + yeast)
+  gave RF 8/10 with yeast sliding onto the primate group — cytochrome c
+  carries too little signal among mammals and a lone long branch attaches
+  arbitrarily, which made a misleading showcase. The owner directed a
+  Fitch & Margoliash (1967)-style set spanning deep divergences.
+- **New set (8):** human P99999, horse P00004, chicken P67881,
+  zebrafish Q6IQM2, Drosophila P04657 (Cyt-c-d, the somatic isoform —
+  Cyt-c-p P84029 is larval/testis), wheat P00068 (single canonical gene,
+  also in the original 1967 alignment; Arabidopsis rejected — two
+  paralogues), yeast P00044, Neurospora crassa P00048.
+- **Result:** NJ/JTT recovers all three deep groups (fungi, animals,
+  vertebrates) and differs from the classification in **1 clade**
+  (RF = 2/10): chicken pairs with zebrafish instead of the mammals —
+  the "close vertebrates are uncertain" point the lesson now teaches.
+- **Prompt consequence:** join 1 is the fungi pair — the smallest Q but
+  not the smallest distance (horse–chicken 0.119 is the matrix minimum).
+  The predict reveal exploits that; the e2e picks the fungi cell
+  directly because the generic min-distance helper would be wrong.
+
+### Task 12 owner gate, pass 2 — rooting and Drosophila isoform
+
+- **Rooting corrected.** The owner pointed out animals and fungi are
+  sister groups (Opisthokonta) with plants outside, so the reference is
+  now written as a ladder rooted on wheat:
+  `(wheat,((yeast,neurospora),(drosophila,(zebrafish,(chicken,(horse,human))))))`.
+  Same unrooted splits as the previous fungi-outgroup rooting, so
+  re-rooting alone does not change the RF.
+- **Drosophila isoform swapped.** UniProt expression data show P04657
+  (cytochrome c-1, Cyt-c-d) is the minor form — "constant, but
+  relatively low levels" (testis spermatid + 34 tissues) — while P84029
+  (cytochrome c-2, Cyt-c-p) is the somatic form — "varying, but
+  relatively high levels" (300+ tissues). The alignment was rebuilt
+  with P84029 and the prompt distances re-derived from the new matrix.
+- **RF improved 2/10 → 0/10.** With the somatic isoform the NJ/JTT tree
+  recovers every clade of the classification, including the vertebrate
+  ordering. Join 5 (chicken + mammals) is a trace-flagged tie, so the
+  closing note still teaches "close vertebrates are barely resolved"
+  honestly instead of a false miss.
+- **Prompt consequence:** the predict pair (fungi first, Q-vs-distance
+  point) is unchanged; the closing note now asserts RF = 0 with the tie
+  caveat rather than the previous single-clade miss.
+
+### Task 12 owner gate, pass 3 — RF = 0 wording and the vertebrate caveat
+
+- **Closing note rewritten.** The join-5 tie was removed as evidence —
+  with 8 taxa the last NJ join is a four-node step where a tie is
+  guaranteed by construction. The "close vertebrates are barely
+  resolved" point now rests on real signal: horse–chicken (0.119) is the
+  matrix minimum even though horse sits much closer to human, and NJ
+  recovers the classification anyway because it joins by Q, not raw
+  distance — the same Q-vs-distance theme as the join-1 predict.
+- **New RF = 0 stepper wording** (`web/src/views/Stepper.tsx`):
+  "matches the accepted classification in every clade" for a
+  classification reference and "matches the true tree in every clade"
+  for a true tree, replacing "differs … in 0 clades" and the numeric
+  "RF = 0 / N". `Stepper` gained an `rfZero` prop fed from
+  `Session.rf.rf === 0`; covered by `Stepper.test.tsx` and the two e2e
+  specs. Files outside the Files block: `Stepper.tsx`, `Stepper.test.tsx`,
+  `App.tsx`, `App.test.tsx`, `lesson.spec.ts`, `a11y.spec.ts` — all
+  required by this owner-gate change.

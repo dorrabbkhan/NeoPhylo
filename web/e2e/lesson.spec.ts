@@ -15,7 +15,7 @@ import {
 } from "./helpers";
 
 test.describe("nj-basics", () => {
-  test("a correct pick ungates the stepper and the lesson ends at RF = 0 / 6", async ({
+  test("a correct pick ungates the stepper and the lesson ends matching the true tree", async ({
     page,
   }) => {
     await page.goto("/?lesson=nj-basics");
@@ -68,7 +68,7 @@ test.describe("nj-basics", () => {
     // The answered prompt no longer gates; step through to the end.
     await stepToEnd(page);
     expect(await readStep(page)).toEqual({ k: 4, max: 4 });
-    await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 6");
+    await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
     await expect(
       page.getByText(
         "The tree is complete: RF = 0, so every grouping in the true tree was recovered.",
@@ -96,7 +96,7 @@ test.describe("upgma-fails", () => {
       .getByLabel("Tree-building method")
       .selectOption({ label: "Neighbor-Joining" });
     await stepToEnd(page);
-    await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 4");
+    await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
   });
 });
 
