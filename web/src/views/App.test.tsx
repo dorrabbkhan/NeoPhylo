@@ -222,6 +222,15 @@ describe("v1.1 alphabet badge and reference labels", () => {
     expect(screen.getByText("DNA")).toBeTruthy();
   });
 
+  it("shows no alphabet override on simulated data (nj-basics)", async () => {
+    // Simulated data's alphabet comes from the sim model, so the badge
+    // only names it — the sim model menu (locked here) controls it.
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    expect(screen.getByText("DNA")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Treat as/ })).toBeNull();
+  });
+
   it("shows the protein badge and the classification title", async () => {
     render(<App exercise={CLASSIFY} />);
     await screen.findByRole("img", { name: "Inferred tree" });

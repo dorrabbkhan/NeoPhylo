@@ -323,7 +323,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
       </header>
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
-          <AlphabetBadge alphabet={session.alphabet} dispatch={dispatch} />
+          <AlphabetBadge
+            alphabet={session.alphabet}
+            alignmentOrigin={session.alignmentOrigin}
+            dispatch={dispatch}
+          />
           <Controls
             sim={exerciseSim(session.exercise)}
             alphabet={session.alphabet}

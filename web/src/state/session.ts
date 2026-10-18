@@ -120,8 +120,25 @@ export const SIM_LABEL: Record<SimModelName, string> = {
   Jtt: "JTT",
 };
 
+/** The simple name of a `SimModel` (the K80 parameter is a detail).
+ * Exhaustive over SimModel's variants — the `never` check fails to
+ * compile if a new variant appears. */
 export function simModelName(m: SimModel): SimModelName {
-  return m === "Jtt" ? "Jtt" : typeof m === "string" ? "Jc69" : "K80";
+  if (typeof m === "string") {
+    switch (m) {
+      case "Jc69":
+        return "Jc69";
+      case "Jtt":
+        return "Jtt";
+      default: {
+        const _exhaustive: never = m;
+        throw new Error(`unhandled SimModel variant: ${_exhaustive}`);
+      }
+    }
+  }
+  if ("K80" in m) return "K80";
+  const _exhaustive: never = m;
+  throw new Error(`unhandled SimModel variant: ${JSON.stringify(_exhaustive)}`);
 }
 
 /** The alphabet's default correction (v1.1 spec §5.1: protein → JTT). */

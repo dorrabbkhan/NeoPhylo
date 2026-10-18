@@ -129,6 +129,22 @@ describe("Sandbox true-tree origin", () => {
     expect(screen.queryByText(/RF = \d/)).toBeNull();
   });
 
+  it("offers the alphabet override on imported DNA", async () => {
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    // Simulated lesson data: no override (the sim model controls it).
+    expect(screen.queryByRole("button", { name: /Treat as/ })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    fireEvent.change(screen.getByLabelText("Paste sequences or a tree"), {
+      target: { value: SIX_TAXA_FASTA },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    // Imported real data gets the "Treat as protein" override.
+    expect(
+      screen.getByRole("button", { name: "Treat as protein" }),
+    ).toBeTruthy();
+  });
+
   it("asks before leaving sandbox when imported data would be cleared", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App exercise={NJ_BASICS} />);

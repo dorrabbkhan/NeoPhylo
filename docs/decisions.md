@@ -1157,6 +1157,22 @@ and the following ci/release entry. Both entries were kept verbatim.)
     state and re-parses with the chosen mode forced; a failed re-parse
     shows the parse error in-panel and keeps the previous alignment.
   - `docs/media/sandbox-{dna,protein,phylip}.png`: the task requires a
-    PR "with screenshots of DNA and protein sandbox"; `gh` cannot
-    attach images to a PR, so they are committed (the repo's existing
-    screenshot location) and referenced in the PR body.
+    PR "with screenshots of DNA and protein sandbox"; they were
+    committed first, then removed in review — the PR's Netlify preview
+    link is the evidence (new AGENTS.md hard rule 10: only README media
+    goes in `docs/media/`).
+- Review fixes (same PR):
+  - `simModelName` and the label→`SimModel` mapping in `Controls.tsx`
+    are now exhaustive switches over the `SimModel`/`SimModelName`
+    unions ending in `never` checks — no fallback covers "any other
+    string" or "any object", so a future variant fails to compile
+    instead of silently picking a default.
+  - When `sim` is `null` (embedded data) the Simulation section now
+    renders with every control disabled under the "This lesson uses
+    real sequences; they can't be re-simulated." tooltip and the model
+    menu shows no model name (a disabled empty option) instead of
+    hiding the section or fabricating "Jc69".
+  - `AlphabetBadge` gained an `alignmentOrigin` prop (wired in
+    `App.tsx`): the "Treat as" override is shown only on imported or
+    embedded data. On simulated data the badge just names the alphabet
+    — the sim model menu controls it, respecting lesson locks.

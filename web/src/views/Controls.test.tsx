@@ -4,11 +4,14 @@
 // JTT. The defaults themselves are exercised through the session
 // reducer (setAlphabet) in state/session.test.ts.
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Alphabet } from "../engine/generated/Alphabet";
+import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
+import type { Action } from "../state/session";
+import { simModelName } from "../state/session";
 
 import { Controls } from "./Controls";
 import type { ControlsProps } from "./Controls";
@@ -38,7 +41,7 @@ function optionValues(label: string): string[] {
 
 function optionTexts(label: string): string[] {
   const select = screen.getByLabelText(label) as HTMLSelectElement;
-  return Array.from(select.options).map((o) => o.textContent);
+  return Array.from(select.options).map((o) => o.textContent ?? "");
 }
 
 describe("Controls — correction menu", () => {
@@ -98,5 +101,81 @@ describe("Controls — simulation menu", () => {
     );
     expect(optionValues("Simulation model")).toEqual(["Jtt"]);
     expect(optionTexts("Simulation model")).toEqual(["JTT"]);
+  });
+});
+
+describe("Controls — sim model round-trip (label ↔ SimModel)", () => {
+  const modelSelect = () =>
+    screen.getByLabelText("Simulation model") as HTMLSelectElement;
+
+  // SimModel → label: the menu shows the model's simple name for every
+  // SimModel variant.
+  it.each([
+    ["dna", "Jc69", "Jc69"],
+    ["dna", { K80: { kappa: 3.5 } }, "K80"],
+    ["protein", "Jtt", "Jtt"],
+  ] as [Alphabet, SimModel, string][])(
+    "shows %s on the %s alphabet for model %j",
+    (alphabet, model, want) => {
+      expect(simModelName(model)).toBe(want);
+      render(
+        <Controls {...props({ alphabet, sim: { ...SIM, model } })} />,
+      );
+      expect(modelSelect().value).toBe(want);
+    },
+  );
+
+  // Label → SimModel: picking each menu label dispatches setSim with
+  // the matching SimModel.
+  it.each([
+    ["dna", "Jc69", "K80", { K80: { kappa: 2 } }],
+    ["dna", { K80: { kappa: 3.5 } }, "Jc69", "Jc69"],
+    ["protein", "Jc69", "Jtt", "Jtt"],
+  ] as [Alphabet, SimModel, string, SimModel][])(
+    "selecting %s dispatches model %j",
+    (alphabet, model, label, want) => {
+      const actions: Action[] = [];
+      render(
+        <Controls
+          {...props({
+            alphabet,
+            sim: { ...SIM, model },
+            dispatch: (a) => actions.push(a),
+          })}
+        />,
+      );
+      fireEvent.change(modelSelect(), { target: { value: label } });
+      expect(actions).toEqual([
+        { type: "setSim", patch: { model: want } },
+      ]);
+    },
+  );
+});
+
+describe("Controls — non-simulatable data", () => {
+  it("shows disabled sim controls with no model name when sim is null", () => {
+    // Embedded/imported data has no sim spec: the simulation section
+    // renders but every control is disabled with the real-sequences
+    // tooltip and the model menu shows no model.
+    render(<Controls {...props({ sim: null, simEnabled: false })} />);
+    const select = screen.getByLabelText(
+      "Simulation model",
+    ) as HTMLSelectElement;
+    expect(select.disabled).toBe(true);
+    expect(select.value).toBe("");
+    expect(select.title).toBe(
+      "This lesson uses real sequences; they can't be re-simulated.",
+    );
+    for (const label of ["Length", "Seed"]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(input.disabled).toBe(true);
+      expect(input.title).toBe(
+        "This lesson uses real sequences; they can't be re-simulated.",
+      );
+    }
+    expect(
+      (screen.getByRole("button", { name: "New seed" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });

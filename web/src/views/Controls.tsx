@@ -21,14 +21,15 @@ import {
   SIM_MODEL_NAMES,
   simModelName,
 } from "../state/session";
+import type { SimModelName } from "../state/session";
 import type { Alphabet } from "../engine/generated/Alphabet";
 import type { Analysis } from "../engine/generated/Analysis";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface ControlsProps {
-  /** The exercise's sim spec; `null` for embedded data, which has no
-   * simulation controls (v1.1 spec §3.6). */
+  /** The exercise's sim spec; `null` for embedded data, whose controls
+   * render disabled with no model name (v1.1 spec §3.6). */
   sim: SimSpec | null;
   analysis: Analysis;
   /** Locked field paths from the exercise, e.g. "sim.model". */
@@ -114,40 +115,56 @@ export function Controls({
   const isLocked = (path: string) => locked.includes(path);
   const simDisabled = !simEnabled || sim === null;
   // A disabled sim control always says why: a non-re-simulatable
-  // alignment (imported/embedded) wins over a lesson lock.
+  // alignment (imported/embedded) wins over a lesson lock, and so does
+  // a missing sim spec (embedded data).
   const simTitle = (path: string) =>
-    !simEnabled
+    !simEnabled || sim === null
       ? REAL_SEQUENCES_TOOLTIP
       : isLocked(path)
         ? LOCKED_TOOLTIP
         : undefined;
 
-  const modelName = sim === null ? "Jc69" : simModelName(sim.model);
+  // `null` for embedded data: no sim spec exists, so no model name is
+  // shown — the menu renders a disabled empty placeholder.
+  const modelName = sim === null ? null : simModelName(sim.model);
   const kappa =
     sim === null || typeof sim.model === "string"
       ? KAPPA_DEFAULT
       : sim.model.K80.kappa;
 
-  const setModel = (name: string) => {
-    const model: SimModel =
-      name === "K80" ? { K80: { kappa } } : name === "Jtt" ? "Jtt" : "Jc69";
+  const setModel = (name: SimModelName) => {
+    let model: SimModel;
+    switch (name) {
+      case "Jc69":
+        model = "Jc69";
+        break;
+      case "K80":
+        model = { K80: { kappa } };
+        break;
+      case "Jtt":
+        model = "Jtt";
+        break;
+      default: {
+        const _exhaustive: never = name;
+        throw new Error(`unhandled SimModelName: ${_exhaustive}`);
+      }
+    }
     dispatch({ type: "setSim", patch: { model } });
   };
 
   return (
     <div className="controls">
-      {sim !== null && (
-        <>
       <h2>Simulation</h2>
       <label className="field">
         <span>Model</span>
         <select
           aria-label="Simulation model"
-          value={modelName}
+          value={modelName ?? ""}
           disabled={simDisabled || isLocked("sim.model")}
           title={simTitle("sim.model")}
-          onChange={(e) => setModel(e.target.value)}
+          onChange={(e) => setModel(e.target.value as SimModelName)}
         >
+          {modelName === null && <option value=""></option>}
           {SIM_MODEL_NAMES[alphabet].map((m) => (
             <option key={m} value={m}>
               {SIM_LABEL[m]}
@@ -174,7 +191,7 @@ export function Controls({
       )}
       <NumberField
         label="Length"
-        value={sim.length}
+        value={sim?.length ?? 0}
         min={10}
         max={10000}
         disabled={simDisabled || isLocked("sim.length")}
@@ -186,7 +203,7 @@ export function Controls({
       <div className="field seed">
         <NumberField
           label="Seed"
-          value={sim.seed}
+          value={sim?.seed ?? 0}
           min={0}
           max={MAX_SEED}
           disabled={simDisabled || isLocked("sim.seed")}
@@ -200,14 +217,13 @@ export function Controls({
           disabled={simDisabled || isLocked("sim.seed")}
           title={simTitle("sim.seed")}
           onClick={() =>
+            sim !== null &&
             dispatch({ type: "setSim", patch: { seed: sim.seed + 1 } })
           }
         >
           New seed
         </button>
       </div>
-        </>
-      )}
 
       <h2>Analysis</h2>
       <label className="field">
