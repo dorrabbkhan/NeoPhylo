@@ -181,7 +181,7 @@ test("nj-basics can be completed with the keyboard only", async ({ page }) => {
     }
   }
   expect(await readStep(page)).toEqual({ k: 4, max: 4 });
-  await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 6");
+  await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
 });
 
 /* ---- offline (PWA service worker + precache) ---- */
@@ -212,5 +212,5 @@ test("a loaded lesson still works offline", async ({
   await waitForApp(page);
   await expect(page.locator("h1")).toHaveText("How Neighbor-Joining works");
   await stepToEnd(page);
-  await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 6");
+  await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
 });

@@ -477,6 +477,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             rfText={rfText}
             referenceKind={session.reference?.kind}
             rfClades={session.rf?.missing_in_inferred.length}
+            rfZero={session.rf !== null && session.rf.rf === 0}
             noTrueTree={session.reference === null}
             playing={playing}
             onStep={onStep}

@@ -80,11 +80,14 @@ encoded by the NCBI Taxonomy database (ncbi.nlm.nih.gov/taxonomy).
   the matrix minimum but loses on Q).
 - The NJ/JTT tree **matches the classification exactly — RF = 0/10**:
   fungi together, animals together, vertebrates together, mammals together.
-  NJ join 5 is a tie (flagged in the trace, broken by input order), which
-  the closing note uses as the "close vertebrates are barely resolved"
-  caveat. No predict prompt targets a tied or final join.
-- The stepper's closing readout is "differs from the accepted
-  classification in 0 clades".
+  The "close vertebrates are barely resolved" caveat rests on real
+  evidence, not the join-5 tie (four-node NJ steps always offer a tie):
+  horse–chicken at 0.119 is the smallest distance in the matrix even
+  though horse is closest to human, and NJ recovers anyway because it
+  joins by Q, not raw distance. No predict prompt targets the final join.
+- The stepper's closing readout is "matches the accepted classification
+  in every clade" (RF = 0 wording introduced at this owner gate; a true
+  tree reads "matches the true tree in every clade").
 
 ## License
 

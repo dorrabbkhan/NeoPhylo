@@ -31,6 +31,10 @@ export interface StepperProps {
   /** Clades in the reference missing from the inferred tree — the N in
    * the classification readout. */
   rfClades?: number;
+  /** True when the trees are identical (RF = 0): the readout becomes
+   * "matches the accepted classification/true tree in every clade"
+   * (owner gate, Task 12). */
+  rfZero?: boolean;
   /** No tree to compare against: show "RF: — (no true tree)" at the end. */
   noTrueTree?: boolean;
   playing: boolean;
@@ -51,6 +55,7 @@ export function Stepper({
   onStep,
   onPlayToggle,
   gated = false,
+  rfZero = false,
 }: StepperProps) {
   // Play: advance every 800 ms and pause automatically at the last step.
   // A prompt gate freezes playback mid-run.
@@ -140,15 +145,30 @@ export function Stepper({
       <span className="stepper-status">
         step {step} of {max}
       </span>
-      {step === max && rfText !== null && referenceKind !== "classification" && (
-        <span className="stepper-rf">RF = {rfText}</span>
-      )}
-      {step === max && rfText !== null && referenceKind === "classification" && (
+      {step === max && rfText !== null && rfZero && (
         <span className="stepper-rf">
-          differs from the accepted classification in {rfClades ?? 0} clade
-          {(rfClades ?? 0) === 1 ? "" : "s"}
+          matches the{" "}
+          {referenceKind === "classification"
+            ? "accepted classification"
+            : "true tree"}{" "}
+          in every clade
         </span>
       )}
+      {step === max &&
+        rfText !== null &&
+        !rfZero &&
+        referenceKind !== "classification" && (
+          <span className="stepper-rf">RF = {rfText}</span>
+        )}
+      {step === max &&
+        rfText !== null &&
+        !rfZero &&
+        referenceKind === "classification" && (
+          <span className="stepper-rf">
+            differs from the accepted classification in {rfClades ?? 0} clade
+            {(rfClades ?? 0) === 1 ? "" : "s"}
+          </span>
+        )}
       {step === max && noTrueTree && (
         <span className="stepper-rf">RF: — (no true tree)</span>
       )}

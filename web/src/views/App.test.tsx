@@ -119,7 +119,11 @@ describe("App shell", () => {
     const slider = await screen.findByRole("slider");
     fireEvent.change(slider, { target: { value: String(max) } });
     expect(screen.getByText(`step ${max} of ${max}`)).toBeTruthy();
-    expect(screen.getByText(/RF = \d+ \/ \d+/)).toBeTruthy();
+    // nj-basics recovers its true tree: at RF = 0 the readout is the
+    // "matches" wording (owner gate, Task 12), not the numeric fraction.
+    expect(
+      screen.getByText("matches the true tree in every clade"),
+    ).toBeTruthy();
     // The heatmap shows the final join's own 3×3 matrix, labeled by
     // nodeName of the last three clusters.
     const grid = screen.getByRole("grid", { name: "Distance matrix" });

@@ -52,7 +52,9 @@ test.describe("protein-models", () => {
       .getByLabel("Distance correction")
       .selectOption({ label: "JTT" });
     await stepToEnd(page);
-    await expect(page.locator(".stepper-rf")).toHaveText("RF = 0 / 8");
+    await expect(page.locator(".stepper-rf")).toHaveText(
+      "matches the true tree in every clade",
+    );
   });
 });
 
@@ -105,7 +107,7 @@ test.describe("cytochrome-c", () => {
     await stepToEnd(page);
     expect(await readStep(page)).toEqual({ k: 6, max: 6 });
     await expect(page.locator(".stepper-rf")).toHaveText(
-      "differs from the accepted classification in 0 clades",
+      "matches the accepted classification in every clade",
     );
   });
 });

@@ -47,8 +47,8 @@
     {
       "at_step": 7,
       "type": "note",
-      "concept": "The tree is complete — and it matches the accepted classification exactly. Plants out first, fungi and animals as closest relatives, and inside the animals, vertebrates and mammals together: one small protein recovered every clade, RF = 0. It earned it the hard way — the deep splits are easy at distances of 0.45–0.64, and even the vertebrates, all under 0.2 apart, came out right, though the last join was a tie the engine broke by input order. On a closer or larger set, do not expect this much.",
-      "math": "RF counts clades present in one tree but not the other. Here every clade of the classification is present in the inferred tree — nothing missing, nothing extra — while the tied last join shows how thin the vertebrate signal was."
+      "concept": "The tree is complete — and it matches the accepted classification in every clade. Plants out first, fungi and animals as closest relatives, and inside the animals, vertebrates and mammals together. It still earned the vertebrates the hard way: the smallest distance in the whole matrix is horse–chicken at 0.119, even though horse is much closer to human — with a short, slowly evolving protein a handful of substitutions decides which pair looks closest. NJ recovers anyway because it joins by Q — relative closeness — not by raw distance.",
+      "math": "RF counts clades present in one tree but not the other: here every clade of the classification is present — nothing missing, nothing extra. The Q score is what rescued the vertebrates; the smallest distance was not the truest pair."
     }
   ]
 }

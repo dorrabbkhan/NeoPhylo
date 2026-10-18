@@ -1345,3 +1345,22 @@ and the following ci/release entry. Both entries were kept verbatim.)
 - **Prompt consequence:** the predict pair (fungi first, Q-vs-distance
   point) is unchanged; the closing note now asserts RF = 0 with the tie
   caveat rather than the previous single-clade miss.
+
+### Task 12 owner gate, pass 3 — RF = 0 wording and the vertebrate caveat
+
+- **Closing note rewritten.** The join-5 tie was removed as evidence —
+  with 8 taxa the last NJ join is a four-node step where a tie is
+  guaranteed by construction. The "close vertebrates are barely
+  resolved" point now rests on real signal: horse–chicken (0.119) is the
+  matrix minimum even though horse sits much closer to human, and NJ
+  recovers the classification anyway because it joins by Q, not raw
+  distance — the same Q-vs-distance theme as the join-1 predict.
+- **New RF = 0 stepper wording** (`web/src/views/Stepper.tsx`):
+  "matches the accepted classification in every clade" for a
+  classification reference and "matches the true tree in every clade"
+  for a true tree, replacing "differs … in 0 clades" and the numeric
+  "RF = 0 / N". `Stepper` gained an `rfZero` prop fed from
+  `Session.rf.rf === 0`; covered by `Stepper.test.tsx` and the two e2e
+  specs. Files outside the Files block: `Stepper.tsx`, `Stepper.test.tsx`,
+  `App.tsx`, `App.test.tsx`, `lesson.spec.ts`, `a11y.spec.ts` — all
+  required by this owner-gate change.
