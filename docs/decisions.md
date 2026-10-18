@@ -1242,3 +1242,32 @@ and the following ci/release entry. Both entries were kept verbatim.)
   - The peak marker sits on the curve at d̂ by linear interpolation
     between the two bracketing samples; `d_hat` is not a curve grid
     point in general.
+
+## Task 11 (v1.1) checkpoint-11 fixes
+
+- **Explanation follows `Session.mode`.** The panel used to render the
+  Concept sentence and the KaTeX lines at once and had no mode control
+  of its own, while the main toggle sits outside the dialog's focus
+  trap. The panel now renders only the active mode's text and carries
+  the same toggle component in its header — `ModeToggle`, extracted
+  from `ExplanationPanel` into `web/src/views/ModeToggle.tsx` — bound
+  to the same `Session.mode` via `setMode`, so switching in either
+  place switches both. Spec §5.2 gained the line "The panel's
+  explanation follows the global Concept/Math mode and has its own
+  synced toggle."
+- **Sequence comparison is a column grid.** The marker row was a text
+  string of "×"/spaces whose blank cells collapsed, misaligning
+  markers; the strip is now one fixed-width `.pair-col` per alignment
+  position (position number every 10 columns, top residue,
+  ×-or-blank marker cell, bottom residue) inside a horizontally
+  scrolling `.pair-seq-strip`, with a static label legend beside it.
+  No text strings carry alignment spacing.
+- **Likelihood y-window.** logL crashes toward −690 near d = 0 (the
+  engine floors probabilities at 1e-300), flattening the drawn peak.
+  The y-axis now shows [logL̂ − 15, logL̂] — [max logL − 15, max logL]
+  when saturated — plotting starts at the first sample with finite
+  logL inside the window, samples below the window clip to the bottom
+  edge and get a small `below-range` triangle marker, and ticks label
+  d at 0/d̂/right edge and logL at the window's top and bottom.
+  `LikelihoodCurve` takes the new `loglHat` prop straight from
+  `PairDetail.logl_hat`.

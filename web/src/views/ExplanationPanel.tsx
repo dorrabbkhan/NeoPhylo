@@ -19,6 +19,8 @@ import { conceptText } from "../explain/concept";
 import { mathTex } from "../explain/math";
 import type { Action, Session } from "../state/session";
 
+import { ModeToggle } from "./ModeToggle";
+
 export interface ExplanationPanelProps {
   /** The session's build trace; null when none was requested (>50 taxa). */
   trace: Trace | null;
@@ -61,22 +63,7 @@ export function ExplanationPanel({
 }: ExplanationPanelProps) {
   return (
     <div className="explain">
-      <div className="mode-toggle" role="group" aria-label="Explanation mode">
-        <button
-          type="button"
-          aria-pressed={mode === "concept"}
-          onClick={() => dispatch({ type: "setMode", mode: "concept" })}
-        >
-          Concept
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "math"}
-          onClick={() => dispatch({ type: "setMode", mode: "math" })}
-        >
-          Math
-        </button>
-      </div>
+      <ModeToggle mode={mode} dispatch={dispatch} />
       <div className="explain-body" aria-live="polite">
         {trace === null ? (
           <p>

@@ -3,53 +3,82 @@
 // the peak marked at d̂. A saturated pair's curve is still rising at
 // the domain edge, so it gets the note "no peak: still rising" and no
 // marker. The svg is `role="img"` with an aria-label stating d̂ (§6.5).
+//
+// Readability (checkpoint 11): near d = 0 logL crashes toward −690
+// (the engine floors probabilities at 1e-300), which flattens the peak
+// when the whole range is drawn. The y-axis therefore shows only the
+// 15 log units below the peak — [logL̂ − 15, logL̂], or
+// [max logL − 15, max logL] for a saturated pair. Plotting starts at
+// the first sampled point whose logL is finite and inside the window;
+// sampled points below the window clip to the bottom edge and get a
+// small "below range" marker on the axis. Ticks label d at 0, d̂ and
+// the right edge, and logL at the top and bottom of the window.
+
+import { fmt } from "../explain/math";
 
 export interface LikelihoodCurveProps {
   /** `(d, logL)` samples straight from `PairDetail.curve`. */
   curve: Array<[number, number]>;
   /** The ML estimate; null when saturated. */
   dHat: number | null;
+  /** `logL` at `dHat` — the top of the drawn window; null when
+   * saturated (the window tops at the curve's own maximum then). */
+  loglHat: number | null;
   /** True when `dHat` is null — kept separate so callers pass the
    * engine's two facts without re-deriving either. */
   saturated: boolean;
 }
 
 const W = 300;
-const H = 130;
-const PAD_L = 8;
+const H = 140;
+const PAD_L = 36;
 const PAD_R = 8;
-const PAD_T = 10;
-const PAD_B = 18;
+const PAD_T = 14;
+const PAD_B = 20;
+/** The y-axis window depth, in log units (checkpoint 11). */
+const LOG_WINDOW = 15;
 
 export function LikelihoodCurve({
   curve,
   dHat,
+  loglHat,
   saturated,
 }: LikelihoodCurveProps) {
   const xMax = curve.length > 0 ? curve[curve.length - 1][0] : 1;
-  let yMin = Infinity;
-  let yMax = -Infinity;
+  let curveMax = -Infinity;
   for (const [, l] of curve) {
-    if (l < yMin) yMin = l;
-    if (l > yMax) yMax = l;
+    if (Number.isFinite(l) && l > curveMax) curveMax = l;
   }
-  // A flat curve (identical pair: logL barely moves near d̂ = 0) still
-  // gets a visible band so the polyline doesn't sit on an axis.
-  const span = yMax - yMin;
-  if (span > 0) {
-    yMin -= span * 0.08;
-    yMax += span * 0.08;
-  } else {
-    yMin -= 1;
-    yMax += 1;
-  }
+  const yTop = loglHat !== null && !saturated ? loglHat : curveMax;
+  const yBot = yTop - LOG_WINDOW;
 
   const x = (d: number) =>
     PAD_L + (xMax > 0 ? (d / xMax) * (W - PAD_L - PAD_R) : 0);
-  const y = (l: number) =>
-    PAD_T + ((yMax - l) / (yMax - yMin)) * (H - PAD_T - PAD_B);
+  const y = (l: number) => {
+    const v = Number.isFinite(l) ? Math.min(Math.max(l, yBot), yTop) : yBot;
+    return PAD_T + ((yTop - v) / LOG_WINDOW) * (H - PAD_T - PAD_B);
+  };
 
-  const points = curve.map(([d, l]) => `${x(d)},${y(l)}`).join(" ");
+  // Plot from the first sampled point whose logL is finite and inside
+  // the window; the flat lead-in toward d = 0 is reported by the
+  // below-range markers instead of drawn as a crushed line.
+  const firstIn = curve.findIndex(
+    ([, l]) => Number.isFinite(l) && l >= yBot,
+  );
+  const start = firstIn < 0 ? curve.length : firstIn;
+  const drawn = curve.slice(start);
+  const points = drawn.map(([d, l]) => `${x(d)},${y(l)}`).join(" ");
+
+  // Every sampled d whose true logL sits below the window — the skipped
+  // lead-in plus any later dip — gets a marker on the bottom edge.
+  const below: number[] = curve
+    .slice(0, start)
+    .map(([d]) => d)
+    .concat(
+      drawn
+        .filter(([, l]) => !Number.isFinite(l) || l < yBot)
+        .map(([d]) => d),
+    );
 
   // The marker sits on the curve at d̂ by interpolating between the two
   // samples bracketing it.
@@ -66,6 +95,7 @@ export function LikelihoodCurve({
   const label = saturated
     ? `Likelihood curve for log L(d): still rising at d = ${xMax.toFixed(1)}, no peak`
     : `Likelihood curve for log L(d): peak at distance ${(dHat ?? 0).toFixed(3)}`;
+  const axisY = H - PAD_B;
 
   return (
     <svg
@@ -77,18 +107,92 @@ export function LikelihoodCurve({
       <line
         className="axis"
         x1={PAD_L}
-        y1={H - PAD_B}
+        y1={axisY}
         x2={W - PAD_R}
-        y2={H - PAD_B}
+        y2={axisY}
       />
-      <line className="axis" x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H - PAD_B} />
-      <text className="axis-label" x={W - PAD_R} y={H - 4} textAnchor="end">
-        d
-      </text>
-      <text className="axis-label" x={PAD_L + 4} y={PAD_T + 4}>
+      <line className="axis" x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={axisY} />
+      {/* Ticks: d at 0, d̂ (the peak line) and the right edge; logL at
+          the top and bottom of the window. */}
+      <text className="axis-label" x={2} y={8}>
         log L(d)
       </text>
-      <polyline className="curve" points={points} fill="none" />
+      {Number.isFinite(yTop) && (
+        <>
+          <text
+            className="axis-label"
+            x={PAD_L - 3}
+            y={PAD_T}
+            textAnchor="end"
+            dy="0.32em"
+          >
+            {fmt(yTop)}
+          </text>
+          <text
+            className="axis-label"
+            x={PAD_L - 3}
+            y={axisY}
+            textAnchor="end"
+            dy="0.32em"
+          >
+            {fmt(yBot)}
+          </text>
+          <line
+            className="axis"
+            x1={PAD_L - 3}
+            y1={PAD_T}
+            x2={PAD_L}
+            y2={PAD_T}
+          />
+        </>
+      )}
+      <text
+        className="axis-label"
+        x={PAD_L}
+        y={H - 8}
+        textAnchor="middle"
+      >
+        0
+      </text>
+      <line
+        className="axis"
+        x1={PAD_L}
+        y1={axisY}
+        x2={PAD_L}
+        y2={axisY + 3}
+      />
+      <text className="axis-label" x={W - PAD_R} y={H - 8} textAnchor="end">
+        {fmt(xMax)}
+      </text>
+      <line
+        className="axis"
+        x1={W - PAD_R}
+        y1={axisY}
+        x2={W - PAD_R}
+        y2={axisY + 3}
+      />
+      <text
+        className="axis-label"
+        x={W - PAD_R}
+        y={axisY - 3}
+        textAnchor="end"
+      >
+        d
+      </text>
+      {drawn.length > 0 && (
+        <polyline className="curve" points={points} fill="none" />
+      )}
+      {below.length > 0 && (
+        <g className="below-range" aria-hidden="true">
+          {below.map((d, i) => (
+            <path
+              key={i}
+              className="below-range-mark"
+              d={`M ${x(d) - 2.5} ${axisY + 1} l 5 0 l -2.5 4 z`}
+            />
+          ))}
+        </g>
+      )}
       {peak !== null && (
         <g data-peak="true">
           <line
@@ -96,7 +200,7 @@ export function LikelihoodCurve({
             x1={peak.px}
             y1={peak.py}
             x2={peak.px}
-            y2={H - PAD_B}
+            y2={axisY}
           />
           <circle className="peak-marker" cx={peak.px} cy={peak.py} r={3.5} />
           <text

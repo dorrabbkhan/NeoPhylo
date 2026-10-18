@@ -2,14 +2,19 @@
 // spec §5.2). Opens from a protein distance-matrix cell (App passes the
 // `jtt_pair_detail` result) and shows:
 //
-// - the two sequences aligned, differing comparable sites marked in a
-//   separate symbol row (never color alone), missing sites dimmed via
-//   `data-missing`, amino acids tinted by property class on a
-//   colorblind-safe (Okabe-Ito) palette;
+// - the two sequences aligned as a grid of fixed-width columns, one per
+//   site: position number every 10 columns, top residue, a marker cell
+//   (× for comparable differing sites, blank otherwise, dimmed for
+//   missing), bottom residue — never color alone; amino acids tinted by
+//   property class on a colorblind-safe (Okabe-Ito) palette. The strip
+//   scrolls horizontally so every position is reachable;
 // - p, Kimura and JTT side by side at 3 decimals, "can't estimate" for
 //   Saturated;
-// - the likelihood curve, the spec's Concept sentence and KaTeX Math
-//   lines.
+// - the likelihood curve, then the explanation following the global
+//   Concept/Math mode — Concept shows the spec sentence, Math the KaTeX
+//   lines (log L(d), comparable sites, d̂). The panel carries the same
+//   ModeToggle as the explanation column, bound to the same
+//   `Session.mode` via `setMode`, inside the dialog's focus trap.
 //
 // A pair with no comparable sites (engine error InsufficientOverlap)
 // renders the no-overlap message inside the open dialog — the panel
@@ -18,7 +23,7 @@
 // that opened it (§6.5).
 
 import { useEffect, useMemo, useRef } from "react";
-import type { KeyboardEvent } from "react";
+import type { Dispatch, KeyboardEvent } from "react";
 
 import katex from "katex";
 import "katex/dist/katex.min.css";
@@ -29,8 +34,10 @@ import type { Cell } from "../engine/generated/Cell";
 import type { PairDetail } from "../engine/generated/PairDetail";
 import { errorMessage } from "../explain/errors";
 import { pairConcept, pairMathTex } from "../explain/pair";
+import type { Action, Session } from "../state/session";
 
 import { LikelihoodCurve } from "./LikelihoodCurve";
+import { ModeToggle } from "./ModeToggle";
 
 export interface PairPanelProps {
   /** The protein alignment the pair was picked from. */
@@ -38,6 +45,10 @@ export interface PairPanelProps {
   /** `engine.jttPairDetail` for the picked pair; an `InsufficientOverlap`
    * error renders the no-overlap message instead of the detail. */
   detail: Result<PairDetail>;
+  /** The global Concept/Math mode the explanation follows (§5.2). */
+  mode: Session["mode"];
+  /** Session dispatch — the in-panel ModeToggle calls `setMode`. */
+  dispatch: Dispatch<Action>;
   onClose: () => void;
 }
 
@@ -77,42 +88,16 @@ function KaTeXLine({ source }: { source: string }) {
   return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-/** One aligned sequence as per-site spans: missing sites get
- * `data-missing` (dimmed, and pairwise-deleted by every protein model);
- * standard residues get their property-class tint. */
-function SeqRow({
-  label,
-  seq,
-  other,
-}: {
-  label: string;
-  seq: string;
-  other: string;
-}) {
-  return (
-    <div className="pair-seq-row">
-      <span className="seq-label">{label}</span>
-      <span className="seq-chars">
-        {seq.split("").map((c, k) => (
-          <span
-            key={k}
-            className={AA_CLASS[c] ?? undefined}
-            data-missing={
-              !STANDARD.has(c) || !STANDARD.has(other[k]) ? true : undefined
-            }
-          >
-            {c}
-          </span>
-        ))}
-      </span>
-    </div>
-  );
-}
-
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function PairPanel({ aln, detail, onClose }: PairPanelProps) {
+export function PairPanel({
+  aln,
+  detail,
+  mode,
+  dispatch,
+  onClose,
+}: PairPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const restoreRef = useRef<Element | null>(null);
 
@@ -189,6 +174,7 @@ export function PairPanel({ aln, detail, onClose }: PairPanelProps) {
               {labels[0]} vs {labels[1]}
             </span>
           </h2>
+          <ModeToggle mode={mode} dispatch={dispatch} />
           <button
             type="button"
             className="close"
@@ -201,25 +187,52 @@ export function PairPanel({ aln, detail, onClose }: PairPanelProps) {
 
         {d !== null && (
           <>
-            <div
-              className="pair-seqs"
-              role="group"
-              aria-label="Aligned sequences"
-              tabIndex={0}
-            >
-              <SeqRow label={labels[0]} seq={seqA} other={seqB} />
-              <div className="pair-marker-row" aria-hidden="true">
-                <span className="seq-label" />
-                <span className="seq-chars">
+            <div className="pair-seqs">
+              <div className="pair-seq-legend" aria-hidden="true">
+                <span className="seq-label">{"\u00a0"}</span>
+                <span className="seq-label">{labels[0]}</span>
+                <span className="seq-label">{"\u00a0"}</span>
+                <span className="seq-label">{labels[1]}</span>
+              </div>
+              <div
+                className="pair-seq-strip"
+                role="group"
+                aria-label="Aligned sequences"
+                tabIndex={0}
+              >
+                <div className="pair-seq-grid">
                   {seqA.split("").map((ca, k) => {
                     const cb = seqB[k];
-                    const diff =
-                      STANDARD.has(ca) && STANDARD.has(cb) && ca !== cb;
-                    return <span key={k}>{diff ? "×" : " "}</span>;
+                    const comparable = STANDARD.has(ca) && STANDARD.has(cb);
+                    return (
+                      <div className="pair-col" key={k}>
+                        <span className="pair-pos" aria-hidden="true">
+                          {(k + 1) % 10 === 0 ? k + 1 : "\u00a0"}
+                        </span>
+                        <span
+                          className={`pair-res${AA_CLASS[ca] ? ` ${AA_CLASS[ca]}` : ""}`}
+                          data-missing={comparable ? undefined : true}
+                        >
+                          {ca}
+                        </span>
+                        <span
+                          className="pair-marker"
+                          aria-hidden="true"
+                          data-missing={comparable ? undefined : true}
+                        >
+                          {comparable && ca !== cb ? "×" : "\u00a0"}
+                        </span>
+                        <span
+                          className={`pair-res${AA_CLASS[cb] ? ` ${AA_CLASS[cb]}` : ""}`}
+                          data-missing={comparable ? undefined : true}
+                        >
+                          {cb}
+                        </span>
+                      </div>
+                    );
                   })}
-                </span>
+                </div>
               </div>
-              <SeqRow label={labels[1]} seq={seqB} other={seqA} />
             </div>
 
             <dl className="pair-numbers">
@@ -240,15 +253,19 @@ export function PairPanel({ aln, detail, onClose }: PairPanelProps) {
             <LikelihoodCurve
               curve={d.curve}
               dHat={d.d_hat}
+              loglHat={d.logl_hat}
               saturated={d.d_hat === null}
             />
 
-            <p className="pair-concept">{pairConcept(d)}</p>
-            <div className="pair-math">
-              {pairMathTex(d).map((line, i) => (
-                <KaTeXLine key={i} source={line} />
-              ))}
-            </div>
+            {mode === "concept" ? (
+              <p className="pair-concept">{pairConcept(d)}</p>
+            ) : (
+              <div className="pair-math">
+                {pairMathTex(d).map((line, i) => (
+                  <KaTeXLine key={i} source={line} />
+                ))}
+              </div>
+            )}
           </>
         )}
 

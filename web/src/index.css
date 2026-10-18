@@ -656,6 +656,19 @@ button:disabled {
   color: var(--text);
 }
 
+/* The in-panel Concept/Math toggle is the same component (and styling)
+ * as the explanation column's — it sits in the header so it stays
+ * inside the dialog's focus trap (checkpoint 11). */
+.pair-panel-head .mode-toggle {
+  margin-bottom: 0;
+  align-self: center;
+}
+
+.pair-panel-head .mode-toggle button {
+  flex: none;
+  padding: 2px 8px;
+}
+
 .pair-panel .close {
   font-size: 20px;
   line-height: 1;
@@ -667,16 +680,19 @@ button:disabled {
   cursor: pointer;
 }
 
-/* The aligned sequences: one character per site, monospace. Property
- * classes use light Okabe-Ito tints behind dark text — colorblind-safe
- * and contrast-safe in both color schemes; meaning is never carried by
- * color alone (the marker row and dimming do that work). */
+/* The aligned sequences: a grid of fixed-width columns, one per site —
+ * position number, top residue, marker cell, bottom residue (checkpoint
+ * 11; blank text cells used to collapse and misalign the markers).
+ * Property classes use light Okabe-Ito tints behind dark text —
+ * colorblind-safe and contrast-safe in both color schemes; meaning is
+ * never carried by color alone (the marker cells and dimming do that
+ * work). */
 .pair-seqs {
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.5;
-  overflow-x: auto;
-  white-space: nowrap;
+  display: flex;
+  gap: 10px;
   margin-bottom: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -684,24 +700,53 @@ button:disabled {
   background: var(--panel);
 }
 
-.pair-seq-row,
-.pair-marker-row {
+.pair-seq-legend {
+  flex: 0 0 90px;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.pair-seqs .seq-label {
-  flex: 0 0 90px;
+.pair-seq-legend .seq-label {
+  height: 20px;
+  line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text);
 }
 
-.pair-seqs .seq-chars {
-  letter-spacing: 1px;
+.pair-seq-strip {
+  overflow-x: auto;
+  min-width: 0;
 }
 
-.pair-marker-row {
+.pair-seq-grid {
+  display: flex;
+}
+
+.pair-col {
+  flex: 0 0 auto;
+  width: 1.7ch;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.pair-col > span {
+  height: 20px;
+  line-height: 20px;
+}
+
+.pair-col .pair-pos {
+  font-size: 9px;
+  line-height: 20px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pair-col .pair-marker {
   color: var(--danger);
   font-weight: 700;
 }
@@ -793,6 +838,11 @@ button:disabled {
 .likelihood-curve .axis-label {
   font-size: 9px;
   fill: var(--text);
+}
+
+.likelihood-curve .below-range-mark {
+  fill: var(--text);
+  opacity: 0.6;
 }
 
 .pair-concept {

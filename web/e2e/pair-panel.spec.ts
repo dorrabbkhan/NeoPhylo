@@ -50,6 +50,53 @@ test.describe("pair panel", () => {
     await expect(cell).toBeFocused();
   });
 
+  test("the in-panel Concept/Math toggle is keyboard-reachable and synced", async ({
+    page,
+  }) => {
+    await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // Concept mode by default: the sentence shows, no formula.
+    await expect(
+      dialog.getByText(/JTT picks the distance/),
+    ).toBeVisible();
+
+    // Tab inside the dialog's focus trap reaches the panel's toggle.
+    const mathBtn = dialog.getByRole("button", { name: "Math" });
+    for (let i = 0; i < 8; i++) {
+      if (await mathBtn.evaluate((el) => el === document.activeElement)) {
+        break;
+      }
+      await page.keyboard.press("Tab");
+    }
+    await expect(mathBtn).toBeFocused();
+
+    // Enter switches to Math; Shift+Tab + Space switches back.
+    await page.keyboard.press("Enter");
+    await expect(mathBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog.getByText(/JTT picks the distance/)).toHaveCount(0);
+    await page.keyboard.press("Shift+Tab");
+    const conceptBtn = dialog.getByRole("button", { name: "Concept" });
+    await expect(conceptBtn).toBeFocused();
+    await page.keyboard.press(" ");
+    await expect(conceptBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      dialog.getByText(/JTT picks the distance/),
+    ).toBeVisible();
+
+    // The main toggle follows the same Session.mode after the dialog
+    // closes.
+    await page.keyboard.press("Enter");
+    await expect(mathBtn).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    const main = page.getByRole("group", { name: "Explanation mode" });
+    await expect(main.getByRole("button", { name: "Math" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
   test("has no serious axe violations while open", async ({ page }) => {
     await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
     await expect(page.getByRole("dialog")).toBeVisible();

@@ -497,6 +497,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
         <PairPanel
           aln={session.alignment}
           detail={pairDetail}
+          mode={session.mode}
+          dispatch={dispatch}
           onClose={() => setPair(null)}
         />
       )}
