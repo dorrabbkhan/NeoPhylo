@@ -1116,3 +1116,87 @@ and the following ci/release entry. Both entries were kept verbatim.)
     legitimately produces for zero distances.
 - `imported.trueTree` stays the wire field name in v2 states; imported
   trees are always kind "true" so no kind field is carried.
+
+## Task 10 (v1.1): alphabet badge, model menus, PHYLIP import, reference labels
+
+- Files outside the Files block:
+  - `web/src/state/session.ts` and `web/src/state/session.test.ts`: the
+    task's Produces interface is a *reducer action* (`setAlphabet`), so
+    the session reducer had to change; the tests exercise it.
+  - `web/src/views/TreeView.tsx`: `title` widened from the
+    `"True tree" | "Inferred tree"` union to `string` so App can pass
+    the classification caption (the Files block changes titles "via
+    App.tsx"; the prop type had to follow).
+  - `web/src/views/TeachingNotices.tsx` (+ test): the tree-comparison
+    notice is the other "RF text" (spec §5.3); it now says "accepted
+    classification" for `kind: "classification"`, matching the Stepper
+    wording.
+  - `web/src/index.css`: styles for `.alphabet-badge`,
+    `.alphabet-notice` and `.phylip-names`.
+  - `web/src/views/Controls.test.tsx` is a new test file (the Files
+    block's "their tests"); there was no Controls test before.
+- Ambiguities resolved:
+  - `setAlphabet` sets a new `Session.notice: string | null` (Session
+    had no notice field). It renders as a `role="status"` line in the
+    notices area and is cleared by the next model- or data-changing
+    action so it can't go stale.
+  - For `alignmentOrigin === "simulated"` the override does not call
+    `withAlphabet`: `recompute` re-simulates from `sim.model`, so the
+    sim model switches to the target alphabet's default and the
+    alignment is re-simulated (calling `withAlphabet` would either be
+    discarded or spuriously fail on real protein letters). Imported and
+    embedded alignments are reinterpreted via `withAlphabet` as the
+    spec says; a successful embedded override flips the origin to
+    `"imported"`, because staying "embedded" would re-parse
+    `data.fasta` and undo it. A failed `withAlphabet` keeps the data
+    and stores the error — never a stuck state.
+  - The classification readout's N is `rf.missing_in_inferred.length`,
+    matching the existing "differs … in N clade(s)" notice count (the
+    outlined clades), not the raw RF distance.
+  - The PHYLIP names toggle keeps the last pasted text in component
+    state and re-parses with the chosen mode forced; a failed re-parse
+    shows the parse error in-panel and keeps the previous alignment.
+  - `docs/media/sandbox-{dna,protein,phylip}.png`: the task requires a
+    PR "with screenshots of DNA and protein sandbox"; they were
+    committed first, then removed in review — the PR's Netlify preview
+    link is the evidence (new AGENTS.md hard rule 10: only README media
+    goes in `docs/media/`).
+- Review fixes (same PR):
+  - `simModelName` and the label→`SimModel` mapping in `Controls.tsx`
+    are now exhaustive switches over the `SimModel`/`SimModelName`
+    unions ending in `never` checks — no fallback covers "any other
+    string" or "any object", so a future variant fails to compile
+    instead of silently picking a default.
+  - When `sim` is `null` (embedded data) the Simulation section now
+    renders with every control disabled under the "This lesson uses
+    real sequences; they can't be re-simulated." tooltip and the model
+    menu shows no model name (a disabled empty option) instead of
+    hiding the section or fabricating "Jc69".
+  - `AlphabetBadge` gained an `alignmentOrigin` prop (wired in
+    `App.tsx`): the "Treat as" override is shown only on imported or
+    embedded data. On simulated data the badge just names the alphabet
+    — the sim model menu controls it, respecting lesson locks.
+- Review fixes, round 2 (found at checkpoint 10):
+  - `reconcileModels(session)` in `session.ts` centralizes the
+    model/alphabet reconciliation that `setAlphabet` used to do inline:
+    a correction or sim model invalid for the current alphabet switches
+    to the alphabet's default (DNA → JC69, protein → JTT) with a
+    notice. It now runs on every alphabet/data path — `load` (including
+    embedded), `setAlphabet`, `importAlignment` (FASTA and PHYLIP),
+    `importTree`, `enterSandbox`, `exitSandbox` (via `load`) — because
+    importing protein after the DNA lesson errored with JC69 kept, and
+    importing DNA PHYLIP under JTT errored the other way.
+  - `importTree` reconciles against the alphabet the action will
+    display — the declared alphabet for embedded data, the sim model's
+    own alphabet (`simModelAlphabet`) for simulated data — not the
+    stale `session.alphabet`, which can still describe the imported
+    alignment the action discards.
+  - The negative-branch notice no longer says "the trace is never
+    altered"; it now reads "The calculated value is shown unchanged;
+    use 'set to zero' to draw it as 0."
+  - New tests: `web/e2e/alphabet.spec.ts` (default lesson → Sandbox →
+    import `fixtures/inputs/protein/p6_150.fasta` gives the protein
+    badge, JTT selected and a 6×6 matrix; nj-basics shows the badge
+    with no override button), reducer cases for both reconciliation
+    directions in `session.test.ts`, and a per-alphabet "select value
+    ∈ displayed options" invariant in `Controls.test.tsx`.

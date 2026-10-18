@@ -48,6 +48,7 @@ import {
   type LinkKind,
 } from "../state/urlRestore";
 
+import { AlphabetBadge } from "./AlphabetBadge";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -322,8 +323,14 @@ export function App({ exercise }: { exercise?: Exercise }) {
       </header>
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
+          <AlphabetBadge
+            alphabet={session.alphabet}
+            alignmentOrigin={session.alignmentOrigin}
+            dispatch={dispatch}
+          />
           <Controls
             sim={exerciseSim(session.exercise)}
+            alphabet={session.alphabet}
             analysis={session.exercise.analysis}
             locked={session.source === "sandbox" ? [] : session.exercise.locked}
             matrixView={session.matrixView}
@@ -349,6 +356,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 <strong>{banner.title}</strong> {banner.body}
               </p>
             )}
+            {session.notice !== null && (
+              <p role="status" className="alphabet-notice">
+                {session.notice}
+              </p>
+            )}
             <TeachingNotices session={session} dispatch={dispatch} />
           </div>
           {shownPrompts.length > 0 && (
@@ -372,7 +384,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
             )}
             {referenceTree !== null && (
               <TreeView
-                title="True tree"
+                title={
+                  session.reference?.kind === "classification"
+                    ? "Reference (accepted classification), not a known true tree"
+                    : "True tree"
+                }
                 tree={referenceTree}
                 layoutKind="phylogram"
                 highlight={trueHi}
@@ -426,6 +442,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
             step={k}
             max={n}
             rfText={rfText}
+            referenceKind={session.reference?.kind}
+            rfClades={session.rf?.missing_in_inferred.length}
             noTrueTree={session.reference === null}
             playing={playing}
             onStep={onStep}

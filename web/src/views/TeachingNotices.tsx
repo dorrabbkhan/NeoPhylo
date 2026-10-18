@@ -171,8 +171,9 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
         <section className="notice" aria-label="Negative branches">
           <p>
             The inferred tree has a negative branch length — this happens when
-            the distances are not perfectly tree-like. It is drawn dashed; the
-            trace is never altered.
+            the distances are not perfectly tree-like. It is drawn dashed. The
+            calculated value is shown unchanged; use 'set to zero' to draw it
+            as 0.
           </p>
           <button
             type="button"
@@ -188,7 +189,11 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
       {wrongClades > 0 && (
         <section className="notice" aria-label="Tree comparison">
           <p>
-            {`Your tree differs from the true tree in ${wrongClades} clade${wrongClades === 1 ? "" : "s"} — outlined in the inferred tree.`}
+            {`Your tree differs from the ${
+              session.reference?.kind === "classification"
+                ? "accepted classification"
+                : "true tree"
+            } in ${wrongClades} clade${wrongClades === 1 ? "" : "s"} — outlined in the inferred tree.`}
           </p>
         </section>
       )}

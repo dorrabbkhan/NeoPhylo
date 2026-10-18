@@ -192,3 +192,87 @@ describe("App shell", () => {
     });
   });
 });
+
+// An embedded protein exercise with a classification reference (v1.1
+// spec §5.3): the protdist doc data, declared protein, correction JTT.
+const CLASSIFY_TREE =
+  "((Alpha:1,Delta:1):1,(Beta:1,(Gamma:1,Epsilon:1):1):1);";
+const CLASSIFY: Exercise = {
+  schema_version: 2,
+  id: "cls",
+  title: "Accepted classification",
+  alphabet: "protein",
+  data: {
+    kind: "embedded",
+    fasta:
+      ">Alpha\nAACGTGGCCACAT\n>Beta\nAAGGTCGCCACAC\n>Gamma\n" +
+      "CAGTTCGCCACAA\n>Delta\nGAGATTTCCGCCT\n>Epsilon\nGAGATCTCCGCCC",
+    source: { citation: "test", license: "CC0", accessions: [] },
+  },
+  reference: { newick: CLASSIFY_TREE, kind: "classification" },
+  analysis: { correction: "Jtt", method: "Nj" },
+  locked: [],
+  prompts: [],
+};
+
+describe("v1.1 alphabet badge and reference labels", () => {
+  it("shows the DNA badge on a DNA lesson", async () => {
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    expect(screen.getByText("DNA")).toBeTruthy();
+  });
+
+  it("shows no alphabet override on simulated data (nj-basics)", async () => {
+    // Simulated data's alphabet comes from the sim model, so the badge
+    // only names it — the sim model menu (locked here) controls it.
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    expect(screen.getByText("DNA")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Treat as/ })).toBeNull();
+  });
+
+  it("shows the protein badge and the classification title", async () => {
+    render(<App exercise={CLASSIFY} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    expect(screen.getByText("Protein · 20 amino acids")).toBeTruthy();
+    // Spec §5.3: a classification reference is not titled "True tree".
+    expect(
+      screen.getByRole("img", {
+        name: "Reference (accepted classification), not a known true tree",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("replaces the RF readout with classification wording at the last step", async () => {
+    const s = loaded(CLASSIFY);
+    const trace = s.result!.trace!;
+    const max =
+      "Nj" in trace ? trace.Nj.steps.length + 1 : trace.Upgma.steps.length;
+    render(<App exercise={CLASSIFY} />);
+    const slider = await screen.findByRole("slider");
+    fireEvent.change(slider, { target: { value: String(max) } });
+    const n = s.rf!.missing_in_inferred.length;
+    expect(
+      screen.getByText(
+        `differs from the accepted classification in ${n} clade${
+          n === 1 ? "" : "s"
+        }`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("overriding to DNA switches JTT to JC69 with a notice, no error", async () => {
+    render(<App exercise={CLASSIFY} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("button", { name: "Treat as DNA" }));
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "Switched correction to JC69 because this data is now DNA.",
+    );
+    expect(screen.getByText("DNA")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    // The pipeline still produced a tree.
+    expect(
+      screen.getByRole("img", { name: "Inferred tree" }),
+    ).toBeTruthy();
+  });
+});

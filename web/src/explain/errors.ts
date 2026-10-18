@@ -27,7 +27,7 @@ export function errorMessage(e: NeoError): ErrorMessage {
     case "UnequalLengths":
       return {
         title: "Sequences aren't aligned",
-        body: `"${e.label}" has ${e.got} site${e.got === 1 ? "" : "s"} but the first sequence has ${e.expected}. Align or trim the sequences so they are all the same length.`,
+        body: `"${e.label}" has ${e.got} site${e.got === 1 ? "" : "s"} but the first sequence has ${e.expected}. Sequences must be aligned (same length, with gaps) before building a tree. Align them first, e.g. with Clustal Omega or MAFFT.`,
       };
     case "UnsupportedCharacter":
       return {
@@ -67,11 +67,12 @@ export function errorMessage(e: NeoError): ErrorMessage {
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";
+      const dataAlphabet = e.alphabet === "protein" ? "protein" : "DNA";
       const choices =
         e.alphabet === "protein" ? "p, Kimura or JTT" : "p, JC69 or K80";
       return {
         title: `${e.model} doesn't fit this data`,
-        body: `${e.model} is for ${modelAlphabet}; this data is ${e.alphabet}. Choose ${choices}.`,
+        body: `${e.model} is for ${modelAlphabet}; this data is ${dataAlphabet}. Choose ${choices}.`,
       };
     }
     default: {

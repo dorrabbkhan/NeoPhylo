@@ -27,6 +27,8 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 9. After editing, verify every changed file with `git diff` before committing; the edit tool has
    silently failed to write in Tasks 4 and 6. If a write doesn't land, rewrite the whole file and
    re-verify.
+10. Don't commit screenshots as review evidence; the PR's Netlify preview link is the evidence.
+    Only README media goes in `docs/media/`.
 
 ## Workflow
 

@@ -181,6 +181,62 @@ describe("ImportPanel — Newick", () => {
   });
 });
 
+describe("ImportPanel — PHYLIP (v1.1 Task 10)", () => {
+  it("detects a PHYLIP header and imports through parsePhylip", () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    paste("3 4\nalpha ACGT\nbeta ACGA\ngamma ACTT\n");
+    expect(holder.s.error).toBeNull();
+    expect(holder.s.alignment?.labels).toEqual(["alpha", "beta", "gamma"]);
+    expect(holder.s.alignment?.seqs[0]).toHaveLength(4);
+    // Auto used whitespace-delimited names; the toggle shows it.
+    expect(
+      screen
+        .getByRole("radio", { name: "Relaxed names" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("detects the header after blank lines and space indentation", () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    paste("\n\n   3   8\na ACGT\nb ACGA\nc ACTT\n\nACGT\nACGA\nACTT\n");
+    expect(holder.s.error).toBeNull();
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignment?.seqs[0]).toHaveLength(8);
+  });
+
+  it("detects strict names that run into the sequence", () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    // Exactly-10-character names with no space before the sequence:
+    // Relaxed can't parse this, so Auto falls back to Strict.
+    paste("3 4\nabcdefghijACGT\nbcdefghijkACGA\ncdefghijklACTT\n");
+    expect(holder.s.error).toBeNull();
+    expect(holder.s.alignment?.labels).toEqual([
+      "abcdefghij",
+      "bcdefghijk",
+      "cdefghijkl",
+    ]);
+    expect(
+      screen
+        .getByRole("radio", { name: "Strict names" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("toggling the name style re-parses the pasted text", () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    paste("3 4\nalpha ACGT\nbeta ACGA\ngamma ACTT\n");
+    expect(holder.s.error).toBeNull();
+    // Re-parse as Strict: "alpha ACGT" fills all 10 name columns and
+    // leaves no sequence, so the engine reports a Parse error in-panel.
+    fireEvent.click(screen.getByRole("radio", { name: "Strict names" }));
+    expect(screen.getByText(/Couldn't read line/)).toBeTruthy();
+    // Toggling back to Relaxed restores the clean parse.
+    fireEvent.click(screen.getByRole("radio", { name: "Relaxed names" }));
+    expect(holder.s.alignment?.labels).toEqual(["alpha", "beta", "gamma"]);
+    expect(holder.s.error).toBeNull();
+  });
+});
+
 describe("ImportPanel — file input", () => {
   it("imports a .fasta file like a paste", async () => {
     const holder = renderPanel(sandbox(NJ_BASICS));
