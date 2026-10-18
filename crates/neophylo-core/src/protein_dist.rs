@@ -15,7 +15,7 @@ use ts_rs::TS;
 use crate::alphabet::{protein_index, Alphabet};
 use crate::dist::{label, Cell, DistModel};
 use crate::error::NeoError;
-use crate::model::JTT;
+use crate::model::jtt_spectral;
 use crate::seq::Alignment;
 
 /// Farthest distance reported by the JTT fit (spec §3.4: protdist
@@ -78,40 +78,62 @@ pub fn kimura_from_p(p: f64) -> Cell {
     }
 }
 
-/// `logL(d) = Σ N_xy · ln(π_x · P_xy(d))` (spec §3.4), evaluated in
-/// the spectral form `Σ N_xy · ln(Σ_k c_k(x)c_k(y)e^{λ_k d})` that
-/// `protdist`'s `predict` uses — same value, oracle-matching rounding.
-fn jtt_logl(counts: &[[u32; 20]; 20], d: f64) -> f64 {
-    let mut l = 0.0;
+/// Sparse merged count table `(x, y, n)` with `x ≤ y`, one entry per
+/// unordered state pair that occurs. The joint probability is symmetric
+/// — `π_x·P_xy(t) ≡ π_y·P_yx(t)` for a reversible model, bit-for-bit in
+/// the spectral form (`c_k(x)·c_k(y)` commutes) — so `N_xy·ln J_xy +
+/// N_yx·ln J_yx` is evaluated as `(N_xy + N_yx)·ln J_xy`. This halves
+/// the spectral work per pair; the merged integer count is exact
+/// (counts are ≤ 2³²), so the only rounding change is one fewer
+/// multiply-add per merged pair — far inside the parity tolerances.
+type CountList = Vec<(u8, u8, u32)>;
+
+fn merge_counts(counts: &[[u32; 20]; 20]) -> CountList {
+    let mut cells = Vec::with_capacity(210);
     for (x, row) in counts.iter().enumerate() {
-        for (y, &n) in row.iter().enumerate() {
+        for (y, &n) in row.iter().enumerate().skip(x) {
+            let n = n + if x == y { 0 } else { counts[y][x] };
             if n > 0 {
-                let (p, _, _) = JTT.site_prob_derivs(x, y, d);
-                l += f64::from(n) * log(p.max(1e-300));
+                cells.push((x as u8, y as u8, n));
             }
         }
+    }
+    cells
+}
+
+/// `logL(d) = Σ N_xy · ln(π_x · P_xy(d))` (spec §3.4), evaluated in
+/// the spectral form `Σ N_xy · ln(Σ_k c_k(x)c_k(y)e^{λ_k d})` that
+/// `protdist`'s `predict` uses — same value, oracle-matching rounding
+/// within merged-cell ulps.
+fn jtt_logl(cells: &CountList, d: f64) -> f64 {
+    let ctx = jtt_spectral(d);
+    let mut l = 0.0;
+    for &(x, y, n) in cells {
+        let p = ctx.prob(x as usize, y as usize);
+        l += f64::from(n) * log(p.max(1e-300));
     }
     l
 }
 
 /// `logL`'s first two derivatives at `d` (protdist's `slope`/`curv`),
 /// plus whether any observed site pair's joint probability underflowed.
-fn logl_derivs(counts: &[[u32; 20]; 20], d: f64) -> (f64, f64, bool) {
+fn logl_derivs(cells: &CountList, d: f64) -> (f64, f64, bool) {
+    let ctx = jtt_spectral(d);
     let (mut slope, mut curv) = (0.0, 0.0);
     let mut neginfinity = false;
-    for (x, row) in counts.iter().enumerate() {
-        for (y, &n) in row.iter().enumerate() {
-            if n == 0 {
-                continue;
-            }
-            let (p, dp, d2p) = JTT.site_prob_derivs(x, y, d);
-            if p <= 0.0 {
-                neginfinity = true;
-            } else {
-                let n = f64::from(n);
-                slope += n * dp / p;
-                curv += n * (d2p / p - dp * dp / (p * p));
-            }
+    for &(x, y, n) in cells {
+        let (p, dp, d2p) = ctx.derivs(x as usize, y as usize);
+        if p <= 0.0 {
+            neginfinity = true;
+        } else {
+            let n = f64::from(n);
+            // One reciprocal per cell; protdist's n·dp/p and
+            // n·(d2p/p − (dp/p)²) are evaluated with three divides.
+            // The ulp-level difference stays far inside the parity
+            // tolerances.
+            let invp = 1.0 / p;
+            slope += n * dp * invp;
+            curv += n * (d2p * invp - dp * dp * invp * invp);
         }
     }
     (slope, curv, neginfinity)
@@ -136,14 +158,37 @@ fn logl_derivs(counts: &[[u32; 20]; 20], d: f64) -> (f64, f64, bool) {
 /// `[0, D_MAX]`, `None` when it diverges, leaves the interval, goes
 /// non-finite, or has not settled within the iteration limit — the
 /// caller then falls back to [`brent_mle`].
-fn newton_mle(counts: &[[u32; 20]; 20]) -> Option<f64> {
+fn newton_mle(cells: &CountList) -> Option<f64> {
     let mut tt = 0.1;
     let mut delta = tt / 2.0;
     let mut diverged = false;
     let mut it = 0;
+    // Slope at the final tt when the loop ended on a frozen iterate
+    // (see below): the last derivative call already evaluated it, so the
+    // convergence check reuses it instead of re-evaluating.
+    let mut last_slope = 0.0;
+    let mut frozen = false;
+    let total = cells.iter().map(|&(_, _, n)| f64::from(n)).sum::<f64>();
     while it != NEWTON_ITERS {
-        let (slope, curv, neginfinity) = logl_derivs(counts, tt);
+        let prev = tt;
+        let (slope, curv, neginfinity) = logl_derivs(cells, tt);
+        last_slope = slope;
         it += 1;
+        // Converged stationary point: the slope already passes the
+        // acceptance check and the next Newton step is below print
+        // precision, so the remaining iterations only wiggle tt within
+        // a few ulps. protdist still runs all NEWTON_ITERS passes; the
+        // endpoint it emits is this same fixed point to ~1e-15. (The
+        // step-size guard keeps a lucky near-zero slope at a nearly
+        // flat point from freezing a still-moving iterate.)
+        if !neginfinity
+            && curv < 0.0
+            && slope.abs() <= NEWTON_CONV_SLOPE * total.max(1.0)
+            && (slope / curv).abs() <= 1e-9
+        {
+            frozen = true;
+            break;
+        }
         if !neginfinity {
             if curv < 0.0 {
                 tt -= slope / curv;
@@ -164,6 +209,17 @@ fn newton_mle(counts: &[[u32; 20]; 20]) -> Option<f64> {
         if tt < PROTEPSILON && !diverged {
             tt = PROTEPSILON;
         }
+        // The iterate is frozen when this step left tt bit-identical:
+        // every remaining iteration would evaluate the same point and
+        // recompute the same step, so the loop's final state is known.
+        // In each branch this is stable — curv<0 repeats slope/curv, and
+        // tt+delta == tt implies |delta| < ulp(tt) while every other
+        // branch only shrinks |delta| — so breaking here reproduces the
+        // full NEWTON_ITERS trajectory exactly.
+        if tt == prev {
+            frozen = true;
+            break;
+        }
     }
     if diverged || !tt.is_finite() || !(0.0..=D_MAX).contains(&tt) {
         return None;
@@ -175,12 +231,11 @@ fn newton_mle(counts: &[[u32; 20]; 20]) -> Option<f64> {
     // macroscopic slope and falls back to Brent — for a pair whose true
     // maximum lies below `protepsilon`, the bounded search can land
     // meaningfully closer to 0 than the floor.
-    let total = counts
-        .iter()
-        .flat_map(|row| row.iter())
-        .map(|&n| f64::from(n))
-        .sum::<f64>();
-    let (slope, _, _) = logl_derivs(counts, tt);
+    let slope = if frozen {
+        last_slope
+    } else {
+        logl_derivs(cells, tt).0
+    };
     if slope.abs() <= NEWTON_CONV_SLOPE * total.max(1.0) {
         Some(tt)
     } else {
@@ -193,10 +248,10 @@ fn newton_mle(counts: &[[u32; 20]; 20]) -> Option<f64> {
 /// the cases `newton_mle` cannot certify, and the decider for
 /// saturation: a bounded maximum within `SATURATED_EPS` of `D_MAX`
 /// means the likelihood is still climbing at the search boundary.
-fn brent_mle(counts: &[[u32; 20]; 20]) -> f64 {
+fn brent_mle(cells: &CountList) -> f64 {
     // Minimize -logL; follows the canonical Brent structure with golden
     // steps when the parabolic fit is unacceptable.
-    let f = |d: f64| -jtt_logl(counts, d);
+    let f = |d: f64| -jtt_logl(cells, d);
     let (mut a, mut b) = (0.0_f64, D_MAX);
     let mut x = a + CGOLD * (b - a);
     let mut w = x;
@@ -297,10 +352,11 @@ pub fn jtt_ml(counts: &[[u32; 20]; 20]) -> Cell {
     // strictly inside the search interval is the estimate; anything near
     // the bound or unconverged is adjudicated by the bounded Brent
     // search, which owns the saturation call.
-    match newton_mle(counts) {
+    let cells = merge_counts(counts);
+    match newton_mle(&cells) {
         Some(d) if d < D_MAX - SATURATED_EPS => Cell::Value(d),
         _ => {
-            let d = brent_mle(counts);
+            let d = brent_mle(&cells);
             if d >= D_MAX - SATURATED_EPS {
                 Cell::Saturated
             } else {
@@ -314,7 +370,8 @@ pub fn jtt_ml(counts: &[[u32; 20]; 20]) -> Cell {
 /// (`None` when it did not converge) and the bounded Brent argmax.
 #[doc(hidden)]
 pub fn optimizer_estimates(counts: &[[u32; 20]; 20]) -> (Option<f64>, f64) {
-    (newton_mle(counts), brent_mle(counts))
+    let cells = merge_counts(counts);
+    (newton_mle(&cells), brent_mle(&cells))
 }
 
 /// The on-demand detail behind one pair's distance, for the "How was
@@ -373,10 +430,11 @@ pub fn jtt_pair_detail(aln: &Alignment, i: usize, j: usize) -> Result<PairDetail
     }
 
     let jtt = jtt_ml(&table);
+    let cells = merge_counts(&table);
     let p = f64::from(differences) / f64::from(comparable);
     let kimura = kimura_from_p(p);
     let (d_hat, logl_hat, top) = match jtt {
-        Cell::Value(d) => (Some(d), Some(jtt_logl(&table, d)), (2.0 * d).max(0.5)),
+        Cell::Value(d) => (Some(d), Some(jtt_logl(&cells, d)), (2.0 * d).max(0.5)),
         Cell::Saturated => (None, None, D_MAX),
     };
     let step = top / (CURVE_POINTS - 1) as f64;
@@ -388,7 +446,7 @@ pub fn jtt_pair_detail(aln: &Alignment, i: usize, j: usize) -> Result<PairDetail
             } else {
                 step * k as f64
             };
-            (d, jtt_logl(&table, d))
+            (d, jtt_logl(&cells, d))
         })
         .collect();
     let counts: Vec<(u8, u8, u32)> = table

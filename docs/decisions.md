@@ -1438,3 +1438,63 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `-1.000000` convention (§3.2).
   - `PhylipHelp.test.tsx` sits next to its component (the established
     co-location convention) and also covers the header button.
+
+## Task 14 (v1.1): protein perf check + comparison script
+
+- **The "checkpoint 7 version" of `compare_app.R` does not exist.** No
+  commit on `main` ever carried `scripts/compare/compare_app.R` — the
+  plan's "from the checkpoint 7 version, extended" refers to a script
+  that was never committed. It was written fresh: it takes
+  `<alignment> <matrix> <model>` (alignment FASTA or PHYLIP-sequential,
+  matrix = the app's `neighbor` export, Strict or Relaxed names
+  auto-detected), computes the R distance (ape `dist.dna` /
+  `dist.aa`, explicit Kimura, phangorn `dist.ml` for JTT), and prints
+  ALL PASS/FAIL. Alphabet is detected from content (the §3.1 rule), so
+  `p` serves both DNA and protein alignments. Tolerances: 1e-5 absolute
+  for exact models (the export prints 6 decimals); JTT at 2% relative +
+  1e-4 floor (Task 6 variant difference); app `-1.000000` cells must
+  match R's non-finite (NaN/Inf) cells.
+- **Files outside the Files block (all required to meet the 2 s budget;
+  measured 31.7 s → 1.75 s):**
+  - `crates/neophylo-core/src/model.rs` — `spectral_weights(t)` hoists
+    the 20 `exp(λ_k·t)` calls out of `site_prob_derivs`'s per-cell
+    spectral sum (was ~168k `exp` calls per pair, 3.3 billion per
+    matrix); terms regroup to `(c_k(x)·e_k)·c_k(y)` and λ²·q reuses
+    λ·q, saving a multiply per term.
+  - `crates/neophylo-core/src/protein_dist.rs` — count tables are merged
+    symmetric→sparse (`N_xy + N_yx` for x ≤ y; `J_xy ≡ J_yx` bit-for-bit
+    for a reversible model), halving spectral work; `newton_mle` exits
+    early once `tt` freezes bit-identically (a stable fixed point in
+    every branch — |delta| only shrinks outside the Newton step), exits
+    still earlier once the iterate is converged in the same sense the
+    final check uses (|slope| ≤ 1e-6·sites at a concave point whose next
+    Newton step is ≤ 1e-9 — the remaining protdist iterations only wiggle
+    `tt` within ulps), and reuses its last slope for the convergence
+    check instead of a 21st evaluation. The early exits roughly halve
+    `jtt_ml` (~750 → ~380 ms for the seeded 200×1,000 table, native
+    release) with an endpoint identical to the full trajectory's fixed
+    point.
+  - `web/src/views/MatrixHeatmap.tsx` (+ test) — compact mode for
+    n > 64 taxa: cells render as ≤65 fill-bucketed `<path>`s plus one
+    focusable overlay rect (hover/click/arrow-keys/Enter picking kept;
+    per-cell gridcells and value texts dropped — unreadable at that
+    scale anyway). The svg role becomes `group` with
+    `aria-label="Distance matrix, n taxa"`.
+  - `scripts/ci/e2e.sh` — the `@perf`-tagged spec runs in a second
+    Playwright invocation with `--workers=1`: under `fullyParallel` the
+    import→render measurement raced other tests (3.5 s vs the 2 s
+    budget on this machine); a wall-clock gate needs a quiet worker.
+- **Ambiguities resolved:**
+  - The perf spec runs against the production preview server (:4174,
+    the second `webServer` in `playwright.config.ts`), not the dev
+    server — dev React's StrictMode double render is not what the
+    shipped budget is about.
+  - The spec's "if it fails, print the measured time and stop" is
+    implemented as a `console.log` of the elapsed ms plus a hard
+    `expect(elapsed).toBeLessThan(2000)` failure message.
+  - Measured on this machine: 1,747 ms end-to-end (import → rendered
+    200×200 heatmap), of which ~1.2 s is the wasm JTT matrix.
+  - Parity preserved: `cargo test -p neophylo-core` is all green,
+    including `protdist_corpus`, `jtt_doc_parity`, `slope_at_peak` and
+    `newton_never_worse`; the symmetric merge perturbs the Newton
+    trajectory by ~1 ulp per term, far inside the 5e-7 doc tolerance.
