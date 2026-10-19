@@ -4,12 +4,13 @@
 // the same actions the controls use, so the session reducer stays the
 // single place that mutates the pipeline.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Dispatch } from "react";
 
 import { engine } from "../engine";
 import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
+import type { NeoError } from "../engine/generated/NeoError";
 import type { Tree } from "../engine/generated/Tree";
 import type { Action, Session } from "../state/session";
 import { exerciseSim } from "../state/session";
@@ -76,6 +77,107 @@ function chartPoints(
   return out;
 }
 
+interface SaturationPanelProps {
+  sat: Extract<NeoError, { kind: "SaturatedMatrix" }>;
+  session: Session;
+  dispatch: Dispatch<Action>;
+  points: ChartPoint[];
+  pairName: (i: number, j: number) => string;
+}
+
+/** The saturated-matrix panel. Rendered only while the pipeline error
+ * IS SaturatedMatrix, so it mounts fresh on each saturation episode:
+ * its local `fixTried` (which re-sim fix was last clicked) resets on
+ * unmount — no stale "try again" message on a later, fresh saturation.
+ * Local state, not Session: it describes this panel's buttons, not the
+ * pipeline (checkpoint 13). */
+function SaturationPanel({
+  sat,
+  session,
+  dispatch,
+  points,
+  pairName,
+}: SaturationPanelProps) {
+  const [fixTried, setFixTried] = useState<"length" | "scale" | null>(null);
+  const remaining = `${sat.cells.length} pair${sat.cells.length === 1 ? "" : "s"} remain${sat.cells.length === 1 ? "s" : ""}`;
+  return (
+    <section className="notice" aria-label="Saturation">
+      {/* The headline matches errorMessage(SaturatedMatrix).title so the
+          same phrase appears wherever this state is explained. */}
+      <h2>{errorMessage(sat).title}</h2>
+      <p className="notice-pairs">
+        cannot estimate: {sat.cells.map(([i, j]) => pairName(i, j)).join(", ")}
+      </p>
+      <p>
+        Once the observed differences between two sequences reach 0.75, the
+        JC69 correction has no finite answer — tree building is blocked. To
+        keep going:
+      </p>
+      <SaturationChart points={points} />
+      {session.alignmentOrigin === "imported" && (
+        <p>Your own data can't be re-simulated.</p>
+      )}
+      {session.alignmentOrigin === "embedded" && (
+        <p>This lesson uses real sequences; they can't be re-simulated.</p>
+      )}
+      {fixTried !== null && (
+        <p className="notice-progress" role="status">
+          {fixTried === "length"
+            ? `Still saturated at length ${exerciseSim(session.exercise)?.length ?? "?"}`
+            : `Still saturated at branch scale ×${session.branchScale}`}
+          : {remaining}. Try again, or choose another fix.
+        </p>
+      )}
+      <div className="notice-fixes">
+        {session.alignmentOrigin === "simulated" && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setFixTried("length");
+                dispatch({
+                  type: "setSim",
+                  patch: {
+                    length: Math.min(
+                      SIM_MAX,
+                      (exerciseSim(session.exercise)?.length ?? 0) * 2,
+                    ),
+                  },
+                });
+              }}
+            >
+              Use longer sequences (×2)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFixTried("scale");
+                dispatch({
+                  type: "setBranchScale",
+                  scale: session.branchScale * 0.5,
+                });
+              }}
+            >
+              Use shorter branches (÷2)
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() =>
+            dispatch({
+              type: "setAnalysis",
+              patch: { correction: "P" },
+            })
+          }
+        >
+          Switch to p-distance
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
   const sat = session.error?.kind === "SaturatedMatrix" ? session.error : null;
   const hasNegative = (session.result?.tree.branches ?? []).some(
@@ -109,71 +211,13 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
   return (
     <>
       {sat !== null && (
-        <section className="notice" aria-label="Saturation">
-          {/* The headline matches errorMessage(SaturatedMatrix).title so the
-              same phrase appears wherever this state is explained. */}
-          <h2>{errorMessage(sat).title}</h2>
-          <p className="notice-pairs">
-            cannot estimate:{" "}
-            {sat.cells.map(([i, j]) => pairName(i, j)).join(", ")}
-          </p>
-          <p>
-            Once the observed differences between two sequences reach 0.75, the
-            JC69 correction has no finite answer — tree building is blocked. To
-            keep going:
-          </p>
-          <SaturationChart points={points} />
-          {session.alignmentOrigin === "imported" && (
-            <p>Your own data can't be re-simulated.</p>
-          )}
-          {session.alignmentOrigin === "embedded" && (
-            <p>This lesson uses real sequences; they can't be re-simulated.</p>
-          )}
-          <div className="notice-fixes">
-            {session.alignmentOrigin === "simulated" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: "setSim",
-                      patch: {
-                        length: Math.min(
-                          SIM_MAX,
-                          (exerciseSim(session.exercise)?.length ?? 0) * 2,
-                        ),
-                      },
-                    })
-                  }
-                >
-                  Use longer sequences (×2)
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: "setBranchScale",
-                      scale: session.branchScale * 0.5,
-                    })
-                  }
-                >
-                  Use shorter branches (÷2)
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({
-                  type: "setAnalysis",
-                  patch: { correction: "P" },
-                })
-              }
-            >
-              Switch to p-distance
-            </button>
-          </div>
-        </section>
+        <SaturationPanel
+          sat={sat}
+          session={session}
+          dispatch={dispatch}
+          points={points}
+          pairName={pairName}
+        />
       )}
       {hasNegative && (
         <section className="notice" aria-label="Negative branches">
