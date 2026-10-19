@@ -28,11 +28,15 @@ if [ -f fixtures/generate.R ] && [ "${FIXTURES:-0}" = "1" ]; then
   # generate_phylip.sh runs first: generate.R merges the phangorn second
   # opinion into the protdist-produced ref/protein_*.json files and
   # tie-checks protdist's JTT matrices, so it needs them on disk.
+  # (generate_phylip.sh also invokes generate_consensus.sh, which merges
+  # consense into fixtures/consensus/*.json and worked/consensus_hand.json;
+  # generate.R then regenerates those files and preserves the consense
+  # block while the trees are identical, so committed output is stable.)
   bash fixtures/generate_phylip.sh
   Rscript fixtures/generate.R
-  git diff --exit-code fixtures/ref
-  # also catch new/stray files under ref/
-  if [ -n "$(git status --porcelain fixtures/ref)" ]; then
-    echo "FAIL: fixtures/ref changed after regeneration"; git status --porcelain fixtures/ref; exit 1
+  git diff --exit-code fixtures/ref fixtures/consensus fixtures/worked
+  # also catch new/stray files under the regenerated dirs
+  if [ -n "$(git status --porcelain fixtures/ref fixtures/consensus fixtures/worked)" ]; then
+    echo "FAIL: fixtures changed after regeneration"; git status --porcelain fixtures/ref fixtures/consensus fixtures/worked; exit 1
   fi
 fi

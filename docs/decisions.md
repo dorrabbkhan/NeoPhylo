@@ -1617,3 +1617,55 @@ and the following ci/release entry. Both entries were kept verbatim.)
   (more sites sharpen p estimates — different pairs cross the 0.75
   ceiling), 200 has none. The e2e-style component test drives the real
   file.
+
+## v1.2 Task 2: consensus and support fixtures
+
+- **Canonical grouping side is "not containing `labels[1]`" everywhere.** PHYLIP
+  `consense` prints the side not containing *its* species 1 (the first tip of
+  the intree), which differs from the fixture's `labels[1]` in several sets —
+  `generate_consensus.sh` re-canonicalizes parsed rows instead of depending on
+  intree tip order. For rooted sets consense prints clades directly.
+- **Extended-majority ambiguity is judged only until the tree is fully
+  resolved.** Spec §3.5 stops extension at n-3 splits (unrooted) / n-2 clades
+  (rooted); consense confirms this (it never lists compatible sets beyond
+  resolution). Ties that occur only below the resolution point cannot make a
+  decision order-dependent, so `generate.R`'s seed search and
+  `generate_consensus.sh`'s assertion both stop there.
+- **`prop.part` is used for the observed grouping inventory** (bipartitions
+  for unrooted trees, clades for rooted), deduplicating exact matches;
+  `prop.clades` supplies `prop_clades` counts against the reference. Both
+  agree to the count in the generators' assertions.
+- **Two PHYLIP quirks handled in `generate_consensus.sh`:** the species list
+  and set masks wrap every 10 positions, and R's `cat(TRUE)` yields `TRUE`
+  while the driver tested lowercase `true` — the flag is normalized before
+  the `R` toggle is sent.
+- **Files outside the Files block:** `fixtures/generate_consensus.sh` (new;
+  invoked at the end of `generate_phylip.sh` — the plan's "in
+  generate_phylip.sh run consense" intent kept while honoring the ~400-line
+  single-purpose rule), `scripts/ci/fixture-guard.sh` (regeneration diff
+  extended to `fixtures/consensus` + `fixtures/worked` so CI reproduces the
+  new oracle), and `docs/decisions.md` (this entry).
+
+### Task 2 owner-gate fix: consense `groups` must hold only included sets
+
+- **Bug (found at the PR #39 owner gate):** `consense.<kind>.groups`
+  concatenated both outfile tables, so rejected sets like `{C,D}` (count 3,
+  incompatible with `{D,E}` and absent from the extended newick) appeared
+  in `groups`. Now `groups` is only "Sets included in the consensus tree";
+  the "Sets NOT included" table is kept separately as `not_included`.
+  Only extended ever prints a NOT-included table, so only `extended`
+  changed: hand 3→2 (`groups` now equals `expected.extended`), rmtree_6_20
+  23→3, rmtree_8_100 108→5, rmtree_12_200 718→9, rmtree_6_20_rooted 42→4,
+  rmtree_8_100_rooted 195→6, boot_jc12 18→9, boot_p8 8→5.
+- **New assertions on every set and kind** (fail the generator): `groups`
+  equals exactly the non-trivial groupings of that kind's `newick` parsed
+  through `prop.part` (same canonical sides); all `groups` are pairwise
+  compatible; strict ⊆ majority ⊆ extended. The hand file additionally
+  asserts `groups` == `expected` per kind.
+- **Trivial-split filter corrected:** unrooted groupings are dropped when
+  *either* side has <2 taxa (`min(s, n-s) < 2`), because a degree-2 outtree
+  root can print the n-1 side as a "clade" (e.g. the strict star
+  `((t1,...,t6),t2)`); rooted keeps n-1 clades. Applied in both
+  `grouping_inventory` and the newick `tree_groups` check.
+- **jsonlite quirk:** a one-element array-of-arrays simplifies to a
+  matrix, so `expected` sets are normalized rows-as-sets before keying.
