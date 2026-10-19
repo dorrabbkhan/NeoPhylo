@@ -26,8 +26,9 @@ pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, 
 // root-level name.
 pub use alphabet::{detect_alphabet, protein_index, with_alphabet, Alphabet, PROTEIN_STATES};
 pub use bootstrap::{
-    bootstrap_batch, merge_tallies, replicate_detail, resample_weights, support_on_tree,
-    tree_splits, BootstrapTally, ReplicateDetail,
+    bootstrap_batch, consensus, consensus_dropped, merge_tallies, replicate_detail,
+    resample_weights, support_on_tree, tree_splits, BootstrapTally, ConsensusKind, DroppedGroup,
+    ReplicateDetail,
 };
 pub use compare::{rf, RfResult, Split};
 pub use dist::{compute, Cell, DistModel, DistanceMatrix};

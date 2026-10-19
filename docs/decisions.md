@@ -1776,3 +1776,39 @@ and the following ci/release entry. Both entries were kept verbatim.)
   - `web/src/views/TeachingNotices.test.tsx`, `web/src/views/TreeView.test.tsx`
     — `BranchAttrs` literals gained the required `support: null` key.
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 6: consensus
+
+- **`labels` comes from `tally`, not a separate argument.** The spec §3.5
+  signature is `consensus(tally, kind, labels)`; `BootstrapTally` already
+  carries `labels` (Task 4's recorded deviation, which the plan mandates),
+  so the implemented signatures are the plan's `consensus(tally, kind)` and
+  `consensus_dropped(original, tally, kind) -> Vec<DroppedGroup>` (a named
+  struct with sorted `labels` + `support`, per the plan, not the spec's
+  `Vec<(Split, f64)>`).
+- **Tree building uses the laminar property.** The accepted set is always
+  pairwise compatible — two incompatible groupings can never both exceed
+  half the successes, and extended filters candidates against everything
+  accepted — so each grouping's parent is the smallest strictly containing
+  grouping (sorted ascending by size, first superset wins), else the root.
+  Leaves attach to the smallest grouping containing them, else the root.
+- **Unrooted root degree is >= 3 by construction:** canonical sides are
+  size 2..=n-2, so at least two taxa (taxon 0 among them) always remain
+  outside every maximal grouping. Rooted (UPGMA) roots take the maximal
+  clusters plus unclustered leaves, degree >= 2.
+- **Extended "fully resolved" limit:** n-3 groupings unrooted, n-2 rooted
+  (binary-tree internal counts); iteration over candidates stops there or
+  when exhausted. `BTreeMap`'s ascending-bitset iteration plus a stable
+  descending-count sort gives the spec's "count desc, bitset asc" order.
+- **`successful == 0` gives support `0.0`** on consensus branches and in
+  `DroppedGroup` — same no-NaN convention as `support_on_tree` (Task 5).
+- **Consensus branch `support` sits on the grouping's internal branch**
+  (the edge above its node), so it is a branch attribute that survives
+  display rerooting, matching spec §3.4/§3.7.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/bootstrap/mod.rs` — `pub mod consensus` plus
+    re-exports; required for the new module to exist.
+  - `crates/neophylo-core/src/lib.rs` — crate-root re-exports of
+    `consensus`, `consensus_dropped`, `ConsensusKind`, `DroppedGroup`,
+    matching every other bootstrap export.
+  - `docs/decisions.md` (this entry).
