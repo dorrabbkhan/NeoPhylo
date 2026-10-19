@@ -1,0 +1,74 @@
+{
+  "name": "consensus_hand",
+  "generator": "hand-entered worked example; consense block merged by generate_consensus.sh",
+  "rooted": false,
+  "labels": ["A", "B", "C", "D", "E"],
+  "note": "10 unrooted 5-taxon trees: 7x ((A,B),C,(D,E)) + 3x ((A,B),E,(C,D)). A 5-taxon binary tree has two non-trivial splits, so the counts are AB|CDE = 10, DE|ABC = 7, CD|ABE = 3 (CD is incompatible with DE). Grouping labels are the canonical side, i.e. the side NOT containing A: strict = {CDE}, majority = {CDE, DE}, extended = {CDE, DE} (already fully resolved).",
+  "trees": ["((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),C,(D,E));", "((A,B),E,(C,D));", "((A,B),E,(C,D));", "((A,B),E,(C,D));"],
+  "reference": "((A,B),C,(D,E));",
+  "prop_clades": [
+    {
+      "labels": ["C", "D", "E"],
+      "count": 10
+    },
+    {
+      "labels": ["D", "E"],
+      "count": 7
+    }
+  ],
+  "expected": {
+    "strict": [
+      ["C", "D", "E"]
+    ],
+    "majority": [
+      ["C", "D", "E"],
+      ["D", "E"]
+    ],
+    "extended": [
+      ["C", "D", "E"],
+      ["D", "E"]
+    ]
+  },
+  "consense": {
+    "generator": "phylip 3.697",
+    "strict": {
+      "newick": "((B,(C,E,D)),A);",
+      "groups": [
+        {
+          "labels": ["C", "D", "E"],
+          "count": 10
+        }
+      ]
+    },
+    "majority": {
+      "newick": "((B:10.0,(C:10.0,(D:10.0,E:10.0):7.00):10.0):10.0,A:10.0);",
+      "groups": [
+        {
+          "labels": ["C", "D", "E"],
+          "count": 10
+        },
+        {
+          "labels": ["D", "E"],
+          "count": 7
+        }
+      ]
+    },
+    "extended": {
+      "newick": "((B:10.0,(C:10.0,(D:10.0,E:10.0):7.00):10.0):10.0,A:10.0);",
+      "groups": [
+        {
+          "labels": ["C", "D", "E"],
+          "count": 10
+        },
+        {
+          "labels": ["D", "E"],
+          "count": 7
+        },
+        {
+          "labels": ["C", "D"],
+          "count": 3
+        }
+      ]
+    }
+  }
+}

@@ -35,6 +35,27 @@ see `AGENTS.md` for the rules.
 - `worked/protdist_doc_jtt.json` — the 5-sequence test data from PHYLIP's
   `protdist` documentation read as protein, with the published JTT matrix
   (6 decimals). `{"labels", "sequences", "alphabet": "protein", "jtt"}`.
+- `consensus/*.json` — seeded bootstrap tree sets for the support and
+  consensus oracles (spec v1.2 §8.1): three unrooted `ape::rmtree` sets
+  (NJ splits), two rooted sets (UPGMA clusters), and two `ape::boot.phylo`
+  replicate sets of committed alignments (`jc12` JC69, `p8_250` Kimura).
+  `generate.R` writes `trees`, `reference` and `prop_clades`;
+  `generate_phylip.sh` (via `generate_consensus.sh`) merges `consense`
+  from PHYLIP consense. Seeds in each file are the first seed from a
+  deterministic search giving no tie at any extended-majority decision
+  (the check stops once the tree is fully resolved). Every grouping label
+  list is the canonical side: the side not containing `labels[1]` for
+  unrooted splits (the side consense happens to print only when its
+  species 1 is `labels[1]`; rows are re-canonicalized on parse), the clade
+  itself for rooted sets. `consense.<kind>.groups` lists every printed
+  set, included or not; the included groupings are exactly the consensus
+  in `consense.<kind>.newick` (support counts are written as branch
+  lengths for majority/extended; strict prints no counts).
+- `worked/consensus_hand.json` — hand-entered 5-taxon 10-tree example
+  (spec §8.1 owner gate): 7× `((A,B),C,(D,E))` + 3× `((A,B),E,(C,D))`
+  with `expected` strict/majority/extended groupings; `consense` is
+  merged by `generate_consensus.sh` like the generated sets and must
+  agree with `expected` (owner gate).
 
 ## ref/ JSON format
 
@@ -69,18 +90,30 @@ Per-step textbook traces, same field names as `NjStep`/`UpgmaStep`
 ```sh
 python3 fixtures/make_protein_inputs.py  # regenerate inputs/protein/*.fasta
 bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json
-Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json
+                                         #   then consense -> consensus/*.json + worked/consensus_hand.json
+Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json;
+                                         #   tree sets + prop_clades -> consensus/*.json
 ```
 
 Order matters: `generate_phylip.sh` must run **before** `generate.R`, which
 reads `ref/protein_*.json` back for its protdist-JTT tie check and merges
-`second_opinion` into the same files. `scripts/ci/fixture-guard.sh` holds
-that order; `FIXTURES=1 ./scripts/check.sh` runs both and fails if the
-outputs drift from what is committed.
+`second_opinion` into the same files. `generate_phylip.sh` ends by running
+`generate_consensus.sh`, which merges `consense` into
+`consensus/*.json` and `worked/consensus_hand.json`; `generate.R` then
+regenerates the set files and preserves the committed `consense` block
+while the trees are identical, so committed output is stable under either
+order. **Exception:** after changing a set's seeds, inputs or sizes, run
+`generate.R` *first* so `generate_consensus.sh` merges consense onto the
+fresh trees (then `generate_phylip.sh` as usual).
+`scripts/ci/fixture-guard.sh` holds the CI order; `FIXTURES=1
+./scripts/check.sh` runs both and fails if the outputs drift from what is
+committed.
 
 ## Tool versions used
 
 ape 5.8.1, phangorn 2.12.1, jsonlite 2.0.0 on R 4.5.2; PHYLIP 3.697
 (`dnadist` JC69 via `D D`, Kimura 2-parameter via `D`; `protdist` JTT by
 default, Kimura after 3 `P` toggles — the count is read off the menu each
-run; `neighbor` NJ default, `N` toggles UPGMA).
+run; `neighbor` NJ default, `N` toggles UPGMA; `consense` extended
+majority by default, strict after one `C`, plain majority rule after two
+— toggles are read off the menu each run — `R` for rooted sets).

@@ -198,3 +198,214 @@ for (f in pinputs) {
              ref_path)
   cat(sprintf("protein_%s: second opinion merged -> %s\n", name, ref_path))
 }
+
+# --- consensus fixture sets (v1.2) ---------------------------------------
+# Seeded tree sets for the bootstrap support/consensus oracles (spec
+# §8.1): three unrooted ape::rmtree sets for NJ splits, two rooted sets
+# for UPGMA clusters, and two ape::boot.phylo replicate sets of committed
+# alignments (DNA JC69, protein Kimura). Each JSON carries the trees, a
+# reference tree and ape::prop.clades counts; generate_phylip.sh merges
+# the PHYLIP consense results into the same files. A committed `consense`
+# block is preserved only when the regenerated trees are identical to the
+# committed ones, so regeneration stays order-stable either way (when a
+# set's trees change, run generate.R BEFORE generate_phylip.sh so consense
+# is merged onto the fresh trees).
+
+consdir <- file.path(fixdir, "consensus")
+dir.create(consdir, showWarnings = FALSE, recursive = TRUE)
+
+# Canonical grouping side: for unrooted splits the side NOT containing the
+# first label (taxon 0) — the side consense prints; for rooted sets the
+# clade itself. `idx` indexes `plabs` (prop.part's own label order).
+canon_side <- function(idx, plabs, labs, rooted) {
+  side <- plabs[idx]
+  if (!rooted && labs[1] %in% side) side <- setdiff(labs, side)
+  sort(side)
+}
+
+# Distinct groupings + counts across a list of phylo trees (clades for
+# rooted trees, canonical-side bipartitions for unrooted ones).
+# Returns an env keyed by the sorted labels -> list(labels, count).
+grouping_inventory <- function(trees, labs, rooted) {
+  pp <- do.call(prop.part, unname(trees))
+  plabs <- attr(pp, "labels")
+  num <- attr(pp, "number")
+  stopifnot(!is.null(plabs), !is.null(num), setequal(plabs, labs))
+  inv <- new.env(parent = emptyenv())
+  for (i in seq_along(pp)) {
+    side <- canon_side(pp[[i]], plabs, labs, rooted)
+    if (length(side) < 2 || length(side) == length(labs)) next
+    key <- paste(side, collapse = "\x1f")
+    if (exists(key, envir = inv, inherits = FALSE)) {
+      inv[[key]]$count <- inv[[key]]$count + num[i]
+    } else {
+      inv[[key]] <- list(labels = side, count = num[i])
+    }
+  }
+  inv
+}
+
+# Grouping compatibility: unrooted splits are compatible iff one of the
+# four side intersections is empty; rooted clades iff disjoint or nested.
+grp_compat <- function(a, b, n, rooted) {
+  if (rooted) {
+    i <- length(intersect(a, b))
+    return(i == 0 || i == length(a) || i == length(b))
+  }
+  ab <- length(intersect(a, b))
+  min(ab, length(a) - ab, length(b) - ab, n - length(a) - length(b) + ab) == 0
+}
+
+# TRUE iff no extended-majority decision is tied (spec §3.5, plan Global
+# Constraints): walking the sub-majority groupings by decreasing count,
+# two candidates at the same count that are each compatible with the
+# accepted set but incompatible with each other would make the result
+# order-dependent. Extension — and therefore the check — stops once the
+# tree is fully resolved (n-3 splits unrooted, n-2 clades rooted).
+extension_unambiguous <- function(inv, total, n, rooted) {
+  sets <- as.list(inv)
+  counts <- vapply(sets, `[[`, numeric(1), "count")
+  acc <- sets[counts > total / 2]
+  resolved <- if (rooted) n - 2 else n - 3
+  for (c in sort(unique(counts[counts <= total / 2]), decreasing = TRUE)) {
+    if (length(acc) == resolved) return(TRUE)
+    cand <- sets[counts == c]
+    cand <- Filter(function(s) all(vapply(acc, function(t)
+      grp_compat(s$labels, t$labels, n, rooted), TRUE)), cand)
+    if (length(cand) > 1) {
+      for (x in seq_len(length(cand) - 1)) {
+        for (y in (x + 1):length(cand)) {
+          if (!grp_compat(cand[[x]]$labels, cand[[y]]$labels, n, rooted))
+            return(FALSE)
+        }
+      }
+    }
+    acc <- c(acc, cand)
+  }
+  TRUE
+}
+
+# Engine-equivalent protein Kimura distance (protein_dist.rs):
+# x = 1 - p - 0.2 p^2; d = -ln x; saturated when x <= 0 (then we retry the
+# set with the next seed — the fixture keeps only fully built replicates).
+kimura_aa <- function(z) {
+  n <- nrow(z); m <- matrix(0, n, n,
+                          dimnames = list(rownames(z), rownames(z)))
+  for (i in seq_len(n - 1)) {
+    for (j in (i + 1):n) {
+      p <- mean(z[i, ] != z[j, ])
+      x <- 1 - p - 0.2 * p * p
+      if (x <= 0) stop("saturated protein pair ", i, ",", j)
+      m[i, j] <- m[j, i] <- -log(x)
+    }
+  }
+  m
+}
+
+gen_random <- function(n, nt, rooted) function(seed) {
+  set.seed(seed)
+  list(trees = rmtree(nt, n, rooted = rooted,
+                      tip.label = paste0("t", seq_len(n))))
+}
+gen_boot_dna <- function(f, model, b) function(seed) {
+  aln <- read.dna(file.path(indir, f), format = "fasta")
+  ref <- nj(dist.dna(aln, model = model, pairwise.deletion = TRUE))
+  set.seed(seed)
+  trees <- boot.phylo(ref, aln, quiet = TRUE, trees = TRUE, B = b,
+                      FUN = function(z) nj(dist.dna(z, model = model,
+                                           pairwise.deletion = TRUE)))$trees
+  list(trees = trees, ref = ref, labs = labels(aln))
+}
+gen_boot_aa <- function(f, b) function(seed) {
+  aa <- as.matrix(read.FASTA(file.path(indir, f), type = "AA"))
+  ref <- nj(as.dist(kimura_aa(aa)))
+  set.seed(seed)
+  trees <- boot.phylo(ref, aa, quiet = TRUE, trees = TRUE, B = b,
+                      FUN = function(z) nj(as.dist(kimura_aa(z))))$trees
+  list(trees = trees, ref = ref, labs = rownames(aa))
+}
+
+cons_specs <- list(
+  list(name = "rmtree_6_20",   rooted = FALSE, seed0 = 20261,
+       gen = gen_random(6, 20, FALSE)),
+  list(name = "rmtree_8_100",  rooted = FALSE, seed0 = 20262,
+       gen = gen_random(8, 100, FALSE)),
+  list(name = "rmtree_12_200", rooted = FALSE, seed0 = 20263,
+       gen = gen_random(12, 200, FALSE)),
+  list(name = "rmtree_6_20_rooted",  rooted = TRUE, seed0 = 20264,
+       gen = gen_random(6, 20, TRUE)),
+  list(name = "rmtree_8_100_rooted", rooted = TRUE, seed0 = 20265,
+       gen = gen_random(8, 100, TRUE)),
+  list(name = "boot_jc12_jc69_100", rooted = FALSE, seed0 = 20266,
+       gen = gen_boot_dna("jc12.fasta", "JC69", 100),
+       input = file.path("inputs", "jc12.fasta")),
+  list(name = "boot_p8_kimura_100", rooted = FALSE, seed0 = 20267,
+       gen = gen_boot_aa(file.path("protein", "p8_250.fasta"), 100),
+       input = file.path("inputs", "protein", "p8_250.fasta"))
+)
+
+for (spec in cons_specs) {
+  out <- file.path(consdir, paste0(spec$name, ".json"))
+  g <- NULL
+  for (seed in spec$seed0 + 0:499) {
+    g <- tryCatch(spec$gen(seed), error = function(e) e)
+    if (inherits(g, "error")) next
+    labs <- if (!is.null(g$labs)) g$labs else g$trees[[1]]$tip.label
+    ref <- if (!is.null(g$ref)) g$ref else g$trees[[1]]
+    inv <- grouping_inventory(g$trees, labs, spec$rooted)
+    if (extension_unambiguous(inv, length(g$trees), length(labs),
+                              spec$rooted))
+      break
+    g <- NULL
+  }
+  if (is.null(g))
+    stop(spec$name, ": no seed in ", spec$seed0, "..", spec$seed0 + 499,
+         " gave an unambiguous extended-majority extension")
+
+  # prop.clades of the reference against the set; labels come from
+  # prop.part(ref) (same order, same trivial leading part) and are
+  # cross-checked against the raw inventory.
+  rpp <- prop.part(ref)
+  rplabs <- attr(rpp, "labels")
+  rcnt <- prop.clades(ref, g$trees, rooted = spec$rooted)
+  stopifnot(!is.null(rplabs), setequal(rplabs, labs),
+            length(rpp) == length(rcnt))
+  pcl <- lapply(seq_along(rpp), function(i)
+    list(labels = canon_side(rpp[[i]], rplabs, labs, spec$rooted),
+         count = unname(rcnt[i])))
+  pcl <- Filter(function(x) length(x$labels) >= 2 &&
+                  length(x$labels) < length(labs), pcl)
+  for (x in pcl) {
+    k <- paste(x$labels, collapse = "\x1f")
+    stopifnot(exists(k, envir = inv, inherits = FALSE),
+              inv[[k]]$count == x$count)
+  }
+
+  fixture <- list(
+    name = spec$name,
+    generator = GENERATOR,
+    seed = seed,
+    rooted = spec$rooted,
+    labels = labs
+  )
+  if (!is.null(spec$input)) fixture$input <- spec$input
+  fixture$trees <- vapply(g$trees, newick, "")
+  fixture$reference <- newick(ref)
+  fixture$prop_clades <- pcl
+
+  # Preserve the consense block generate_phylip.sh wrote into the
+  # committed file, but only while the trees are identical — changed
+  # trees get their consense merged on the next generate_phylip.sh run.
+  if (file.exists(out)) {
+    old <- fromJSON(out)
+    if (identical(unname(old$trees), unname(fixture$trees)) &&
+        identical(old$rooted, fixture$rooted) &&
+        !is.null(old$consense)) {
+      fixture$consense <- old$consense
+    }
+  }
+  writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA,
+                    pretty = TRUE), out)
+  cat(sprintf("%s: %d taxa, %d trees, seed %d -> %s\n",
+              spec$name, length(labs), length(g$trees), seed, out))
+}

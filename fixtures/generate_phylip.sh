@@ -18,9 +18,14 @@
 # so it must run AFTER this script (scripts/ci/fixture-guard.sh holds
 # that order).
 #
+# Consensus path (v1.2): fixtures/consensus/*.json and
+# worked/consensus_hand.json get their `consense` block (strict, majority
+# and extended-majority runs plus the group tables) merged in by
+# fixtures/generate_consensus.sh, invoked at the end of this script.
+#
 # Usage: bash fixtures/generate_phylip.sh   (from anywhere)
-# Requires: dnadist, protdist + neighbor (on PATH or /usr/lib/phylip/bin),
-# Rscript with jsonlite.
+# Requires: dnadist, protdist, neighbor + consense (on PATH or
+# /usr/lib/phylip/bin), Rscript with jsonlite + ape.
 
 set -euo pipefail
 
@@ -243,3 +248,8 @@ cat(sprintf("protein_%s: %d taxa, precision %d -> %s\n",
             name, length(d_jtt$labels), prec, out))
 RS
 done
+
+# --- consensus path (v1.2) -------------------------------------------------
+# consense merges live in their own script so this file stays single-purpose;
+# see fixtures/generate_consensus.sh for the driver and the R assertions.
+bash "$FIXDIR/generate_consensus.sh"
