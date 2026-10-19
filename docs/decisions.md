@@ -1731,3 +1731,13 @@ and the following ci/release entry. Both entries were kept verbatim.)
   `errorMessage` fails `tsc -b` until the variant has a friendly
   message; the §6.2 wording suggests p-distance or longer sequences),
   and `docs/decisions.md` (this entry).
+
+### Task 4 fix: `replicate_detail` distance must match the method
+
+- **`rf_to_original` for UPGMA is the rooted cluster distance** — the
+  size of the symmetric difference of the two trees' cluster sets
+  (sizes 2..=n-1), i.e. `differing.len()` — not the unrooted
+  `compare::rf`, which would compare unlike grouping conventions. NJ
+  keeps `compare::rf` (unrooted splits). New test
+  `replicate_detail_rf_is_method_consistent` asserts `rf == 0` iff
+  `differing` is empty under both methods, and that both regimes occur.

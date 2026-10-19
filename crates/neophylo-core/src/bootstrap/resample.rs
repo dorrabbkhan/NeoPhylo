@@ -53,8 +53,10 @@ pub struct ReplicateDetail {
     /// The replicate was skipped (saturated cell or no comparable
     /// sites); `tree` and `rf_to_original` are `None`.
     pub failed: bool,
-    /// Unrooted RF distance between the replicate tree and the
-    /// original tree; `None` when `failed`.
+    /// Distance between the replicate tree and the original tree in
+    /// the method's own terms: the unrooted RF for NJ, the rooted
+    /// cluster symmetric difference (sizes 2..=n-1) for UPGMA — the
+    /// same sets `differing` reports. `None` when `failed`.
     pub rf_to_original: Option<u32>,
     /// Groupings present in exactly one of the two trees, each as a
     /// sorted label list.
@@ -118,7 +120,14 @@ pub fn replicate_detail(
         .symmetric_difference(&b)
         .map(|s| s.labels(&labels))
         .collect();
-    detail.rf_to_original = Some(rf(&orig, &rep)?.rf);
+    // Compare like with like: a rooted (UPGMA) tree's distance is the
+    // cluster symmetric difference — exactly `differing` — not the
+    // unrooted split distance that only fits NJ.
+    detail.rf_to_original = if rooted {
+        Some(detail.differing.len() as u32)
+    } else {
+        Some(rf(&orig, &rep)?.rf)
+    };
     detail.tree = Some(rep);
     Ok(detail)
 }

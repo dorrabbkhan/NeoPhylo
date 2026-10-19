@@ -256,6 +256,38 @@ fn tiny_trees() {
 }
 
 #[test]
+fn replicate_detail_rf_is_method_consistent() {
+    // rf_to_original compares like with like: NJ reports the unrooted
+    // RF, UPGMA the rooted cluster distance — in both methods it is
+    // zero exactly when `differing` is empty, and both regimes occur.
+    let aln = fixture_aln("inputs/jc6.fasta");
+    for method in [Method::Nj, Method::Upgma] {
+        let mut saw_same = false;
+        let mut saw_diff = false;
+        for i in 0..100u32 {
+            let d = replicate_detail(&aln, DistModel::Jc69, method, 1, i).unwrap();
+            if d.failed {
+                continue;
+            }
+            let rf = d.rf_to_original.unwrap();
+            if method == Method::Upgma {
+                // Rooted cluster distance: the size of the symmetric
+                // difference of the two trees' cluster sets.
+                assert_eq!(rf, d.differing.len() as u32, "{method:?} replicate {i}");
+            }
+            assert_eq!(rf == 0, d.differing.is_empty(), "{method:?} replicate {i}");
+            saw_same |= rf == 0;
+            saw_diff |= rf > 0;
+        }
+        assert!(saw_same, "{method:?}: no replicate reproduced the original");
+        assert!(
+            saw_diff,
+            "{method:?}: no replicate differed from the original"
+        );
+    }
+}
+
+#[test]
 fn replicate_detail_matches_batch() {
     let aln = fixture_aln("inputs/jc6.fasta");
     let l = aln.seqs[0].len();
