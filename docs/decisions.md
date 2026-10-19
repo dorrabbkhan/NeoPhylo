@@ -1556,22 +1556,45 @@ and the following ci/release entry. Both entries were kept verbatim.)
   `seeds/exercise/embedded_protein.json` (v2 embedded protein, exercises
   the new `Embedded` arm) and `seeds/exercise/v1_jc69_nj.json` (v1, so
   the migration path stays in the corpus).
-- **Blind spot closed.** New `fuzz-build` job in `ci.yml` runs
-  `cargo +nightly fuzz build` (build only, no fuzzing) on every push and
-  PR, so fuzz-target compile errors fail the same checks a reviewer
-  waits on. Check name for branch protection: `fuzz-build` — the owner
-  should mark it required (the required-checks list under
-  "## CI: .github/workflows/ci.yml" is updated). In `fuzz.yml` the
-  nightly job compiles targets in a separate `build` step before the
-  fuzz run; on build failure the issue step files/comments with the
-  title "Nightly fuzz build failed" (label `fuzz-crash`, same
-  comment-if-open dedup), while a crash during the run keeps
-  "Fuzz crash detected in nightly run".
 - Not changed: `fuzz-build` is not in `deploy`'s `needs` — deploy
   gating is unchanged; branch protection is what makes the job
   blocking for merges. The nightly run still drives targets through
   `scripts/ci/fuzz.sh` rather than duplicating the per-target loop in
   YAML.
+
+## v1.1 release docs
+
+- **README**: five-lesson list with `?lesson=<id>` ids, real-data
+  authoring description, "How was this distance computed?" feature
+  bullet, "Current scope" section, protdist-parity claim, corrected
+  `compare_app.R` usage (`<alignment> <matrix> <model>` — no flags, the
+  model must match the detected alphabet), one-line deploys bullet
+  (details stay in CONTRIBUTING.md), third-party license note.
+- **THIRD_PARTY_NOTICES.md**: protdist doc-fixture note; new UniProtKB
+  section (CC BY 4.0) for the cytochrome-c lesson sequences.
+- **Licenses page** (`licenses.html`, §C): generated at build time into
+  `web/public/` (gitignored) by `web/scripts/licenses.ts` — combines
+  THIRD_PARTY_NOTICES.md, a cargo-about render (`about.toml`/`about.hbs`,
+  scripts/ci/licenses.sh) and npm production deps from
+  `package-lock.json`. Footer "Licenses" link in `App.tsx`. Deviations:
+  - npm gating is done by the generator itself (reading the lockfile's
+    `dev` flags) rather than rollup-plugin-license — equivalent, zero new
+    dependencies, and the same accepted list as `about.toml`.
+  - The crate list reaches the web build via a CI artifact
+    (`web/.licenses/rust-licenses.html`) so the web job needs no Rust
+    toolchain; locally without cargo-about the page falls back to a
+    placeholder section with a warning.
+  - Both crates got `publish = false` so `about.toml`'s
+    `[private] ignore` keeps AGPL-3.0-only (the app's own license, not a
+    redistributed dependency) out of the `accepted` gate.
+  - New `licenses` CI job is the hard gate; it is not added to
+    `scripts/check.sh` since cargo-about is an optional local tool
+    (documented in CONTRIBUTING.md prerequisites as needed).
+- **CITATION.cff**: v1.1.0, release date 2026-10-19, expanded abstract,
+  protein/JTT/PHYLIP keywords, ORCID placeholder removed (none yet).
+  `cffconvert --validate` passes.
+- **roadmap.md**: status line; v1.2 reroot item and v1.3
+  layout/saturation-feedback items found at v1.1 checkpoints.
 
 ## Checkpoint 13: saturation panel progress feedback
 

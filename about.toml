@@ -1,0 +1,25 @@
+# cargo-about configuration (v1.1 release docs, task §C): the license gate
+# for the Rust crates compiled into the wasm engine. `cargo about generate`
+# (scripts/ci/licenses.sh, the licenses CI job) fails when any dependency
+# carries a license outside `accepted`; the rendered crate list is folded
+# into the app's licenses.html by web/scripts/licenses.ts.
+#
+# AGPL-3.0-only is deliberately not accepted: NeoPhylo's own crates are
+# `publish = false` and skipped via [private] — this list covers the
+# dependencies we *redistribute*, and anything added must stay permissive.
+
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+# The workspace crates themselves are not dependencies we ship under their
+# own licenses (they are the app, AGPL-3.0-only); `publish = false` marks
+# them private and this skips them in the scan.
+[private]
+ignore = true

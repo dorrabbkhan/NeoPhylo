@@ -1,0 +1,18 @@
+{{! Rendered by `cargo about generate` (scripts/ci/licenses.sh) and folded
+    into web/public/licenses.html by web/scripts/licenses.ts. Each entry
+    reproduces the license text, which the MIT/BSD/Apache notice clauses
+    require for binary distributions. }}
+<ul class="license-summary">
+  {{#each overview}}
+  <li>{{count}} crates — {{name}}</li>
+  {{/each}}
+</ul>
+{{#each licenses}}
+<section class="license-entry">
+  <h3>{{name}}{{#if id}} ({{id}}){{/if}}</h3>
+  <p class="license-used-by">Used by:
+    {{#each used_by}}{{crate.name}} {{crate.version}}{{#unless @last}}, {{/unless}}{{/each}}
+  </p>
+  <pre class="license-text">{{text}}</pre>
+</section>
+{{/each}}

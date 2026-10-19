@@ -46,6 +46,16 @@ FUZZ=1 ./scripts/check.sh   # + cargo-fuzz smoke run
 
 On Ubuntu 22.04/24.04, `bash setup-ubuntu.sh` installs all prerequisites.
 
+## Dependency licenses
+
+The `licenses` CI job runs `cargo about generate` against
+[`about.toml`](about.toml) — any Rust dependency license outside the
+`accepted` list fails CI — and `npm run build` applies the same list to
+npm production dependencies while generating `licenses.html` (the page
+the app footer links to). `cargo-about` is only needed to render the
+Rust section locally (`cargo install cargo-about`); without it the build
+writes a placeholder section instead of failing.
+
 ## Content contributions
 
 Lesson JSON files, prompt text and the Concept/Math explanation layers are

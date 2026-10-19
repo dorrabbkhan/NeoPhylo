@@ -33,8 +33,9 @@ export default tseslint.config(
     },
   },
   {
-    // Playwright config and specs run in Node, not the browser.
-    files: ["e2e/**/*.ts", "playwright.config.ts"],
+    // Playwright config/specs and the build-time scripts run in Node,
+    // not the browser.
+    files: ["e2e/**/*.ts", "playwright.config.ts", "scripts/**/*.ts"],
     languageOptions: {
       globals: globals.node,
     },

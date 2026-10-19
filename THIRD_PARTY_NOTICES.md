@@ -15,6 +15,10 @@ replacement matrix (decomposition due to Elisabeth Tillier). PHYLIP
 (upstream: https://phylipweb.github.io/phylip/); the upstream copyright
 notice and license text follow.
 
+`fixtures/worked/protdist_doc_jtt.json` additionally reproduces the test
+data set and published JTT distance matrix from PHYLIP's `protdist`
+documentation, used as a reference fixture.
+
 > Copyright (c) 1980-2014, Joseph Felsenstein
 > All rights reserved.
 >
@@ -40,3 +44,16 @@ notice and license text follow.
 > THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 > (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 > OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## UniProtKB — cytochrome c sequences
+
+`exercises/cytochrome-c.json` embeds eight cytochrome c sequences from
+UniProtKB/Swiss-Prot (accessions P99999, P00004, P67881, Q6IQM2, P84029,
+P00068, P00044, P00048), aligned with MAFFT (see
+`docs/lessons/cytochrome-c-provenance.md`). UniProtKB is licensed under
+Creative Commons Attribution 4.0 International (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Source: The UniProt Consortium, UniProt: the Universal Protein
+Knowledgebase, https://www.uniprot.org (retrieved 2026-10-18).
+Changes: sequences were aligned (gaps added); residues are unmodified.

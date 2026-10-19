@@ -603,6 +603,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
         <a className="repo-link" href={REPO_URL}>
           Source code (AGPL-3.0)
         </a>
+        <a
+          className="repo-link"
+          href={`${import.meta.env.BASE_URL}licenses.html`}
+        >
+          Licenses
+        </a>
       </footer>
       {phylipHelp && <PhylipHelp onClose={() => setPhylipHelp(false)} />}
       {pairDetail !== null && session.alignment !== null && (
