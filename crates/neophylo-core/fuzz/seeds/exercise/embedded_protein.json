@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "embedded-protein",
+  "title": "Embedded protein seed",
+  "alphabet": "protein",
+  "data": {
+    "kind": "embedded",
+    "fasta": ">human\nMGDVEKGKKIFIMKCSQCHT\n>horse\nMGDVEKGKKIFVQKCAQCHT\n>chicken\nMGDIEKGKKIFVQKCSQCHT\n>yeast\nMTEFKAGSAKKGATLFKTRC",
+    "source": {
+      "citation": "UniProt Consortium, UniProtKB (uniprot.org); aligned with MAFFT v7.525",
+      "license": "CC BY 4.0",
+      "accessions": ["P99999", "P00004", "P67881", "P00044"]
+    }
+  },
+  "reference": {
+    "newick": "((human:1,horse:1):1,(chicken:1,yeast:1):1);",
+    "kind": "classification"
+  },
+  "analysis": { "correction": "JTT", "method": "NJ" },
+  "locked": [],
+  "prompts": []
+}

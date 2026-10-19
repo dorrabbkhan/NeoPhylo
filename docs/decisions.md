@@ -620,6 +620,7 @@ fixtures/ref`, and an untracked-file check). If regeneration differs on
   `@playwright/test` version plus the browser name, computed after
   `npm ci`.
 - Check names for branch protection: `fixture-guard`, `rust`, `wasm`,
+  `fuzz-build` (added later — see "fix/fuzz-targets-schema-v2" below),
   `web`, `e2e (chromium)`, `e2e (firefox)`, `e2e (webkit)`,
   `r-and-fixtures`.
 - `.github/workflows/deploy.yml` removed (owner decision): the spec only
@@ -1498,3 +1499,41 @@ and the following ci/release entry. Both entries were kept verbatim.)
     including `protdist_corpus`, `jtt_doc_parity`, `slope_at_peak` and
     `newton_never_worse`; the symmetric merge perturbs the Newton
     trajectory by ~1 ulp per term, far inside the 5e-7 doc tolerance.
+
+## fix/fuzz-targets-schema-v2: exercise fuzz target + fuzz-build CI job
+
+- **Cause.** `crates/neophylo-core/fuzz/Cargo.toml` declares its own
+  `[workspace]` — the fuzz crate is outside the main workspace on
+  purpose (cargo-fuzz needs a nightly libFuzzer build, and isolation
+  keeps its `Cargo.lock` and sanitizer flags off the real crates). The
+  price: nothing in `cargo test --workspace`, clippy, wasm.sh or the
+  rest of CI ever compiles it, so the exercise schema v2 refactor
+  (`exercise.true_tree`/`exercise.sim` → `exercise.data: ExerciseData`)
+  broke `fuzz_targets/exercise.rs` without breaking a single check.
+  The nightly fuzz run was the only compile, and its failure path was
+  written for crashes, not build errors.
+- **Fix.** `fuzz_targets/exercise.rs` now matches `exercise.data`
+  (`Simulated` → `parse_newick` + `simulate`; `Embedded` → `parse_fasta`
+  + `with_alphabet(exercise.alphabet)`), then runs `compute` →
+  `build_tree(trace: true)` → `rf` against `exercise.reference` when
+  present. Every step is `let Ok(..) else { return }` — the target still
+  asserts "no panic", not "no error". New seeds:
+  `seeds/exercise/embedded_protein.json` (v2 embedded protein, exercises
+  the new `Embedded` arm) and `seeds/exercise/v1_jc69_nj.json` (v1, so
+  the migration path stays in the corpus).
+- **Blind spot closed.** New `fuzz-build` job in `ci.yml` runs
+  `cargo +nightly fuzz build` (build only, no fuzzing) on every push and
+  PR, so fuzz-target compile errors fail the same checks a reviewer
+  waits on. Check name for branch protection: `fuzz-build` — the owner
+  should mark it required (the required-checks list under
+  "## CI: .github/workflows/ci.yml" is updated). In `fuzz.yml` the
+  nightly job compiles targets in a separate `build` step before the
+  fuzz run; on build failure the issue step files/comments with the
+  title "Nightly fuzz build failed" (label `fuzz-crash`, same
+  comment-if-open dedup), while a crash during the run keeps
+  "Fuzz crash detected in nightly run".
+- Not changed: `fuzz-build` is not in `deploy`'s `needs` — deploy
+  gating is unchanged; branch protection is what makes the job
+  blocking for merges. The nightly run still drives targets through
+  `scripts/ci/fuzz.sh` rather than duplicating the per-target loop in
+  YAML.

@@ -31,6 +31,14 @@ jobs:
       - name: Install cargo-fuzz
         run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz
 
+      # Build is a separate step so a compile failure (e.g. engine API drift
+      # in the standalone fuzz workspace) is reported with its own issue
+      # title instead of looking like a crash.
+      - name: Build fuzz targets
+        id: build
+        working-directory: crates/neophylo-core/fuzz
+        run: cargo +nightly fuzz build
+
       - name: Run fuzz smoke (${{ env.FUZZ_SECONDS }} s per target)
         run: bash scripts/ci/fuzz.sh
 
@@ -47,16 +55,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
         run: |
           gh label create fuzz-crash --description "Automated fuzz crash report" --force
-          ISSUE=$(gh issue list --label fuzz-crash --state open --limit 1 --json number --jq '.[0].number')
-          if [ -n "$ISSUE" ]; then
-            gh issue comment "$ISSUE" --body "Fuzz run failed again: $RUN_URL"
+          if [ "$BUILD_OUTCOME" = "failure" ]; then
+            TITLE="Nightly fuzz build failed"
+            BODY="The nightly fuzz targets failed to build — likely engine API drift in the standalone fuzz workspace. Run: $RUN_URL"
           else
-            gh issue create \
-              --title "Fuzz crash detected in nightly run" \
-              --label fuzz-crash \
-              --body "Fuzzing failed. Run: $RUN_URL
+            TITLE="Fuzz crash detected in nightly run"
+            BODY="Fuzzing failed. Run: $RUN_URL
 
           Crash artifacts (if any) are attached to the workflow run."
+          fi
+          ISSUE=$(gh issue list --label fuzz-crash --state open --limit 1 --json number --jq '.[0].number')
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "$TITLE: $RUN_URL"
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --label fuzz-crash \
+              --body "$BODY"
           fi

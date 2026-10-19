@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "v1-jc69-nj",
+  "title": "v1 migration seed",
+  "true_tree": "((A:0.1,B:0.1):0.05,(C:0.2,D:0.1):0.1);",
+  "sim": { "model": "JC69", "length": 200, "seed": 7 },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "locked": [],
+  "prompts": []
+}
