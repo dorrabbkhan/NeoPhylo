@@ -78,6 +78,29 @@ jobs:
             web/src/engine/generated
           retention-days: 1
 
+  # The fuzz crate is a standalone workspace (fuzz/Cargo.toml declares its
+  # own [workspace]), so a broken fuzz target never fails the main build —
+  # this job compiles every target on each push/PR to catch API drift (e.g.
+  # exercise schema v2) that the nightly run would otherwise report late.
+  fuzz-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Cache cargo-fuzz
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: ${{ runner.os }}-cargo-fuzz
+      - name: Install cargo-fuzz
+        run: command -v cargo-fuzz >/dev/null || cargo install cargo-fuzz
+      - name: Build all fuzz targets
+        # cargo-fuzz has no --manifest-path support; run inside the fuzz dir.
+        working-directory: crates/neophylo-core/fuzz
+        run: cargo +nightly fuzz build
+
   web:
     needs: wasm
     runs-on: ubuntu-24.04
