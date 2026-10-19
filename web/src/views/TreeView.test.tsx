@@ -32,11 +32,11 @@ function makeTree(
       { parent: null, children: [3, 2], label: null },
     ],
     branches: [
-      { length: 1 },
-      { length: 2 },
-      { length: cLen },
-      { length: 1 },
-      { length: null },
+      { length: 1, support: null },
+      { length: 2, support: null },
+      { length: cLen, support: null },
+      { length: 1, support: null },
+      { length: null, support: null },
     ],
   };
 }

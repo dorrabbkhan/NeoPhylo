@@ -96,7 +96,7 @@ function withNegativeBranch(s: Session): Session {
   const tree = {
     ...result.tree,
     branches: result.tree.branches.map((b, i) =>
-      i === 1 ? { length: -0.05 } : b,
+      i === 1 ? { length: -0.05, support: null } : b,
     ),
   };
   return { ...s, result: { ...result, tree } };

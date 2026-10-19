@@ -25,11 +25,16 @@ pub struct Node {
     pub label: Option<String>,
 }
 
-/// Attributes of the edge above a node. v1 carries only `length`.
+/// Attributes of the edge above a node: `length`, plus `support`
+/// (v1.2 spec §3.4), a bootstrap fraction 0-1 set by
+/// `bootstrap::support_on_tree`. `#[serde(default)]` keeps v1/v1.1
+/// tree JSON (which has no `support` key) deserializable as `None`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct BranchAttrs {
     pub length: Option<f64>,
+    #[serde(default)]
+    pub support: Option<f64>,
 }
 
 /// A rooted or unrooted tree. Unrooted trees are stored with an internal
@@ -62,7 +67,10 @@ impl Tree {
             children: Vec::new(),
             label,
         });
-        self.branches.push(BranchAttrs { length: None });
+        self.branches.push(BranchAttrs {
+            length: None,
+            support: None,
+        });
         id
     }
 
