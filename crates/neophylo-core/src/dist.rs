@@ -1,10 +1,16 @@
-//! Pairwise distances: p, JC69 and K80 (spec §4.3).
+//! Pairwise distances: p, JC69 and K80 (spec §4.3), plus the v1.2
+//! weighted form used by bootstrap resampling (v1.2 spec §3.1).
 //!
 //! A site counts for a pair only when both bases are A, C, G or T
 //! (pairwise deletion). A pair with zero comparable sites gives
 //! `NeoError::InsufficientOverlap`. Cells that fail a model's saturation
 //! condition come back as `Cell::Saturated`; `DistanceMatrix::to_matrix`
 //! refuses to hand out a plain `Matrix` while a saturated cell remains.
+//!
+//! `compute_weighted` multiplies each column's contribution by an
+//! integer weight (weight 0 drops the column). `compute` delegates to it
+//! with all-ones weights, so the unweighted path is unchanged bit for
+//! bit.
 
 use libm::log;
 use serde::{Deserialize, Serialize};
@@ -148,10 +154,13 @@ fn is_transition(a: u8, b: u8) -> bool {
     )
 }
 
-/// Per-pair counts under pairwise deletion. Sites at which either
-/// character is not a standard state of the alphabet (A/C/G/T for DNA,
-/// the 20 amino acids for protein) are skipped; sites past the end of
-/// the shorter sequence are skipped too, so ragged input cannot panic.
+/// Per-pair counts under pairwise deletion, with per-column weights.
+/// Column `k` contributes `w[k]` to each counter; a weight of 0 drops
+/// the column and a missing `w[k]` is treated as 0, so a short `w` can
+/// never index past its end. Sites at which either character is not a
+/// standard state of the alphabet (A/C/G/T for DNA, the 20 amino acids
+/// for protein) are skipped; sites past the end of the shorter sequence
+/// are skipped too, so ragged input cannot panic.
 #[derive(Default)]
 struct PairCounts {
     comparable: u64,
@@ -159,22 +168,26 @@ struct PairCounts {
     transitions: u64,
 }
 
-fn pair_counts(a: &[u8], b: &[u8], alphabet: Alphabet) -> PairCounts {
+fn pair_counts_weighted(a: &[u8], b: &[u8], alphabet: Alphabet, w: &[u32]) -> PairCounts {
     let is_standard: fn(u8) -> bool = match alphabet {
         Alphabet::Dna => is_base,
         Alphabet::Protein => |b| protein_index(b).is_some(),
     };
     let mut counts = PairCounts::default();
     for k in 0..a.len().min(b.len()) {
+        let wt = u64::from(w.get(k).copied().unwrap_or(0));
+        if wt == 0 {
+            continue;
+        }
         let (x, y) = (a[k], b[k]);
         if !is_standard(x) || !is_standard(y) {
             continue;
         }
-        counts.comparable += 1;
+        counts.comparable += wt;
         if x != y {
-            counts.differences += 1;
+            counts.differences += wt;
             if alphabet == Alphabet::Dna && is_transition(x, y) {
-                counts.transitions += 1;
+                counts.transitions += wt;
             }
         }
     }
@@ -217,7 +230,32 @@ fn distance(counts: &PairCounts, model: DistModel) -> Cell {
 
 /// All pairwise distances for `aln` under `model` (spec §4.3, v1.1 §3.4).
 /// `model` must be valid for `aln.alphabet`, else `ModelAlphabetMismatch`.
+///
+/// Delegates to `compute_weighted` with an all-ones weight vector, so
+/// the two paths cannot drift apart.
 pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoError> {
+    let w = vec![1u32; aln.seqs.iter().map(Vec::len).max().unwrap_or(0)];
+    compute_weighted(aln, model, &w)
+}
+
+/// Weighted pairwise distances (v1.2 spec §3.1): column `k` counts
+/// `w[k]` times in comparable sites, differences and (JTT) pair counts.
+/// `w.len()` must equal the number of alignment columns (the longest
+/// sequence, so ragged tails are covered), else
+/// `InvalidExercise { field: "weights" }`. A pair whose weighted
+/// comparable-site count is zero gives `InsufficientOverlap`.
+pub fn compute_weighted(
+    aln: &Alignment,
+    model: DistModel,
+    w: &[u32],
+) -> Result<DistanceMatrix, NeoError> {
+    let cols = aln.seqs.iter().map(Vec::len).max().unwrap_or(0);
+    if w.len() != cols {
+        return Err(NeoError::InvalidExercise {
+            field: "weights".to_string(),
+            msg: format!("expected {cols} column weights, got {}", w.len()),
+        });
+    }
     if !model.supports(aln.alphabet) {
         return Err(NeoError::ModelAlphabetMismatch {
             model: model.name().to_string(),
@@ -230,7 +268,7 @@ pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoE
         for j in (i + 1)..n {
             let cell = match aln.alphabet {
                 Alphabet::Dna => {
-                    let counts = pair_counts(&aln.seqs[i], &aln.seqs[j], aln.alphabet);
+                    let counts = pair_counts_weighted(&aln.seqs[i], &aln.seqs[j], aln.alphabet, w);
                     if counts.comparable == 0 {
                         return Err(NeoError::InsufficientOverlap {
                             a: label(&aln.labels, i),
@@ -241,14 +279,14 @@ pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoE
                 }
                 Alphabet::Protein => {
                     let (table, comparable, differences) =
-                        protein_dist::pair_counts(&aln.seqs[i], &aln.seqs[j]);
+                        protein_dist::pair_counts_weighted(&aln.seqs[i], &aln.seqs[j], w);
                     if comparable == 0 {
                         return Err(NeoError::InsufficientOverlap {
                             a: label(&aln.labels, i),
                             b: label(&aln.labels, j),
                         });
                     }
-                    let p = f64::from(differences) / f64::from(comparable);
+                    let p = differences as f64 / comparable as f64;
                     match model {
                         DistModel::P => Cell::Value(p),
                         DistModel::Kimura => protein_dist::kimura_from_p(p),

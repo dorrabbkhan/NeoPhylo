@@ -1669,3 +1669,25 @@ and the following ci/release entry. Both entries were kept verbatim.)
   `grouping_inventory` and the newick `tree_groups` check.
 - **jsonlite quirk:** a one-element array-of-arrays simplifies to a
   matrix, so `expected` sets are normalized rows-as-sets before keying.
+
+## v1.2 Task 3: weighted distances
+
+- **`compute` delegates to `compute_weighted`** with an all-ones weight
+  vector (the plan permits this "only if `identity_bit_for_bit` passes" —
+  it does). One code path means the two cannot drift; every contribution
+  is multiplied by 1, so the result is bit-for-bit identical.
+- **"Number of alignment columns" is the longest sequence's length**, not
+  `seqs[0]`: a ragged hand-built `Alignment` whose `seqs[0]` is shortest
+  would otherwise reject a `w` covering every column any pair can reach.
+  Pair counting still treats a missing `w[k]` as 0, so a short `w` can
+  never index past its end.
+- **`pair_counts_weighted` (protein) returns `u64` comparable/difference
+  counts** because weighted sums are unbounded; `pair_counts` keeps its
+  `u32` signature by delegating and clamping (unreachable: sequences are
+  capped at `MAX_SITES`). Table cells saturate at `u32::MAX` rather than
+  wrapping, keeping the no-panic rule on absurd weights.
+- **`w.len()` is validated before the model/alphabet check** — the plan
+  states the `InvalidExercise { field: "weights" }` contract first, and
+  `compute`'s delegation always passes a correctly-sized `w`, so v1/v1.1
+  behavior is unchanged either way.
+- **Files outside the Files block:** `docs/decisions.md` (this entry).

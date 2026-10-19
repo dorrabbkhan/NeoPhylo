@@ -51,18 +51,37 @@ const ZEPS: f64 = 1e-12;
 /// counts. Sites where either character is not a standard amino acid
 /// are skipped; so are sites past the end of the shorter sequence.
 pub fn pair_counts(a: &[u8], b: &[u8]) -> ([[u32; 20]; 20], u32, u32) {
+    let w = vec![1u32; a.len().max(b.len())];
+    let (table, comparable, differences) = pair_counts_weighted(a, b, &w);
+    (
+        table,
+        comparable.min(u64::from(u32::MAX)) as u32,
+        differences.min(u64::from(u32::MAX)) as u32,
+    )
+}
+
+/// Weighted variant of `pair_counts` (v1.2 spec §3.1): column `k`
+/// contributes `w[k]` to the table and the comparable/difference
+/// counts. A weight of 0 drops the column and a missing `w[k]` is
+/// treated as 0, so a short `w` can never index past its end. Table
+/// cells saturate at `u32::MAX` instead of overflowing.
+pub fn pair_counts_weighted(a: &[u8], b: &[u8], w: &[u32]) -> ([[u32; 20]; 20], u64, u64) {
     let mut table = [[0u32; 20]; 20];
-    let mut comparable = 0u32;
-    let mut differences = 0u32;
+    let mut comparable = 0u64;
+    let mut differences = 0u64;
     for k in 0..a.len().min(b.len()) {
+        let wt = u64::from(w.get(k).copied().unwrap_or(0));
+        if wt == 0 {
+            continue;
+        }
         let (Some(x), Some(y)) = (protein_index(a[k]), protein_index(b[k])) else {
             continue;
         };
-        comparable += 1;
+        comparable += wt;
         if x != y {
-            differences += 1;
+            differences += wt;
         }
-        table[x as usize][y as usize] += 1;
+        table[x as usize][y as usize] = table[x as usize][y as usize].saturating_add(w[k]);
     }
     (table, comparable, differences)
 }
