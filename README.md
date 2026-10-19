@@ -24,23 +24,39 @@ builder as a black box.
 - **Step-through tree building.** Neighbor-Joining and UPGMA, one join at a
   time. Every panel — true tree, inferred tree, distance/Q matrix — stays in
   sync with the stepper.
-- **Distance models.** p-distance, JC69 and K80, with saturated cells shown as
-  "cannot estimate" teaching states rather than silent failures.
-- **Simulation on a true tree.** DNA sequences evolve along a known tree under
-  JC69 or K80, so the inferred tree can always be compared against the truth
-  (Robinson–Foulds distance shown at the last step).
+- **Distance models.** DNA: p-distance, JC69 and K80. Protein: p-distance,
+  the Kimura correction and JTT maximum likelihood — with saturated cells
+  shown as "cannot estimate" teaching states rather than silent failures.
+- **Simulation on a true tree.** DNA or protein sequences evolve along a
+  known tree under JC69, K80 or JTT, so the inferred tree can always be
+  compared against the truth (Robinson–Foulds distance shown at the last
+  step).
 - **Guided lessons.** Built-in exercises pause at key joins with
   predict-then-reveal prompts and can lock controls so students change only
   the intended levers.
-- **Sandbox.** Import your own FASTA alignment or Newick tree and run the same
-  pipeline on it.
+- **Sandbox.** Import your own FASTA or PHYLIP alignment — DNA or protein,
+  auto-detected — or a Newick tree, and run the same pipeline on it. JTT on
+  a 200×1,000 protein alignment computes in under two seconds in-browser.
 - **Shareable links.** The full state — lesson, overrides, current step — is
   encoded in the URL; custom exercises travel in the fragment and are never
   sent to a server.
-- **Export.** Tree as SVG, PNG or Newick, plus a runnable R script that
-  reproduces the analysis with `ape`/`phangorn`.
+- **Export.** Tree as SVG, PNG or Newick, a PHYLIP square distance matrix
+  ready for `neighbor`, and a runnable R script that reproduces the analysis
+  with `ape`/`phangorn` (protein included).
 - **Offline and accessible.** Works offline after first load; full keyboard
   operation, colorblind-safe palette, axe checks in CI.
+
+## Coming from PHYLIP?
+
+Paste a `.phy` alignment straight into the Sandbox — Strict (10-char) and
+Relaxed names are handled, and the in-app "Coming from PHYLIP?" help maps
+`protdist` models to NeoPhylo corrections. Export the distance matrix in
+`neighbor` input format and cross-check against R with
+[`scripts/compare/compare_app.R`](scripts/compare/compare_app.R):
+
+```sh
+Rscript scripts/compare/compare_app.R alignment.fasta matrix.phy JTT
+```
 
 ## How we know it's correct
 

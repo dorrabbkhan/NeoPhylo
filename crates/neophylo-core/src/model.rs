@@ -11,6 +11,8 @@
 
 pub mod jtt_constants;
 
+use std::sync::OnceLock;
+
 /// A reversible empirical substitution model (v1.1 spec §3.3).
 pub struct RateModel {
     /// Model name ("JTT").
@@ -51,25 +53,114 @@ impl RateModel {
         p
     }
 
-    /// Joint probability `π_x·P_xy(t)` of observing states `x` and `y`
-    /// after distance `t`, plus its first two derivatives in `t`.
-    ///
-    /// Evaluated spectrally as `Σ_k c_k(x)·c_k(y)·λ_k^m·exp(λ_k t)` for
-    /// m = 0, 1, 2, where `c` is the spectral coefficient matrix
-    /// (`u_inv`'s rows for the protdist-embedded JTT decomposition —
-    /// see `data/models/README.md`). This is the arithmetic
-    /// `protdist`'s `predict` performs, so the likelihood and Newton
-    /// trajectory in `protein_dist` reproduce the oracle bit-near.
-    pub(crate) fn site_prob_derivs(&self, x: usize, y: usize, t: f64) -> (f64, f64, f64) {
+    /// `exp(λ_k t)` for each eigenvalue — the per-evaluation part of
+    /// the spectral sums in [`jtt_spectral`], hoisted so a caller
+    /// evaluating many cells at the same `t` pays 20 `exp` calls total
+    /// rather than 20 per cell (v1.1 §3.4's 200-taxon budget needs this).
+    pub(crate) fn spectral_weights(&self, t: f64) -> [f64; 20] {
+        let mut e = [0.0_f64; 20];
+        for (k, e_k) in e.iter_mut().enumerate().take(self.n) {
+            *e_k = libm::exp(self.eigvals[k] * t);
+        }
+        e
+    }
+}
+
+/// Transposed, λ-folded copies of JTT's spectral coefficients for the
+/// batched evaluation. With `ut[y][m] = u_inv[m][y]` each cell's
+/// `J_xy(t)`, `J′`, `J″` become contiguous 20-term dot products — the
+/// layout that matters inside the per-pair optimizer loops (v1.1 §3.4).
+///
+/// `c` is the spectral coefficient matrix (`u_inv`'s rows for the
+/// protdist-embedded JTT decomposition — see `data/models/README.md`):
+/// `J_xy(t) = Σ_k c_k(x)·c_k(y)·e^{λ_k t}`.
+struct SiteTables {
+    /// `ut[y][m] = c_m(y)` — the plain transpose of `u_inv`.
+    ut: [[f64; 20]; 20],
+    /// `lt[y][m] = λ_m·c_m(y)` — the `J′` row.
+    lt: [[f64; 20]; 20],
+    /// `l2t[y][m] = λ_m²·c_m(y)` — the `J″` row.
+    l2t: [[f64; 20]; 20],
+}
+
+static JTT_TABLES: OnceLock<SiteTables> = OnceLock::new();
+
+fn jtt_tables() -> &'static SiteTables {
+    JTT_TABLES.get_or_init(|| {
+        let n = JTT.n;
+        let (mut ut, mut lt, mut l2t) = (
+            [[0.0_f64; 20]; 20],
+            [[0.0_f64; 20]; 20],
+            [[0.0_f64; 20]; 20],
+        );
+        for m in 0..n {
+            let l = JTT.eigvals[m];
+            for y in 0..n {
+                let c = JTT.u_inv[m][y];
+                ut[y][m] = c;
+                lt[y][m] = l * c;
+                l2t[y][m] = l * l * c;
+            }
+        }
+        SiteTables { ut, lt, l2t }
+    })
+}
+
+fn dot(a: &[f64; 20], b: &[f64; 20], n: usize) -> f64 {
+    let mut s = 0.0;
+    for m in 0..n {
+        s += a[m] * b[m];
+    }
+    s
+}
+
+/// Per-`t` spectral context: `ce[x][m] = c_m(x)·e^{λ_m t}` folded once
+/// per evaluation, so each observed cell is three contiguous dots
+/// instead of a strided walk over `u_inv`. Regrouped from protdist's
+/// `(c_k(x)·c_k(y))·e^{λ_k t}` to `(c_k(x)·e_k)·c_k(y)` — per-term
+/// rounding differs by ~1 ulp, far inside the fixture tolerances
+/// (verified by the Task 6 parity tests).
+pub(crate) struct SpectralCtx {
+    ce: [[f64; 20]; 20],
+    tabs: &'static SiteTables,
+    n: usize,
+}
+
+impl SpectralCtx {
+    /// `J_xy(t) = π_x·P_xy(t)` for the context's `t`.
+    pub(crate) fn prob(&self, x: usize, y: usize) -> f64 {
+        dot(&self.ce[x], &self.tabs.ut[y], self.n)
+    }
+
+    /// `(J_xy, J′_xy, J″_xy)` at the context's `t`. One pass over the
+    /// spectral terms, keeping the three accumulators live.
+    pub(crate) fn derivs(&self, x: usize, y: usize) -> (f64, f64, f64) {
         let (mut p, mut dp, mut d2p) = (0.0, 0.0, 0.0);
+        let cex = &self.ce[x];
+        let (ut, lt, l2t) = (&self.tabs.ut[y], &self.tabs.lt[y], &self.tabs.l2t[y]);
         for m in 0..self.n {
-            let q = self.u_inv[m][x] * self.u_inv[m][y] * libm::exp(self.eigvals[m] * t);
-            p += q;
-            dp += self.eigvals[m] * q;
-            d2p += self.eigvals[m] * self.eigvals[m] * q;
+            let q = cex[m];
+            p += q * ut[m];
+            dp += q * lt[m];
+            d2p += q * l2t[m];
         }
         (p, dp, d2p)
     }
+}
+
+/// Build the spectral context for distance `t` (JTT is the only
+/// empirical model today — the tables are JTT's).
+pub(crate) fn jtt_spectral(t: f64) -> SpectralCtx {
+    let e = JTT.spectral_weights(t);
+    let tabs = jtt_tables();
+    let n = JTT.n;
+    let mut ce = [[0.0_f64; 20]; 20];
+    for (x, row) in ce.iter_mut().enumerate().take(n) {
+        for (m, cell) in row.iter_mut().enumerate().take(n) {
+            *cell = tabs.ut[x][m] * e[m];
+        }
+    }
+    SpectralCtx { ce, tabs, n }
 }
 
 /// The JTT (Jones, Taylor & Thornton 1992) model (v1.1 spec §3.3).

@@ -8,6 +8,13 @@
 // never the only carrier of meaning — the numeric value is printed in each
 // cell at 3 decimals, saturated cells use a hatch <pattern> and show "∞",
 // and the chosen pair also gets a thick border plus aria-selected.
+//
+// Large matrices (v1.1 Task 14, §3.4's 200-taxon budget): past COMPACT_N
+// taxa a per-cell DOM (three SVG nodes × n² cells) cannot render inside
+// the 2 s budget, so the cells are drawn as a few fill-bucketed <path>s
+// plus one interactive overlay — hover, click-pick and arrow-key + Enter
+// picking still work, but there are no per-cell gridcells or value texts
+// (at ~2 px per cell they are unreadable anyway).
 
 import { useCallback, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -49,6 +56,12 @@ const LABEL = 90; // room for row labels on the left and column labels on top
 const PAD = 4;
 const FONT = 9;
 const LABEL_FONT = 10;
+
+/** Above this many taxa the compact path renderer replaces per-cell
+ * gridcell elements (v1.1 §3.4 budget; see the file header). */
+const COMPACT_N = 64;
+/** Fill buckets for the compact renderer (viridis levels + saturated). */
+const BUCKETS = 64;
 
 /** Linear interpolation over the VIRIDIS stops; t is clamped to [0, 1]. */
 function viridis(t: number): string {
@@ -116,11 +129,18 @@ export function MatrixHeatmap({
     [],
   );
 
+  const overlayEl = useRef<SVGRectElement | null>(null);
+  const compact = n > COMPACT_N;
+  // Compact mode only: the focus-cell outline appears once the user has
+  // actually pointed at or keyed into the overlay (not before).
+  const [navigated, setNavigated] = useState(false);
+
   const moveFocus = (i: number, j: number) => {
     const ni = Math.min(n - 1, Math.max(0, i));
     const nj = Math.min(n - 1, Math.max(0, j));
     setFocused([ni, nj]);
-    cellEls.current.get(ni * n + nj)?.focus();
+    if (compact) overlayEl.current?.focus();
+    else cellEls.current.get(ni * n + nj)?.focus();
   };
 
   const onKeyDown =
@@ -164,12 +184,58 @@ export function MatrixHeatmap({
   const width = PAD * 2 + LABEL + n * CELL;
   const height = width;
 
+  /** Map a pointer position over the cell area to a cell index pair. */
+  const cellAtPointer = (e: {
+    clientX: number;
+    clientY: number;
+    currentTarget: SVGRectElement;
+  }): [number, number] => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (!(r.width > 0) || !(r.height > 0)) return [0, 0];
+    const j = Math.floor(((e.clientX - r.left) / r.width) * n);
+    const i = Math.floor(((e.clientY - r.top) / r.height) * n);
+    return [
+      Math.min(n - 1, Math.max(0, i)),
+      Math.min(n - 1, Math.max(0, j)),
+    ];
+  };
+
+  /** Compact-mode key handling on the overlay: arrows move the focus
+   * cell, Enter/Space picks it (same contract as the per-cell path). */
+  const onOverlayKeyDown = (e: KeyboardEvent<SVGRectElement>) => {
+    const [i, j] = focused;
+    setNavigated(true);
+    switch (e.key) {
+      case "ArrowUp":
+        e.preventDefault();
+        moveFocus(i - 1, j);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        moveFocus(i + 1, j);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        moveFocus(i, j - 1);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        moveFocus(i, j + 1);
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        onPick?.(i, j);
+        break;
+    }
+  };
+
   return (
     <svg
-      role="grid"
-      aria-label={title}
-      aria-rowcount={n}
-      aria-colcount={n}
+      role={compact ? "group" : "grid"}
+      aria-label={compact ? `${title}, ${n} taxa` : title}
+      aria-rowcount={compact ? undefined : n}
+      aria-colcount={compact ? undefined : n}
       viewBox={`0 0 ${width} ${height}`}
     >
       <defs>
@@ -206,6 +272,61 @@ export function MatrixHeatmap({
         </text>
       ))}
 
+      {compact && <CompactCells n={n} at={at} t={t} />}
+      {compact && (
+        <>
+          <rect
+            ref={overlayEl}
+            x={cx(0)}
+            y={cy(0)}
+            width={n * CELL}
+            height={n * CELL}
+            fill="transparent"
+            tabIndex={0}
+            focusable="true"
+            aria-label={`${title}: arrow keys move between cells, Enter opens a pair`}
+            onClick={(e) => {
+              const [i, j] = cellAtPointer(e);
+              setFocused([i, j]);
+              setNavigated(true);
+              onPick?.(i, j);
+            }}
+            onMouseMove={(e) => {
+              const [i, j] = cellAtPointer(e);
+              setFocused([i, j]);
+              setNavigated(true);
+              onHover({ i, j });
+            }}
+            onMouseLeave={() => onHover(null)}
+            onKeyDown={onOverlayKeyDown}
+          />
+          {navigated && (
+            <rect
+              x={cx(focused[1])}
+              y={cy(focused[0])}
+              width={CELL}
+              height={CELL}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              pointerEvents="none"
+            />
+          )}
+          {chosen !== null && (
+            <rect
+              x={cx(chosen[1])}
+              y={cy(chosen[0])}
+              width={CELL}
+              height={CELL}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={3}
+              pointerEvents="none"
+            />
+          )}
+        </>
+      )}
+
       {labels.map((label, i) => (
         <g key={`row-${i}`} role="row" aria-rowindex={i + 1}>
           <text
@@ -218,7 +339,9 @@ export function MatrixHeatmap({
           >
             {label}
           </text>
-          {labels.map((_, j) => {
+          {compact
+            ? null
+            : labels.map((_, j) => {
             const v = at(i, j);
             const saturated =
               v === "sat" || (typeof v === "number" && !Number.isFinite(v));
@@ -282,5 +405,48 @@ export function MatrixHeatmap({
         </g>
       ))}
     </svg>
+  );
+}
+
+interface CompactCellsProps {
+  n: number;
+  at: (i: number, j: number) => MatrixCell;
+  /** Scale normalization from the parent (min/max over the values). */
+  t: (v: number) => number;
+}
+
+/** The n² cells as at most BUCKETS+1 fill-keyed <path>s: O(buckets) DOM
+ * nodes instead of O(n²) (v1.1 §3.4 budget). Fills are quantized to the
+ * BUCKETS viridis levels; saturated cells share the hatch pattern. */
+function CompactCells({ n, at, t }: CompactCellsProps) {
+  // Segments accumulate in arrays and join once — appending to a growing
+  // path string would copy O(n²) path data per cell.
+  const paths = new Map<number, string[]>();
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const v = at(i, j);
+      const saturated =
+        v === "sat" || (typeof v === "number" && !Number.isFinite(v));
+      const key = saturated
+        ? -1
+        : Math.round(t(v as number) * (BUCKETS - 1));
+      const x = PAD + LABEL + j * CELL;
+      const y = PAD + LABEL + i * CELL;
+      const segs = paths.get(key);
+      const d = `M${x} ${y}h${CELL}v${CELL}h${-CELL}z`;
+      if (segs === undefined) paths.set(key, [d]);
+      else segs.push(d);
+    }
+  }
+  return (
+    <>
+      {[...paths].map(([key, segs]) => (
+        <path
+          key={key}
+          d={segs.join("")}
+          fill={key < 0 ? "url(#hatch)" : viridis(key / (BUCKETS - 1))}
+        />
+      ))}
+    </>
   );
 }

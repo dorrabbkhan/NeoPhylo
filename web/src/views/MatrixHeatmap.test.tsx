@@ -101,3 +101,46 @@ describe("MatrixHeatmap", () => {
     expect(onPick).toHaveBeenCalledWith(2, 1);
   });
 });
+
+/* ---- compact mode (n > 64, v1.1 §3.4 budget path) ---- */
+
+const BIG_N = 65;
+const BIG_LABELS = Array.from({ length: BIG_N }, (_, i) => `t${i}`);
+const BIG_VALUES = Array.from({ length: BIG_N * BIG_N }, (_, k) => {
+  const i = Math.floor(k / BIG_N);
+  const j = k % BIG_N;
+  return i === j ? 0 : ((i * 7 + j * 3) % 100) / 100;
+});
+
+describe("MatrixHeatmap compact mode", () => {
+  it("renders bucketed paths instead of per-cell gridcells", () => {
+    const { container } = renderMatrix({
+      labels: BIG_LABELS,
+      values: BIG_VALUES,
+    });
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("role")).toBe("group");
+    expect(svg?.getAttribute("aria-label")).toBe(
+      `Distance matrix, ${BIG_N} taxa`,
+    );
+    expect(container.querySelectorAll('[role="gridcell"]')).toHaveLength(0);
+    expect(
+      container.querySelectorAll("path").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("picks a cell from the overlay with arrow keys + Enter", () => {
+    const onPick = vi.fn();
+    const { container } = renderMatrix({
+      labels: BIG_LABELS,
+      values: BIG_VALUES,
+      onPick,
+    });
+    const overlay = container.querySelector('rect[tabindex="0"]');
+    expect(overlay).not.toBeNull();
+    fireEvent.keyDown(overlay!, { key: "ArrowRight" });
+    fireEvent.keyDown(overlay!, { key: "ArrowDown" });
+    fireEvent.keyDown(overlay!, { key: "Enter" });
+    expect(onPick).toHaveBeenCalledWith(1, 1);
+  });
+});
