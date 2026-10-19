@@ -1747,8 +1747,18 @@ and the following ci/release entry. Both entries were kept verbatim.)
 - **Root branch has no support.** A root node has no branch above it, so
   `branches[root]` stays `None` even though the root is an internal node —
   "internal branches" in spec §3.4 means edges that induce a grouping.
-  On a degree-2 unrooted root (e.g. parsed `((a,b),(c,d));`), both child
-  edges induce the same canonical split and both carry its support.
+- **Degree-2 unrooted root: one split, shown once** (owner request,
+  spec §3.7). Both root edges induce the *same* canonical split, so the
+  support value goes only on the edge whose subtree is the canonical
+  side (the side not containing taxon 0, detected by climbing ancestors
+  from the `labels[0]` leaf — no subtree set needs rebuilding); the
+  complementary edge stays `None`. The rule only applies when the split
+  is induced by ≥2 in-scope edges: a non-duplicated root edge still
+  carries the value even when its subtree holds taxon 0 (e.g. the
+  `(a,b)` edge of `((a,b),c,d)`). Rooted (UPGMA) root children are real
+  clusters and are unaffected. Degenerate duplicate chains away from
+  the root (single-child internal nodes) keep the pre-existing
+  duplicate placement — `tree_splits` documents that callers dedup.
 - **`successful == 0` gives `0.0`, never NaN:** a manually built empty
   tally (or `bootstrap_batch(.., 0)` where all-zero counts is allowed)
   sets `Some(0.0)` on in-scope branches rather than `0/0`.

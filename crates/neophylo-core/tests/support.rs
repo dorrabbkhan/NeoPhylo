@@ -1,7 +1,8 @@
 //! Support values on the original tree (v1.2 spec §3.4): exact
 //! agreement with the fixture `prop_clades` counts, `None` on terminal
-//! branches, `0.0` for groupings absent from the tally, and serde
-//! backward compatibility for the new `BranchAttrs.support` field.
+//! branches, `0.0` for groupings absent from the tally, serde
+//! backward compatibility for the new `BranchAttrs.support` field, and
+//! spec §3.7's shown-once rule at an unrooted degree-2 root.
 
 use neophylo_core::algos::Method;
 use neophylo_core::bootstrap::{support_on_tree, tree_splits, BootstrapTally, Split};
@@ -136,10 +137,38 @@ fn prop_clades_exact() {
     }
 }
 
+/// Leaf node indices under `id`, sorted (DFS).
+fn leaves_under(tree: &Tree, id: usize) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut stack = vec![id];
+    while let Some(i) = stack.pop() {
+        let n = &tree.nodes[i];
+        if n.children.is_empty() {
+            out.push(i);
+        } else {
+            stack.extend(n.children.iter().map(|c| c.0 as usize));
+        }
+    }
+    out.sort_unstable();
+    out
+}
+
+/// The internal node index whose subtree's leaf set is exactly
+/// `leaf_ix`.
+fn node_with_leaves(tree: &Tree, leaf_ix: &[usize]) -> usize {
+    let mut want = leaf_ix.to_vec();
+    want.sort_unstable();
+    (0..tree.nodes.len())
+        .find(|&i| !tree.nodes[i].children.is_empty() && leaves_under(tree, i) == want)
+        .expect("no internal node with that leaf set")
+}
+
 #[test]
-fn terminal_none() {
-    // ((a,b),(c,d)) unrooted: both internal branches induce the one
-    // canonical split {c,d}; all four leaf branches stay None.
+fn degree2_root_support_once() {
+    // ((a,b),(c,d)) unrooted: both root edges induce the same canonical
+    // split {c,d}, but spec §3.7 shows it once — the edge whose subtree
+    // is the canonical side {c,d} carries the value, the {a,b} edge
+    // stays None, and so do all leaves and the root itself.
     let tree = parse_newick("((a,b),(c,d));").unwrap();
     let labels: Vec<String> = ["a", "b", "c", "d"].iter().map(|s| s.to_string()).collect();
     let mut counts = BTreeMap::new();
@@ -161,23 +190,35 @@ fn terminal_none() {
             assert_eq!(support, None, "the root has no branch above it");
         }
     }
-    // Both internal branches carry the split's support.
-    let internals: Vec<f64> = with
+    let canonical_edge = node_with_leaves(&with, &[2, 3]);
+    let other_edge = node_with_leaves(&with, &[0, 1]);
+    assert_eq!(
+        with.branches[canonical_edge].support,
+        Some(0.7),
+        "the canonical-side root edge carries the split's support"
+    );
+    assert_eq!(
+        with.branches[other_edge].support, None,
+        "the complementary root edge is None (split shown once)"
+    );
+    // Exactly one internal branch carries a value.
+    let set: Vec<f64> = with
         .nodes
         .iter()
         .enumerate()
         .filter(|(_, n)| n.parent.is_some() && !n.children.is_empty())
-        .map(|(i, _)| with.branches[i].support.unwrap())
+        .filter_map(|(i, _)| with.branches[i].support)
         .collect();
-    assert_eq!(internals.len(), 2);
-    assert!(internals.iter().all(|&s| s == 0.7));
+    assert_eq!(set, vec![0.7]);
 }
 
 #[test]
 fn absent_is_zero() {
-    // The reference's split {c,d} is absent from the tally: its branch
-    // reports 0.0, not None and not an error.
-    let tree = parse_newick("((a,b),(c,d));").unwrap();
+    // ((a,b),c,d) unrooted: the (a,b) edge is the only branch inducing
+    // split {c,d} — its subtree holds taxon 0, yet it keeps the value
+    // because no second edge shows the split. That grouping is absent
+    // from the tally: the branch reports 0.0, not None and not an error.
+    let tree = parse_newick("((a,b),c,d);").unwrap();
     let labels: Vec<String> = ["a", "b", "c", "d"].iter().map(|s| s.to_string()).collect();
     let mut counts = BTreeMap::new();
     counts.insert(Split::from_indices(&[1, 3]), 9u32); // {b,d}, not the reference split
@@ -189,14 +230,14 @@ fn absent_is_zero() {
         counts,
     };
     let with = support_on_tree(&tree, &tally);
+    let only_edge = node_with_leaves(&with, &[0, 1]);
+    assert_eq!(
+        with.branches[only_edge].support,
+        Some(0.0),
+        "internal branch absent from the tally"
+    );
     for (i, node) in with.nodes.iter().enumerate() {
-        if node.parent.is_some() && !node.children.is_empty() {
-            assert_eq!(
-                with.branches[i].support,
-                Some(0.0),
-                "internal branch {i} absent from tally"
-            );
-        } else {
+        if node.children.is_empty() || node.parent.is_none() {
             assert_eq!(with.branches[i].support, None, "no branch above node {i}");
         }
     }
