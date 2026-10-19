@@ -135,8 +135,14 @@ function rustLicensesHtml(repoRoot: string): {
     cwd: repoRoot,
     encoding: "utf8",
   });
-  if (res.error) {
-    // Tool absent: placeholder locally; the licenses CI job is the gate.
+  // Tool absent can surface two ways: `cargo` itself missing (spawn
+  // error), or cargo present but the about subcommand not installed
+  // (exit 1 with "no such command"). Both mean "no gate run", so the
+  // page gets a placeholder — the licenses CI job is the real gate.
+  const toolMissing =
+    res.error !== undefined ||
+    (res.status !== 0 && /no such command/.test(res.stderr ?? ""));
+  if (toolMissing) {
     console.warn(
       "licenses: cargo-about not found — the Rust section of " +
         "licenses.html is a placeholder. Install cargo-about or run " +
