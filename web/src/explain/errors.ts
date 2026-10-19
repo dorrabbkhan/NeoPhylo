@@ -64,6 +64,13 @@ export function errorMessage(e: NeoError): ErrorMessage {
         title: "This exercise file has a problem",
         body: `Field "${e.field}": ${e.msg}. Fix the file and load it again.`,
       };
+    case "BootstrapFailed":
+      // v1.2 spec §6.2: every replicate was skipped (saturated or no
+      // comparable sites), so there is no tally to report.
+      return {
+        title: "Every bootstrap replicate failed",
+        body: `All ${e.total} resampled datasets had distances too divergent to correct. Use longer sequences or switch to p-distance.`,
+      };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";

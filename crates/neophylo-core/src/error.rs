@@ -58,6 +58,12 @@ pub enum NeoError {
         model: String,
         alphabet: Alphabet,
     },
+    /// Every requested bootstrap replicate was skipped (v1.2 spec §3.3,
+    /// §3.8): `failed` of `total` replicates.
+    BootstrapFailed {
+        failed: u32,
+        total: u32,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -109,6 +115,12 @@ impl fmt::Display for NeoError {
                     f,
                     "model '{model}' does not apply to {} data",
                     alphabet.name()
+                )
+            }
+            Self::BootstrapFailed { failed, total } => {
+                write!(
+                    f,
+                    "all {total} bootstrap replicates failed ({failed} skipped)"
                 )
             }
         }
