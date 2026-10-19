@@ -91,6 +91,12 @@ describe("App shell", () => {
     ).toBeTruthy();
   });
 
+  it("links to the generated licenses page from the footer", async () => {
+    render(<App />);
+    const link = await screen.findByRole("link", { name: "Licenses" });
+    expect(link.getAttribute("href")).toMatch(/\/licenses\.html$/);
+  });
+
   it("shows only leaves at step 0 and reveals one internal node on →", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });

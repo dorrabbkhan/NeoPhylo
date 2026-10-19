@@ -10,6 +10,8 @@ Learn how phylogenetic trees are built — step by step, in your browser.
 
 ![Stepping through Neighbor-Joining one join at a time.](docs/media/nj-step-through.gif)
 
+![The protein pair panel: two sequences aligned with differences marked, p/Kimura/JTT side by side, and the JTT likelihood curve.](docs/media/protein-pair-panel.png)
+
 **Try it:** https://neophylo.netlify.app
 
 ## Who it's for
@@ -27,6 +29,10 @@ builder as a black box.
 - **Distance models.** DNA: p-distance, JC69 and K80. Protein: p-distance,
   the Kimura correction and JTT maximum likelihood — with saturated cells
   shown as "cannot estimate" teaching states rather than silent failures.
+- **"How was this distance computed?"** Click any pair in a protein matrix
+  to see the two sequences aligned with every difference marked, p, Kimura
+  and JTT side by side, and the likelihood curve showing how JTT picks the
+  distance that makes the sequences most probable.
 - **Simulation on a true tree.** DNA or protein sequences evolve along a
   known tree under JC69, K80 or JTT, so the inferred tree can always be
   compared against the truth (Robinson–Foulds distance shown at the last
@@ -36,7 +42,8 @@ builder as a black box.
   the intended levers.
 - **Sandbox.** Import your own FASTA or PHYLIP alignment — DNA or protein,
   auto-detected — or a Newick tree, and run the same pipeline on it. JTT on
-  a 200×1,000 protein alignment computes in under two seconds in-browser.
+  a 200×1,000 protein alignment computes in about two seconds on a typical
+  laptop.
 - **Shareable links.** The full state — lesson, overrides, current step — is
   encoded in the URL; custom exercises travel in the fragment and are never
   sent to a server.
@@ -45,6 +52,14 @@ builder as a black box.
   with `ape`/`phangorn` (protein included).
 - **Offline and accessible.** Works offline after first load; full keyboard
   operation, colorblind-safe palette, axe checks in CI.
+
+## Current scope
+
+NeoPhylo covers distance-based tree building (distances, NJ, UPGMA). Not
+yet: bootstrap support, sequence alignment, parsimony or likelihood tree
+search. These are on the [roadmap](docs/roadmap.md). It is a teaching
+tool; for research analyses use dedicated software such as IQ-TREE or
+RAxML-NG.
 
 ## Coming from PHYLIP?
 
@@ -55,15 +70,26 @@ Relaxed names are handled, and the in-app "Coming from PHYLIP?" help maps
 [`scripts/compare/compare_app.R`](scripts/compare/compare_app.R):
 
 ```sh
-Rscript scripts/compare/compare_app.R alignment.fasta matrix.phy JTT
+Rscript scripts/compare/compare_app.R <alignment> <matrix> <model>
 ```
+
+- `<alignment>`: a FASTA or PHYLIP-sequential alignment file.
+- `<matrix>`: the app's "PHYLIP matrix (for neighbor)" export (Strict or
+  Relaxed names are auto-detected).
+- `<model>`: `p`, `JC69` or `K80` for DNA; `p`, `Kimura` or `JTT` for
+  protein (the alphabet is detected from the alignment).
+
+NeoPhylo's JTT reproduces `protdist`'s default model to PHYLIP's printed
+precision (including the documentation's own test example), and its
+exported matrices produce identical trees in `neighbor`.
 
 ## How we know it's correct
 
-- **Verified against reference implementations.** The engine's distances,
-  branch lengths and topologies are checked against R (`ape`/`phangorn`) to
-  10⁻⁹, and against PHYLIP to its printed precision, on a committed fixture
-  corpus (`fixtures/`).
+- **Verified against reference implementations.** DNA distances, branch
+  lengths and topologies match R (`ape`/`phangorn`) to 10⁻⁹ and PHYLIP to
+  its printed precision. Protein distances match PHYLIP `protdist` (JTT,
+  Kimura) to its printed precision, including PHYLIP's published test
+  example. All on a committed fixture corpus (`fixtures/`).
 - **Property tests.** `proptest` verifies invariants on random inputs: NJ
   recovers any additive matrix, UPGMA recovers any ultrametric matrix, Newick
   round-trips, and more.
@@ -79,16 +105,25 @@ for the full testing strategy.
 
 ## For instructors
 
-- **Built-in lessons** live in [`exercises/`](exercises/) —
-  [`nj-basics.json`](exercises/nj-basics.json) (how NJ works),
-  [`upgma-fails.json`](exercises/upgma-fails.json) (when the molecular clock
-  breaks UPGMA) and [`saturation.json`](exercises/saturation.json)
-  (distance corrections).
-- **Author your own** as a JSON file: a true tree, a simulation spec, an
-  analysis spec, optional locked fields and step-anchored prompts. The format
-  is documented in [`exercises/schema.json`](exercises/schema.json); copy
-  `nj-basics.json` as a starting point. A custom exercise can be shared with
-  students as a single URL.
+- **Built-in lessons** (pick them from the Lessons menu, or link directly
+  with `?lesson=<id>`):
+  - [`nj-basics`](exercises/nj-basics.json): how Neighbor-Joining works
+  - [`upgma-fails`](exercises/upgma-fails.json): when the molecular clock
+    breaks UPGMA
+  - [`saturation`](exercises/saturation.json): why distance corrections
+    matter
+  - [`protein-models`](exercises/protein-models.json): when counting
+    differences isn't enough (p vs JTT)
+  - [`cytochrome-c`](exercises/cytochrome-c.json): a real protein tree from
+    UniProt, compared with the accepted classification
+- **Author your own** as a JSON file: choose DNA or protein, either a true
+  tree plus simulation settings or your own aligned sequences (embedded
+  FASTA, with source and license), a reference tree (a known true tree, or
+  an accepted classification for real data), the analysis settings,
+  optional locked controls, and step-anchored prompts. The format is
+  documented in [`exercises/schema.json`](exercises/schema.json); copy
+  `nj-basics.json` (simulated) or `cytochrome-c.json` (real data) as a
+  starting point.
 
 ## Development
 
@@ -107,12 +142,8 @@ for the full testing strategy.
   task plan are in [`docs/superpowers/`](docs/superpowers/); the working
   rules are in [`AGENTS.md`](AGENTS.md) and decisions/deviations are logged
   in [`docs/decisions.md`](docs/decisions.md).
-- **Deploys:** every push to `main` deploys to staging at
-  `main--<site>.netlify.app` (URL also printed in the CI job summary);
-  production updates only on version tags `v*.*.*` or the manual
-  "Deploy production" workflow run — each production deploy costs Netlify
-  credits, so plain pushes never trigger one. Same-repo PRs get free
-  `pr-<n>` previews.
+- **Deploys:** `main` deploys to staging; production updates on version
+  tags.
 - **Docs media:** the screenshot and GIF above are regenerated with
   `web/scripts/record-media.mjs` (Playwright video → ffmpeg → GIF).
 
@@ -124,7 +155,9 @@ If you use NeoPhylo in teaching or research, please cite it — see
 ## License
 
 [AGPL-3.0-only](LICENSE). The hosted app links back to this source code from
-its footer, as the license requires.
+its footer, as the license requires. JTT model data comes from PHYLIP
+(BSD-2-Clause) and the cytochrome c lesson uses UniProtKB data (CC BY 4.0);
+see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Contributing
 

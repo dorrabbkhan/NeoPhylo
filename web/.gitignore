@@ -13,6 +13,11 @@ dist-ssr
 *.local
 src/engine/pkg/
 
+# Generated at build time by scripts/licenses.ts; the CI licenses job
+# drops the cargo-about render at .licenses/rust-licenses.html.
+public/licenses.html
+.licenses/
+
 # Playwright
 /test-results/
 /playwright-report/

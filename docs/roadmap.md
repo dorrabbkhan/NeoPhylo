@@ -1,6 +1,6 @@
 # NeoPhylo roadmap: v1.2 → v3.3
 
-Status: proposal · 2026-10-18 · Repo path: `docs/roadmap.md`
+Status: v1.0 and v1.1 (protein support, PHYLIP I/O) released; next: v1.2.
 
 Each version is one spec → plan → agent cycle. Size is a rough guide for part-time, agent-driven work:
 **S** ≈ 2–3 weeks, **M** ≈ 4–6 weeks, **L** ≈ 2–3 months. Every version ships with at least one new
@@ -28,12 +28,18 @@ content NeoPhylo can run, not a count of PHYLIP programs.
 - Support values mapped onto the original tree. A "why is this clade only 62%?" view shows the
   replicates that disagreed.
 - Lesson: "How sure are we?" Fixtures: `seqboot` + `consense` (seeded) and R `ape::boot.phylo`.
+- Draw the inferred tree rooted like the reference (display-only reroot on the reference outgroup),
+  found at the v1.1 checkpoint with the cytochrome-c lesson.
 
 ### v1.3 Design system & polish (M)
 - Design tokens, type scale, spacing, component library; consistent light and dark themes.
 - Tablet and narrow-screen layout; a "presenter" font size for projectors.
 - First-run onboarding (a 30-second guided tour); empty states; loading states.
 - KaTeX lazy-loaded; bundle and performance pass.
+- Narrow-window and tablet layout (content currently clips instead of reflowing; found at v1.1
+  checkpoints).
+- Saturation fixes show progress feedback when one click doesn't fully resolve saturation (found at
+  the v1.1 release checkpoint).
 
 ### v1.4 Instructor kit (L)
 - **Exercise editor in the UI:** draw or paste a true tree, set the model, seed and length, add

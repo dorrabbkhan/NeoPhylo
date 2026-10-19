@@ -7,11 +7,37 @@ import type { Connect, Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
 
+import { writeLicensesPage } from "./scripts/licenses.ts";
+
 // Lesson files live in the repo-level exercises/ directory (spec §7),
 // outside Vite's root. loadLesson fetches `/exercises/<id>.json`, so this
 // plugin serves that prefix in dev and copies the .json files into the
 // build output ("copied to public/ at build", plan Task 21).
 const EXERCISES_DIR = fileURLToPath(new URL("../exercises", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+// licenses.html (v1.1 release docs §C): combined third-party notices for
+// the shipped app — THIRD_PARTY_NOTICES.md plus the Rust crates
+// (cargo-about artifact from the licenses CI job, or a local
+// `cargo about generate`, or a placeholder when neither exists) plus npm
+// production deps. Written into public/ at build start so it is served
+// at /licenses.html in dev and copied into dist; the file is gitignored.
+// A dependency license outside the accepted list (about.toml /
+// ACCEPTED_LICENSES) throws here and fails the build.
+function licensesPlugin(): Plugin {
+  let generated = false;
+  const generate = () => {
+    writeLicensesPage(REPO_ROOT);
+    generated = true;
+  };
+  return {
+    name: "neophylo-licenses",
+    buildStart: generate,
+    configureServer() {
+      if (!generated) generate();
+    },
+  };
+}
 
 function exercisesPlugin(): Plugin {
   let outDir = "dist";
@@ -67,6 +93,7 @@ export default defineConfig({
   plugins: [
     react(),
     exercisesPlugin(),
+    licensesPlugin(),
     // Offline after first load (spec §2.1): precache the app shell, the
     // wasm engine asset and the copied exercises/*.json — the defaults
     // exclude .wasm and .json. navigateFallback (index.html) is the
@@ -103,7 +130,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
-    // Vitest tests live under src/; e2e/*.spec.ts are Playwright's.
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Vitest tests live under src/ and scripts/; e2e/*.spec.ts are
+    // Playwright's.
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "scripts/**/*.test.ts"],
   },
 });
