@@ -1812,3 +1812,31 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `consensus`, `consensus_dropped`, `ConsensusKind`, `DroppedGroup`,
     matching every other bootstrap export.
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 7: rerooting
+
+- **`reference_outgroup` returns sorted labels** (matching `Split::labels`
+  ordering). Tie-break generalizes "the child containing the
+  alphabetically first label" to: among root-child subtrees tied on fewest
+  leaves, the one whose alphabetically smallest label is smallest — the
+  same outcome as "contains the global first label" whenever that child
+  is tied. A root with fewer than two children yields an empty outgroup.
+- **A single-taxon outgroup is always "a group"** (`outgroup_is_group`):
+  a leaf set is a split iff it is one side of some edge's bipartition,
+  and a terminal edge's bipartition always is `{taxon} | rest`. This
+  also covers outgroup = all-but-one taxon via the complement lookup.
+- **Support lands on the ingroup-side root edge only** (spec §3.7),
+  whichever endpoint of the split edge that is; the outgroup-side edge
+  gets `None`. If the outgroup names the canonical-side-complement, the
+  same edge is found via the complement leaf-set lookup — the outgroup
+  need not be a stored subtree.
+- **Empty outgroup** gives `InvalidExercise { field: "outgroup" }` (the
+  spec names no error for it); unknown labels give `LabelMismatch` with
+  the tree as side A, so the missing labels land in `only_in_b`.
+- **`RerootResult.tree` has `rooted = true`**: it is drawn as a rooted
+  tree, matching `parse_newick`'s degree-2-root convention.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/lib.rs` — `pub mod reroot` plus crate-root
+    re-exports (`reference_outgroup`, `reroot_on_outgroup`,
+    `RerootResult`); required for the new module to exist.
+  - `docs/decisions.md` (this entry).
