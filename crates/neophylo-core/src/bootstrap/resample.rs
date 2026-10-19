@@ -11,6 +11,7 @@ use std::collections::BTreeSet;
 use rand_chacha::ChaCha8Rng;
 use rand_core::{RngCore, SeedableRng};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::algos::{build_tree, BuildOptions, Method};
 use crate::bootstrap::split::{tree_splits, Split};
@@ -40,7 +41,8 @@ pub fn resample_weights(seed: u64, i: u32, l: usize) -> Vec<u32> {
 /// The full teaching detail of one replicate (spec §3.6): its column
 /// weights, whether it was skipped, the tree it built, and how that
 /// tree differs from the original.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct ReplicateDetail {
     /// 0-based replicate index.
     pub index: u32,

@@ -4,16 +4,24 @@
 // values — nothing in this module throws on a `NeoError`.
 
 import init, {
+  bootstrap_batch,
   build_tree,
   compare,
+  consensus,
+  consensus_dropped,
   detect_alphabet,
   distances,
   jtt_pair_detail,
   load_exercise,
+  merge_tallies,
   parse_fasta,
   parse_newick,
   parse_phylip,
+  reference_outgroup,
+  replicate_detail,
+  reroot_on_outgroup,
   simulate,
+  support_on_tree,
   with_alphabet,
   write_newick,
   write_phylip_matrix,
@@ -21,16 +29,21 @@ import init, {
 
 import type { Alignment } from "./generated/Alignment";
 import type { Alphabet } from "./generated/Alphabet";
+import type { BootstrapTally } from "./generated/BootstrapTally";
 import type { BuildOptions } from "./generated/BuildOptions";
 import type { BuildResult } from "./generated/BuildResult";
+import type { ConsensusKind } from "./generated/ConsensusKind";
 import type { DistanceMatrix } from "./generated/DistanceMatrix";
 import type { DistModel } from "./generated/DistModel";
+import type { DroppedGroup } from "./generated/DroppedGroup";
 import type { Exercise } from "./generated/Exercise";
 import type { Method } from "./generated/Method";
 import type { NameMode } from "./generated/NameMode";
 import type { NeoError } from "./generated/NeoError";
 import type { PairDetail } from "./generated/PairDetail";
 import type { PhylipParseResult } from "./generated/PhylipParseResult";
+import type { ReplicateDetail } from "./generated/ReplicateDetail";
+import type { RerootResult } from "./generated/RerootResult";
 import type { RfResult } from "./generated/RfResult";
 import type { SimSpec } from "./generated/SimSpec";
 import type { Tree } from "./generated/Tree";
@@ -99,5 +112,65 @@ export const engine = {
   },
   writePhylipMatrix(m: DistanceMatrix, names: NameMode = "Auto"): Result<string> {
     return write_phylip_matrix(m, names);
+  },
+  /** Run replicates `start..start+count` and tally their groupings
+   * (v1.2 spec §3.3, §4). */
+  bootstrapBatch(
+    a: Alignment,
+    m: DistModel,
+    method: Method,
+    seed: number,
+    start: number,
+    count: number,
+  ): Result<BootstrapTally> {
+    return bootstrap_batch(a, m, method, seed, start, count);
+  },
+  /** Merge two tallies over the same alignment, method and run
+   * (v1.2 spec §3.3, §4). */
+  mergeTallies(a: BootstrapTally, b: BootstrapTally): Result<BootstrapTally> {
+    return merge_tallies(a, b);
+  },
+  /** Copy the tree with bootstrap support on internal branches
+   * (v1.2 spec §3.4, §4). */
+  supportOnTree(t: Tree, tally: BootstrapTally): Result<Tree> {
+    return support_on_tree(t, tally);
+  },
+  /** The consensus tree of a tally under `kind` (v1.2 spec §3.5, §4).
+   * `labels` must equal `tally.labels` (spec §4 signature; a mismatch
+   * is a LabelMismatch error value). */
+  consensus(
+    tally: BootstrapTally,
+    kind: ConsensusKind,
+    labels: string[],
+  ): Result<Tree> {
+    return consensus(tally, kind, labels);
+  },
+  /** Original-tree groupings dropped by the `kind` consensus, with
+   * their support (v1.2 spec §3.5, §4). */
+  consensusDropped(
+    original: Tree,
+    tally: BootstrapTally,
+    kind: ConsensusKind,
+  ): Result<DroppedGroup[]> {
+    return consensus_dropped(original, tally, kind);
+  },
+  /** The teaching detail of one replicate (v1.2 spec §3.6, §4). */
+  replicateDetail(
+    a: Alignment,
+    m: DistModel,
+    method: Method,
+    seed: number,
+    i: number,
+  ): Result<ReplicateDetail> {
+    return replicate_detail(a, m, method, seed, i);
+  },
+  /** The outgroup a rooted reference names (v1.2 spec §3.7, §4). */
+  referenceOutgroup(reference: Tree): Result<string[]> {
+    return reference_outgroup(reference);
+  },
+  /** Reroot an unrooted tree at the outgroup's split edge, for display
+   * only (v1.2 spec §3.7, §4). */
+  rerootOnOutgroup(tree: Tree, outgroup: string[]): Result<RerootResult> {
+    return reroot_on_outgroup(tree, outgroup);
   },
 };

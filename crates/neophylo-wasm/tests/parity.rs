@@ -15,12 +15,16 @@ use serde_wasm_bindgen as swb;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
+use neophylo_core::algos::Method;
+use neophylo_core::bootstrap::{BootstrapTally, ConsensusKind, DroppedGroup, ReplicateDetail};
 use neophylo_core::dist::{Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::phylip::NameMode;
 use neophylo_core::protein_dist::PairDetail;
+use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::{SimModel, SimSpec};
+use neophylo_core::tree::Tree;
 
 // --- WasmResult unpacking -------------------------------------------------
 
@@ -261,4 +265,211 @@ fn errors_are_values() {
         NeoError::Parse { .. } => {}
         other => panic!("expected Parse, got {other:?}"),
     }
+}
+
+// --- v1.2 bootstrap exports (v1.2 plan Task 8, spec §4) ------------------------
+
+/// The committed native tally (produced and pinned by
+/// `tests/native.rs`): the wasm `bootstrap_batch` must equal it
+/// exactly — the serde wire shape is the contract, so the comparison
+/// is on the deserialized `BootstrapTally`, not bytes.
+#[derive(Deserialize)]
+struct TallyFixture {
+    input: String,
+    model: DistModel,
+    method: Method,
+    seed: u64,
+    start: u32,
+    count: u32,
+    tally: BootstrapTally,
+}
+
+fn tally_fixture() -> (TallyFixture, Alignment) {
+    let fx: TallyFixture =
+        serde_json::from_str(include_str!("data/bootstrap_tally_jc6.json")).unwrap();
+    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(include_str!(
+        "../../../fixtures/inputs/jc6.fasta"
+    )));
+    (fx, aln)
+}
+
+/// The original (unresampled) tree the fixture's run was built against.
+fn original_tree(fx: &TallyFixture, aln: &Alignment) -> Tree {
+    let dm = neophylo_core::dist::compute(aln, fx.model).unwrap();
+    neophylo_core::build_tree(
+        &dm,
+        fx.method,
+        neophylo_core::algos::BuildOptions { trace: false },
+    )
+    .unwrap()
+    .tree
+}
+
+#[wasm_bindgen_test]
+fn bootstrap_batch_matches_native_fixture() {
+    let (fx, aln) = tally_fixture();
+    assert_eq!(fx.input, "fixtures/inputs/jc6.fasta");
+    let aln_js = to_js(&aln);
+    // `seed` crosses as a JS number, the way the web client sends it.
+    let seed_js = || JsValue::from_f64(fx.seed as f64);
+    let got: BootstrapTally = ok_value(neophylo_wasm::bootstrap_batch(
+        aln_js.clone(),
+        to_js(&fx.model),
+        to_js(&fx.method),
+        seed_js(),
+        fx.start,
+        fx.count,
+    ));
+    assert_eq!(got, fx.tally, "wasm tally must equal the native fixture");
+
+    // Merged batches cross the boundary identically (spec §3.3).
+    let half = fx.count / 2;
+    let a: BootstrapTally = ok_value(neophylo_wasm::bootstrap_batch(
+        aln_js.clone(),
+        to_js(&fx.model),
+        to_js(&fx.method),
+        seed_js(),
+        fx.start,
+        half,
+    ));
+    let b: BootstrapTally = ok_value(neophylo_wasm::bootstrap_batch(
+        aln_js,
+        to_js(&fx.model),
+        to_js(&fx.method),
+        seed_js(),
+        fx.start + half,
+        fx.count - half,
+    ));
+    let merged: BootstrapTally = ok_value(neophylo_wasm::merge_tallies(to_js(&a), to_js(&b)));
+    assert_eq!(merged, fx.tally, "merged batches must equal one batch");
+}
+
+#[wasm_bindgen_test]
+fn support_crosses_as_number_or_null() {
+    let (fx, aln) = tally_fixture();
+    let orig = original_tree(&fx, &aln);
+    let res = neophylo_wasm::support_on_tree(to_js(&orig), to_js(&fx.tally));
+
+    // Inspect the raw JS value: every branch's `support` is a number
+    // or null, never undefined (the `number | null` contract).
+    let value = js_sys::Reflect::get(&res, &JsValue::from_str("value")).unwrap();
+    let branches = js_sys::Reflect::get(&value, &JsValue::from_str("branches")).unwrap();
+    let n = js_sys::Reflect::get(&branches, &JsValue::from_str("length"))
+        .unwrap()
+        .as_f64()
+        .unwrap() as u32;
+    let (mut numbers, mut nulls) = (0u32, 0u32);
+    for i in 0..n {
+        let attrs = js_sys::Reflect::get(&branches, &JsValue::from_f64(f64::from(i))).unwrap();
+        let support = js_sys::Reflect::get(&attrs, &JsValue::from_str("support")).unwrap();
+        assert!(
+            !support.is_undefined(),
+            "branch {i}: support must never be undefined"
+        );
+        if support.is_null() {
+            nulls += 1;
+        } else {
+            assert!(
+                support.as_f64().is_some(),
+                "branch {i}: support must be a number or null"
+            );
+            numbers += 1;
+        }
+    }
+    assert!(numbers >= 1, "internal branches must carry numeric support");
+    assert!(nulls >= 1, "terminal branches must carry null support");
+
+    // And it deserializes to the same tree the native call produces.
+    let via_js: Tree = ok_value(res);
+    let want = neophylo_core::bootstrap::support_on_tree(&orig, &fx.tally);
+    assert_eq!(via_js, want);
+}
+
+/// The remaining Task 8 exports: each returns `WasmResult`, the
+/// `consensus` labels argument is validated against the tally, and
+/// `ConsensusKind` serializes as `"Strict" | "Majority" | "Extended"`.
+#[wasm_bindgen_test]
+fn bootstrap_exports_smoke() {
+    let (fx, aln) = tally_fixture();
+    let orig = original_tree(&fx, &aln);
+
+    // consensus: spec §4 signature carries `labels`; it must match the
+    // tally's labels or the call is a LabelMismatch error value.
+    for kind in [
+        ConsensusKind::Strict,
+        ConsensusKind::Majority,
+        ConsensusKind::Extended,
+    ] {
+        let cons: Tree = ok_value(neophylo_wasm::consensus(
+            to_js(&fx.tally),
+            to_js(&kind),
+            to_js(&fx.tally.labels),
+        ));
+        let want = neophylo_core::bootstrap::consensus(&fx.tally, kind);
+        assert_eq!(cons, want, "consensus {kind:?} must match native");
+    }
+    let bad: WasmResult<Tree> = unpack(neophylo_wasm::consensus(
+        to_js(&fx.tally),
+        to_js(&ConsensusKind::Majority),
+        to_js(&vec!["zz".to_string()]),
+    ));
+    assert!(!bad.ok, "mismatched labels must be an error value");
+    match bad.error.unwrap() {
+        NeoError::LabelMismatch { .. } => {}
+        other => panic!("expected LabelMismatch, got {other:?}"),
+    }
+
+    // consensus_dropped: every kind returns a Vec, Strict's matches
+    // the native result.
+    for kind in [
+        ConsensusKind::Strict,
+        ConsensusKind::Majority,
+        ConsensusKind::Extended,
+    ] {
+        let dropped: Vec<DroppedGroup> = ok_value(neophylo_wasm::consensus_dropped(
+            to_js(&orig),
+            to_js(&fx.tally),
+            to_js(&kind),
+        ));
+        assert_eq!(
+            dropped,
+            neophylo_core::bootstrap::consensus_dropped(&orig, &fx.tally, kind),
+            "dropped {kind:?} must match native"
+        );
+    }
+
+    // replicate_detail: same replicate as the batch, detail fields
+    // consistent (undrawn = zero weights).
+    let det: ReplicateDetail = ok_value(neophylo_wasm::replicate_detail(
+        to_js(&aln),
+        to_js(&fx.model),
+        to_js(&fx.method),
+        JsValue::from_f64(fx.seed as f64),
+        0,
+    ));
+    assert_eq!(det.index, 0);
+    assert_eq!(
+        det.undrawn,
+        det.weights.iter().filter(|&&w| w == 0).count() as u32
+    );
+
+    // reference_outgroup: smaller root-child subtree; (a,b) < (c,d,e).
+    let reference: Tree = ok_value(neophylo_wasm::parse_newick(
+        "((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
+    ));
+    let og: Vec<String> = ok_value(neophylo_wasm::reference_outgroup(to_js(&reference)));
+    assert_eq!(og, vec!["a".to_string(), "b".to_string()]);
+
+    // reroot_on_outgroup on the jc6 tree: a single leaf outgroup always
+    // roots on that terminal branch.
+    let rr: RerootResult = ok_value(neophylo_wasm::reroot_on_outgroup(
+        to_js(&orig),
+        to_js(&vec!["t3".to_string()]),
+    ));
+    assert!(rr.tree.rooted);
+    let bad_rr: WasmResult<RerootResult> = unpack(neophylo_wasm::reroot_on_outgroup(
+        to_js(&orig),
+        to_js(&vec!["nosuch".to_string()]),
+    ));
+    assert!(!bad_rr.ok, "unknown outgroup label must be an error value");
 }

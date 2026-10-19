@@ -17,5 +17,9 @@ if [ -f web/scripts/r-parity.mjs ] && [ "${RPARITY:-0}" = "1" ]; then
     exit 1
   fi
   export PHYLIP_NEIGHBOR
+  # The bootstrap parity section (v1.2 Task 8, spec §8.3) runs
+  # BOOT_REPS replicates per case (spec: 1,000). Override for quicker
+  # local iteration; CI always uses the spec count.
+  export BOOT_REPS="${BOOT_REPS:-1000}"
   step "R export parity (RPARITY=1)"; ( cd web && node scripts/r-parity.mjs )
 fi

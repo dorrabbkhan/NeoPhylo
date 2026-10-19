@@ -1,0 +1,47 @@
+{
+  "input": "fixtures/inputs/jc6.fasta",
+  "model": "Jc69",
+  "method": "Nj",
+  "seed": 7,
+  "start": 0,
+  "count": 50,
+  "tally": {
+    "method": "Nj",
+    "labels": [
+      "t1",
+      "t2",
+      "t3",
+      "t4",
+      "t5",
+      "t6"
+    ],
+    "successful": 50,
+    "failed": 0,
+    "counts": [
+      {
+        "labels": [
+          "t4",
+          "t5"
+        ],
+        "count": 50
+      },
+      {
+        "labels": [
+          "t4",
+          "t5",
+          "t6"
+        ],
+        "count": 50
+      },
+      {
+        "labels": [
+          "t3",
+          "t4",
+          "t5",
+          "t6"
+        ],
+        "count": 50
+      }
+    ]
+  }
+}

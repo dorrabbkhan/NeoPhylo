@@ -29,6 +29,7 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::algos::Method;
 use crate::bootstrap::split::Split;
@@ -37,7 +38,8 @@ use crate::tree::{NodeId, Tree};
 
 /// Which consensus rule to apply (spec §3.5). Serialized as
 /// `"Strict" | "Majority" | "Extended"` (spec §4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub enum ConsensusKind {
     /// Only groupings seen in every successful replicate.
     Strict,
@@ -51,7 +53,8 @@ pub enum ConsensusKind {
 /// A grouping of the original tree missing from a consensus, with its
 /// bootstrap support fraction (spec §3.5); shown in the UI as
 /// "Dropped from this consensus".
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct DroppedGroup {
     /// The grouping's taxa, sorted (spec §4 display form).
     pub labels: Vec<String>,
