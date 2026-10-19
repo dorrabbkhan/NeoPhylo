@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "bad-method",
   "title": "Bad method",
+  "summary": "Bad method",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

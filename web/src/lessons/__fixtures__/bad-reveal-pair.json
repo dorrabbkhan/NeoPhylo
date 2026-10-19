@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "bad-reveal-pair",
   "title": "Bad reveal pair",
+  "summary": "Bad reveal pair",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

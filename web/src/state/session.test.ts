@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { Alignment } from "../engine/generated/Alignment";
@@ -631,5 +634,150 @@ describe("setAlphabet (v1.1 Task 10)", () => {
     });
     const s = reducer(loaded, { type: "setAlphabet", alphabet: "dna" });
     expect(s).toBe(loaded);
+  });
+});
+
+// Checkpoint 13: loading a lesson — via the Lessons menu, the Lesson
+// radio, or Back-to-the-lesson — starts from the lesson file's own
+// settings. Nothing from the previous lesson or the sandbox (correction,
+// sim model, alphabet, notice, step) carries over.
+describe("lesson load resets state (checkpoint 13)", () => {
+  it("load drops the reconcile notice — the lesson defines its models", () => {
+    // A file pairing the DNA alphabet with a protein-only correction
+    // fails loadExercise's semantic checks, but a v2 `#x=` payload is
+    // trusted — never re-parsed (url.ts) — so a mismatched Exercise
+    // can reach the reducer. load keeps reconcileModels' silent switch
+    // WITHOUT the notice — a notice is for user-driven changes
+    // (setAlphabet, imports).
+    const mismatched: Exercise = {
+      schema_version: 2,
+      id: "mismatched",
+      title: "Mismatched",
+      alphabet: "dna",
+      data: {
+        kind: "simulated",
+        true_tree: "(A:0.1,B:0.2,C:0.3);",
+        sim: { model: "Jc69", length: 100, seed: 1 },
+      },
+      reference: null,
+      analysis: { correction: "Jtt", method: "Nj" },
+      locked: [],
+      prompts: [],
+    };
+    const s = reducer(emptySession(mismatched), {
+      type: "load",
+      exercise: mismatched,
+      source: "lesson",
+    });
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expect(s.notice).toBeNull();
+    expect(s.error).toBeNull();
+  });
+
+  it("a second load clears notice, step and imported data", () => {
+    // nj-basics → sandbox → import a protein alignment (notice + Jtt
+    // correction) → load cytochrome-c: nothing survives the load.
+    const njBasics = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(njBasics), {
+      type: "load",
+      exercise: njBasics,
+      source: "lesson",
+    });
+    const sb = reducer(loaded, { type: "enterSandbox" });
+    const parsed = engine.parseFasta(
+      ">p1\nMKVL\n>p2\nMKIL\n>p3\nMRVL\n>p4\nMKVA",
+    );
+    if (!parsed.ok) throw new Error("unreachable");
+    const imported = reducer(sb, {
+      type: "importAlignment",
+      alignment: parsed.value,
+    });
+    expect(imported.notice).not.toBeNull();
+    const stepped = reducer(imported, { type: "step", to: 2 });
+
+    const cytochromeC = exercise(
+      readFileSync(
+        resolve("..", "exercises", "cytochrome-c.json"),
+        "utf8",
+      ),
+    );
+    const s = reducer(stepped, {
+      type: "load",
+      exercise: cytochromeC,
+      source: "lesson",
+    });
+    expect(s.exercise.id).toBe("cytochrome-c");
+    expect(s.exercise.analysis).toEqual(cytochromeC.analysis);
+    expect(s.exercise.locked).toEqual(cytochromeC.locked);
+    expect(s.exercise.prompts).toEqual(cytochromeC.prompts);
+    expect(s.notice).toBeNull();
+    expect(s.step).toBe(0);
+    expect(s.alignmentOrigin).toBe("embedded");
+    expect(s.alphabet).toBe("protein");
+    expect(s.source).toBe("lesson");
+    expect(s.error).toBeNull();
+  });
+
+  it("exitSandbox restores the file's settings, not the sandbox-tweaked exercise", () => {
+    // Before the fix exitSandbox reloaded `s.exercise` — mutated by
+    // sandbox actions — so a changed correction leaked into lesson mode.
+    const ex = exercise(EXERCISE_JSON);
+    const loaded = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    const sb = reducer(loaded, { type: "enterSandbox" });
+    const tweaked = reducer(sb, {
+      type: "setAnalysis",
+      patch: { correction: "P" },
+    });
+    expect(tweaked.exercise.analysis.correction).toBe("P");
+    const s = reducer(tweaked, { type: "exitSandbox" });
+    expect(s.exercise.analysis.correction).toBe(
+      ex.analysis.correction,
+    );
+    expect(s.exercise.analysis.method).toBe(ex.analysis.method);
+    expect(s.notice).toBeNull();
+    expect(s.step).toBe(0);
+    expect(s.error).toBeNull();
+  });
+
+  it("every ordered pair of built-in lessons loads the file's own settings", () => {
+    const dir = resolve("..", "exercises");
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".json") && f !== "schema.json")
+      .sort();
+    const loaded = (f: string) =>
+      exercise(readFileSync(resolve(dir, f), "utf8"));
+    for (const from of files) {
+      for (const to of files) {
+        const fromEx = loaded(from);
+        const toEx = loaded(to);
+        let s = reducer(emptySession(fromEx), {
+          type: "load",
+          exercise: fromEx,
+          source: "lesson",
+        });
+        // Dirty the session: step in, enter sandbox, switch the
+        // correction to a valid-for-both model.
+        s = reducer(s, { type: "step", to: 1 });
+        s = reducer(s, { type: "enterSandbox" });
+        s = reducer(s, {
+          type: "setAnalysis",
+          patch: { correction: "P" },
+        });
+        s = reducer(s, {
+          type: "load",
+          exercise: toEx,
+          source: "lesson",
+        });
+        expect(s.exercise, `${from} → ${to}`).toEqual(toEx);
+        expect(s.lessonExercise, `${from} → ${to}`).toEqual(toEx);
+        expect(s.notice, `${from} → ${to}`).toBeNull();
+        expect(s.step, `${from} → ${to}`).toBe(0);
+        expect(s.source, `${from} → ${to}`).toBe("lesson");
+      }
+    }
   });
 });

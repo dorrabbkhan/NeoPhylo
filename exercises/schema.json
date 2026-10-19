@@ -1,13 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NeoPhylo exercise file",
-  "description": "Lesson/exercise file format, schema v2 (v1.1 design spec section 3.6). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, and sim.kappa is required only when sim.model is \"K80\". Only schema_version 2 validates here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files must be v2. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..). Model/alphabet compatibility, embedded-FASTA character validity and reference label matching are semantic checks the engine performs; this schema only covers structure.",
+  "description": "Lesson/exercise file format, schema v2 (v1.1 design spec section 3.6). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, and sim.kappa is required only when sim.model is \"K80\". `summary` is required only here — the engine ignores it — because repository lessons power the app's Lessons menu. Only schema_version 2 validates here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files must be v2. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..). Model/alphabet compatibility, embedded-FASTA character validity and reference label matching are semantic checks the engine performs; this schema only covers structure.",
   "type": "object",
-  "required": ["schema_version", "id", "title", "alphabet", "data", "analysis"],
+  "required": ["schema_version", "id", "title", "summary", "alphabet", "data", "analysis"],
   "properties": {
     "schema_version": { "const": 2 },
     "id": { "type": "string" },
     "title": { "type": "string" },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line lesson description shown in the app's Lessons menu. A display field the engine ignores (unknown properties pass through loadExercise)."
+    },
     "alphabet": { "enum": ["dna", "protein"] },
     "data": { "$ref": "#/$defs/data" },
     "reference": {

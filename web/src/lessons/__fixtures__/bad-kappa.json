@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "bad-kappa",
   "title": "Bad kappa",
+  "summary": "Bad kappa",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

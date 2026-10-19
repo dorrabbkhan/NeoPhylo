@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "cytochrome-c",
   "title": "Cytochrome c: a real protein tree",
+  "summary": "Build a tree from real cytochrome c sequences and compare it with the accepted classification.",
   "alphabet": "protein",
   "data": {
     "kind": "embedded",

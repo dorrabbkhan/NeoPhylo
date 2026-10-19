@@ -1500,6 +1500,41 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `newton_never_worse`; the symmetric merge perturbs the Newton
     trajectory by ~1 ulp per term, far inside the 5e-7 doc tolerance.
 
+## Checkpoint 13: Lessons menu + lesson-load reset
+
+- **`summary` is a schema-level requirement, not an engine field.** The
+  Lessons menu needs a one-line description per lesson; it is stored as
+  `summary` in each `exercises/*.json`. `exercises/schema.json` requires
+  it (`minLength: 1`) — deliberately stricter than the engine, like
+  `schema_version: 2` — because repository lessons power the menu. The
+  engine ignores unknown fields, so `Exercise` gains no field and the
+  menu reads title/summary from the raw file text
+  (`src/lessons/catalog.ts`, `?raw` imports), not the parsed Exercise.
+- **Teaching order lives in the catalog, not the files.** The menu order
+  (nj-basics, upgma-fails, saturation, protein-models, cytochrome-c) is
+  the array order in `catalog.ts`; a test asserts every
+  `exercises/*.json` stem is covered so a new lesson can't be silently
+  skipped.
+- **`Session.lessonExercise` holds the pristine loaded exercise.**
+  `exercise` is the working copy mutated by `setSim`, `setAnalysis` and
+  `reconcileModels`; the old `exitSandbox` reloaded `s.exercise`, so
+  sandbox tweaks (e.g. a changed correction) leaked back into lesson
+  mode. `exitSandbox` now reloads `lessonExercise`. Menu picks avoid
+  this entirely by fetching the file fresh.
+- **`load` keeps reconcileModels' silent fix but drops its notice.**
+  A mismatched exercise can only arrive as a trusted v2 `#x=` payload
+  (never re-validated); loading a lesson must not warn about a switch
+  the file itself dictates — notices are reserved for user-driven
+  changes (`setAlphabet`, imports).
+- **Menu picks bypass URL state entirely.** `resolveInitial`'s overrides
+  merge applies only to real navigations; an in-app pick dispatches
+  `load` directly and the sync writes `?lesson=<id>` with the new
+  lesson's own settings.
+- **View preferences (`mode`, `clampNegative`, `matrixView`) still carry
+  over on load.** They are display prefs no lesson file defines; the
+  reset covers lesson state (analysis, sim, locks, step, prompts,
+  notice, pair panel).
+
 ## fix/fuzz-targets-schema-v2: exercise fuzz target + fuzz-build CI job
 
 - **Cause.** `crates/neophylo-core/fuzz/Cargo.toml` declares its own

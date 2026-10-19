@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "saturation",
   "title": "Saturation and distance correction",
+  "summary": "When mutations pile up, raw distances mislead — corrections recover the tree.",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

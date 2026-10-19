@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "bad-version",
   "title": "Bad version",
+  "summary": "Bad version",
   "true_tree": "(A:0.1,B:0.2,C:0.3);",
   "sim": { "model": "JC69", "length": 100, "seed": 1 },
   "analysis": { "correction": "JC69", "method": "NJ" }
