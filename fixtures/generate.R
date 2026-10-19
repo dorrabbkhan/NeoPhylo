@@ -234,7 +234,11 @@ grouping_inventory <- function(trees, labs, rooted) {
   inv <- new.env(parent = emptyenv())
   for (i in seq_along(pp)) {
     side <- canon_side(pp[[i]], plabs, labs, rooted)
-    if (length(side) < 2 || length(side) == length(labs)) next
+    s <- length(side)
+    # Trivial groupings: unrooted, either side may hold <2 taxa; rooted,
+    # an n-1 clade is real — only <2 and the full set go.
+    if (rooted) { if (s < 2 || s == length(labs)) next }
+    else if (min(s, length(labs) - s) < 2) next
     key <- paste(side, collapse = "\x1f")
     if (exists(key, envir = inv, inherits = FALSE)) {
       inv[[key]]$count <- inv[[key]]$count + num[i]

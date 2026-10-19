@@ -47,10 +47,11 @@ see `AGENTS.md` for the rules.
   list is the canonical side: the side not containing `labels[1]` for
   unrooted splits (the side consense happens to print only when its
   species 1 is `labels[1]`; rows are re-canonicalized on parse), the clade
-  itself for rooted sets. `consense.<kind>.groups` lists every printed
-  set, included or not; the included groupings are exactly the consensus
-  in `consense.<kind>.newick` (support counts are written as branch
-  lengths for majority/extended; strict prints no counts).
+  itself for rooted sets. `consense.<kind>.groups` is the "Sets included"
+  table — exactly the non-trivial groupings of `consense.<kind>.newick`
+  (support counts are written as branch lengths for majority/extended;
+  strict prints no counts). The rejected candidates sit in
+  `consense.<kind>.not_included`.
 - `worked/consensus_hand.json` — hand-entered 5-taxon 10-tree example
   (spec §8.1 owner gate): 7× `((A,B),C,(D,E))` + 3× `((A,B),E,(C,D))`
   with `expected` strict/majority/extended groupings; `consense` is

@@ -38,7 +38,8 @@
           "labels": ["C", "D", "E"],
           "count": 10
         }
-      ]
+      ],
+      "not_included": []
     },
     "majority": {
       "newick": "((B:10.0,(C:10.0,(D:10.0,E:10.0):7.00):10.0):10.0,A:10.0);",
@@ -51,7 +52,8 @@
           "labels": ["D", "E"],
           "count": 7
         }
-      ]
+      ],
+      "not_included": []
     },
     "extended": {
       "newick": "((B:10.0,(C:10.0,(D:10.0,E:10.0):7.00):10.0):10.0,A:10.0);",
@@ -63,7 +65,9 @@
         {
           "labels": ["D", "E"],
           "count": 7
-        },
+        }
+      ],
+      "not_included": [
         {
           "labels": ["C", "D"],
           "count": 3

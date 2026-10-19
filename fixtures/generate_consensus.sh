@@ -7,8 +7,10 @@
 # Each is run through PHYLIP consense three times: extended majority (the
 # default), strict (one C toggle) and plain majority rule (two C toggles)
 # — the menu output is read to confirm the toggles, never assumed — and
-# with option R for rooted sets. The outfile set tables and the outtree
-# are parsed back into the JSON under `consense.<kind>`.
+# with option R for rooted sets. From each run's outfile the "Sets
+# included" table becomes `consense.<kind>.groups` and the "Sets NOT
+# included" table `consense.<kind>.not_included`; the outtree is kept as
+# `consense.<kind>.newick`.
 #
 # In R (same heredoc) the script asserts that the consense group inventory
 # equals the prop.part inventory of `trees`, that strict = unanimous sets,
@@ -163,7 +165,12 @@ grouping_inventory <- function(trees, labs, rooted) {
   inv <- new.env(parent = emptyenv())
   for (i in seq_along(pp)) {
     side <- canon_side(pp[[i]], plabs, labs, rooted)
-    if (length(side) < 2 || length(side) == length(labs)) next
+    s <- length(side)
+    # Trivial groupings: unrooted, either side may hold <2 taxa (the
+    # canonical side can be the n-1 side, e.g. a degree-2 outtree root);
+    # rooted, an n-1 clade is real — only <2 and the full set go.
+    if (rooted) { if (s < 2 || s == length(labs)) next }
+    else if (min(s, length(labs) - s) < 2) next
     key <- paste(side, collapse = "\x1f")
     if (exists(key, envir = inv, inherits = FALSE)) {
       inv[[key]]$count <- inv[[key]]$count + num[i]
@@ -263,15 +270,70 @@ for (c in sort(unique(inv_counts[inv_counts <= total / 2]),
 }
 stopifnot(setequal(vapply(acc, key_of, ""), in_keys(outs$extended)))
 
-groups_of <- function(o) c(o$inc, o$exc)
+# --- per-kind assertions (owner gate) ------------------------------------
+# `groups` is only the "Sets included" table; the "Sets NOT included"
+# table is kept separately as `not_included`. For every kind assert that
+# groups equals exactly the non-trivial groupings of that kind's newick
+# (same canonical sides), that the groups are pairwise compatible, and
+# afterwards that strict <= majority <= extended.
+tree_groups <- function(nwk, labs, rooted) {
+  pp <- prop.part(read.tree(text = nwk))
+  plabs <- attr(pp, "labels")
+  out <- new.env(parent = emptyenv())
+  for (i in seq_along(pp)) {
+    side <- canon_side(pp[[i]], plabs, labs, rooted)
+    s <- length(side)
+    if (rooted) { if (s < 2 || s == length(labs)) next }
+    else if (min(s, length(labs) - s) < 2) next
+    out[[paste(side, collapse = "\x1f")]] <- TRUE
+  }
+  ls(envir = out, all.names = TRUE)
+}
+nwks <- list(strict = read_nwk("cons_strict.nwk"),
+             majority = read_nwk("cons_majority.nwk"),
+             extended = read_nwk("cons_extended.nwk"))
+for (kind in c("strict", "majority", "extended")) {
+  o <- outs[[kind]]
+  gk <- in_keys(o); nk <- tree_groups(nwks[[kind]], labs, rooted)
+  if (!setequal(gk, nk)) {
+    cat("kind:", kind, "\ngroups:", gk, "\nnewick:", nk, "\n")
+    stop("consense.", kind, ": groups differ from newick groupings")
+  }
+  if (length(o$inc) > 1) {
+    for (x in seq_len(length(o$inc) - 1)) for (y in (x + 1):length(o$inc))
+      if (!grp_compat(o$inc[[x]]$labels, o$inc[[y]]$labels, ntax, rooted))
+        stop("consense.", kind, ": incompatible groups (",
+             paste(o$inc[[x]]$labels, collapse = ","), ") vs (",
+             paste(o$inc[[y]]$labels, collapse = ","), ")")
+  }
+}
+stopifnot(all(in_keys(outs$strict) %in% in_keys(outs$majority)),
+          all(in_keys(outs$majority) %in% in_keys(outs$extended)))
+
+# The hand example additionally asserts groups == expected. jsonlite
+# simplifies a one-element array-of-arrays to a matrix — normalize rows
+# back to sets (a bare vector is a single set).
+exp_keys <- function(sets) {
+  if (is.matrix(sets)) sets <- lapply(seq_len(nrow(sets)),
+                                    function(r) sets[r, ])
+  else if (!is.list(sets)) sets <- list(sets)
+  vapply(sets, function(s) paste(sort(s), collapse = "\x1f"), "")
+}
+if (!is.null(j$expected)) {
+  for (kind in c("strict", "majority", "extended")) {
+    if (!setequal(in_keys(outs[[kind]]), exp_keys(j$expected[[kind]])))
+      stop(json_path, ": expected.", kind, " != consense groups")
+  }
+}
+
 j$consense <- list(
   generator = gen,
-  strict    = list(newick = read_nwk("cons_strict.nwk"),
-                   groups = groups_of(outs$strict)),
-  majority  = list(newick = read_nwk("cons_majority.nwk"),
-                   groups = groups_of(outs$majority)),
-  extended  = list(newick = read_nwk("cons_extended.nwk"),
-                   groups = groups_of(outs$extended))
+  strict    = list(newick = nwks$strict, groups = outs$strict$inc,
+                   not_included = outs$strict$exc),
+  majority  = list(newick = nwks$majority, groups = outs$majority$inc,
+                   not_included = outs$majority$exc),
+  extended  = list(newick = nwks$extended, groups = outs$extended$inc,
+                   not_included = outs$extended$exc)
 )
 writeLines(toJSON(j, auto_unbox = TRUE, digits = NA, pretty = TRUE),
            json_path)

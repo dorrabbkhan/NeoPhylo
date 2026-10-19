@@ -1645,3 +1645,27 @@ and the following ci/release entry. Both entries were kept verbatim.)
   single-purpose rule), `scripts/ci/fixture-guard.sh` (regeneration diff
   extended to `fixtures/consensus` + `fixtures/worked` so CI reproduces the
   new oracle), and `docs/decisions.md` (this entry).
+
+### Task 2 owner-gate fix: consense `groups` must hold only included sets
+
+- **Bug (found at the PR #39 owner gate):** `consense.<kind>.groups`
+  concatenated both outfile tables, so rejected sets like `{C,D}` (count 3,
+  incompatible with `{D,E}` and absent from the extended newick) appeared
+  in `groups`. Now `groups` is only "Sets included in the consensus tree";
+  the "Sets NOT included" table is kept separately as `not_included`.
+  Only extended ever prints a NOT-included table, so only `extended`
+  changed: hand 3→2 (`groups` now equals `expected.extended`), rmtree_6_20
+  23→3, rmtree_8_100 108→5, rmtree_12_200 718→9, rmtree_6_20_rooted 42→4,
+  rmtree_8_100_rooted 195→6, boot_jc12 18→9, boot_p8 8→5.
+- **New assertions on every set and kind** (fail the generator): `groups`
+  equals exactly the non-trivial groupings of that kind's `newick` parsed
+  through `prop.part` (same canonical sides); all `groups` are pairwise
+  compatible; strict ⊆ majority ⊆ extended. The hand file additionally
+  asserts `groups` == `expected` per kind.
+- **Trivial-split filter corrected:** unrooted groupings are dropped when
+  *either* side has <2 taxa (`min(s, n-s) < 2`), because a degree-2 outtree
+  root can print the n-1 side as a "clade" (e.g. the strict star
+  `((t1,...,t6),t2)`); rooted keeps n-1 clades. Applied in both
+  `grouping_inventory` and the newick `tree_groups` check.
+- **jsonlite quirk:** a one-element array-of-arrays simplifies to a
+  matrix, so `expected` sets are normalized rows-as-sets before keying.

@@ -24,11 +24,13 @@
     "generator": "phylip 3.697",
     "strict": {
       "newick": "((t1,t5,t4,t3,t6),t2);",
-      "groups": []
+      "groups": [],
+      "not_included": []
     },
     "majority": {
       "newick": "((t1:20.0,t5:20.0,t4:20.0,t3:20.0,t6:20.0):20.0,t2:20.0);",
-      "groups": []
+      "groups": [],
+      "not_included": []
     },
     "extended": {
       "newick": "((((t6:20.0,t3:20.0):5.00,(t1:20.0,t5:20.0):7.00):5.00,t4:20.0):20.0,t2:20.0);",
@@ -44,7 +46,9 @@
         {
           "labels": ["t3", "t6"],
           "count": 5
-        },
+        }
+      ],
+      "not_included": [
         {
           "labels": ["t1", "t3", "t6"],
           "count": 4
