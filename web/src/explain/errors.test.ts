@@ -33,6 +33,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   LabelMismatch: "Tree and sequences have different names",
   InvalidExercise: "This exercise file has a problem",
   ModelAlphabetMismatch: "JC69 doesn't fit this data",
+  BootstrapFailed: "Every bootstrap replicate failed",
 };
 
 describe("errorMessage", () => {
