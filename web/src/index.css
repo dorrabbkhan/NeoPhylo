@@ -449,6 +449,9 @@ p {
   font-family: var(--mono);
   font-size: 13px;
 }
+.notice .notice-progress {
+  font-style: italic;
+}
 
 .notice-fixes {
   display: flex;

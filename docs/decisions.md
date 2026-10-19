@@ -1595,3 +1595,25 @@ and the following ci/release entry. Both entries were kept verbatim.)
   `cffconvert --validate` passes.
 - **roadmap.md**: status line; v1.2 reroot item and v1.3
   layout/saturation-feedback items found at v1.1 checkpoints.
+
+## Checkpoint 13: saturation panel progress feedback
+
+- **The "try again" flag is local component state, not Session.** It
+  answers "did the student click a fix in this panel", not a pipeline
+  fact — Session stays the single mutator of the pipeline. To get the
+  reset-on-resolution without an effect, the saturation section was
+  extracted into `SaturationPanel`, rendered only while the error is
+  `SaturatedMatrix`: its `fixTried` state unmounts with the panel, so a
+  later fresh saturation starts unmarked.
+- **Message names the knob that was turned.** "Still saturated at
+  length <n>" for Use longer sequences (read back from
+  `exerciseSim(session.exercise)`, so it reports the capped value if
+  SIM_MAX clamped the doubling); "at branch scale ×<s>" for Use shorter
+  branches. `<k> pair(s)` is `sat.cells.length` — the engine's error
+  already lists unique i<j pairs. Rendered as `role="status"` so the
+  update is announced, matching the alphabet-notice pattern.
+- **The lesson's two-click arc is real, verified against wasm:**
+  saturation.json at length 50 has 3 saturated pairs, 100 has 4
+  (more sites sharpen p estimates — different pairs cross the 0.75
+  ceiling), 200 has none. The e2e-style component test drives the real
+  file.

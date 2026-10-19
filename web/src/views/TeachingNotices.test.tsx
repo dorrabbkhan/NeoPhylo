@@ -4,6 +4,9 @@
 // Sessions are built with the real reducer against the real wasm engine
 // (initialized in src/test/setup.ts).
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { useState } from "react";
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -16,6 +19,7 @@ import { exerciseSim, initialSession, reducer } from "../state/session";
 
 import { traceLength } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
+import { engine } from "../engine";
 
 afterEach(cleanup);
 
@@ -151,6 +155,67 @@ describe("TeachingNotices — saturation", () => {
     fireEvent.click(screen.getByRole("button", { name: /p-distance/i }));
     expect(holder.s.exercise.analysis.correction).toBe("P");
     expect(holder.s.error).toBeNull();
+  });
+
+  it("a half-working fix reports progress — length and pairs remaining", () => {
+    const holder = renderNotices(loaded(SATURATING));
+    // SATURATING: len 10 → 20 → 40, all stay saturated (branches 5.0
+    // put every distant pair far past the 0.75 ceiling).
+    fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
+    expect(holder.s.error?.kind).toBe("SaturatedMatrix");
+    expect(exerciseSim(holder.s.exercise)?.length).toBe(20);
+    expect(
+      screen.getByText(
+        /Still saturated at length 20: \d+ pairs? remains?\. Try again, or choose another fix\./,
+      ),
+    ).toBeTruthy();
+    // A second click updates the progress line, not just the buttons.
+    fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
+    expect(exerciseSim(holder.s.exercise)?.length).toBe(40);
+    expect(
+      screen.getByText(/Still saturated at length 40:/),
+    ).toBeTruthy();
+  });
+
+  it('"Use shorter branches" reports the branch scale in the same way', () => {
+    const holder = renderNotices(loaded(SATURATING));
+    fireEvent.click(screen.getByRole("button", { name: /shorter branches/i }));
+    // Halving the 5.0 branches still leaves every pair saturated
+    // (verified against the wasm build: 6 pairs).
+    expect(holder.s.error?.kind).toBe("SaturatedMatrix");
+    expect(
+      screen.getByText(
+        "Still saturated at branch scale ×0.5: 6 pairs remain. Try again, or choose another fix.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("the real saturation lesson: one click shows progress, the second builds the tree", () => {
+    const raw = readFileSync(
+      resolve("..", "exercises", "saturation.json"),
+      "utf8",
+    );
+    const r = engine.loadExercise(raw);
+    if (!r.ok) throw new Error("saturation.json failed to load");
+    const holder = renderNotices(loaded(r.value));
+    // The lesson starts blocked at length 50 (3 saturated pairs).
+    expect(holder.s.error?.kind).toBe("SaturatedMatrix");
+    // Click 1: 50 → 100. Longer sequences sharpen p but it is still
+    // past the ceiling for 4 pairs — the panel says so, at length 100.
+    fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
+    expect(holder.s.error?.kind).toBe("SaturatedMatrix");
+    expect(
+      screen.getByText(
+        "Still saturated at length 100: 4 pairs remain. Try again, or choose another fix.",
+      ),
+    ).toBeTruthy();
+    // Click 2: 100 → 200 — now every pair is under the ceiling and the
+    // tree builds; the panel (and its progress line) is gone.
+    fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
+    expect(holder.s.error).toBeNull();
+    expect(holder.s.result?.tree).not.toBeNull();
+    expect(screen.queryByText(/Still saturated/)).toBeNull();
+    expect(screen.queryByText(/cannot estimate/i)).toBeNull();
   });
 });
 
