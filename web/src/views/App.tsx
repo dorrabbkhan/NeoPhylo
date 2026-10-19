@@ -32,6 +32,7 @@ import { REPO_URL } from "../config";
 import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
+import { loadLesson } from "../lessons/loader";
 import { usePromptGate } from "../lessons/promptGate";
 import type { Action, Session } from "../state/session";
 import {
@@ -53,6 +54,7 @@ import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
 import { ImportPanel } from "./ImportPanel";
+import { LessonsMenu } from "./LessonsMenu";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
 import { PhylipHelp } from "./PhylipHelp";
@@ -117,6 +119,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
       if (cancelled) return;
       setPlaying(false);
       setHoverLeaf(null);
+      setPair(null);
       setLink(r.link);
       if (r.toast) {
         setToast("This link couldn't be opened — showing the default lesson.");
@@ -182,8 +185,43 @@ export function App({ exercise }: { exercise?: Exercise }) {
         return;
       }
       dispatch({ type: "exitSandbox" });
+      setPair(null);
     },
     [dispatch, session],
+  );
+
+  // The header's Lessons menu (checkpoint 13): pick a built-in lesson
+  // and it loads straight through the `load` reducer — the lesson
+  // file's own settings, no overrides, at step 0, in lesson mode — and
+  // the URL sync writes ?lesson=<id>. Imported sandbox data would be
+  // cleared, so the same confirm as the Lesson switch applies.
+  const onPickLesson = useCallback(
+    async (id: string) => {
+      if (session === null) return;
+      if (
+        hasImportedData(session) &&
+        !window.confirm("Leave sandbox? Your imported data will be cleared.")
+      ) {
+        return;
+      }
+      const r = await loadLesson(id);
+      if (!r.ok) {
+        setToast(`The lesson "${id}" couldn't be loaded.`);
+        return;
+      }
+      setPlaying(false);
+      setHoverLeaf(null);
+      setPair(null);
+      setLink({ kind: "lesson" });
+      setSession((s) =>
+        reducer(s ?? initialSession(r.value), {
+          type: "load",
+          exercise: r.value,
+          source: "lesson",
+        }),
+      );
+    },
+    [session],
   );
 
   const inferred = session?.result?.tree ?? null;
@@ -383,6 +421,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
             Sandbox
           </button>
         </div>
+        <LessonsMenu
+          currentId={
+            link.kind === "lesson" ? session.exercise.id : null
+          }
+          onPick={(id) => void onPickLesson(id)}
+        />
         <button
           type="button"
           className="phylip-help-open"

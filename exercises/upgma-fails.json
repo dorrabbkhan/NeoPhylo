@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "upgma-fails",
   "title": "When UPGMA fails: the molecular clock",
+  "summary": "UPGMA assumes a molecular clock — see where it joins the wrong pair.",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

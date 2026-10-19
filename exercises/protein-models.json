@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "protein-models",
   "title": "Protein distances: when counting isn't enough",
+  "summary": "Protein sites saturate fast — compare raw p distances with JTT on the same data.",
   "alphabet": "protein",
   "data": {
     "kind": "simulated",

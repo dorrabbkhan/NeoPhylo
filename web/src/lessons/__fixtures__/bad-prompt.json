@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "bad-prompt",
   "title": "Bad prompt",
+  "summary": "Bad prompt",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

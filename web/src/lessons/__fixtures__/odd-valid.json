@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "odd-valid",
   "title": "Odd but valid",
+  "summary": "Odd but valid",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

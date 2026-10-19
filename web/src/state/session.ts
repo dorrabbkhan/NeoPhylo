@@ -22,6 +22,12 @@ import type { Tree } from "../engine/generated/Tree";
 
 export interface Session {
   exercise: Exercise;
+  /** The exercise exactly as `load` received it (checkpoint 13).
+   * `exercise` is the working copy: setSim, setAnalysis and
+   * reconcileModels mutate it, so reloading `s.exercise` would carry
+   * sandbox changes back into lesson mode. `exitSandbox` reloads this
+   * pristine copy instead — the lesson file's own settings. */
+  lessonExercise: Exercise;
   /** The tree the inferred tree is compared against (v1.1 spec §5.1):
    * the exercise's declared `reference`, defaulting to `data.true_tree`
    * for simulated data without one (v1 parity), or a tree the sandbox
@@ -389,6 +395,7 @@ export function reducer(s: Session, a: Action): Session {
       }
       const base: Session = {
         exercise: a.exercise,
+        lessonExercise: a.exercise,
         reference,
         alphabet: a.exercise.alphabet,
         alignment: null,
@@ -410,7 +417,11 @@ export function reducer(s: Session, a: Action): Session {
       // reconcileModels keeps a declared-alphabet exercise consistent
       // even when the file pairs it with a foreign model (the schema
       // validates this, so it is belt-and-braces for custom `#x=` links).
-      const reconciled = reconcileModels(base);
+      // The lesson defines its models, so its silent switch is kept but
+      // the notice is dropped: a notice is for user-driven changes —
+      // setAlphabet and imports — not for loading a lesson (checkpoint
+      // 13).
+      const reconciled = { ...reconcileModels(base), notice: null };
       return error === null ? recompute(reconciled) : reconciled;
     }
     case "setSim": {
@@ -562,14 +573,18 @@ export function reducer(s: Session, a: Action): Session {
       // it runs here so every alphabet/data path stays covered.
       return reconcileModels({ ...s, source: "sandbox" });
     case "exitSandbox":
-      // Reload the current lesson from scratch. The exercise is
-      // re-dispatched through `load` — which reconciles the models
-      // against the lesson's alphabet — with a fresh `prompts` array
-      // so the prompt gate (which resets on the array's identity)
-      // forgets the student's picks.
+      // Reload the current lesson from scratch: `lessonExercise`, the
+      // exercise as loaded — sandbox setSim/setAnalysis/reconcile
+      // changes live on `exercise` and must not carry back into lesson
+      // mode (checkpoint 13). The fresh `prompts` array keeps the
+      // prompt gate (which resets on the array's identity) forgetting
+      // the student's picks.
       return reducer(s, {
         type: "load",
-        exercise: { ...s.exercise, prompts: [...s.exercise.prompts] },
+        exercise: {
+          ...s.lessonExercise,
+          prompts: [...s.lessonExercise.prompts],
+        },
         source: "lesson",
       });
   }
@@ -580,6 +595,7 @@ export function reducer(s: Session, a: Action): Session {
 export function initialSession(exercise: Exercise): Session {
   return {
     exercise,
+    lessonExercise: exercise,
     reference: null,
     alphabet: exercise.alphabet,
     alignment: null,

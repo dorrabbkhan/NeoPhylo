@@ -2,6 +2,7 @@
   "schema_version": 2,
   "id": "nj-basics",
   "title": "How Neighbor-Joining works",
+  "summary": "Step through Neighbor-Joining: predict each join, then watch the tree assemble.",
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

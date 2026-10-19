@@ -135,6 +135,92 @@ p {
   font-weight: 600;
 }
 
+/* ---- Lessons menu (checkpoint 13) ----
+ * A menu-button dropdown: the trigger matches .phylip-help-open; the
+ * list drops below it, each item a two-line title + summary row. The
+ * current lesson is marked with aria-checked (filled background like
+ * the mode switch). */
+.lessons-menu {
+  position: relative;
+}
+
+.lessons-menu > button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lessons-menu > button:hover,
+.lessons-menu > button:focus-visible,
+.lessons-menu > button[aria-expanded="true"] {
+  border-color: var(--accent-border);
+}
+
+.lessons-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.lessons-menu-list [role="menuitemradio"] {
+  font: inherit;
+  text-align: left;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lessons-menu-list [role="menuitemradio"]:last-child {
+  border-bottom: 0;
+}
+
+.lessons-menu-list [role="menuitemradio"]:hover,
+.lessons-menu-list [role="menuitemradio"]:focus-visible {
+  background: var(--accent-bg);
+  outline: none;
+}
+
+.lessons-menu-list [role="menuitemradio"][aria-checked="true"] {
+  background: var(--accent-bg);
+}
+
+.lessons-menu-title {
+  display: block;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.lessons-menu-list
+  [role="menuitemradio"][aria-checked="true"]
+  .lessons-menu-title::after {
+  content: " — current";
+  font-weight: 400;
+  color: var(--accent-text);
+}
+
+.lessons-menu-summary {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+}
+
 .no-true-tree {
   align-self: center;
   justify-self: center;
