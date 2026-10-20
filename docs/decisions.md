@@ -2004,3 +2004,52 @@ wedging the start queue.
     in `url.ts` would put session-redux logic in the codec module.
   - `web/src/views/App.url.test.tsx` — a `v: 2` literal became `v: 3`.
   - `docs/decisions.md` (this entry).
+
+## Task 11 (v1.2) — Bootstrap panel, support labels, reference rooting
+
+- **`bootstrapCancelRequested` is a new action** (not in Task 10's
+  union): the panel's Cancel button moves the current `jobId` into
+  `cancelJobId` so the App effect performs `client.cancel` — session
+  stays the only thing that decides when a job dies. The panel has no
+  Cancel control during `confirming`? It does — `confirming` counts as
+  active, so Cancel appears beside Start and cancels the parked job.
+- **`bootstrapCancelled` takes an optional `jobId`.** A scoped ack
+  settles only the pending cancel it names (`cancelJobId` must match);
+  an ack that arrives after the session moved on to a newer request is
+  ignored. The no-`jobId` form is the Task-10 behaviour, kept for
+  clears that don't name a job.
+- **The App effect binds via `queueMicrotask`.** `dispatch` inside the
+  effect body is a synchronous `setState`, which
+  `react-hooks/set-state-in-effect` rejects. A microtask still lands
+  before the next task (any user event), so a Cancel click can never be
+  swallowed by a late bind, and ordering is unchanged.
+- **`pendingBind` cancels orphaned jobs.** If a started job's bind
+  lands on a session that has already resolved the request, the next
+  effect run calls `client.cancel` on it — no leaked worker job. (The
+  un-gated `bootstrapRequested{jobId}` semantics from Task 10 are
+  unchanged: bind remains the reducer's "request + adopt" shortcut.)
+- **The support label and zero-length "0" share the same slot.**
+  `support-label` sits at the branch midpoint just above the branch,
+  where `zero-len` also renders; a support-bearing edge that is zero
+  length would overlap. On real runs a zero-length internal edge can
+  carry support, so the label takes precedence visually — they are the
+  same font size and anchor.
+- **A weak branch thins the whole edge** — the branch line only (the
+  node-level connector belongs to the children's splits and stays
+  thick); the `*` marker is the non-colour signal (spec §6.5).
+- **Panel copy follows spec §6.2 verbatim** — grouping count uses the
+  "n−3"/"n−2" wording per method; the run button is `Run bootstrap`;
+  the `ran:true`-link fallback is `Run bootstrap (N replicates)`
+  (`prefilledRun`). Progress text is `Replicate k of N · about T left`
+  and the confirm line is `This will take about N.` per spec §5.
+- **`MathLine` mirrors `ExplanationPanel`'s convention**: lines with
+  `=` render through KaTeX; prose lines render as text.
+- **Files outside the Files block:**
+  - `web/src/state/session.ts` — the two new actions; the cancel-ack
+    scoping is required by the "cancel ack cannot kill a newer run"
+    contract tested at the App level.
+  - `web/src/views/Controls.tsx` — `NumberField` exported for the
+    panel's Replicates/Seed inputs and a `bootstrapPanel` slot under
+    Analysis (keeps the section in the shared column).
+  - `web/src/index.css` — styles for the new panel classes.
+  - `docs/decisions.md` (this entry).

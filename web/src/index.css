@@ -1027,3 +1027,84 @@ button:disabled {
 .phylip-note p {
   margin: 4px 0 0;
 }
+
+/* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */
+
+.bootstrap-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 6px;
+  font-size: 13px;
+}
+
+.bootstrap-panel h2 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.bootstrap-panel p {
+  margin: 4px 0;
+}
+
+.bootstrap-panel .grouping-count {
+  color: var(--fg);
+}
+
+.bootstrap-panel .bootstrap-explain {
+  color: var(--fg);
+}
+
+.bootstrap-panel .math-line {
+  margin: 4px 0;
+}
+
+.bootstrap-panel .bootstrap-progress,
+.bootstrap-panel .bootstrap-confirm {
+  margin: 6px 0;
+}
+
+.bootstrap-panel .bootstrap-progress-text {
+  color: var(--fg);
+}
+
+.bootstrap-panel .bootstrap-status {
+  margin: 6px 0;
+}
+
+.bootstrap-panel .bootstrap-results-label {
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.bootstrap-panel .bootstrap-skipped {
+  color: var(--fg);
+}
+
+.bootstrap-panel .bootstrap-warning {
+  color: var(--danger);
+}
+
+.bootstrap-panel .bootstrap-error strong {
+  color: var(--danger);
+}
+
+.bootstrap-panel .bootstrap-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+/* The reroot switch sits under the unrooted caption of the inferred
+ * tree panel (v1.2 §6.7). */
+.reroot-toggle {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+/* Weak support: the marker glyph plus the thinner stroke are drawn in
+ * TreeView; the label itself just needs to inherit the tree color. */
+.support-label,
+.weak-marker {
+  font-weight: 500;
+}

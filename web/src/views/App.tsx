@@ -29,6 +29,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { REPO_URL } from "../config";
+import { bootstrapClient } from "../engine/bootstrapClient";
 import { engine, initEngine } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
@@ -50,6 +51,7 @@ import {
 } from "../state/urlRestore";
 
 import { AlphabetBadge } from "./AlphabetBadge";
+import { BootstrapPanel } from "./BootstrapPanel";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -147,6 +149,107 @@ export function App({ exercise }: { exercise?: Exercise }) {
     if (session === null) return;
     history.replaceState(null, "", encode(sessionUrlState(session, link)));
   }, [session, link]);
+
+  // Bootstrap job driver (v1.2 Task 11, spec §5). The session records
+  // intent — `estimating` with no bound jobId is a start request,
+  // `cancelJobId` asks the page to cancel that job, `confirming` waits
+  // on the Start button — and this effect is the only page code that
+  // talks to the shared `bootstrapClient` singleton. There is never a
+  // second client or worker.
+  const startedFor = useRef<object | null>(null);
+  const pendingBind = useRef<number | null>(null);
+  const confirmAwaiting = useRef<number | null>(null);
+  const cancelsInFlight = useRef(new Set<number>());
+  useEffect(() => {
+    if (session === null) return;
+    const b = session.bootstrap;
+
+    // A job whose bind the session never adopted (the request was
+    // superseded or cancelled between start and bind) is cancelled
+    // here so no orphaned worker job survives.
+    const pending = pendingBind.current;
+    if (pending !== null) {
+      pendingBind.current = null;
+      const accepted =
+        (b.status === "estimating" ||
+          b.status === "confirming" ||
+          b.status === "running") &&
+        b.jobId === pending;
+      if (!accepted) void bootstrapClient.cancel(pending);
+    }
+
+    // A confirming→running move is the Start button: the parked worker
+    // job resumes when the client forwards `confirm` (spec §5).
+    if (b.status === "confirming") confirmAwaiting.current = b.jobId;
+    if (
+      b.status === "running" &&
+      b.jobId !== null &&
+      confirmAwaiting.current === b.jobId
+    ) {
+      confirmAwaiting.current = null;
+      bootstrapClient.confirm(b.jobId);
+    } else if (b.status !== "confirming" && b.status !== "running") {
+      confirmAwaiting.current = null;
+    }
+
+    // A pending cancelJobId → a real worker cancel; the resolve acks
+    // with a jobId-scoped bootstrapCancelled so a newer request the
+    // session moved on to is never clobbered.
+    const cancelId = b.cancelJobId;
+    if (cancelId !== null && !cancelsInFlight.current.has(cancelId)) {
+      cancelsInFlight.current.add(cancelId);
+      void bootstrapClient.cancel(cancelId).then(() => {
+        cancelsInFlight.current.delete(cancelId);
+        dispatch({ type: "bootstrapCancelled", jobId: cancelId });
+      });
+    }
+
+    if (b.status !== "estimating" || b.jobId !== null) return;
+    // One client job per request: `settingsUsed` is the request's
+    // identity — bootstrapRequested stores a fresh snapshot object.
+    if (b.settingsUsed !== null && startedFor.current === b.settingsUsed) {
+      return;
+    }
+    startedFor.current = b.settingsUsed;
+    const aln = session.alignment;
+    if (aln === null) {
+      // No data to run on (only reachable through a `ran: true` link on
+      // a broken custom exercise) — settle the request as cancelled.
+      queueMicrotask(() => dispatch({ type: "bootstrapCancelled" }));
+      return;
+    }
+    const jobId = bootstrapClient.start(
+      {
+        alignment: aln,
+        model: session.exercise.analysis.correction,
+        method: session.exercise.analysis.method,
+        seed: b.seed,
+        replicates: b.replicates,
+      },
+      {
+        onEstimate: (e) =>
+          dispatch({ type: "bootstrapEstimated", jobId, ...e }),
+        onProgress: (p) =>
+          dispatch({ type: "bootstrapProgress", jobId, ...p }),
+        onResult: (result) =>
+          dispatch({ type: "bootstrapDone", jobId, result }),
+        onError: (error) =>
+          dispatch({ type: "bootstrapFailed", jobId, error }),
+      },
+    );
+    pendingBind.current = jobId;
+    // The bind dispatches in a microtask: it still lands before any
+    // later user action (microtasks run before the next task), so a
+    // Cancel click can never be swallowed by a late bind — but it is
+    // not a synchronous setState inside the effect body (react-hooks
+    // lint).
+    queueMicrotask(() =>
+      dispatch({ type: "bootstrapRequested", jobId, autorun: b.autorun }),
+    );
+  }, [session, dispatch]);
+
+  // The worker outlives a single job; it terminates with the app.
+  useEffect(() => () => bootstrapClient.dispose(), []);
 
   const onStep = useCallback(
     (to: number) => dispatch({ type: "step", to }),
@@ -314,6 +417,38 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const isNj = trace !== null && "Nj" in trace;
   const nLeaf = inferred ? leafCount(inferred) : 0;
 
+  // The stepper's final position (spec §6.2-6.3): a result without a
+  // trace (>50 taxa) is always "final". The panel and support labels
+  // appear only here — the spoiler rule from the v1.1 checkpoint.
+  const atFinal =
+    trace === null ? session.result !== null : k === n;
+  // Support labels ride on the run's support-bearing tree — only after
+  // a run has produced one, only at the final position.
+  const drawnInferred = atFinal
+    ? (session.bootstrap.support ?? inferred)
+    : inferred;
+
+  // Reference rooting (spec §6.7): NJ's tree is drawn rerooted on the
+  // reference's outgroup. Only the drawing changes — the computed tree
+  // and its groupings are untouched. UPGMA is never rerooted.
+  const reroot = (() => {
+    if (
+      !atFinal ||
+      !isNj ||
+      referenceTree === null ||
+      drawnInferred === null
+    ) {
+      return null;
+    }
+    const og = engine.referenceOutgroup(referenceTree);
+    if (!og.ok || og.value.length === 0) return null;
+    const r = engine.rerootOnOutgroup(drawnInferred, og.value);
+    if (!r.ok) return null;
+    return { ...r.value, outgroup: og.value };
+  })();
+  const showReroot = reroot !== null && session.rerootDisplay;
+  const drawnTree = showReroot ? reroot!.tree : drawnInferred;
+
   // Shared leaf spacing for both trees: the row height minus the
   // caption, divided by the leaf count, clamped to 18–48 px.
   const sharedSpacing = leafSpacingFor(
@@ -453,6 +588,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
             qGated={gating !== null}
             alignmentOrigin={session.alignmentOrigin}
             dispatch={dispatch}
+            bootstrapPanel={
+              atFinal && inferred !== null ? (
+                <BootstrapPanel session={session} dispatch={dispatch} />
+              ) : undefined
+            }
           />
           {session.source === "sandbox" && (
             <ImportPanel session={session} dispatch={dispatch} />
@@ -517,30 +657,65 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
               />
             )}
-            {inferred !== null && (
+            {inferred !== null && drawnTree !== null && (
               <div className="tree-col">
                 <TreeView
                   title="Inferred tree"
-                  tree={inferred}
+                  tree={drawnTree}
                   layoutKind="phylogram"
                   highlight={inferHi}
                   wrong={wrong}
                   clampNegative={session.clampNegative}
-                  visibleNodes={visibleNodes}
+                  visibleNodes={
+                    drawnTree === inferred ? visibleNodes : undefined
+                  }
                   leafSpacing={sharedSpacing}
                   onHoverLeaf={onHoverLeaf}
                   onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
                 />
                 {/* NJ's tree is unrooted; the arbitrary drawing point can
                     make a correct tree look different from the reference
-                    (checkpoint 12). Only a verdict caption — final step. */}
+                    (checkpoint 12). Only a verdict caption — final step.
+                    With a reference the default drawing roots on its
+                    outgroup instead (v1.2 spec §6.7), with a toggle back
+                    to the computed view. */}
                 {isNj && k === n && referenceTree !== null && (
-                  <p className="unrooted-note">
-                    NJ builds an unrooted tree, drawn here from an arbitrary
-                    point. It can look different from the reference even when
-                    every grouping matches; compare the groupings, not the
-                    shape.
-                  </p>
+                  <>
+                    {showReroot ? (
+                      reroot.outgroup_is_group ? (
+                        <p className="unrooted-note">
+                          Drawn with the same outgroup as the reference;
+                          rerooting changes only the drawing, not the
+                          groupings.
+                        </p>
+                      ) : (
+                        <p className="unrooted-note">
+                          The reference's outgroup isn't a single group in
+                          this tree; rooted next to {reroot.outgroup[0]}.
+                        </p>
+                      )
+                    ) : (
+                      <p className="unrooted-note">
+                        NJ builds an unrooted tree, drawn here from an
+                        arbitrary point. It can look different from the
+                        reference even when every grouping matches; compare
+                        the groupings, not the shape.
+                      </p>
+                    )}
+                    {reroot !== null && (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!session.rerootDisplay}
+                        className="reroot-toggle"
+                        onClick={() =>
+                          dispatch({ type: "toggleRerootDisplay" })
+                        }
+                      >
+                        Show as computed (unrooted)
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}

@@ -9,7 +9,7 @@
 
 import { test, expect } from "@playwright/test";
 
-import { waitForApp } from "./helpers";
+import { stepToEnd, waitForApp } from "./helpers";
 
 const PREVIEW_URL = "http://localhost:4174";
 
@@ -301,4 +301,146 @@ test("after one online load, a bootstrap run works offline", async ({
 
   expect(res.err).toBe("");
   expect(res.ok).toBe(true);
+});
+
+// Review Focus 5 (v1.2 Task 11): with a reference, NJ's tree is drawn
+// rerooted on the reference's outgroup; support labels come from the
+// run's tally and every grouping is labeled exactly once.
+test("cytochrome-c: drawn support matches the tally, each grouping labeled once", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page
+    .getByRole("button", { name: /Run bootstrap/ })
+    .click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 30_000 });
+
+  // Independently recompute the whole pipeline in the page: the same
+  // exercise, distances, NJ tree, tally (seed 1, replicates 1..100),
+  // support-bearing tree and reroot-on-outgroup result the app drew.
+  const expected = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __neophylo: {
+        engine: {
+          parseFasta(t: string): { ok: boolean; value: unknown };
+          parseNewick(t: string): { ok: boolean; value: unknown };
+          distances(
+            a: unknown,
+            model: string,
+          ): { ok: boolean; value: unknown };
+          buildTree(
+            m: unknown,
+            method: string,
+            opts: { trace: boolean },
+          ): { ok: boolean; value: { tree: unknown } };
+          bootstrapBatch(
+            a: unknown,
+            model: string,
+            method: string,
+            seed: number,
+            start: number,
+            count: number,
+          ): {
+            ok: boolean;
+            value: {
+              counts: { labels: string[]; count: number }[];
+              successful: number;
+            };
+          };
+          supportOnTree(t: unknown, tally: unknown): {
+            ok: boolean;
+            value: unknown;
+          };
+          referenceOutgroup(t: unknown): { ok: boolean; value: string[] };
+          rerootOnOutgroup(
+            t: unknown,
+            og: string[],
+          ): {
+            ok: boolean;
+            value: {
+              tree: {
+                nodes: { parent: number | null; children: number[]; label: string | null }[];
+                branches: { length: number | null; support: number | null }[];
+                root: number;
+              };
+              outgroup_is_group: boolean;
+            };
+          };
+        };
+      };
+    };
+    const { engine } = w.__neophylo;
+    const ex = await fetch("/exercises/cytochrome-c.json").then((r) =>
+      r.json(),
+    );
+    const aln = engine.parseFasta(ex.data.fasta);
+    if (!aln.ok) throw new Error("parseFasta failed");
+    const m = engine.distances(aln.value, "Jtt");
+    if (!m.ok) throw new Error("distances failed");
+    const built = engine.buildTree(m.value, "Nj", { trace: false });
+    if (!built.ok) throw new Error("buildTree failed");
+    const tally = engine.bootstrapBatch(aln.value, "Jtt", "Nj", 1, 0, 100);
+    if (!tally.ok) throw new Error("bootstrapBatch failed");
+    const supportTree = engine.supportOnTree(built.value.tree, tally.value);
+    if (!supportTree.ok) throw new Error("supportOnTree failed");
+    const ref = engine.parseNewick(ex.reference.newick);
+    if (!ref.ok) throw new Error("parseNewick failed");
+    const og = engine.referenceOutgroup(ref.value);
+    if (!og.ok) throw new Error("referenceOutgroup failed");
+    const rr = engine.rerootOnOutgroup(supportTree.value, og.value);
+    if (!rr.ok) throw new Error("rerootOnOutgroup failed");
+    const t = rr.value.tree;
+    const leafSet = (id: number): Set<string> => {
+      const n = t.nodes[id];
+      if (n.children.length === 0 && n.label !== null)
+        return new Set([n.label]);
+      const out = new Set<string>();
+      for (const c of n.children)
+        leafSet(c).forEach((l) => out.add(l));
+      return out;
+    };
+    // The (horse, human) split's tally support → the expected label.
+    const hh = tally.value.counts.find(
+      (c) =>
+        c.labels.length === 2 &&
+        c.labels.includes("horse") &&
+        c.labels.includes("human"),
+    );
+    if (hh === undefined) throw new Error("no (horse,human) tally row");
+    const hhPct = Math.round((100 * hh.count) / tally.value.successful);
+    // Node id whose leaf set is exactly {horse, human} in the drawn
+    // (rerooted) tree — its branch carries that split's support.
+    let hhNode = -1;
+    for (let i = 0; i < t.nodes.length; i++) {
+      const s = leafSet(i);
+      if (s.size === 2 && s.has("horse") && s.has("human")) hhNode = i;
+    }
+    if (hhNode < 0) throw new Error("(horse,human) clade not found");
+    const labeledEdges = t.nodes.filter(
+      (n, i) => n.parent !== null && t.branches[i].support !== null,
+    ).length;
+    return { hhPct, hhNode, labeledEdges };
+  });
+
+  const svg = page.locator('svg[aria-label="Inferred tree"]');
+  // Every grouping is labeled exactly once — including the split the
+  // display was rooted on, which must not appear on both root edges.
+  await expect(svg.locator(".support-label")).toHaveCount(
+    expected.labeledEdges,
+  );
+  await expect(
+    svg.locator(`g[data-node="${expected.hhNode}"] .support-label`),
+  ).toHaveText(String(expected.hhPct));
+  // The default caption states the drawing's root came from the
+  // reference's outgroup.
+  await expect(
+    page.getByText(
+      "Drawn with the same outgroup as the reference; rerooting " +
+        "changes only the drawing, not the groupings.",
+    ),
+  ).toBeVisible();
 });

@@ -163,11 +163,21 @@ export function TreeView({
             const hasVisibleParent = parent !== null && byId.has(parent);
             const isHighlighted = highlight.has(n.id);
             const strokeWidth = isHighlighted ? 3 : 1.5;
+            // Bootstrap support (v1.2 spec §6.3): the edge above a node
+            // carries a 0-1 fraction, drawn as Math.round(100·s) over
+            // the branch. Weak (<50%) gets a thinner stroke plus a
+            // marker glyph — never color alone (§6.5).
+            const support = hasVisibleParent
+              ? tree.branches[n.id].support
+              : null;
+            const weak = support !== null && support < 0.5;
+            const edgeWidth = weak ? Math.min(1, strokeWidth) : strokeWidth;
             return (
               <g
                 key={n.id}
                 data-node={n.id}
                 data-highlight={isHighlighted ? "true" : undefined}
+                data-weak={weak || undefined}
               >
                 {hasVisibleParent && (
                   <line
@@ -177,7 +187,7 @@ export function TreeView({
                     x2={tx(n.x)}
                     y2={ty(n.y)}
                     stroke="currentColor"
-                    strokeWidth={strokeWidth}
+                    strokeWidth={edgeWidth}
                     strokeDasharray={n.negative ? "4 3" : undefined}
                   />
                 )}
@@ -207,6 +217,30 @@ export function TreeView({
                     textAnchor="middle"
                   >
                     0
+                  </text>
+                )}
+                {support !== null && (
+                  <text
+                    className="support-label"
+                    x={(tx(n.parentX) + tx(n.x)) / 2}
+                    y={ty(n.y) - 4}
+                    fontSize={fontSize - 3}
+                    textAnchor="middle"
+                    fill="currentColor"
+                  >
+                    {Math.round(support * 100)}
+                  </text>
+                )}
+                {weak && (
+                  <text
+                    className="weak-marker"
+                    x={(tx(n.parentX) + tx(n.x)) / 2 + fontSize / 2}
+                    y={ty(n.y) - 4}
+                    fontSize={fontSize - 3}
+                    textAnchor="middle"
+                    fill="currentColor"
+                  >
+                    *
                   </text>
                 )}
                 {n.leaf ? (

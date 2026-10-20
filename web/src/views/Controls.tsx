@@ -11,7 +11,7 @@
 // is inside the allowed range.
 
 import { useState } from "react";
-import type { Dispatch } from "react";
+import type { Dispatch, ReactNode } from "react";
 
 import type { Action, Session } from "../state/session";
 import {
@@ -49,6 +49,10 @@ export interface ControlsProps {
    * for it (v1.1 spec §5.1). */
   alphabet: Alphabet;
   dispatch: Dispatch<Action>;
+  /** The "How sure are we?" bootstrap panel (v1.2 §6.2): App passes it
+   * only while the stepper sits at its final position; it renders
+   * under the Analysis section. */
+  bootstrapPanel?: ReactNode;
 }
 
 const KAPPA_DEFAULT = 2;
@@ -57,7 +61,7 @@ const LOCKED_TOOLTIP = "Fixed for this lesson.";
 const REAL_SEQUENCES_TOOLTIP =
   "This lesson uses real sequences; they can't be re-simulated.";
 
-function NumberField({
+export function NumberField({
   label,
   value,
   min,
@@ -117,6 +121,7 @@ export function Controls({
   alignmentOrigin,
   alphabet,
   dispatch,
+  bootstrapPanel,
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
   const simEnabled = alignmentOrigin === "simulated";
@@ -299,6 +304,7 @@ export function Controls({
           Distance / Q
         </button>
       )}
+      {bootstrapPanel}
     </div>
   );
 }

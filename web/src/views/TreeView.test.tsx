@@ -109,6 +109,107 @@ describe("TreeView", () => {
   });
 });
 
+// Bootstrap support labels (v1.2 plan Task 11, spec §6.3): internal
+// branches carry `branches[id].support`, a fraction 0–1 drawn as
+// Math.round(100·s). Terminal branches never carry support.
+describe("support labels", () => {
+  /** makeTree with a support value on the cherry branch (node 3). */
+  function withSupport(s: number): Tree {
+    const t = makeTree();
+    t.branches[3].support = s;
+    return t;
+  }
+
+  it("shows Math.round(100·s) on internal branches only", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.874)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const labels = container.querySelectorAll(".support-label");
+    expect(labels).toHaveLength(1);
+    expect(labels[0].textContent).toBe("87");
+    // The label sits on node 3's branch group.
+    expect(
+      container.querySelector('g[data-node="3"] .support-label'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('g[data-node="0"] .support-label'),
+    ).toBeNull();
+  });
+
+  it("support below 50% gets a thinner stroke, data-weak and a marker glyph", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.41)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const g = container.querySelector('g[data-node="3"]');
+    expect(g?.getAttribute("data-weak")).toBe("true");
+    const line = g?.querySelector("line.branch");
+    expect(Number(line?.getAttribute("stroke-width"))).toBeLessThan(1.5);
+    expect(g?.querySelector(".weak-marker")).not.toBeNull();
+    expect(
+      container.querySelector('g[data-node="3"] .support-label')
+        ?.textContent,
+    ).toBe("41");
+  });
+
+  // The degree-2 root after a display reroot: the split's support lives
+  // on the ingroup-side edge only (Task 5's single-placement rule), so
+  // each grouping's label appears exactly once.
+  it("labels each grouping exactly once on a rerooted degree-2 root", () => {
+    const t: Tree = {
+      rooted: true,
+      root: 4,
+      nodes: [
+        { parent: 3, children: [], label: "A" },
+        { parent: 3, children: [], label: "B" },
+        { parent: 4, children: [], label: "C" },
+        { parent: 4, children: [0, 1], label: null },
+        { parent: null, children: [2, 3], label: null },
+      ],
+      branches: [
+        { length: 0.5, support: null },
+        { length: 0.5, support: null },
+        // The outgroup-side edge of the root: support is None so the
+        // split's value is never drawn twice (spec §3.7).
+        { length: 0.25, support: null },
+        { length: 0.25, support: 0.9 },
+        { length: null, support: null },
+      ],
+    };
+    const { container } = render(
+      <TreeView
+        tree={t}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const labels = Array.from(
+      container.querySelectorAll(".support-label"),
+    );
+    expect(labels).toHaveLength(1);
+    expect(labels[0].textContent).toBe("90");
+    expect(
+      container.querySelector('g[data-node="3"] .support-label'),
+    ).not.toBeNull();
+  });
+});
+
 describe("tree panel sizing", () => {
   // ResizeObserver is a no-op stub under jsdom (src/test/setup.ts), so
   // the geometry helpers are exercised directly.
