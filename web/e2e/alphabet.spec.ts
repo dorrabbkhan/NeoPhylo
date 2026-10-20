@@ -40,12 +40,17 @@ test.describe("alphabet badge", () => {
       .locator('.import-panel input[type="file"]')
       .setInputFiles(P6_150);
 
-    // Protein badge with the imported-data override, the correction and
-    // sim model reconciled to JTT (each select's value is one of its
-    // options), the notice, and the 6×6 matrix for the 6-taxon file.
+    // Protein badge with the imported-data override, the correction
+    // reconciled to JTT (the select's value is one of its options), the
+    // notice, and the 6×6 matrix for the 6-taxon file. Imported data
+    // can't be re-simulated, so the Simulation section collapses to its
+    // not-simulated line (checkpoint 11) — no sim fields at all.
     await expect(page.locator(".alphabet-badge")).toContainText("Protein");
     await expect(page.getByLabel("Distance correction")).toHaveValue("Jtt");
-    await expect(page.getByLabel("Simulation model")).toHaveValue("Jtt");
+    await expect(
+      page.getByText("Your sequences: not simulated."),
+    ).toBeVisible();
+    await expect(page.getByLabel("Simulation model")).toHaveCount(0);
     await expect(page.locator(".alphabet-notice")).toContainText("JTT");
     await expect(page.locator('[role="gridcell"]')).toHaveCount(36);
   });
