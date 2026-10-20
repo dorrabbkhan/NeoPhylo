@@ -128,7 +128,7 @@ export function TreeView({
   });
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
-  // Support labels are pills placed left of and above each labeled
+  // Support labels are pills placed right of and above each labeled
   // node; supportLabels resolves every collision up front (never onto
   // a node marker, a leaf name or another pill). While they are drawn
   // the u1/u2/… internal names hide — they are a step-through aid and
@@ -142,11 +142,6 @@ export function TreeView({
   });
   const labelById = new Map(placed.map((p) => [p.id, p]));
   const hideInternalNames = placed.length > 0;
-
-  const width = laid.width + labelRoom + PAD * 2;
-  const height = laid.height + PAD * 2;
-  const tx = (x: number) => PAD + x;
-  const ty = (y: number) => PAD + y;
 
   // Bounding box of a clade's laid-out nodes (plus the branch leading to it),
   // used for the dotted "wrong clade" outline. Descendants hidden by
@@ -170,6 +165,82 @@ export function TreeView({
     }
     return minX === Infinity ? null : { minX, maxX, minY, maxY };
   };
+
+  // The viewBox fits the CONTENT, not the nominal layout width
+  // (checkpoint 12): union of every drawn box — node markers, leaf and
+  // internal names, "0" markers, support pills, wrong-clade rects —
+  // plus PAD, so no label can ever clip at any tree size or view.
+  const bounds = {
+    minX: Infinity,
+    maxX: -Infinity,
+    minY: Infinity,
+    maxY: -Infinity,
+  };
+  const grow = (b: Box) => {
+    bounds.minX = Math.min(bounds.minX, b.minX);
+    bounds.maxX = Math.max(bounds.maxX, b.maxX);
+    bounds.minY = Math.min(bounds.minY, b.minY);
+    bounds.maxY = Math.max(bounds.maxY, b.maxY);
+  };
+  // Marker radius + highlight ring + half the widest stroke, with slack.
+  const NODE_SLACK = NODE_RADIUS + 5;
+  for (const n of laid.nodes) {
+    grow({
+      minX: Math.min(n.x, n.parentX) - NODE_SLACK,
+      maxX: n.x + NODE_SLACK,
+      minY: n.y - NODE_SLACK,
+      maxY: n.y + NODE_SLACK,
+    });
+    // Text boxes: dominantBaseline="middle" puts glyphs roughly
+    // 1em above and 0.4em below the anchor — the estimate covers both.
+    if (n.leaf && n.label !== null) {
+      grow({
+        minX: n.x + LABEL_OFFSET + NODE_RADIUS,
+        maxX:
+          n.x + LABEL_OFFSET + NODE_RADIUS + n.label.length * fontSize * 0.62,
+        minY: n.y - fontSize - 2,
+        maxY: n.y + fontSize * 0.5,
+      });
+    } else if (highlight.has(n.id) && !hideInternalNames) {
+      const name = nodeName(tree, n.id);
+      grow({
+        minX: n.x + LABEL_OFFSET + NODE_RADIUS,
+        maxX: n.x + LABEL_OFFSET + NODE_RADIUS + name.length * fontSize * 0.62,
+        minY: n.y - fontSize - 2,
+        maxY: n.y + fontSize * 0.5,
+      });
+    }
+    const parent = tree.nodes[n.id].parent;
+    if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
+      const mid = (n.parentX + n.x) / 2;
+      const w = smallFont + 4;
+      grow({
+        minX: mid - w / 2,
+        maxX: mid + w / 2,
+        minY: n.y - 4 - smallFont - 2,
+        maxY: n.y - 2,
+      });
+    }
+  }
+  for (const p of placed) grow(p.box);
+  for (const id of wrong) {
+    const cb = cladeBox(id);
+    if (cb !== null) {
+      grow({
+        minX: cb.minX - WRONG_PAD - 3,
+        maxX: cb.maxX + WRONG_PAD + 3,
+        // The ✕ glyph's baseline sits near the rect's top edge, so give
+        // it a full font above the padded box.
+        minY: cb.minY - WRONG_PAD - fontSize - 3,
+        maxY: cb.maxY + WRONG_PAD + 3,
+      });
+    }
+  }
+
+  const width = bounds.maxX - bounds.minX + PAD * 2;
+  const height = bounds.maxY - bounds.minY + PAD * 2;
+  const tx = (x: number) => x - bounds.minX + PAD;
+  const ty = (y: number) => y - bounds.minY + PAD;
 
   const branchClass = (n: LaidOutNode) =>
     n.negative ? "branch negative" : "branch";
@@ -268,19 +339,6 @@ export function TreeView({
                     >
                       {placedLabel.text}
                     </text>
-                    {placedLabel.markerX !== null && (
-                      <text
-                        className="weak-marker"
-                        x={tx(placedLabel.markerX)}
-                        y={ty(placedLabel.textY)}
-                        fontSize={smallFont}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fill="currentColor"
-                      >
-                        *
-                      </text>
-                    )}
                   </g>
                 )}
                 {n.leaf ? (

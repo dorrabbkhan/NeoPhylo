@@ -2120,3 +2120,37 @@ wedging the start queue.
   protein-models p→JTT final/middle switches; and an e2e acceptance
   test asserting zero pill overlaps in both views on cytochrome-c
   (100 reps, seed 1) with screenshots saved to `test-results/`.
+
+## v1.2 checkpoint 12 fixes
+
+- **Support pills moved to the RIGHT of their node.** The left-of-node
+  placement from checkpoint 11 hung pills off the svg's left edge on
+  shallow trees — the owner screenshot showed "47*"/"32*" clipped to
+  just "*". Each pill now sits just right of the child-end marker,
+  above the start of the descending branch (the usual node-label spot
+  on a horizontal phylogram); the vertical collision nudging is
+  unchanged, and labels are never placed left of a node.
+- **The `*` weak marker is part of the label text** ("47*" is one
+  string) instead of a second `.weak-marker` element — the number can
+  never render half-clipped again, and the pill width covers the whole
+  value. Tests assert `text.length × 0.5em` fits inside the pill.
+- **The svg `viewBox` fits the content, not the layout width.**
+  `TreeView` unions every drawn box — node markers (with stroke slack),
+  leaf names, drawn internal names, "0" markers, support pills and
+  wrong-clade rects (including the ✕ above them) — and maps it onto
+  `0 0 w h` with the usual pad. Nothing clips at any tree size, in the
+  rooted or computed view.
+- **The leaf-name obstacle box was underestimated vertically.**
+  `dominantBaseline="middle"` text reaches ~1em above its anchor, not
+  ±0.5em — a pill grazing the real "chicken" glyphs while clearing the
+  estimated box caused the only overlap in the computed-view e2e. Both
+  the collision obstacles and the viewBox bounds now use the
+  asymmetric estimate.
+- **Tests added:** `TreeView` asserts every pill rect lies inside the
+  `viewBox` and is wide enough for its text; `supportLabels` asserts
+  right-of-node placement, the merged "30*" text and the width rule;
+  the cytochrome-c e2e overlap check runs in both views (found the
+  name-box bug).
+- **Screenshot attachments** for the PR live on the orphan branch
+  `assets/cp12-shots` (review attachments can't be uploaded via `gh`;
+  they stay out of the PR diff so they never reach main on merge).

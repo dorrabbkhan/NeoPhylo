@@ -498,11 +498,7 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
       // Leaf names and any drawn node/zero-length labels (support text
       // lives inside the pill and is excluded).
       const names = Array.from(el.querySelectorAll("g[data-node] > text"))
-        .filter(
-          (t) =>
-            !t.classList.contains("support-label") &&
-            !t.classList.contains("weak-marker"),
-        )
+        .filter((t) => !t.classList.contains("support-label"))
         .map(box);
       const out: string[] = [];
       const overlap = (a: Box, b: Box) =>

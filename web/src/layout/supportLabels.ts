@@ -1,8 +1,10 @@
-// Support-label placement (v1.2 spec §6.3, checkpoint 11 fixes). Pure
-// geometry: given the laid-out tree, position each internal branch's
-// support percentage as a small pill just left of and above the node at
-// the branch's child end — near the node, never on top of it, so even
-// on a short branch the label stays readable and clear of the marker.
+// Support-label placement (v1.2 spec §6.3, checkpoint 11/12 fixes).
+// Pure geometry: given the laid-out tree, position each internal
+// branch's support percentage as a small pill just RIGHT of the node
+// marker at the branch's child end, above the start of the descending
+// branch — the usual node-label spot on a horizontal phylogram. Labels
+// never hang left of nodes (a left-side pill clipped at x=0 on the
+// owner screenshot; the svg's viewBox could not extend).
 //
 // Collision avoidance: a label's pill box may not intersect any node
 // marker, leaf name, "0" zero-length marker or an already-placed label.
@@ -34,11 +36,9 @@ export interface SupportLabel {
   weak: boolean;
   /** Pill bounds in drawing coordinates (before TreeView's pad). */
   box: LabelBox;
-  /** Baseline anchor for the number (textAnchor middle). */
+  /** Baseline anchor for the text (textAnchor middle). */
   textX: number;
   textY: number;
-  /** Baseline anchor for the weak "*" marker inside the pill. */
-  markerX: number | null;
 }
 
 export interface SupportLabelOptions {
@@ -66,10 +66,10 @@ function intersects(a: LabelBox, b: LabelBox): boolean {
 }
 
 /**
- * One pill per branch carrying `branches[id].support`, placed just left
- * of and above the child-end node. Nodes are processed in layout order
- * (preorder — parents first), so "the later one" that nudges is simply
- * the later id in `laid.nodes`.
+ * One pill per branch carrying `branches[id].support`, placed just
+ * right of and above the child-end node. Nodes are processed in layout
+ * order (preorder — parents first), so "the later one" that nudges is
+ * simply the later id in `laid.nodes`.
  */
 export function supportLabels(
   tree: Tree,
@@ -77,7 +77,6 @@ export function supportLabels(
   opts: SupportLabelOptions,
 ): SupportLabel[] {
   const charW = opts.charWidth ?? opts.fontSize * 0.62;
-  const markerW = charW;
   const pillH = opts.fontSize + PILL_PAD_Y * 2;
   const markerR = opts.nodeRadius;
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
@@ -91,7 +90,11 @@ export function supportLabels(
       minY: n.y - markerR - 1,
       maxY: n.y + markerR + 1,
     });
-    // Leaf names run right of the marker, vertically centered on y.
+    // Leaf names run right of the marker. They render with
+    // dominantBaseline="middle", whose glyph box reaches about a full
+    // em ABOVE the anchor and a third below — a symmetric ±0.5em box
+    // underestimates the top and lets pills graze real text (seen as
+    // "pill vs name" overlaps in the computed view).
     if (n.leaf && n.label !== null) {
       obstacles.push({
         minX: n.x + markerR + opts.labelOffset,
@@ -100,8 +103,8 @@ export function supportLabels(
           markerR +
           opts.labelOffset +
           n.label.length * opts.nameFontSize * 0.62,
-        minY: n.y - opts.nameFontSize / 2 - NAME_PAD,
-        maxY: n.y + opts.nameFontSize / 2 + NAME_PAD,
+        minY: n.y - opts.nameFontSize - NAME_PAD,
+        maxY: n.y + opts.nameFontSize * 0.5 + NAME_PAD,
       });
     }
     // The "0" zero-length marker sits above the branch's midpoint.
@@ -131,15 +134,20 @@ export function supportLabels(
     if (s === null || parent === null || !byId.has(parent)) continue;
 
     const weak = s < 0.5;
-    const text = String(Math.round(s * 100));
+    // One text node per label: the full value including the weak "*"
+    // (checkpoint 12 — the number and marker are a single string so the
+    // whole label, not just its tail, is what readers see).
+    const text = `${Math.round(s * 100)}${weak ? "*" : ""}`;
     const textW = text.length * charW;
-    const pillW = textW + PILL_PAD_X * 2 + (weak ? markerW : 0);
+    const pillW = textW + PILL_PAD_X * 2;
 
-    // Preferred spot: bottom-right corner tucked just left of and above
-    // the node marker — the branch's child end.
+    // Preferred spot: just right of the node marker, bottom edge a
+    // whisker above the marker's top — over the start of the branch
+    // descending to the lower child, clear of the marker. Never left
+    // of the node.
     let box: LabelBox = {
-      minX: n.x - markerR - GAP - pillW,
-      maxX: n.x - markerR - GAP,
+      minX: n.x + markerR + GAP,
+      maxX: n.x + markerR + GAP + pillW,
       minY: n.y - markerR - GAP - pillH,
       maxY: n.y - markerR - GAP,
     };
@@ -177,11 +185,8 @@ export function supportLabels(
       text,
       weak,
       box,
-      // The number centers on the pill's text area; a weak marker gets
-      // its own slot at the pill's right edge.
-      textX: weak ? box.minX + PILL_PAD_X + textW / 2 : (box.minX + box.maxX) / 2,
+      textX: (box.minX + box.maxX) / 2,
       textY,
-      markerX: weak ? box.maxX - PILL_PAD_X - markerW / 2 : null,
     });
   }
   return labels;

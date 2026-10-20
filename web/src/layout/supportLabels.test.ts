@@ -61,13 +61,13 @@ function markerBox(x: number, y: number): LabelBox {
   return { minX: x - r, maxX: x + r, minY: y - r, maxY: y + r };
 }
 
-/** Leaf-name box, matching supportLabels' estimate. */
+/** Leaf-name box, matching supportLabels' (asymmetric) estimate. */
 function nameBox(x: number, y: number, label: string): LabelBox {
   return {
     minX: x + NODE_RADIUS + LABEL_OFFSET,
     maxX: x + NODE_RADIUS + LABEL_OFFSET + label.length * NAME_FONT * 0.62,
-    minY: y - NAME_FONT / 2 - 2,
-    maxY: y + NAME_FONT / 2 + 2,
+    minY: y - NAME_FONT - 2,
+    maxY: y + NAME_FONT * 0.5 + 2,
   };
 }
 
@@ -120,13 +120,16 @@ describe("supportLabels (checkpoint 11)", () => {
           `pills on nodes ${p.id} and ${q.id}`,
         ).toBe(false);
       }
-      // Placement contract: the pill ends left of its node marker.
+      // Placement contract: the pill starts right of its node marker —
+      // never left (left-hanging pills clipped at the svg edge).
       const node = l.nodes.find((n) => n.id === p.id)!;
-      expect(p.box.maxX).toBeLessThanOrEqual(node.x - NODE_RADIUS);
-      // …and reads Math.round(100·s), weak here.
-      expect(p.text).toBe("30");
+      expect(p.box.minX).toBeGreaterThanOrEqual(node.x + NODE_RADIUS);
+      // …and reads the full value, "*" merged in for weak support.
+      expect(p.text).toBe("30*");
       expect(p.weak).toBe(true);
-      expect(p.markerX).not.toBeNull();
+      // The pill is wide enough for its text (≥ 0.5 em per character).
+      const w = p.box.maxX - p.box.minX;
+      expect(w).toBeGreaterThanOrEqual(p.text.length * 0.5 * FONT);
     }
   });
 
@@ -192,7 +195,6 @@ describe("supportLabels (checkpoint 11)", () => {
     const p = labels[0];
     expect(p.text).toBe("90");
     expect(p.weak).toBe(false);
-    expect(p.markerX).toBeNull();
     for (const n of l.nodes) {
       expect(hit(p.box, markerBox(n.x, n.y))).toBe(false);
       if (n.leaf && n.label !== null) {
