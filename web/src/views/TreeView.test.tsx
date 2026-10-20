@@ -143,7 +143,7 @@ describe("support labels", () => {
     ).toBeNull();
   });
 
-  it("support below 50% gets a thinner stroke, data-weak and a marker glyph", () => {
+  it("support below 50% gets a thinner stroke, data-weak and a * in the text", () => {
     const { container } = render(
       <TreeView
         tree={withSupport(0.41)}
@@ -158,16 +158,128 @@ describe("support labels", () => {
     expect(g?.getAttribute("data-weak")).toBe("true");
     const line = g?.querySelector("line.branch");
     expect(Number(line?.getAttribute("stroke-width"))).toBeLessThan(1.5);
-    expect(g?.querySelector(".weak-marker")).not.toBeNull();
+    // The marker glyph is part of the label text — "41*" — so the whole
+    // value is one string (checkpoint 12: a clipped "47*" must never
+    // render as just "*").
     expect(
       container.querySelector('g[data-node="3"] .support-label')
         ?.textContent,
-    ).toBe("41");
+    ).toBe("41*");
+    expect(g?.querySelector(".weak-marker")).toBeNull();
+  });
+
+  // Checkpoint 12: the owner's screenshot showed weak pills hanging off
+  // the svg's left edge — "47*" drawn as just "*". The viewBox now
+  // fits the union of all drawn boxes, so every pill lies fully inside.
+  it("keeps every support pill fully inside the svg viewBox", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.41)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const svg = container.querySelector("svg")!;
+    const [vx, vy, vw, vh] = svg
+      .getAttribute("viewBox")!
+      .split(" ")
+      .map(Number);
+    for (const pill of svg.querySelectorAll("rect.support-pill")) {
+      const x = Number(pill.getAttribute("x"));
+      const y = Number(pill.getAttribute("y"));
+      const w = Number(pill.getAttribute("width"));
+      const h = Number(pill.getAttribute("height"));
+      expect(x).toBeGreaterThanOrEqual(vx);
+      expect(y).toBeGreaterThanOrEqual(vy);
+      expect(x + w).toBeLessThanOrEqual(vx + vw);
+      expect(y + h).toBeLessThanOrEqual(vy + vh);
+      // The pill is wide enough for its label (≥ 0.5 em per char).
+      const label = pill.parentElement!.querySelector(".support-label")!;
+      const fontSize = Number(label.getAttribute("font-size"));
+      expect(w).toBeGreaterThanOrEqual(
+        label.textContent!.length * 0.5 * fontSize,
+      );
+    }
   });
 
   // The degree-2 root after a display reroot: the split's support lives
   // on the ingroup-side edge only (Task 5's single-placement rule), so
   // each grouping's label appears exactly once.
+  // Checkpoint 12: labels are pills right of and above the child-end
+  // node, and the u1/u2/… internal names hide while labels are shown
+  // so they can never overlap.
+  it("draws the support value inside a background pill", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.874)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const group = container.querySelector('g[data-node="3"] .support');
+    expect(group?.querySelector("rect.support-pill")).not.toBeNull();
+    expect(group?.querySelector(".support-label")?.textContent).toBe("87");
+  });
+
+  it("hides internal node names while support labels are shown", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.874)}
+        layoutKind="phylogram"
+        highlight={new Set([3, 4])}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const texts = [...container.querySelectorAll("text")].map(
+      (t) => t.textContent,
+    );
+    // u1 and u2 are step-through aids — hidden so the pills can sit
+    // where the names would go.
+    expect(texts).not.toContain("u1");
+    expect(texts).not.toContain("u2");
+    // Without support labels the highlighted names are still drawn.
+    const plain = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set([3, 4])}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const plainTexts = [...plain.container.querySelectorAll("text")].map(
+      (t) => t.textContent,
+    );
+    expect(plainTexts).toContain("u1");
+    expect(plainTexts).toContain("u2");
+  });
+
+  it("never draws text below the 12px minimum", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.41)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        leafSpacing={18}
+        title="Inferred tree"
+      />,
+    );
+    for (const t of container.querySelectorAll("text")) {
+      expect(Number(t.getAttribute("font-size"))).toBeGreaterThanOrEqual(12);
+    }
+  });
+
   it("labels each grouping exactly once on a rerooted degree-2 root", () => {
     const t: Tree = {
       rooted: true,

@@ -637,6 +637,84 @@ describe("setAlphabet (v1.1 Task 10)", () => {
   });
 });
 
+// Checkpoint 11: an analysis change (correction or method) re-runs the
+// pipeline. A stepper sitting at its final position lands on the new
+// tree's final position so the finished new tree — and the bootstrap
+// panel — show immediately; any earlier position still resets to 0.
+// Bootstrap results clear either way (status idle).
+describe("setAnalysis stepper position (checkpoint 11)", () => {
+  function loadedExercise() {
+    const ex = exercise(EXERCISE_JSON);
+    return reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+  }
+  const traceMax = (s: Session) => {
+    const t = s.result!.trace!;
+    return "Nj" in t ? t.Nj.steps.length + 1 : t.Upgma.steps.length;
+  };
+
+  it("lands on the new tree's final position when it was at the end", () => {
+    let s = loadedExercise();
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    expect(s.step).toBe(3); // 5-taxon NJ: 2 joins + final three-way join
+    const next = reducer(s, {
+      type: "setAnalysis",
+      patch: { correction: "P" },
+    });
+    expect(next.result).not.toBeNull();
+    expect(next.step).toBe(traceMax(next));
+    expect(next.step).toBe(3);
+  });
+
+  it("also lands on the final position when the method changes", () => {
+    let s = loadedExercise();
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    const next = reducer(s, {
+      type: "setAnalysis",
+      patch: { method: "Upgma" },
+    });
+    expect(next.result).not.toBeNull();
+    // UPGMA has one join per internal node (4 for 5 taxa).
+    expect(next.step).toBe(traceMax(next));
+    expect(next.step).toBe(4);
+  });
+
+  it("resets to step 0 from a middle position", () => {
+    let s = loadedExercise();
+    s = reducer(s, { type: "step", to: 1 });
+    const next = reducer(s, {
+      type: "setAnalysis",
+      patch: { correction: "K80" },
+    });
+    expect(next.step).toBe(0);
+  });
+
+  it("still clears bootstrap results (status idle)", () => {
+    let s = loadedExercise();
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    s = {
+      ...s,
+      bootstrap: {
+        ...s.bootstrap,
+        status: "done",
+        support: s.result!.tree,
+        settingsUsed: { replicates: 100, seed: 1 },
+      },
+    };
+    const next = reducer(s, {
+      type: "setAnalysis",
+      patch: { correction: "P" },
+    });
+    expect(next.bootstrap.status).toBe("idle");
+    expect(next.bootstrap.support).toBeNull();
+    // …and the stepper still lands on the new final position.
+    expect(next.step).toBe(traceMax(next));
+  });
+});
+
 // Checkpoint 13: loading a lesson — via the Lessons menu, the Lesson
 // radio, or Back-to-the-lesson — starts from the lesson file's own
 // settings. Nothing from the previous lesson or the sandbox (correction,

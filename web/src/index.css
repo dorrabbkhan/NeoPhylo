@@ -1102,9 +1102,18 @@ button:disabled {
   font-size: 13px;
 }
 
-/* Weak support: the marker glyph plus the thinner stroke are drawn in
- * TreeView; the label itself just needs to inherit the tree color. */
-.support-label,
-.weak-marker {
+/* Weak support: the branch's thinner stroke is drawn in TreeView and
+ * the "*" rides inside the label text itself; the label just needs to
+ * inherit the tree color. */
+.support-label {
   font-weight: 500;
+}
+
+/* The support pill keeps the label readable over branch lines and
+ * connector elbows (checkpoint 11): a page-background fill with a hair
+ * border in both themes. */
+.support-pill {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1;
 }

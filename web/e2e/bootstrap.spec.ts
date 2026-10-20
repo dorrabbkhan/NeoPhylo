@@ -453,3 +453,108 @@ test("cytochrome-c: drawn support matches the tally, each grouping labeled once"
     ),
   ).toBeVisible();
 });
+
+// Checkpoint 11 acceptance: at the final step with a done 100-replicate
+// run (seed 1), no support label's pill box intersects a node marker, a
+// leaf name or another label — in BOTH the rooted (default) and the
+// computed (unrooted) views. Screenshots of both views are written to
+// test-results/ for the PR.
+test("cytochrome-c: support labels never overlap markers, names or each other", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 30_000 });
+
+  const svg = page.locator('svg[aria-label="Inferred tree"]');
+  await expect(svg.locator(".support-label").first()).toBeVisible();
+
+  interface Box {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
+  const hit = (a: Box, b: Box) =>
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y;
+
+  /** All overlap violations in the inferred-tree svg, as strings. */
+  const overlaps = () =>
+    svg.evaluate((el) => {
+      const box = (e: Element) => (e as SVGGraphicsElement).getBBox();
+      const pills = Array.from(
+        el.querySelectorAll("rect.support-pill"),
+      ).map(box);
+      const markers = Array.from(
+        el.querySelectorAll("g[data-node] > circle"),
+      ).map(box);
+      // Leaf names and any drawn node/zero-length labels (support text
+      // lives inside the pill and is excluded).
+      const names = Array.from(el.querySelectorAll("g[data-node] > text"))
+        .filter((t) => !t.classList.contains("support-label"))
+        .map(box);
+      const out: string[] = [];
+      const overlap = (a: Box, b: Box) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      pills.forEach((p, i) => {
+        markers.forEach((m, j) => {
+          if (overlap(p, m)) out.push(`pill ${i} vs marker ${j}`);
+        });
+        names.forEach((n, j) => {
+          if (overlap(p, n)) out.push(`pill ${i} vs name ${j}`);
+        });
+        pills.forEach((q, j) => {
+          if (j > i && overlap(p, q)) out.push(`pill ${i} vs pill ${j}`);
+        });
+      });
+      return out;
+    });
+
+  /** Font size of the leaf named "human" in the inferred svg. */
+  const leafFont = () =>
+    svg.evaluate(
+      (el) =>
+        Array.from(el.querySelectorAll("g[data-node] > text")).find(
+          (t) => t.textContent === "human",
+        )?.getAttribute("font-size") ?? null,
+    );
+
+  // Rooted view (default, §6.7).
+  expect(await overlaps()).toEqual([]);
+  const rootedFont = await leafFont();
+  expect(Number(rootedFont)).toBeGreaterThanOrEqual(12);
+  await page
+    .locator(".tree-col")
+    .screenshot({ path: "test-results/c11-support-rooted.png" });
+
+  // Computed (unrooted) view.
+  const toggle = page.getByRole("button", {
+    name: "Show as computed (unrooted)",
+  });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await toggle.click();
+  await expect(
+    page.getByRole("button", { name: "Show rooted like the reference" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  expect(await overlaps()).toEqual([]);
+  // Text size is independent of the drawing: same font size as rooted.
+  expect(await leafFont()).toBe(rootedFont);
+  await page
+    .locator(".tree-col")
+    .screenshot({ path: "test-results/c11-support-computed.png" });
+
+  // Sanity: the helper actually intersects boxes that touch.
+  expect(
+    hit({ x: 0, y: 0, width: 4, height: 4 }, { x: 3, y: 3, width: 4, height: 4 }),
+  ).toBe(true);
+});

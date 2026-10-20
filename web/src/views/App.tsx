@@ -708,14 +708,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
                     {reroot !== null && (
                       <button
                         type="button"
-                        role="switch"
-                        aria-checked={!session.rerootDisplay}
+                        // The label says what a click switches TO; the
+                        // pressed state says which view is on (pressed =
+                        // rooted like the reference). Checkpoint 11.
+                        aria-pressed={session.rerootDisplay}
                         className="reroot-toggle"
                         onClick={() =>
                           dispatch({ type: "toggleRerootDisplay" })
                         }
                       >
-                        Show as computed (unrooted)
+                        {showReroot
+                          ? "Show as computed (unrooted)"
+                          : "Show rooted like the reference"}
                       </button>
                     )}
                   </>
