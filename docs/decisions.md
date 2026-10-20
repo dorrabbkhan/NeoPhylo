@@ -1882,3 +1882,62 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `web/src/engine/generated/` for the spec §4 bigint ban (not
     possible inside a wasm32 test).
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 9: bootstrap worker and client
+
+- **`cancelled` is an eighth worker→page message.** Spec §5's cancel
+  rule ("acknowledged within 1 s, or terminate and respawn") needs an
+  acknowledgement the §5 message table never names; `cancelled` is it.
+  The worker sends it when a job ends after a cancel (including a job
+  cancelled while queued), never for a normal finish.
+- **`runBootstrapJob`'s `post` takes `WorkerToPageJob`, not
+  `WorkerToPage`.** The job doesn't know its jobId — the worker stamps
+  it onto every message — so the job emits the same union minus
+  `jobId` (and minus `cancelled`, which only the worker sends). The
+  wire union keeps spec §5's fields exactly.
+- **A `start` while a job runs cancels the running job and queues the
+  new one** rather than interleaving two jobs on the worker's single
+  thread; the page still drops anything whose jobId isn't current, and
+  a `cancel` for a not-yet-started job is acknowledged on dequeue.
+- **All-failed batches are counted, not fatal.** `bootstrap_batch`
+  returns `BootstrapFailed` when every replicate in a batch fails
+  (Task 4 semantics); the job counts those replicates toward `done`
+  and `failed` and only posts `BootstrapFailed` when zero replicates
+  succeeded overall.
+- **The client auto-confirms, the worker always waits.** `onEstimate`
+  fires only when `totalMs` exceeds `confirmThresholdMs` (default
+  10,000); under the threshold the client sends `confirm` immediately,
+  matching spec §5's "the page confirms immediately".
+- **The job checks `shouldStop` before posting the estimate and before
+  `waitConfirm`.** A `cancel` processed during replicate 0 used to
+  leave the job waiting for a `confirm` that could never arrive —
+  the flag was set but nothing resolved the wait. `waitConfirm` also
+  resolves `false` immediately when the job is already cancelled, and
+  the worker claims the `active` slot before the async wasm init so a
+  `start`/`cancel` landing during init is handled against that job.
+- **`onStaleMessage` is an observability option** on `BootstrapClient`
+  so tests and e2e can assert the §5 stale-results rule fires; the app
+  singleton doesn't set it.
+- **Files outside the Files block:**
+  - `web/src/main.tsx` — installs the `neophylo-e2e` localStorage page
+    hook (`window.__neophylo` with the engine, `BootstrapClient` and
+    the shared client) so e2e/bootstrap.spec.ts can drive real worker
+    jobs until Task 10 wires the client into the session. A `?e2e`
+    query param was tried first: the app's URL `replaceState` sync
+    strips unknown params, so the flag was gone by the offline reload —
+    localStorage survives reloads and works in the preview build too.
+  - `docs/decisions.md` (this entry).
+
+**Review fix.** The first implementation leaked `cancelledBeforeStart`
+entries and never acknowledged a queued job's cancel: a `cancel` for a
+jobId that was never started (or already finished) added a permanent
+set entry, and a queued start skipped by `cancelledBeforeStart` posted
+no `cancelled` ack — so `cancel()` always fell through to the 1 s
+terminate+respawn. Now a queued start's cancel is acked when the job
+is skipped on dequeue, and a cancel for a jobId that is neither active
+nor queued is acked immediately with no bookkeeping. The wiring moved
+into an exported `installWorkerScope(postMessage, ready)` (with a
+test-only `pendingCancels()` size getter) so these cases run
+in-process in `worker.test.ts`. The wasm `ready()` await is also
+wrapped so a failed init reports an `error` on the job instead of
+wedging the start queue.
