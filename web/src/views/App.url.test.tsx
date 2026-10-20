@@ -44,7 +44,7 @@ describe("URL state", () => {
       "",
       "/" +
         encode({
-          v: 2,
+          v: 3,
           x: NJ_BASICS,
           step: 2,
           mode: "math",

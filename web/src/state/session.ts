@@ -9,8 +9,10 @@ import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
 import type { BuildResult } from "../engine/generated/BuildResult";
+import type { ConsensusKind } from "../engine/generated/ConsensusKind";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
+import type { DroppedGroup } from "../engine/generated/DroppedGroup";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
 import type { ReferenceKind } from "../engine/generated/ReferenceKind";
@@ -19,6 +21,7 @@ import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 import type { Trace } from "../engine/generated/Trace";
 import type { Tree } from "../engine/generated/Tree";
+import type { BootstrapResult } from "../engine/bootstrapProtocol";
 
 export interface Session {
   exercise: Exercise;
@@ -70,6 +73,158 @@ export interface Session {
    * switched a model to the new alphabet's default (v1.1 spec §5.1).
    * Cleared by the next action that changes models or data. */
   notice: string | null;
+  /** Bootstrap run state (v1.2 spec §6.1). */
+  bootstrap: BootstrapState;
+  /** Draw the NJ tree rooted on the reference's outgroup at the final
+   * step (v1.2 spec §6.7); false shows the computed unrooted layout. */
+  rerootDisplay: boolean;
+}
+
+/** Consensus tab ids plus "support" for the original tree (§6.4).
+ * URL v3 serializes these verbatim. */
+export type BootstrapView = "support" | "majority" | "extended" | "strict";
+
+/** Bootstrap replicate bounds (v1.2 spec §3.8). */
+export const MIN_REPLICATES = 10;
+export const MAX_REPLICATES = 1000;
+/** Runs estimated at or under this many ms start without a confirm
+ * (v1.2 spec §5, §6.1) — including `ran: true` links. */
+export const AUTO_RUN_MS = 10_000;
+
+export type BootstrapStatus =
+  | "idle"
+  | "estimating"
+  | "confirming"
+  | "running"
+  | "done"
+  | "cancelled"
+  | "error";
+
+/** `Session.bootstrap` (v1.2 spec §6.1), plus the bookkeeping the page
+ * needs to drive `BootstrapClient` without its own state:
+ * - `settingsUsed` snapshots the settings a run was started with, so a
+ *   results panel can flag "settings changed" (Review Focus 3).
+ * - `jobId` is the client's current job; `cancelJobId` is a job the
+ *   session asks the page to cancel (a running job whose results were
+ *   just cleared by a data change, or an autorun the estimate ruled
+ *   out). The App effect turns it into `client.cancel` + this action
+ *   `bootstrapCancelled` to acknowledge.
+ * - `autorun` marks a request from a `ran: true` link: an over-budget
+ *   estimate degrades to `idle` + `prefilledRun` instead of the
+ *   confirm dialog (spec §6.1).
+ * - `prefilledRun`: show a prefilled "Run bootstrap (N replicates)"
+ *   button (the autorun link whose estimate exceeded AUTO_RUN_MS).
+ *
+ * `etaMs` is null until the first estimate/progress lands. */
+export interface BootstrapState {
+  status: BootstrapStatus;
+  replicates: number;
+  seed: number;
+  done: number;
+  total: number;
+  failed: number;
+  etaMs: number | null;
+  support: Tree | null;
+  consensus: Record<ConsensusKind, Tree> | null;
+  dropped: Record<ConsensusKind, DroppedGroup[]> | null;
+  view: BootstrapView;
+  replicateIndex: number | null;
+  settingsUsed: { replicates: number; seed: number } | null;
+  jobId: number | null;
+  cancelJobId: number | null;
+  autorun: boolean;
+  prefilledRun: boolean;
+  error: NeoError | null;
+}
+
+/** The default bootstrap state (spec §6.1: 100 replicates, seed 1,
+ * view "support"). */
+export function defaultBootstrap(): BootstrapState {
+  return {
+    status: "idle",
+    replicates: 100,
+    seed: 1,
+    done: 0,
+    total: 0,
+    failed: 0,
+    etaMs: null,
+    support: null,
+    consensus: null,
+    dropped: null,
+    view: "support",
+    replicateIndex: null,
+    settingsUsed: null,
+    jobId: null,
+    cancelJobId: null,
+    autorun: false,
+    prefilledRun: false,
+    error: null,
+  };
+}
+
+/** Data/model changes discard bootstrap results and request a cancel
+ * of any job in flight: its jobId moves to `cancelJobId`, which the
+ * App effect turns into `client.cancel` (spec §6.1, §5). The user's
+ * settings (replicates, seed, view) survive — they are preferences,
+ * not results. */
+export function clearBootstrap(s: Session): Session {
+  const b = s.bootstrap;
+  if (
+    b.status === "idle" &&
+    b.jobId === null &&
+    b.cancelJobId === null &&
+    b.support === null &&
+    b.consensus === null &&
+    b.settingsUsed === null &&
+    !b.prefilledRun
+  ) {
+    return s; // nothing to clear — keep identity
+  }
+  return {
+    ...s,
+    bootstrap: {
+      ...defaultBootstrap(),
+      replicates: b.replicates,
+      seed: b.seed,
+      view: b.view,
+      cancelJobId: b.jobId ?? b.cancelJobId,
+    },
+  };
+}
+
+/** The exercise's own bootstrap settings, if it declares them (v1.2
+ * spec §7.1: files may include `bootstrap: { replicates, seed }` —
+ * Task 14 adds the field to the `Exercise` type, so the block is read
+ * defensively here). Invalid or missing fields fall back to the
+ * `defaultBootstrap` values; the view is not part of the block. */
+function exerciseBootstrap(e: Exercise): {
+  replicates?: number;
+  seed?: number;
+} {
+  const block = (e as { bootstrap?: unknown }).bootstrap;
+  if (typeof block !== "object" || block === null) return {};
+  const b = block as { replicates?: unknown; seed?: unknown };
+  const out: { replicates?: number; seed?: number } = {};
+  if (typeof b.replicates === "number" && Number.isFinite(b.replicates)) {
+    out.replicates = Math.min(
+      MAX_REPLICATES,
+      Math.max(MIN_REPLICATES, Math.round(b.replicates)),
+    );
+  }
+  if (typeof b.seed === "number" && Number.isFinite(b.seed)) {
+    out.seed = Math.max(0, Math.round(b.seed));
+  }
+  return out;
+}
+
+/** A job-scoped message is honored only for the current job — or
+ * adopted while an unassigned request (autorun; `jobId` still null)
+ * waits in "estimating". `BootstrapClient` already drops stale
+ * messages; this guard keeps the reducer safe when the client is
+ * faked in tests. */
+function jobCurrent(b: BootstrapState, jobId: number): boolean {
+  if (b.jobId === jobId) return true;
+  return b.jobId === null && b.status === "estimating";
 }
 
 /** The sim spec of a simulated exercise; `null` for embedded data
@@ -92,7 +247,37 @@ export type Action =
   | { type: "setBranchScale"; scale: number }
   | { type: "hover"; cell: Session["hover"] }
   | { type: "enterSandbox" }
-  | { type: "exitSandbox" };
+  | { type: "exitSandbox" }
+  // v1.2 Task 10: bootstrap run lifecycle (spec §5, §6.1).
+  // `jobId` is the client-assigned id; when omitted (a `ran: true`
+  // link), the first job message adopts its id.
+  | { type: "bootstrapRequested"; jobId?: number; autorun?: boolean }
+  | {
+      type: "bootstrapEstimated";
+      jobId: number;
+      msPerReplicate: number;
+      totalMs: number;
+    }
+  | { type: "bootstrapConfirmed"; jobId: number }
+  | {
+      type: "bootstrapProgress";
+      jobId: number;
+      done: number;
+      total: number;
+      failed: number;
+      etaMs: number;
+      support: Tree;
+    }
+  | { type: "bootstrapDone"; jobId: number; result: BootstrapResult }
+  | { type: "bootstrapFailed"; jobId: number; error: NeoError }
+  | { type: "bootstrapCancelled" }
+  | {
+      type: "setBootstrapSettings";
+      patch: { replicates?: number; seed?: number };
+    }
+  | { type: "setBootstrapView"; view: BootstrapView }
+  | { type: "setReplicateIndex"; index: number | null }
+  | { type: "toggleRerootDisplay" };
 
 /** Corrections valid for each alphabet, in menu order (v1.1 spec
  * §5.1). The first non-`P` entry is the alphabet's default. */
@@ -411,6 +596,18 @@ export function reducer(s: Session, a: Action): Session {
         hover: null,
         source: a.source,
         notice: null,
+        bootstrap: {
+          ...defaultBootstrap(),
+          // v1.1 rule: nothing carries over between lessons, so
+          // settings reset to the exercise's own `bootstrap` block
+          // (spec §7.1; Task 14 adds it to the Exercise type) or the
+          // defaults. Only sandbox data changes keep the user's
+          // settings — `load` is not one of those paths. A running job
+          // still asks the page for a cancel.
+          ...exerciseBootstrap(a.exercise),
+          cancelJobId: s.bootstrap.jobId ?? s.bootstrap.cancelJobId,
+        },
+        rerootDisplay: s.rerootDisplay,
         alignmentOrigin:
           a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
       };
@@ -431,28 +628,32 @@ export function reducer(s: Session, a: Action): Session {
       // patch is stored and recompute re-simulates.
       if (s.alignmentOrigin !== "simulated") return s;
       if (s.exercise.data.kind !== "simulated") return s;
-      return recompute({
-        ...s,
-        notice: null,
-        exercise: {
-          ...s.exercise,
-          data: {
-            ...s.exercise.data,
-            sim: { ...s.exercise.data.sim, ...a.patch },
+      return recompute(
+        clearBootstrap({
+          ...s,
+          notice: null,
+          exercise: {
+            ...s.exercise,
+            data: {
+              ...s.exercise.data,
+              sim: { ...s.exercise.data.sim, ...a.patch },
+            },
           },
-        },
-      });
+        }),
+      );
     }
     case "setAnalysis":
       // Analysis inputs do not affect simulation, so keep the alignment.
-      return recompute({
-        ...s,
-        notice: null,
-        exercise: {
-          ...s.exercise,
-          analysis: { ...s.exercise.analysis, ...a.patch },
-        },
-      });
+      return recompute(
+        clearBootstrap({
+          ...s,
+          notice: null,
+          exercise: {
+            ...s.exercise,
+            analysis: { ...s.exercise.analysis, ...a.patch },
+          },
+        }),
+      );
     case "setAlphabet": {
       // The alphabet override (badge's "Treat as protein/DNA", v1.1
       // spec §5.1). reconcileModels switches any model that is invalid
@@ -473,14 +674,16 @@ export function reducer(s: Session, a: Action): Session {
         // reinterpreting the current sequences via withAlphabet would
         // either be discarded or fail on real protein letters.
         if (exercise === s.exercise) return s;
-        return recompute({ ...s, exercise, notice });
+        return recompute(clearBootstrap({ ...s, exercise, notice }));
       }
       // Imported or embedded data is reinterpreted in place. A
       // successful override turns the alignment into user data — for
       // embedded data staying "embedded" would make `recompute`
       // re-parse data.fasta and undo the override.
       if (s.alignment === null) {
-        return exercise === s.exercise ? s : recompute({ ...s, exercise, notice });
+        return exercise === s.exercise
+          ? s
+          : recompute(clearBootstrap({ ...s, exercise, notice }));
       }
       if (s.alignment.alphabet === target && exercise === s.exercise) {
         return s;
@@ -491,13 +694,15 @@ export function reducer(s: Session, a: Action): Session {
         // and show the error — never a stuck state.
         return { ...s, error: tagged.error, notice: null };
       }
-      return recompute({
-        ...s,
-        exercise,
-        notice,
-        alignment: tagged.value,
-        alignmentOrigin: "imported",
-      });
+      return recompute(
+        clearBootstrap({
+          ...s,
+          exercise,
+          notice,
+          alignment: tagged.value,
+          alignmentOrigin: "imported",
+        }),
+      );
     }
     case "importAlignment":
       // An imported alignment is compared against an imported
@@ -509,16 +714,18 @@ export function reducer(s: Session, a: Action): Session {
       // import under JC69 switches to JTT with a notice instead of
       // erroring (checkpoint 10).
       return recompute(
-        reconcileModels({
-          ...s,
-          alignment: a.alignment,
-          alphabet: a.alignment.alphabet,
-          alignmentOrigin: "imported",
-          source: "sandbox",
-          notice: null,
-          reference:
-            s.reference?.origin === "imported" ? s.reference : null,
-        }),
+        clearBootstrap(
+          reconcileModels({
+            ...s,
+            alignment: a.alignment,
+            alphabet: a.alignment.alphabet,
+            alignmentOrigin: "imported",
+            source: "sandbox",
+            notice: null,
+            reference:
+              s.reference?.origin === "imported" ? s.reference : null,
+          }),
+        ),
       );
     case "importTree": {
       // The imported tree becomes the reference (kind "true": it is
@@ -537,15 +744,17 @@ export function reducer(s: Session, a: Action): Session {
           ? s.exercise.alphabet
           : simModelAlphabet(s.exercise.data.sim.model);
       return recompute(
-        reconcileModels({
-          ...s,
-          reference: { tree: a.tree, kind: "true", origin: "imported" },
-          notice: null,
-          alignment: null,
-          alignmentOrigin,
-          alphabet,
-          source: "sandbox",
-        }),
+        clearBootstrap(
+          reconcileModels({
+            ...s,
+            reference: { tree: a.tree, kind: "true", origin: "imported" },
+            notice: null,
+            alignment: null,
+            alignmentOrigin,
+            alphabet,
+            source: "sandbox",
+          }),
+        ),
       );
     }
     case "step": {
@@ -562,7 +771,7 @@ export function reducer(s: Session, a: Action): Session {
       // Scaling only affects simulation; it is inert while the
       // alignment is imported or embedded.
       if (s.alignmentOrigin !== "simulated") return s;
-      return recompute({ ...s, branchScale: a.scale });
+      return recompute(clearBootstrap({ ...s, branchScale: a.scale }));
     case "hover":
       return { ...s, hover: a.cell };
     case "enterSandbox":
@@ -587,6 +796,185 @@ export function reducer(s: Session, a: Action): Session {
         },
         source: "lesson",
       });
+    // --- v1.2 Task 10: bootstrap lifecycle (spec §5, §6.1) ----------
+    case "bootstrapRequested": {
+      const b = s.bootstrap;
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "estimating",
+          jobId: a.jobId ?? null,
+          // A superseded in-flight job is handed to the page to cancel
+          // (client.start also cancels it — the request is idempotent).
+          cancelJobId: b.jobId ?? b.cancelJobId,
+          autorun: a.autorun ?? false,
+          prefilledRun: false,
+          done: 0,
+          total: b.replicates,
+          failed: 0,
+          etaMs: null,
+          support: null,
+          consensus: null,
+          dropped: null,
+          error: null,
+          settingsUsed: { replicates: b.replicates, seed: b.seed },
+        },
+      };
+    }
+    case "bootstrapEstimated": {
+      const b = s.bootstrap;
+      if (!jobCurrent(b, a.jobId)) return s;
+      if (a.totalMs <= AUTO_RUN_MS) {
+        // The client auto-confirms an under-budget run; it proceeds
+        // to running (progress messages follow).
+        return {
+          ...s,
+          bootstrap: {
+            ...b,
+            status: "running",
+            jobId: a.jobId,
+            autorun: false,
+            etaMs: a.totalMs,
+          },
+        };
+      }
+      if (b.autorun) {
+        // A `ran: true` link with an over-budget estimate never asks
+        // the student to confirm: degrade to a prefilled Run button
+        // (spec §6.1) and cancel the pending worker job.
+        return {
+          ...s,
+          bootstrap: {
+            ...b,
+            status: "idle",
+            jobId: null,
+            cancelJobId: a.jobId,
+            autorun: false,
+            prefilledRun: true,
+            etaMs: a.totalMs,
+          },
+        };
+      }
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "confirming",
+          jobId: a.jobId,
+          etaMs: a.totalMs,
+        },
+      };
+    }
+    case "bootstrapConfirmed": {
+      const b = s.bootstrap;
+      if (!jobCurrent(b, a.jobId)) return s;
+      return {
+        ...s,
+        bootstrap: { ...b, status: "running", jobId: a.jobId, autorun: false },
+      };
+    }
+    case "bootstrapProgress": {
+      const b = s.bootstrap;
+      if (!jobCurrent(b, a.jobId)) return s;
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "running",
+          jobId: a.jobId,
+          autorun: false,
+          done: a.done,
+          total: a.total,
+          failed: a.failed,
+          etaMs: a.etaMs,
+          support: a.support,
+        },
+      };
+    }
+    case "bootstrapDone": {
+      const b = s.bootstrap;
+      if (!jobCurrent(b, a.jobId)) return s;
+      const r = a.result;
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "done",
+          jobId: null,
+          autorun: false,
+          done: r.tally.successful + r.failed,
+          total: r.tally.successful + r.failed,
+          failed: r.failed,
+          etaMs: null,
+          support: r.support,
+          consensus: r.consensus,
+          dropped: r.dropped,
+          error: null,
+        },
+      };
+    }
+    case "bootstrapFailed": {
+      const b = s.bootstrap;
+      if (!jobCurrent(b, a.jobId)) return s;
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "error",
+          jobId: null,
+          autorun: false,
+          error: a.error,
+        },
+      };
+    }
+    case "bootstrapCancelled": {
+      const b = s.bootstrap;
+      const active =
+        b.status === "estimating" ||
+        b.status === "confirming" ||
+        b.status === "running";
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          // An active run reports cancelled; an already-idle session
+          // (the page's ack of a clear-on-change cancel, or a declined
+          // autorun) keeps its status and the prefilled flag.
+          status: active ? "cancelled" : b.status,
+          jobId: null,
+          cancelJobId: null,
+          autorun: false,
+        },
+      };
+    }
+    case "setBootstrapSettings":
+      // Settings changes never clear results — a finished run stays
+      // visible and the panel labels it with `settingsUsed` (Review
+      // Focus 3). Replicates clamp to the spec §3.8 range.
+      return {
+        ...s,
+        bootstrap: {
+          ...s.bootstrap,
+          replicates:
+            a.patch.replicates === undefined
+              ? s.bootstrap.replicates
+              : Math.min(
+                  MAX_REPLICATES,
+                  Math.max(MIN_REPLICATES, Math.round(a.patch.replicates)),
+                ),
+          seed:
+            a.patch.seed === undefined
+              ? s.bootstrap.seed
+              : Math.max(0, Math.round(a.patch.seed)),
+        },
+      };
+    case "setBootstrapView":
+      return { ...s, bootstrap: { ...s.bootstrap, view: a.view } };
+    case "setReplicateIndex":
+      return { ...s, bootstrap: { ...s.bootstrap, replicateIndex: a.index } };
+    case "toggleRerootDisplay":
+      return { ...s, rerootDisplay: !s.rerootDisplay };
   }
 }
 
@@ -613,6 +1001,8 @@ export function initialSession(exercise: Exercise): Session {
     hover: null,
     source: "lesson",
     notice: null,
+    bootstrap: defaultBootstrap(),
+    rerootDisplay: true,
   };
 }
 

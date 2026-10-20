@@ -1,0 +1,1570 @@
+{
+  "cases": [
+    {
+      "name": "nj-basics step 0",
+      "url": "?lesson=nj-basics&s=0&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAIwAMbZYqqycALAEwBfMgENKI9AE9IYOKFyIATotS5aERJSx4ipEFFQMUWAHIArEIMFA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "nj-basics mid step",
+      "url": "?lesson=nj-basics&s=3&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAIwAMbZYqqycALAEwBfMgENKI9AE9IYOKFyIATotS5aERJSx4ipEFFQMUWAHIArEIMFA",
+      "step": 3,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "nj-basics seed+length override",
+      "url": "?lesson=nj-basics&s=2&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAKwAMLZYqqycA7AL5kAhpSHoAnpDBxQuRACd5qXLQiJKWPEVIgoqBiiwA5AFYh%2B-IA",
+      "step": 2,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.25757228789153375
+          },
+          {
+            "Value": 0.4677158384335013
+          },
+          {
+            "Value": 0.4033907221154324
+          },
+          {
+            "Value": 0.33784685552917515
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.25757228789153375
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5339927012710688
+          },
+          {
+            "Value": 0.46029003519646744
+          },
+          {
+            "Value": 0.4102715043224634
+          },
+          {
+            "Value": 0.5178630473553462
+          },
+          {
+            "Value": 0.4677158384335013
+          },
+          {
+            "Value": 0.5339927012710688
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.18250969397379685
+          },
+          {
+            "Value": 0.4207125082114195
+          },
+          {
+            "Value": 0.5218630568368681
+          },
+          {
+            "Value": 0.4033907221154324
+          },
+          {
+            "Value": 0.46029003519646744
+          },
+          {
+            "Value": 0.18250969397379685
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.35691567930353274
+          },
+          {
+            "Value": 0.4456554245287812
+          },
+          {
+            "Value": 0.33784685552917515
+          },
+          {
+            "Value": 0.4102715043224634
+          },
+          {
+            "Value": 0.4207125082114195
+          },
+          {
+            "Value": 0.35691567930353274
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.26323269211807104
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.5178630473553462
+          },
+          {
+            "Value": 0.5218630568368681
+          },
+          {
+            "Value": 0.4456554245287812
+          },
+          {
+            "Value": 0.26323269211807104
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "nj-basics K80 UPGMA override",
+      "url": "?lesson=nj-basics&s=0&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAKwAMLZYqqycA7AL5kAhpSHoAnpDBxQuRACd5qXLQiJKWANIAOFqRBRUDFFgCqAB2pQhIfvyA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "K80",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.25757295079549236
+          },
+          {
+            "Value": 0.468097659502718
+          },
+          {
+            "Value": 0.403532787114312
+          },
+          {
+            "Value": 0.33805937017708554
+          },
+          {
+            "Value": 0.43130197141524246
+          },
+          {
+            "Value": 0.25757295079549236
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5340274739634836
+          },
+          {
+            "Value": 0.46034609902873913
+          },
+          {
+            "Value": 0.4102724990152977
+          },
+          {
+            "Value": 0.5179968839840751
+          },
+          {
+            "Value": 0.468097659502718
+          },
+          {
+            "Value": 0.5340274739634836
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.18268366959394083
+          },
+          {
+            "Value": 0.42112865610850353
+          },
+          {
+            "Value": 0.5225877525296085
+          },
+          {
+            "Value": 0.403532787114312
+          },
+          {
+            "Value": 0.46034609902873913
+          },
+          {
+            "Value": 0.18268366959394083
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3583407563801776
+          },
+          {
+            "Value": 0.4464715874519141
+          },
+          {
+            "Value": 0.33805937017708554
+          },
+          {
+            "Value": 0.4102724990152977
+          },
+          {
+            "Value": 0.42112865610850353
+          },
+          {
+            "Value": 0.3583407563801776
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2632868661152552
+          },
+          {
+            "Value": 0.43130197141524246
+          },
+          {
+            "Value": 0.5179968839840751
+          },
+          {
+            "Value": 0.5225877525296085
+          },
+          {
+            "Value": 0.4464715874519141
+          },
+          {
+            "Value": 0.2632868661152552
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "cytochrome-c step 0",
+      "url": "?lesson=cytochrome-c&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcoDGB7ATjgphgC6JYRogBSRRIANCALb5EAWWAJhQHIBWIAXwFA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ],
+        "model": "Jtt",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.129432073434347
+          },
+          {
+            "Value": 0.14281829877736524
+          },
+          {
+            "Value": 0.18081164820856807
+          },
+          {
+            "Value": 0.3032106419310321
+          },
+          {
+            "Value": 0.4940946828548632
+          },
+          {
+            "Value": 0.5794921053200587
+          },
+          {
+            "Value": 0.5689602777929824
+          },
+          {
+            "Value": 0.129432073434347
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.11938155499382411
+          },
+          {
+            "Value": 0.1625561883303823
+          },
+          {
+            "Value": 0.21517616641175238
+          },
+          {
+            "Value": 0.5587991882769259
+          },
+          {
+            "Value": 0.6269915461057093
+          },
+          {
+            "Value": 0.5515959329103239
+          },
+          {
+            "Value": 0.14281829877736524
+          },
+          {
+            "Value": 0.11938155499382411
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.12003244991462308
+          },
+          {
+            "Value": 0.2319096606147513
+          },
+          {
+            "Value": 0.5574430001014515
+          },
+          {
+            "Value": 0.6055490430670787
+          },
+          {
+            "Value": 0.5360116145309122
+          },
+          {
+            "Value": 0.18081164820856807
+          },
+          {
+            "Value": 0.1625561883303823
+          },
+          {
+            "Value": 0.12003244991462308
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20688614913350087
+          },
+          {
+            "Value": 0.5653910221818736
+          },
+          {
+            "Value": 0.6203082005577863
+          },
+          {
+            "Value": 0.5829256121359588
+          },
+          {
+            "Value": 0.3032106419310321
+          },
+          {
+            "Value": 0.21517616641175238
+          },
+          {
+            "Value": 0.2319096606147513
+          },
+          {
+            "Value": 0.20688614913350087
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5814774116776883
+          },
+          {
+            "Value": 0.6147788405293095
+          },
+          {
+            "Value": 0.4493359940097949
+          },
+          {
+            "Value": 0.4940946828548632
+          },
+          {
+            "Value": 0.5587991882769259
+          },
+          {
+            "Value": 0.5574430001014515
+          },
+          {
+            "Value": 0.5653910221818736
+          },
+          {
+            "Value": 0.5814774116776883
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6214782124571404
+          },
+          {
+            "Value": 0.6397663535577243
+          },
+          {
+            "Value": 0.5794921053200587
+          },
+          {
+            "Value": 0.6269915461057093
+          },
+          {
+            "Value": 0.6055490430670787
+          },
+          {
+            "Value": 0.6203082005577863
+          },
+          {
+            "Value": 0.6147788405293095
+          },
+          {
+            "Value": 0.6214782124571404
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4643117030097404
+          },
+          {
+            "Value": 0.5689602777929824
+          },
+          {
+            "Value": 0.5515959329103239
+          },
+          {
+            "Value": 0.5360116145309122
+          },
+          {
+            "Value": 0.5829256121359588
+          },
+          {
+            "Value": 0.4493359940097949
+          },
+          {
+            "Value": 0.6397663535577243
+          },
+          {
+            "Value": 0.4643117030097404
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "cytochrome-c mid step",
+      "url": "?lesson=cytochrome-c&s=2&m=concept&o=N4IghgdmA2CeDOBLeIBcoDGB7ATjgphgC6JYRogBSRRIANCALb5EAWWAJhQHIBWIAXwFA",
+      "step": 2,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ],
+        "model": "Jtt",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.129432073434347
+          },
+          {
+            "Value": 0.14281829877736524
+          },
+          {
+            "Value": 0.18081164820856807
+          },
+          {
+            "Value": 0.3032106419310321
+          },
+          {
+            "Value": 0.4940946828548632
+          },
+          {
+            "Value": 0.5794921053200587
+          },
+          {
+            "Value": 0.5689602777929824
+          },
+          {
+            "Value": 0.129432073434347
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.11938155499382411
+          },
+          {
+            "Value": 0.1625561883303823
+          },
+          {
+            "Value": 0.21517616641175238
+          },
+          {
+            "Value": 0.5587991882769259
+          },
+          {
+            "Value": 0.6269915461057093
+          },
+          {
+            "Value": 0.5515959329103239
+          },
+          {
+            "Value": 0.14281829877736524
+          },
+          {
+            "Value": 0.11938155499382411
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.12003244991462308
+          },
+          {
+            "Value": 0.2319096606147513
+          },
+          {
+            "Value": 0.5574430001014515
+          },
+          {
+            "Value": 0.6055490430670787
+          },
+          {
+            "Value": 0.5360116145309122
+          },
+          {
+            "Value": 0.18081164820856807
+          },
+          {
+            "Value": 0.1625561883303823
+          },
+          {
+            "Value": 0.12003244991462308
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20688614913350087
+          },
+          {
+            "Value": 0.5653910221818736
+          },
+          {
+            "Value": 0.6203082005577863
+          },
+          {
+            "Value": 0.5829256121359588
+          },
+          {
+            "Value": 0.3032106419310321
+          },
+          {
+            "Value": 0.21517616641175238
+          },
+          {
+            "Value": 0.2319096606147513
+          },
+          {
+            "Value": 0.20688614913350087
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5814774116776883
+          },
+          {
+            "Value": 0.6147788405293095
+          },
+          {
+            "Value": 0.4493359940097949
+          },
+          {
+            "Value": 0.4940946828548632
+          },
+          {
+            "Value": 0.5587991882769259
+          },
+          {
+            "Value": 0.5574430001014515
+          },
+          {
+            "Value": 0.5653910221818736
+          },
+          {
+            "Value": 0.5814774116776883
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6214782124571404
+          },
+          {
+            "Value": 0.6397663535577243
+          },
+          {
+            "Value": 0.5794921053200587
+          },
+          {
+            "Value": 0.6269915461057093
+          },
+          {
+            "Value": 0.6055490430670787
+          },
+          {
+            "Value": 0.6203082005577863
+          },
+          {
+            "Value": 0.6147788405293095
+          },
+          {
+            "Value": 0.6214782124571404
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4643117030097404
+          },
+          {
+            "Value": 0.5689602777929824
+          },
+          {
+            "Value": 0.5515959329103239
+          },
+          {
+            "Value": 0.5360116145309122
+          },
+          {
+            "Value": 0.5829256121359588
+          },
+          {
+            "Value": 0.4493359940097949
+          },
+          {
+            "Value": 0.6397663535577243
+          },
+          {
+            "Value": 0.4643117030097404
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "protein-models sim override",
+      "url": "?lesson=protein-models&s=0&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSAXXIANCOqgHYDmuAFnAMwAMDxYqqycAjAEx0C%2BxAIZlB6AJ6QwcUAGNEAJ3moZuCIjJYACkRBRUNFFgByAKxB8%2BQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G"
+        ],
+        "model": "P",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.17333333333333334
+          },
+          {
+            "Value": 0.37
+          },
+          {
+            "Value": 0.35
+          },
+          {
+            "Value": 0.27
+          },
+          {
+            "Value": 0.44333333333333336
+          },
+          {
+            "Value": 0.31
+          },
+          {
+            "Value": 0.17333333333333334
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.35
+          },
+          {
+            "Value": 0.32
+          },
+          {
+            "Value": 0.26666666666666666
+          },
+          {
+            "Value": 0.4166666666666667
+          },
+          {
+            "Value": 0.3
+          },
+          {
+            "Value": 0.37
+          },
+          {
+            "Value": 0.35
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.18333333333333332
+          },
+          {
+            "Value": 0.3233333333333333
+          },
+          {
+            "Value": 0.49333333333333335
+          },
+          {
+            "Value": 0.37
+          },
+          {
+            "Value": 0.35
+          },
+          {
+            "Value": 0.32
+          },
+          {
+            "Value": 0.18333333333333332
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.32
+          },
+          {
+            "Value": 0.49
+          },
+          {
+            "Value": 0.3466666666666667
+          },
+          {
+            "Value": 0.27
+          },
+          {
+            "Value": 0.26666666666666666
+          },
+          {
+            "Value": 0.3233333333333333
+          },
+          {
+            "Value": 0.32
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38
+          },
+          {
+            "Value": 0.24
+          },
+          {
+            "Value": 0.44333333333333336
+          },
+          {
+            "Value": 0.4166666666666667
+          },
+          {
+            "Value": 0.49333333333333335
+          },
+          {
+            "Value": 0.49
+          },
+          {
+            "Value": 0.38
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2866666666666667
+          },
+          {
+            "Value": 0.31
+          },
+          {
+            "Value": 0.3
+          },
+          {
+            "Value": 0.37
+          },
+          {
+            "Value": 0.3466666666666667
+          },
+          {
+            "Value": 0.24
+          },
+          {
+            "Value": 0.2866666666666667
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "saturation step 0",
+      "url": "?lesson=saturation&s=0&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAKwAMZYqqycALAEwBfMgENKw9AE9IYOKFyIATgtS5aERJSx4ipEFFQMUWAHIArEAIFA",
+      "step": 0,
+      "errorKind": "SaturatedMatrix",
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 1.1132060771100707
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          "Saturated",
+          {
+            "Value": 1.7786834733607484
+          },
+          {
+            "Value": 1.1132060771100707
+          },
+          {
+            "Value": 0
+          },
+          "Saturated",
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 1.4396946305534553
+          },
+          {
+            "Value": 2.0310376508266565
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          "Saturated",
+          {
+            "Value": 0
+          },
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 1.5901976521500683
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          "Saturated",
+          "Saturated",
+          {
+            "Value": 1.4396946305534553
+          },
+          {
+            "Value": 2.41415686865115
+          },
+          {
+            "Value": 3.238116085152234
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.7662384356489861
+          },
+          {
+            "Value": 1.7786834733607484
+          },
+          {
+            "Value": 2.0310376508266565
+          },
+          {
+            "Value": 1.5901976521500683
+          },
+          "Saturated",
+          {
+            "Value": 0.7662384356489861
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "upgma-fails step 0",
+      "url": "?lesson=upgma-fails&s=0&m=concept&o=N4IgzglgtiBcpQPYBMCmAbOIBSBjAbAJwgA0I6qAdgOYAuAFnAIwAMbZYqqycALAEwBfMgENKI9AE9IYOKFyIATotS5aERJSx4ipEFFQMUWAKoAHalBEhBgoA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.502072990456972
+          },
+          {
+            "Value": 0.12601818906984769
+          },
+          {
+            "Value": 0.1343449994230766
+          },
+          {
+            "Value": 0.0496048518784088
+          },
+          {
+            "Value": 0.502072990456972
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5977704832855031
+          },
+          {
+            "Value": 0.5933456916901118
+          },
+          {
+            "Value": 0.5279033579421907
+          },
+          {
+            "Value": 0.12601818906984769
+          },
+          {
+            "Value": 0.5977704832855031
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.10387205794044377
+          },
+          {
+            "Value": 0.12130119238917467
+          },
+          {
+            "Value": 0.1343449994230766
+          },
+          {
+            "Value": 0.5933456916901118
+          },
+          {
+            "Value": 0.10387205794044377
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.1236559823926755
+          },
+          {
+            "Value": 0.0496048518784088
+          },
+          {
+            "Value": 0.5279033579421907
+          },
+          {
+            "Value": 0.12130119238917467
+          },
+          {
+            "Value": 0.1236559823926755
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "custom #x= exercise",
+      "url": "#x=N4IgbiBcBMA0IGcAuBTADlAjPAtgewBMUoQBjPAO1PSRHjzBQCcmBLIhKUBVnLkfEQA2JAFKkAbAE46IISgoBzJAAsoAFgAMm+AhQoCUKVIC+8AIYVzQgJ49OkUORYpSSVpTGSZuFKsIkAHIAViAmZiAAHvwIpCooOOYA+oxMPJ4w8OwkpACuyHg4ALR6BkVE+LLuSPIkAML5SIUABAgq5kwGzSiRzKSserLWaO0ARn4kBFayBOZI5vwA1qwUhpCIvLlCcwZVTLkoSUidxOsAFGcAgpCaAHTYAEI39wCsAJTP2Gd1n3AAIs9NAAOD53TAvWBnACin1gADFntBQbdNO8ANyyHh8RwCQgoETrcTSWTyJSqDTaXT6NbGcLwToAM2YCmo-AoKAA7qxSIsSBdrmDYE8we9Yd9frAAXdgcjwZCYYKEXckYD0bJlqsSMcDmELFZbPZ+M5Om4PBQvMTfP41iAQrq5HgebtIABtDY4W6CfFDfV2Aa3Y2udyePXWP0IT1+FQBAC68DQTEKaCQDhdoDmSWQ6Cw8CQNjQpxACYM3KQSTQ5lYTFk5CoNCCKFYihUozwTCKojwKxWila8yYKeaDMTOGaqhQzQIA3mdeaiWOrEit2aAHUVNyVGOOXgx+ZIuZmsEuxQh1XkAB+ZoABW5i2aB+oQiEzRWY-ic7mbEisGabeapCEW8tx3eRzEYBAXxPA9jn0W5ZHnNR1kCURD2PCDx2aCsqznbscFYAAvHtmgARTOVhYGCN5mgAXmaM4KEAJCIkQAdoIMiKKohjmgAJSSVhmi43jgmXABVPQ3wnP5p0sagAHpiNaLkkDiMcd1KEjJyrINbGaQAUAgk1pEifFBkF-BkGXKVhzEUShrGaMBrAOZouQoCNZE6RhrCgCgtiEekUE8oRy0ratIB8p8zHTMsswwSAAGZc3zQtiynNxgqrGtKGoZMSDhPBciYf8hEaZgIM6RIVkgZpcmwaq4GaKF71WZo4WXNcN0wkLUJWCD2UiJBLwAFXfVAcGTIjLAQDlmBfdD3wAvA9FMrDCv0gYXwG+C5kQkBSPIyiaLoxiWLY-bOJ4viBIu4JWlyUZjnMNwIJQR7NwAkqmAAcggsDmGsicp1SRQWRQZdLk67CFvEppule39x0K0hLD7Vgn2aIRFonGGDxW5zo3EnAEnGNJ706IcOiHEdulSGxVCI-E9Dg-zApIGqmoIOrSYnKGTKQH9RlyJBmmQ7rXIa9mWqq8cbC5orMeaTptncRhVOaaMOXJwqXpU9bhxaALmFp9clG6IRGfcg3rHS0LwqESKQAzGKoAhEA8wLEgKDwVBMrrHL1mGrGTlm-8k3kVAqu4uFDp0VodwNpgZcURNcjQIjXww7VA-0ZzzDK1wGGZAgmYEbaSEjkPcgoQcEDQQDB2LPQq8g392THIOBaFz2hYwr34iYZdBu3aqKETL2ugkIp5kiSg2-0CCkZPKdzJmme5jnRahegZizgkBi4qo2iJFaWvWBTYuPJeglbeZy-re83yTBjcIgA",
+      "step": 1,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.22245802739706164
+          },
+          {
+            "Value": 0.46678358225380356
+          },
+          {
+            "Value": 0.43934149667958455
+          },
+          {
+            "Value": 0.3545053933512109
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.22245802739706164
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.49526801830271594
+          },
+          {
+            "Value": 0.4529370351240021
+          },
+          {
+            "Value": 0.37072224136108495
+          },
+          {
+            "Value": 0.5299276506690646
+          },
+          {
+            "Value": 0.46678358225380356
+          },
+          {
+            "Value": 0.49526801830271594
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2360330586297752
+          },
+          {
+            "Value": 0.3872975016115845
+          },
+          {
+            "Value": 0.490444850554998
+          },
+          {
+            "Value": 0.43934149667958455
+          },
+          {
+            "Value": 0.4529370351240021
+          },
+          {
+            "Value": 0.2360330586297752
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3545053933512109
+          },
+          {
+            "Value": 0.4714564945667805
+          },
+          {
+            "Value": 0.3545053933512109
+          },
+          {
+            "Value": 0.37072224136108495
+          },
+          {
+            "Value": 0.3872975016115845
+          },
+          {
+            "Value": 0.3545053933512109
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.31163658297124947
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.5299276506690646
+          },
+          {
+            "Value": 0.490444850554998
+          },
+          {
+            "Value": 0.4714564945667805
+          },
+          {
+            "Value": 0.31163658297124947
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "sandbox imported protein alignment",
+      "url": "?lesson=nj-basics&s=0&m=concept&sb=1&o=N4IgzglgtiBcpQPYBMCmAbOIBSAXXIANCOqgHYDmuAFnAIwAMTxYqqycALAEwC%2BxAQzID0AT0hg4oAMaIATnNTTcERGSx4CxKKhoosAOQBWIXryA&d=N4IghgNglg5gdgWwKZwC4gFygmARkiAZ0wG0QB3AC0iRABoRcx0GAzJAJznpAQHtCxALoNCSAI7EMJEgHYAjHQAcABmUAmOgDZZdWQFZlAZm1K9W5QBZtATj26lF2WtlmluhcrVK7szUsVPVQ1tD0MlEy0zWQslay1fBycXNw9FYJ89f3kROXTvTR09cMjo2PjE5WS9VL185V9suq8QooNjU3MrW3sqvRTlNJbMv2UcujzhwrCOqK64ntkk-prB5ozGsfWC0OLZsu6E3scV1zWg702A3K1DWRNMtpLOmMPKk%2BdV922GrK3bvQPOxPfbzCrHapnb4XX6ja4icAQAAO1Hw6AwICRHD4qCQUG4AF8CUA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "whale",
+          "bat",
+          "fern",
+          "moss"
+        ],
+        "model": "Jtt",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "sandbox imported tree + alignment",
+      "url": "?lesson=nj-basics&s=1&m=concept&sb=1&o=N4IgzglgtiBcpQPYBMCmAbOIBSAXXIANCOqgHYDmuAFnAIwAMTxYqqycALAEwC%2BxAQzID0AT0hg4oAMaIATnNTTcERGSx4CxKKhoosAOQBWIXryA&d=N4IghgNglg5gdgWwKZwC4gFygmARkiAZ0wG0QB3AC0iRABoRcx0GAzJAJznpAQHtCxALoNCSAI7EMJEgHYAjHQAcABmUAmOgDZZdWQFZlAZm1K9W5QBZtATj26lF2WtlmluhcrVK7szUsVPVQ1tD0MlEy0zWQslay1fBycXNw9FYJ89f3kROXTvTR09cMjo2PjE5WS9VL185V9suq8QooNjU3MrW3sqvRTlNJbMv2UcujzhwrCOqK64ntkk-prB5ozGsfWC0OLZsu6E3scV1zWg702A3K1DWRNMtpLOmMPKk%2BdV922GrK3bvQPOxPfbzCrHapnb4XX6ja4icAQAAO1Hw6AwICRHD4qCQUG4AF8GKgOABXJAAFQ4SFoGIAFHSqDQMCoAHSKJioFms9QASm5KkM7C43KMvIA3CACUA",
+      "step": 1,
+      "errorKind": "LabelMismatch",
+      "matrix": {
+        "labels": [
+          "whale",
+          "bat",
+          "fern",
+          "moss"
+        ],
+        "model": "Jtt",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0.21317215307569307
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    }
+  ]
+}

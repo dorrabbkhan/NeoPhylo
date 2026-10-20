@@ -8,11 +8,12 @@ import { resolve } from "node:path";
 import { compressToEncodedURIComponent } from "lz-string";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { engine } from "../engine/index";
 import type { Exercise } from "../engine/generated/Exercise";
 
 import { initialSession, reducer } from "./session";
 import type { Session } from "./session";
-import { applyUrlState, resolveInitial } from "./urlRestore";
+import { applyUrlState, resolveInitial, sessionUrlState } from "./urlRestore";
 import { decode, encode, migrate, type UrlState } from "./url";
 
 /** Deterministic PRNG (Math.random is banned in web/src). */
@@ -73,7 +74,7 @@ function randomState(rand: () => number): UrlState {
   const pick = <T>(xs: readonly T[]): T =>
     xs[Math.floor(rand() * xs.length) % xs.length];
   const s: UrlState = {
-    v: 2,
+    v: 3,
     step: Math.floor(rand() * 20),
     mode: rand() < 0.5 ? "concept" : "math",
   };
@@ -119,7 +120,7 @@ describe("encode/decode round trip", () => {
 
   it("keeps labels with Unicode, quotes and markup intact", () => {
     const s: UrlState = {
-      v: 2,
+      v: 3,
       x: {
         schema_version: 2,
         id: "weird",
@@ -147,7 +148,7 @@ describe("encode/decode round trip", () => {
 
   it("carries a sandbox-imported alignment and tree through a ?lesson= link", () => {
     const s: UrlState = {
-      v: 2,
+      v: 3,
       lesson: "nj-basics",
       step: 0,
       mode: "concept",
@@ -172,7 +173,7 @@ describe("encode/decode round trip", () => {
 describe("decode", () => {
   it("rejects a truncated #x= payload", () => {
     const s: UrlState = {
-      v: 2,
+      v: 3,
       x: randomExercise(mulberry32(1)),
       step: 0,
       mode: "concept",
@@ -186,11 +187,11 @@ describe("decode", () => {
   it("returns the default state for a bare URL", () => {
     expect(decode("http://example.test/")).toEqual({
       ok: true,
-      state: { v: 2, step: 0, mode: "concept" },
+      state: { v: 3, step: 0, mode: "concept" },
     });
     expect(decode("http://example.test/#section")).toEqual({
       ok: true,
-      state: { v: 2, step: 0, mode: "concept" },
+      state: { v: 3, step: 0, mode: "concept" },
     });
   });
 
@@ -206,7 +207,7 @@ describe("decode", () => {
     const d = decode("http://x/?utm=track&s=2&m=math");
     expect(d).toEqual({
       ok: true,
-      state: { v: 2, step: 2, mode: "math" },
+      state: { v: 3, step: 2, mode: "math" },
     });
   });
 });
@@ -222,13 +223,13 @@ describe("migrate", () => {
 
   it("carries step and mode out of a v0 state (stubbed path)", () => {
     expect(migrate({ v: 0, step: 3, mode: "math" })).toEqual({
-      v: 2,
+      v: 3,
       step: 3,
       mode: "math",
     });
     // Invalid fields fall back to defaults rather than failing.
     expect(migrate({ v: 0, step: -2, mode: "weird" })).toEqual({
-      v: 2,
+      v: 3,
       step: 0,
       mode: "concept",
     });
@@ -238,13 +239,13 @@ describe("migrate", () => {
     // A v1 state migrates to v 2 with its fields intact.
     expect(migrate({ v: 1, lesson: "nj-basics", step: 2, mode: "concept" }))
       .toEqual({
-        v: 2,
+        v: 3,
         lesson: "nj-basics",
         step: 2,
         mode: "concept",
       });
     const good: UrlState = {
-      v: 2,
+      v: 3,
       lesson: "nj-basics",
       step: 2,
       mode: "concept",
@@ -261,11 +262,49 @@ describe("migrate", () => {
     expect(
       migrate({ v: 1, step: 0, mode: "concept", imported: { trueTree: "x" } }),
     ).toEqual({
-      v: 2,
+      v: 3,
       step: 0,
       mode: "concept",
       imported: { trueTree: "x" },
     });
+  });
+
+  it("accepts a well-formed v3 state and rejects a broken bootstrap", () => {
+    const good: UrlState = {
+      v: 3,
+      lesson: "nj-basics",
+      step: 2,
+      mode: "concept",
+      bootstrap: { replicates: 200, seed: 7, view: "majority", ran: true },
+    };
+    expect(migrate(good)).toEqual(good);
+    // v2 payloads migrate to v3 with no bootstrap block.
+    expect(migrate({ v: 2, step: 1, mode: "math" })).toEqual({
+      v: 3,
+      step: 1,
+      mode: "math",
+    });
+    // Malformed bootstrap fields reject the whole payload (same rule
+    // as `src`/`overrides`), never a silently dropped setting.
+    expect(
+      migrate({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        bootstrap: { replicates: "100", seed: 1, view: "support", ran: false },
+      }),
+    ).toBeNull();
+    expect(
+      migrate({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        bootstrap: { replicates: 100, seed: 1, view: "wide", ran: false },
+      }),
+    ).toBeNull();
+    expect(
+      migrate({ v: 3, step: 0, mode: "concept", bootstrap: 5 }),
+    ).toBeNull();
   });
 
   it("migrates a v1 #x= exercise through engine.loadExercise", () => {
@@ -410,4 +449,208 @@ describe("v1 link corpus", () => {
       expect(s.error?.kind ?? null).toBe(c.errorKind);
     },
   );
+});
+
+// --- Task 10: the v2 link corpus and URL v3 --------------------------
+//
+// `__fixtures__/v2-urls.json` was captured on the pre-v3 code: 12 real
+// v2 URLs (every built-in lesson shape — DNA and protein, simulated and
+// embedded — mid-steps, seed/length/model overrides, a custom `#x=`
+// exercise and two sandbox imports) plus the matrix each restored to.
+// Migration to v3 must not perturb a single restored value (v1.2 plan
+// Global Constraints: no changes to existing results).
+
+const CAPTURED_V2: { cases: CapturedCase[] } = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), "src/state/__fixtures__/v2-urls.json"),
+    "utf8",
+  ),
+) as { cases: CapturedCase[] };
+
+describe("v2 link corpus", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const m = /\/exercises\/([^/]+)\.json$/.exec(String(input));
+      if (m === null) return new Response("not found", { status: 404 });
+      try {
+        return new Response(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              `../exercises/${decodeURIComponent(m[1])}.json`,
+            ),
+            "utf8",
+          ),
+        );
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    history.replaceState(null, "", "/");
+  });
+
+  it("captured all listed cases", () => {
+    expect(CAPTURED_V2.cases.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(CAPTURED_V2.cases)(
+    "v2_urls_identical: $name restores the identical matrix and step",
+    async (c) => {
+      history.replaceState(null, "", c.url);
+      const r = await resolveInitial(null);
+      expect(r.toast).toBe(false);
+      expect(r.fromUrl).not.toBeNull();
+      if (r.exercise === null) throw new Error("resolveInitial found no exercise");
+      let s = reducer(initialSession(r.exercise), {
+        type: "load",
+        exercise: r.exercise,
+        source: "lesson",
+      });
+      if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl);
+      expect(s.step).toBe(c.step);
+      expect(JSON.parse(JSON.stringify(s.matrix))).toEqual(c.matrix);
+      expect(s.error?.kind ?? null).toBe(c.errorKind);
+    },
+  );
+});
+
+describe("URL v3 bootstrap block", () => {
+  // Load the real nj-basics file through the engine, as loadLesson does.
+  const loaded = (() => {
+    const r = engine.loadExercise(
+      readFileSync(
+        resolve(process.cwd(), "../exercises/nj-basics.json"),
+        "utf8",
+      ),
+    );
+    if (!r.ok) throw new Error("loadExercise failed");
+    return r.value;
+  })();
+
+  function session(): Session {
+    return reducer(initialSession(loaded), {
+      type: "load",
+      exercise: loaded,
+      source: "lesson",
+    });
+  }
+
+  it("url_settings_only: the URL carries bootstrap settings, never results", () => {
+    let s = session();
+    s = reducer(s, {
+      type: "setBootstrapSettings",
+      patch: { replicates: 250, seed: 9 },
+    });
+    s = reducer(s, { type: "setBootstrapView", view: "extended" });
+    // Simulate a finished run: results must NOT leak into the link.
+    s = reducer(s, { type: "bootstrapRequested", jobId: 4 });
+    s = reducer(s, {
+      type: "bootstrapDone",
+      jobId: 4,
+      result: {
+        tally: {
+          method: "Nj",
+          labels: ["A", "B", "C"],
+          successful: 250,
+          failed: 0,
+          counts: [{ labels: ["A", "B"], count: 200 }],
+        },
+        support: s.result!.tree,
+        consensus: {
+          Strict: s.result!.tree,
+          Majority: s.result!.tree,
+          Extended: s.result!.tree,
+        },
+        dropped: { Strict: [], Majority: [], Extended: [] },
+        failed: 0,
+      },
+    });
+    const st = sessionUrlState(s, { kind: "lesson" });
+    expect(st.v).toBe(3);
+    expect(st.bootstrap).toEqual({
+      replicates: 250,
+      seed: 9,
+      view: "extended",
+      ran: true,
+    });
+    // Exactly the four settings fields — no tally, counts, support or
+    // consensus data (v1.2 spec §6.1: results are never stored).
+    expect(Object.keys(st.bootstrap ?? {})).toEqual([
+      "replicates",
+      "seed",
+      "view",
+      "ran",
+    ]);
+    const d = decode(encode(st));
+    expect(d).toEqual({ ok: true, state: st });
+  });
+
+  it("ran is false until a run is requested", () => {
+    const st = sessionUrlState(session(), { kind: "lesson" });
+    expect(st.bootstrap).toEqual({
+      replicates: 100,
+      seed: 1,
+      view: "support",
+      ran: false,
+    });
+  });
+
+  it("ran_autorun_rule: decode + applyUrlState requests a run; the estimate decides", () => {
+    const st: UrlState = {
+      v: 3,
+      lesson: "nj-basics",
+      step: 0,
+      mode: "concept",
+      bootstrap: { replicates: 200, seed: 5, view: "strict", ran: true },
+    };
+    let s = session();
+    s = applyUrlState(s, st);
+    // The request is queued: estimating, autorun flagged, settings in.
+    expect(s.bootstrap.status).toBe("estimating");
+    expect(s.bootstrap.autorun).toBe(true);
+    expect(s.bootstrap.replicates).toBe(200);
+    expect(s.bootstrap.seed).toBe(5);
+    expect(s.bootstrap.view).toBe("strict");
+
+    // Under the 10,000 ms budget the run goes ahead (status running —
+    // the client auto-confirms; a progress message lands next).
+    const fast = reducer(s, {
+      type: "bootstrapEstimated",
+      jobId: 11,
+      msPerReplicate: 5,
+      totalMs: 5000,
+    });
+    expect(fast.bootstrap.status).toBe("running");
+    expect(fast.bootstrap.autorun).toBe(false);
+
+    // Over the budget: "idle" with a prefilled-run flag, and the job
+    // is handed to cancelJobId so the page cancels the worker.
+    const slow = reducer(s, {
+      type: "bootstrapEstimated",
+      jobId: 12,
+      msPerReplicate: 500,
+      totalMs: 20_000,
+    });
+    expect(slow.bootstrap.status).toBe("idle");
+    expect(slow.bootstrap.prefilledRun).toBe(true);
+    expect(slow.bootstrap.jobId).toBeNull();
+    expect(slow.bootstrap.cancelJobId).toBe(12);
+  });
+
+  it("a manual over-budget estimate asks for confirmation instead", () => {
+    let s = reducer(session(), { type: "bootstrapRequested", jobId: 3 });
+    s = reducer(s, {
+      type: "bootstrapEstimated",
+      jobId: 3,
+      msPerReplicate: 500,
+      totalMs: 20_000,
+    });
+    expect(s.bootstrap.status).toBe("confirming");
+    s = reducer(s, { type: "bootstrapConfirmed", jobId: 3 });
+    expect(s.bootstrap.status).toBe("running");
+  });
 });
