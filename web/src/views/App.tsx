@@ -414,7 +414,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   }
 
   const n = trace !== null ? traceLength(trace) : 0;
-  const isNj = trace !== null && "Nj" in trace;
+  // NJ-ness comes from the requested method, not the trace — >50 taxa
+  // have no trace (Global Constraints) but still build an unrooted
+  // tree that §6.7 roots on the reference's outgroup for display.
+  const isNj = session.exercise.analysis.method === "Nj";
   const nLeaf = inferred ? leafCount(inferred) : 0;
 
   // The stepper's final position (spec §6.2-6.3): a result without a

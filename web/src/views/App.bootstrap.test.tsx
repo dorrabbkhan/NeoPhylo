@@ -168,13 +168,14 @@ describe("bootstrap panel wiring", () => {
     const correction = screen.getByLabelText("Distance correction");
     fireEvent.change(correction, { target: { value: "K80" } });
     fireEvent.change(correction, { target: { value: "P" } });
-    // Still exactly one started job; cancels all address job 1 and the
-    // worker was never disposed (no restart).
+    // Still exactly one started job. Let the queued cancel's ack land,
+    // then count: exactly one cancel, addressed to job 1, and the
+    // worker was never disposed (no restart) while the App is mounted.
     expect(startSpy()).toHaveBeenCalledTimes(1);
-    for (const call of cancelSpy().mock.calls) {
-      expect(call[0]).toBe(jobId);
-    }
-    expect(cancelSpy().mock.calls.length).toBeGreaterThan(0);
+    await act(async () => {});
+    expect(cancelSpy()).toHaveBeenCalledTimes(1);
+    expect(cancelSpy()).toHaveBeenCalledWith(jobId);
+    expect(vi.mocked(bootstrapClient.dispose)).not.toHaveBeenCalled();
     // A late result from the cancelled job is stale: nothing lands.
     act(() => {
       const t = withSupport(loaded(NJ_BASICS).result!.tree, 0.8);
@@ -423,5 +424,111 @@ describe("reference rooting display (spec §6.7)", () => {
           "rooted next to A.",
       ),
     ).toBeTruthy();
+  });
+
+  // §6.7 review fix: the method — not the presence of a trace — decides
+  // the rerooted drawing, so >50 taxa (no trace, no stepper) get it too.
+  const SIXTY_LABELS = Array.from({ length: 60 }, (_, i) => `t${i}`);
+  const SIXTY_FASTA = SIXTY_LABELS.map((l) => `>${l}\nACGTACGT`).join("\n");
+
+  /** NJ tree of the 60-taxon zero-matrix alignment (no trace: >50). */
+  function sixtyTaxonTree(): Tree {
+    const aln = engine.parseFasta(SIXTY_FASTA);
+    if (!aln.ok) throw new Error("parseFasta failed");
+    const m = engine.distances(aln.value, "Jc69");
+    if (!m.ok) throw new Error("distances failed");
+    const built = engine.buildTree(m.value, "Nj", { trace: false });
+    if (!built.ok) throw new Error("buildTree failed");
+    return built.value.tree;
+  }
+
+  /** Rooted Newick over all 60 labels whose outgroup is a given cherry. */
+  function sixtyTaxonReference(og: [string, string]): string {
+    const rest = SIXTY_LABELS.filter((l) => l !== og[0] && l !== og[1]);
+    let sub = `${rest[rest.length - 1]}:0.1`;
+    for (let i = rest.length - 2; i >= 0; i--) {
+      sub = `(${rest[i]}:0.1,${sub}):0.1`;
+    }
+    return `((${og[0]}:0.1,${og[1]}:0.1):0.1,${sub});`;
+  }
+
+  /** Sandbox: import the Newick reference, then the matching FASTA. */
+  function importReferenceThenAlignment(newick: string) {
+    const box = screen.getByLabelText("Paste sequences or a tree");
+    fireEvent.change(box, { target: { value: newick } });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    fireEvent.change(box, { target: { value: SIXTY_FASTA } });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+  }
+
+  it("a 60-taxon sandbox alignment with an imported reference is drawn rerooted", async () => {
+    // The reference's outgroup is a cherry of the computed NJ tree, so
+    // it is guaranteed a grouping — the "same outgroup" caption shows.
+    const inferred = sixtyTaxonTree();
+    const cherry = inferred.nodes.find(
+      (n) =>
+        n.children.length === 2 &&
+        n.children.every((c) => inferred.nodes[c].children.length === 0),
+    );
+    if (cherry === undefined) throw new Error("no cherry in NJ tree");
+    const og = cherry.children.map((c) => inferred.nodes[c].label!) as [
+      string,
+      string,
+    ];
+    const newick = sixtyTaxonReference(og);
+
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    importReferenceThenAlignment(newick);
+
+    // No stepper above 50 taxa — the tree is final as soon as it
+    // exists, and it is drawn rerooted on the reference's outgroup.
+    expect(screen.queryByRole("slider")).toBeNull();
+    const rr = engine.rerootOnOutgroup(inferred, og);
+    if (!rr.ok) throw new Error("rerootOnOutgroup failed");
+    expect(rr.value.outgroup_is_group).toBe(true);
+    expect(
+      inferredSvg().querySelectorAll("[data-node]").length,
+    ).toBe(rr.value.tree.nodes.length);
+    expect(rr.value.tree.nodes.length).toBe(inferred.nodes.length + 1);
+    expect(
+      await screen.findByText(
+        "Drawn with the same outgroup as the reference; rerooting " +
+          "changes only the drawing, not the groupings.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("a 60-taxon UPGMA sandbox alignment stays unrerooted", async () => {
+    const inferred = sixtyTaxonTree(); // any 60-label tree works here
+    const cherry = inferred.nodes.find(
+      (n) =>
+        n.children.length === 2 &&
+        n.children.every((c) => inferred.nodes[c].children.length === 0),
+    );
+    if (cherry === undefined) throw new Error("no cherry in NJ tree");
+    const og = cherry.children.map((c) => inferred.nodes[c].label!) as [
+      string,
+      string,
+    ];
+
+    render(<App exercise={makeExercise(TREE5, "Upgma")} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    importReferenceThenAlignment(sixtyTaxonReference(og));
+
+    // The drawn tree is the computed UPGMA tree itself — no extra
+    // degree-2 root, and no reroot caption at all.
+    const aln = engine.parseFasta(SIXTY_FASTA);
+    if (!aln.ok) throw new Error("parseFasta failed");
+    const m = engine.distances(aln.value, "Jc69");
+    if (!m.ok) throw new Error("distances failed");
+    const built = engine.buildTree(m.value, "Upgma", { trace: false });
+    if (!built.ok) throw new Error("buildTree failed");
+    expect(
+      inferredSvg().querySelectorAll("[data-node]").length,
+    ).toBe(built.value.tree.nodes.length);
+    expect(screen.queryByText(/same outgroup|arbitrary point/)).toBeNull();
   });
 });

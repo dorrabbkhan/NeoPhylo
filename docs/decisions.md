@@ -2053,3 +2053,23 @@ wedging the start queue.
     Analysis (keeps the section in the shared column).
   - `web/src/index.css` — styles for the new panel classes.
   - `docs/decisions.md` (this entry).
+
+## Task 11 (v1.2) — review fixes before merge
+
+- **`isNj` is the requested method, not the trace.** `App` now reads
+  `session.exercise.analysis.method === "Nj"`; a trace exists only up
+  to 50 taxa, so the previous `"Nj" in trace` check skipped §6.7
+  rerooting for larger alignments. Every `isNj` consumer still wants
+  the method: `qAvailable` keeps its `&& trace !== null` gate, and the
+  caption's `k === n` holds trivially when there is no trace (0 === 0).
+  UPGMA is unchanged — never rerooted. Tests drive it through the real
+  sandbox import flow: a 60-taxon FASTA plus a rooted Newick whose
+  outgroup is a cherry of the computed NJ tree (guaranteed a
+  grouping), asserting the drawn tree is `rerootOnOutgroup` (+1 node)
+  with the "same outgroup" caption; the UPGMA variant draws the
+  computed tree verbatim with no reroot caption.
+- **The cancel-once test counts exactly.** After two quick model
+  changes it now asserts `cancel` was called exactly once (with job
+  1's id) and `dispose` never ran — previously only `> 0` cancels was
+  checked. The pending ack is flushed with `await act(async () => {})`
+  first so the count covers the settled lifecycle.
