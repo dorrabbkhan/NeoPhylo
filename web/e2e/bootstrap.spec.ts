@@ -1,7 +1,9 @@
 // Bootstrap worker + client e2e (v1.2 plan Task 9, spec §5 and §8.4):
 // a real Web Worker running the real wasm engine, driven through the
-// `?e2e` page hook that main.tsx installs (it exposes `__neophylo` with
-// the engine wrapper, the BootstrapClient class and a shared client).
+// `neophylo-e2e` localStorage flag that main.tsx installs (it exposes
+// `__neophylo` with the engine wrapper, the BootstrapClient class and a
+// shared client). A query param can't work — the app's URL
+// replaceState sync strips unknown params before the offline reload.
 // Covers cancel's 1 s settle, stale jobId filtering under a forced
 // message delay, and an offline run through the PWA precache.
 
@@ -10,6 +12,14 @@ import { test, expect } from "@playwright/test";
 import { waitForApp } from "./helpers";
 
 const PREVIEW_URL = "http://localhost:4174";
+
+// Install the e2e page hook before any app code runs, on every
+// navigation (including the offline reload).
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => {
+    window.localStorage.setItem("neophylo-e2e", "1");
+  });
+});
 
 /** Seeded PRNG (mulberry32); unseeded randomness is forbidden. */
 function mulberry32(seed: number): () => number {
@@ -39,7 +49,7 @@ function dnaFasta(taxa: number, sites: number, rate: number, seed: number): stri
 }
 
 test("cancel mid-run settles within 1 s", async ({ page }) => {
-  await page.goto("/?e2e");
+  await page.goto("/");
   await waitForApp(page);
   const fasta = dnaFasta(24, 1500, 0.25, 11);
 
@@ -94,19 +104,20 @@ test("starting job B while A runs ignores A's late messages", async ({
   page,
 }) => {
   // Forced delay hook: every message the bootstrap worker posts is
-  // delayed 150 ms, so progress A emitted just before its cancel lands
-  // arrives after B is already the current job. The route wraps the
-  // worker script (dev: /src/engine/worker.ts, build: assets/worker-*.js).
+  // delayed 400 ms — several times the ~100 ms batch cadence — so the
+  // progress messages A emitted just before its cancel lands arrive
+  // after B is already the current job. The route wraps the worker
+  // script (dev: /src/engine/worker.ts, build: assets/worker-*.js).
   await page.route(/\/worker[.-]/, async (route) => {
     const res = await route.fetch();
     const body =
       (await res.text()) +
       ";const __post=self.postMessage.bind(self);" +
-      "self.postMessage=(m)=>setTimeout(()=>__post(m),150);";
+      "self.postMessage=(m)=>setTimeout(()=>__post(m),400);";
     await route.fulfill({ response: res, body });
   });
 
-  await page.goto("/?e2e");
+  await page.goto("/");
   await waitForApp(page);
   const heavy = dnaFasta(24, 1500, 0.25, 3);
   const light = dnaFasta(8, 200, 0.25, 5);
@@ -162,7 +173,9 @@ test("starting job B while A runs ignores A's late messages", async ({
       const doneB = new Promise<void>((r) => {
         resolveB = r;
       });
+      let aRunning = false;
       const mark = (e: string) => {
+        if (e === "progress") aRunning = true;
         if (bCurrent) lateA.push(e);
       };
       client.start(
@@ -174,8 +187,14 @@ test("starting job B while A runs ignores A's late messages", async ({
           onError: (e) => mark(`error:${e.kind}`),
         },
       );
-      // Wait until A is definitely mid-run, then start B.
-      await new Promise((r) => setTimeout(r, 600));
+      // Wait until A is definitely mid-run (its first progress
+      // message), then start B. A's in-flight delayed progress now
+      // arrives after B is current → stale.
+      const deadline = performance.now() + 15_000;
+      while (!aRunning && performance.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      if (!aRunning) throw new Error("job A never reached progress");
       bCurrent = true;
       let bResult = false;
       client.start(
@@ -192,7 +211,7 @@ test("starting job B while A runs ignores A's late messages", async ({
       );
       await doneB;
       // Drain the delayed messages still in flight.
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 600));
       client.dispose();
       return { lateA, bResult, stale: w.__stale ?? [] };
     },
@@ -212,7 +231,7 @@ test("after one online load, a bootstrap run works offline", async ({
   // Same Chromium-only limitation as the a11y offline spec: Playwright's
   // offline emulation breaks SW navigations on Firefox and WebKit.
   test.skip(browserName !== "chromium");
-  await page.goto(`${PREVIEW_URL}/?e2e`);
+  await page.goto(`${PREVIEW_URL}/`);
   await waitForApp(page);
   await page.waitForFunction(async () => {
     const reg = await navigator.serviceWorker.getRegistration();

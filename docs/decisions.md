@@ -1912,9 +1912,11 @@ and the following ci/release entry. Both entries were kept verbatim.)
   so tests and e2e can assert the §5 stale-results rule fires; the app
   singleton doesn't set it.
 - **Files outside the Files block:**
-  - `web/src/main.tsx` — installs the `?e2e` page hook
-    (`window.__neophylo` with the engine, `BootstrapClient` and the
-    shared client) so e2e/bootstrap.spec.ts can drive real worker jobs;
-    the flag is a runtime query check so it works in the preview build,
-    and URL decode ignores unknown params.
+  - `web/src/main.tsx` — installs the `neophylo-e2e` localStorage page
+    hook (`window.__neophylo` with the engine, `BootstrapClient` and
+    the shared client) so e2e/bootstrap.spec.ts can drive real worker
+    jobs until Task 10 wires the client into the session. A `?e2e`
+    query param was tried first: the app's URL `replaceState` sync
+    strips unknown params, so the flag was gone by the offline reload —
+    localStorage survives reloads and works in the preview build too.
   - `docs/decisions.md` (this entry).
