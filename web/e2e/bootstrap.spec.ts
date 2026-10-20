@@ -103,17 +103,21 @@ test("cancel mid-run settles within 1 s", async ({ page }) => {
 test("starting job B while A runs ignores A's late messages", async ({
   page,
 }) => {
-  // Forced delay hook: every message the bootstrap worker posts is
-  // delayed 400 ms — several times the ~100 ms batch cadence — so the
-  // progress messages A emitted just before its cancel lands arrive
-  // after B is already the current job. The route wraps the worker
+  // Forced delay hook: the shim re-emits the worker's first progress
+  // message (job A's) 1 s later, so a jobId-A message provably lands
+  // after B is the current job — on top of the natural in-flight
+  // progress a mid-batch cancel produces. The route wraps the worker
   // script (dev: /src/engine/worker.ts, build: assets/worker-*.js).
+  // The \n guards against a trailing // comment (sourceMappingURL)
+  // swallowing the appended code.
   await page.route(/\/worker[.-]/, async (route) => {
     const res = await route.fetch();
     const body =
       (await res.text()) +
-      ";const __post=self.postMessage.bind(self);" +
-      "self.postMessage=(m)=>setTimeout(()=>__post(m),400);";
+      "\n;const __post=self.postMessage.bind(self);let __seen=false;" +
+      "self.postMessage=(m)=>{" +
+      "if(!__seen&&m.type==='progress'){__seen=true;setTimeout(()=>__post(m),1000);}" +
+      "__post(m);};";
     await route.fulfill({ response: res, body });
   });
 
@@ -137,6 +141,7 @@ test("starting job B while A runs ignores A's late messages", async ({
           BootstrapClient: new (opts: {
             onStaleMessage(m: { type: string }): void;
           }) => {
+            confirm(jobId: number): void;
             start(
               p: {
                 alignment: unknown;
@@ -178,19 +183,24 @@ test("starting job B while A runs ignores A's late messages", async ({
         if (e === "progress") aRunning = true;
         if (bCurrent) lateA.push(e);
       };
-      client.start(
+      const jobA = client.start(
         { alignment: aln(heavy), model: "Jc69", method: "Nj", seed: 1, replicates: 1000 },
         {
-          onEstimate: () => mark("estimate"),
+          // Over the confirm threshold the estimate lands here —
+          // approve it so A always reaches the batch loop.
+          onEstimate: () => {
+            mark("estimate");
+            client.confirm(jobA);
+          },
           onProgress: () => mark("progress"),
           onResult: () => mark("result"),
           onError: (e) => mark(`error:${e.kind}`),
         },
       );
-      // Wait until A is definitely mid-run (its first progress
-      // message), then start B. A's in-flight delayed progress now
-      // arrives after B is current → stale.
-      const deadline = performance.now() + 15_000;
+      // Wait until A is mid-run (its first progress), then start B.
+      // The shim's re-emitted progress lands 1 s later — while B is
+      // current — as a stale jobId-A message.
+      const deadline = performance.now() + 25_000;
       while (!aRunning && performance.now() < deadline) {
         await new Promise((r) => setTimeout(r, 25));
       }
@@ -210,8 +220,9 @@ test("starting job B while A runs ignores A's late messages", async ({
         },
       );
       await doneB;
-      // Drain the delayed messages still in flight.
-      await new Promise((r) => setTimeout(r, 600));
+      // Drain the re-emitted progress (fires 1 s after A's first
+      // progress) plus anything else still in flight.
+      await new Promise((r) => setTimeout(r, 1300));
       client.dispose();
       return { lateA, bResult, stale: w.__stale ?? [] };
     },

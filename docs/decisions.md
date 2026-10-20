@@ -1908,6 +1908,13 @@ and the following ci/release entry. Both entries were kept verbatim.)
   fires only when `totalMs` exceeds `confirmThresholdMs` (default
   10,000); under the threshold the client sends `confirm` immediately,
   matching spec §5's "the page confirms immediately".
+- **The job checks `shouldStop` before posting the estimate and before
+  `waitConfirm`.** A `cancel` processed during replicate 0 used to
+  leave the job waiting for a `confirm` that could never arrive —
+  the flag was set but nothing resolved the wait. `waitConfirm` also
+  resolves `false` immediately when the job is already cancelled, and
+  the worker claims the `active` slot before the async wasm init so a
+  `start`/`cancel` landing during init is handled against that job.
 - **`onStaleMessage` is an observability option** on `BootstrapClient`
   so tests and e2e can assert the §5 stale-results rule fires; the app
   singleton doesn't set it.

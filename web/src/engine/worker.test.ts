@@ -170,6 +170,23 @@ describe("runBootstrapJob", () => {
     expect(msgs.some((m) => m.type === "result")).toBe(false);
   });
 
+  it("a stop during replicate 0 ends the job without waiting for confirm", async () => {
+    const p = params();
+    const msgs: WorkerToPageJob[] = [];
+    let confirmWaits = 0;
+    await runBootstrapJob(
+      p,
+      (m) => msgs.push(m),
+      () => true,
+      () => {
+        confirmWaits += 1;
+        return Promise.resolve(true);
+      },
+    );
+    expect(msgs).toEqual([]);
+    expect(confirmWaits).toBe(0);
+  });
+
   it("waits for confirmation and sends no batches when it is declined", async () => {
     const p = params();
     const msgs = await collect(

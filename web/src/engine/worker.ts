@@ -113,13 +113,17 @@ export async function runBootstrapJob(
     tally = first.value;
   }
 
+  // A cancel processed during replicate 0 must not leave the job
+  // waiting for a confirm that will never be answered — and a cancelled
+  // job posts nothing more.
+  if (shouldStop()) return;
   post({
     type: "estimate",
     msPerReplicate,
     totalMs: msPerReplicate * p.replicates,
   });
 
-  if (!(await waitConfirm()) || shouldStop()) {
+  if (!(await waitConfirm())) {
     return;
   }
 
@@ -264,43 +268,48 @@ if (isDedicatedWorker) {
   const cancelledBeforeStart = new Set<number>();
 
   const runNext = async (start: PageToWorker & { type: "start" }) => {
-    await ready();
     const job: JobState = { jobId: start.jobId, cancelled: false, confirm: null };
-    if (cancelledBeforeStart.delete(job.jobId)) {
-      scope.postMessage({ type: "cancelled", jobId: job.jobId });
-      return;
-    }
+    // Claim the active slot before the async init so a start or cancel
+    // landing during init is handled against this job (never a second
+    // concurrent job).
     active = job;
-    const post = (m: WorkerToPageJob) =>
-      scope.postMessage({ ...m, jobId: job.jobId });
-    try {
-      await runBootstrapJob(
-        {
-          alignment: start.alignment,
-          model: start.model,
-          method: start.method,
-          seed: start.seed,
-          replicates: start.replicates,
-        },
-        post,
-        () => job.cancelled,
-        () =>
-          new Promise<boolean>((resolve) => {
-            job.confirm = resolve;
-          }),
-      );
-    } catch (err) {
-      // The engine returns errors as values; a throw is a boundary bug
-      // (e.g. OOM) — surface it as an error message, never crash the
-      // worker silently.
-      post({
-        type: "error",
-        error: {
-          kind: "InvalidExercise",
-          field: "bootstrap",
-          msg: `worker failed: ${String(err)}`,
-        },
-      });
+    await ready();
+    if (!job.cancelled && !cancelledBeforeStart.delete(job.jobId)) {
+      const post = (m: WorkerToPageJob) =>
+        scope.postMessage({ ...m, jobId: job.jobId });
+      try {
+        await runBootstrapJob(
+          {
+            alignment: start.alignment,
+            model: start.model,
+            method: start.method,
+            seed: start.seed,
+            replicates: start.replicates,
+          },
+          post,
+          () => job.cancelled,
+          () =>
+            new Promise<boolean>((resolve) => {
+              if (job.cancelled) {
+                resolve(false);
+              } else {
+                job.confirm = resolve;
+              }
+            }),
+        );
+      } catch (err) {
+        // The engine returns errors as values; a throw is a boundary
+        // bug (e.g. OOM) — surface it as an error message, never crash
+        // the worker silently.
+        post({
+          type: "error",
+          error: {
+            kind: "InvalidExercise",
+            field: "bootstrap",
+            msg: `worker failed: ${String(err)}`,
+          },
+        });
+      }
     }
     if (job.cancelled) {
       scope.postMessage({ type: "cancelled", jobId: job.jobId });
