@@ -22,7 +22,7 @@ import { join, resolve } from "node:path";
 
 import { initSync } from "../src/engine/pkg/neophylo_wasm.js";
 import * as wasm from "../src/engine/pkg/neophylo_wasm.js";
-import { exportR } from "../src/export/rscript.ts";
+import { escapeR, exportR } from "../src/export/rscript.ts";
 
 const webDir = fileURLToPath(new URL("..", import.meta.url));
 const fixturesDir = resolve(webDir, "../fixtures");
@@ -330,6 +330,236 @@ for (const file of proteinRefs) {
       rmSync(dir, { recursive: true, force: true });
     }
   }
+}
+
+// --- bootstrap statistical parity (v1.2 Task 8, spec §8.3) -----------
+// For two fixture alignments — one DNA (JC69, NJ), one protein (Kimura,
+// NJ) — run BOOT_REPS replicates through the wasm engine and through
+// ape::boot.phylo(B, trees = TRUE) with the same distance and method.
+// Every internal branch's support must differ by at most 5 percentage
+// points (the resampling RNGs differ, so this is a statistical check,
+// not an equality check). The per-split table is printed either way.
+
+const BOOT_REPS = Number(process.env.BOOT_REPS || 1000);
+
+/** Leaf labels under node `id` of `tree` (test-side grouping lookup). */
+function leafSet(tree, id) {
+  const out = new Set();
+  const stack = [id];
+  while (stack.length) {
+    const n = tree.nodes[stack.pop()];
+    if (n.children.length === 0) out.add(n.label);
+    else for (const c of n.children) stack.push(c);
+  }
+  return out;
+}
+
+/**
+ * Canonical split key for an edge in the support tree: the side NOT
+ * containing `labels[0]` (the engine's canonical side, Global
+ * Constraints), sorted for comparison.
+ */
+function canonicalKey(tree, id, labels) {
+  const under = leafSet(tree, id);
+  const side = under.has(labels[0])
+    ? labels.filter((l) => !under.has(l))
+    : [...under];
+  return side.slice().sort().join("|");
+}
+
+/**
+ * Engine side: bootstrap `aln` under `model`/`method`, then collect
+ * canonical split -> support fraction for every internal branch that
+ * carries one. Returns { map, successful, failed }.
+ */
+function engineSupport(alignment, model, method, seed, replicates) {
+  const tally = unwrap(
+    wasm.bootstrap_batch(alignment, model, method, seed, 0, replicates),
+    "bootstrap_batch",
+  );
+  const dm = unwrap(wasm.distances(alignment, model), "distances");
+  const built = unwrap(
+    wasm.build_tree(dm, method, { trace: false }),
+    "build_tree",
+  );
+  const support = unwrap(
+    wasm.support_on_tree(built.tree, tally),
+    "support_on_tree",
+  );
+  const map = new Map();
+  support.nodes.forEach((n, id) => {
+    const s = support.branches[id]?.support;
+    if (s === null || s === undefined) return;
+    map.set(canonicalKey(support, id, tally.labels), s);
+  });
+  return { map, successful: tally.successful, failed: tally.failed };
+}
+
+/**
+ * The ape::boot.phylo side as an R script. Prints one JSON array of
+ * { labels: [...], count: n } — the bipartitions ape::prop.part found
+ * in the B replicate trees. The FUN given to boot.phylo redoes the
+ * full distance + NJ on each resample, matching the engine.
+ */
+function bootScript(alignment, body) {
+  const lines = [];
+  alignment.labels.forEach((label, i) => {
+    lines.push(`>${label}`);
+    lines.push(String.fromCharCode(...alignment.seqs[i]));
+  });
+  const fasta = escapeR(lines.join("\n"));
+  return `# v1.2 spec §8.3: bootstrap bipartition counts.
+# The resample loop is what ape::boot.phylo does with block=1
+# (x[, sample.int(nc, TRUE)]), written out because boot.phylo aborts on
+# the first FUN error — it cannot express the engine's failed-replicate
+# rule (a replicate with saturated/unestimable distances is skipped, so
+# FUN returns NULL and the loop keeps only successful trees).
+fa <- "${fasta}"
+${body}
+trees <- vector("list", ${BOOT_REPS})
+kept <- 0L
+for (b in seq_len(${BOOT_REPS})) {
+  tr <- f(x[, sample.int(ncol(x), replace = TRUE)])
+  if (!is.null(tr)) {
+    kept <- kept + 1L
+    trees[[kept]] <- tr
+  }
+}
+trees <- trees[seq_len(kept)]
+class(trees) <- "multiPhylo"
+pp <- ape::prop.part(trees, check.labels = TRUE)
+tips <- attr(pp, "labels")
+counts <- attr(pp, "number")
+out <- lapply(seq_along(pp), function(i)
+  list(labels = tips[pp[[i]]], count = counts[i]))
+cat(jsonlite::toJSON(list(kept = kept, parts = out), auto_unbox = TRUE),
+    "\n")
+`;
+}
+
+const DNA_BOOT = `aln <- ape::read.dna(textConnection(fa), format = "fasta")
+x <- aln
+d <- ape::dist.dna(aln, model = "JC69", pairwise.deletion = TRUE)
+tree <- ape::nj(d)
+# Saturated JC69 distances come out Inf, which ape::nj rejects; those
+# replicates are the engine's 'failed' set, so FUN returns NULL.
+f <- function(x) tryCatch(
+  ape::nj(ape::dist.dna(x, model = "JC69", pairwise.deletion = TRUE)),
+  error = function(e) NULL)`;
+
+const PROTEIN_BOOT = `aln <- ape::read.FASTA(textConnection(fa), type = "AA")
+x <- do.call(rbind, lapply(aln, as.character))
+p0 <- as.matrix(ape::dist.aa(as.matrix(aln), pairwise.deletion = TRUE,
+                             scaled = TRUE))
+tree <- ape::nj(as.dist(-log(1 - p0 - 0.2 * p0^2)))
+# Kimura (1983): d = -ln(1 - p - p^2/5), the same transform the protein
+# R export uses; p from ape::dist.aa on the resampled matrix. A pair too
+# diverged for the transform (non-finite d) is a skipped replicate.
+f <- function(x) {
+  p <- as.matrix(ape::dist.aa(x, pairwise.deletion = TRUE,
+                              scaled = TRUE))
+  dd <- -log(1 - p - 0.2 * p^2)
+  if (any(!is.finite(dd[lower.tri(dd)]))) return(NULL)
+  ape::nj(as.dist(dd))
+}`;
+
+/**
+ * Compare engine vs R support for one alignment. A part matches an
+ * engine split when the part's label set equals the canonical side or
+ * its complement; both fractions divide by their kept replicate count.
+ */
+function compareBootstrap(tag, alignment, model, scriptBody) {
+  const { map, successful, failed } = engineSupport(
+    alignment,
+    model,
+    "Nj",
+    1,
+    BOOT_REPS,
+  );
+  const stdout = runR(scriptBody);
+  const jsonLine = stdout
+    .trim()
+    .split("\n")
+    .find((l) => l.trim().startsWith('{"kept"'));
+  if (!jsonLine) {
+    fail(`${tag}: no JSON in R output: ${stdout.slice(0, 300)}`);
+    return;
+  }
+  const { kept, parts } = JSON.parse(jsonLine);
+  const all = new Set(alignment.labels);
+  // ape::prop.part reports each bipartition under whichever side is
+  // below the stored root, so the same split can appear under either
+  // orientation across trees — sum the counts of every part matching
+  // this bipartition on either side.
+  const rCount = (key) => {
+    const side = new Set(key.split("|"));
+    const same = (a, b) =>
+      a.size === b.size && [...a].every((l) => b.has(l));
+    let n = 0;
+    for (const p of parts) {
+      const set = new Set(p.labels);
+      const comp = new Set([...all].filter((l) => !set.has(l)));
+      if (same(set, side) || same(comp, side)) n += p.count;
+    }
+    return n;
+  };
+  console.log(
+    `\n${tag}: ${successful} successful, ${failed} skipped ` +
+      `(engine), ${kept} of ${BOOT_REPS} kept (ape)`,
+  );
+  console.log("  split".padEnd(44) + "engine %".padStart(10) +
+    "ape %".padStart(10) + "|diff| pp".padStart(11));
+  let worst = 0;
+  let ok = true;
+  const rows = [...map.entries()].sort(
+    (a, b) => a[0].split("|").length - b[0].split("|").length,
+  );
+  for (const [key, frac] of rows) {
+    const rFrac = rCount(key) / kept;
+    const diff = Math.abs(frac - rFrac);
+    worst = Math.max(worst, diff);
+    if (diff > 0.05) ok = false;
+    console.log(
+      "  " +
+        key.padEnd(42) +
+        (frac * 100).toFixed(1).padStart(9) +
+        (rFrac * 100).toFixed(1).padStart(10) +
+        (diff * 100).toFixed(2).padStart(11),
+    );
+  }
+  if (!ok) {
+    fail(`${tag}: support differs by more than 5 pp (worst ${(worst * 100).toFixed(2)} pp)`);
+    return;
+  }
+  checked += 1;
+  console.log(`ok ${tag}: all splits within 5 pp (worst ${(worst * 100).toFixed(2)} pp)`);
+}
+
+// DNA: fixtures/inputs/jc12.fasta, JC69, NJ (spec §8.3 / plan Task 8).
+{
+  const fasta = readFileSync(join(fixturesDir, "inputs/jc12.fasta"), "utf8");
+  const alignment = unwrap(wasm.parse_fasta(fasta), "parse_fasta jc12");
+  compareBootstrap(
+    "jc12 JC69/NJ bootstrap",
+    alignment,
+    "Jc69",
+    bootScript(alignment, DNA_BOOT),
+  );
+}
+
+// Protein: fixtures/inputs/protein/p6_150.fasta, Kimura, NJ.
+{
+  const fasta = readFileSync(
+    join(fixturesDir, "inputs/protein/p6_150.fasta"),
+    "utf8",
+  );
+  const alignment = unwrap(wasm.parse_fasta(fasta), "parse_fasta p6_150");
+  compareBootstrap(
+    "p6_150 Kimura/NJ bootstrap",
+    alignment,
+    "Kimura",
+    bootScript(alignment, PROTEIN_BOOT),
+  );
 }
 
 if (process.exitCode) process.exit(process.exitCode);

@@ -1840,3 +1840,45 @@ and the following ci/release entry. Both entries were kept verbatim.)
     re-exports (`reference_outgroup`, `reroot_on_outgroup`,
     `RerootResult`); required for the new module to exist.
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 8: wasm exports, generated types, R statistical parity
+
+- **`seed` crosses as `JsValue`, not `u64`.** A `u64` parameter would
+  appear as `bigint` in the generated `.d.ts`, which spec §4 forbids;
+  it is deserialized via `arg::<u64>` so JS numbers (and BigInt) work.
+- **`consensus(tally, kind, labels)` keeps the spec §4 signature** even
+  though the tally carries its labels (Task 4): the argument is
+  validated against `tally.labels` and a mismatch is a `LabelMismatch`
+  error value rather than a silently wrong tree.
+- **TS derives live on the core types** (`BootstrapTally`,
+  `ConsensusKind`, `DroppedGroup`, `ReplicateDetail`, `RerootResult`),
+  the established pattern; `BootstrapTally.counts` gets a
+  `#[ts(type)]` override for its wire shape
+  `{ labels: string[], count: number }[]` so `bootstrap::Split` is
+  never exported to TS.
+- **The R side resamples with an explicit `sample.int` loop, not
+  `ape::boot.phylo`.** boot.phylo cannot express the engine's
+  failed-replicate rule: a FUN error aborts the whole run, and
+  returning NULL breaks its post-processing. The loop is exactly
+  boot.phylo's `block = 1` sampling (`x[, sample.int(ncol(x), TRUE)]`)
+  and keeps only successful trees, mirroring `successful`/`failed`;
+  support fractions divide by kept replicates on both sides. The DNA
+  and protein FUNs still run the spec's `ape::dist.dna`/`dist.aa` +
+  `ape::nj` per resample.
+- **`ape::prop.part` counts are summed across both orientations.** It
+  reports each bipartition under whichever side is below the stored
+  root, which varies across replicate trees, so the same split can
+  appear under either side — first-match counting undercounted one
+  jc12 bipartition by 58 pp in testing.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/bootstrap/{tally,consensus,resample}.rs`
+    and `crates/neophylo-core/src/reroot.rs` — `TS` derives on the
+    types the boundary serializes (generated types come from core).
+  - `crates/neophylo-wasm/tests/native.rs` +
+    `crates/neophylo-wasm/tests/data/bootstrap_tally_jc6.json` — the
+    task's "JSON fixture produced by a native test": `write_fixture`
+    regenerates it (ignored by default), `native_tally_matches_fixture`
+    pins it, and `generated_types_have_no_bigint` scans
+    `web/src/engine/generated/` for the spec §4 bigint ban (not
+    possible inside a wasm32 test).
+  - `docs/decisions.md` (this entry).

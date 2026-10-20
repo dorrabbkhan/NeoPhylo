@@ -9,6 +9,8 @@
 //! A malformed `JsValue` argument is reported as
 //! `InvalidExercise { field: "<arg name>", msg }`.
 
+use std::collections::BTreeSet;
+
 use serde::{de::DeserializeOwned, Serialize};
 use serde_wasm_bindgen as swb;
 use ts_rs::TS;
@@ -16,11 +18,13 @@ use wasm_bindgen::prelude::*;
 
 use neophylo_core::algos::{BuildOptions, Method};
 use neophylo_core::alphabet::Alphabet;
+use neophylo_core::bootstrap::{BootstrapTally, ConsensusKind, DroppedGroup, ReplicateDetail};
 use neophylo_core::dist::{DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::Exercise;
 use neophylo_core::phylip::NameMode;
 use neophylo_core::protein_dist::PairDetail;
+use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
 use neophylo_core::tree::Tree;
@@ -202,5 +206,133 @@ pub fn write_phylip_matrix(m: JsValue, names: JsValue) -> JsValue {
     to_js(arg::<DistanceMatrix>(m, "m").and_then(|m| {
         arg::<NameMode>(names, "names")
             .and_then(|names| neophylo_core::write_phylip_matrix(&m, names))
+    }))
+}
+
+// --- v1.2 bootstrap exports (v1.2 spec §4) -----------------------------------
+//
+// `seed` is `u64` in the engine but `number` in JS, so it crosses as a
+// `JsValue` deserialized via `arg` — a `u64` function parameter would
+// appear as `bigint` in the generated `.d.ts`, which spec §4 forbids.
+
+/// Run replicates `start .. start + count` and tally their groupings
+/// (v1.2 spec §3.3, §4).
+#[wasm_bindgen]
+pub fn bootstrap_batch(
+    aln: JsValue,
+    model: JsValue,
+    method: JsValue,
+    seed: JsValue,
+    start: u32,
+    count: u32,
+) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<DistModel>(model, "model").and_then(|m| {
+            arg::<Method>(method, "method").and_then(|method| {
+                arg::<u64>(seed, "seed").and_then(|seed| {
+                    neophylo_core::bootstrap_batch(&a, m, method, seed, start, count)
+                })
+            })
+        })
+    }))
+}
+
+/// Merge two tallies over the same alignment, method and run
+/// (v1.2 spec §3.3, §4).
+#[wasm_bindgen]
+pub fn merge_tallies(a: JsValue, b: JsValue) -> JsValue {
+    to_js(arg::<BootstrapTally>(a, "a").and_then(|a| {
+        arg::<BootstrapTally>(b, "b").and_then(|b| neophylo_core::merge_tallies(&a, &b))
+    }))
+}
+
+/// Copy the tree with bootstrap support set on every in-scope internal
+/// branch (v1.2 spec §3.4, §4).
+#[wasm_bindgen]
+pub fn support_on_tree(tree: JsValue, tally: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|t| {
+        arg::<BootstrapTally>(tally, "tally")
+            .map(|tally| neophylo_core::support_on_tree(&t, &tally))
+    }))
+}
+
+/// The `labels` argument of spec §4's `consensus(tally, kind, labels)`
+/// is redundant since the tally carries them (Task 4 deviation in
+/// docs/decisions.md), so the boundary validates it instead: a
+/// mismatch is a `LabelMismatch` error value rather than a silently
+/// wrong tree.
+fn check_consensus_labels(tally: &[String], given: &[String]) -> Result<(), NeoError> {
+    if tally == given {
+        return Ok(());
+    }
+    let t: BTreeSet<&String> = tally.iter().collect();
+    let g: BTreeSet<&String> = given.iter().collect();
+    Err(NeoError::LabelMismatch {
+        only_in_a: g.difference(&t).map(|s| (*s).clone()).collect(),
+        only_in_b: t.difference(&g).map(|s| (*s).clone()).collect(),
+    })
+}
+
+/// The consensus tree of a tally under `kind` (v1.2 spec §3.5, §4).
+#[wasm_bindgen]
+pub fn consensus(tally: JsValue, kind: JsValue, labels: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<BootstrapTally>(tally, "tally").and_then(|t| {
+        arg::<ConsensusKind>(kind, "kind").and_then(|kind| {
+            arg::<Vec<String>>(labels, "labels").and_then(|labels| {
+                check_consensus_labels(&t.labels, &labels)
+                    .map(|()| neophylo_core::consensus(&t, kind))
+            })
+        })
+    }))
+}
+
+/// The original-tree groupings a consensus dropped, with their
+/// support (v1.2 spec §3.5, §4).
+#[wasm_bindgen]
+pub fn consensus_dropped(tree: JsValue, tally: JsValue, kind: JsValue) -> JsValue {
+    to_js::<Vec<DroppedGroup>>(arg::<Tree>(tree, "tree").and_then(|t| {
+        arg::<BootstrapTally>(tally, "tally").and_then(|tally| {
+            arg::<ConsensusKind>(kind, "kind")
+                .map(|kind| neophylo_core::consensus_dropped(&t, &tally, kind))
+        })
+    }))
+}
+
+/// The teaching detail of one replicate: weights, its tree, and how it
+/// differs from the original (v1.2 spec §3.6, §4).
+#[wasm_bindgen]
+pub fn replicate_detail(
+    aln: JsValue,
+    model: JsValue,
+    method: JsValue,
+    seed: JsValue,
+    i: u32,
+) -> JsValue {
+    to_js::<ReplicateDetail>(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<DistModel>(model, "model").and_then(|m| {
+            arg::<Method>(method, "method").and_then(|method| {
+                arg::<u64>(seed, "seed")
+                    .and_then(|seed| neophylo_core::replicate_detail(&a, m, method, seed, i))
+            })
+        })
+    }))
+}
+
+/// The outgroup a rooted reference names: the smaller child subtree of
+/// its root (v1.2 spec §3.7, §4).
+#[wasm_bindgen]
+pub fn reference_outgroup(reference: JsValue) -> JsValue {
+    to_js::<Vec<String>>(
+        arg::<Tree>(reference, "reference").map(|t| neophylo_core::reference_outgroup(&t)),
+    )
+}
+
+/// Reroot an unrooted tree at the outgroup's split edge, for display
+/// only (v1.2 spec §3.7, §4).
+#[wasm_bindgen]
+pub fn reroot_on_outgroup(tree: JsValue, outgroup: JsValue) -> JsValue {
+    to_js::<RerootResult>(arg::<Tree>(tree, "tree").and_then(|t| {
+        arg::<Vec<String>>(outgroup, "outgroup")
+            .and_then(|og| neophylo_core::reroot_on_outgroup(&t, &og))
     }))
 }

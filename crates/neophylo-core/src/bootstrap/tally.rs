@@ -11,6 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::algos::{build_tree, BuildOptions, Method};
 use crate::bootstrap::resample::resample_weights;
@@ -25,7 +26,8 @@ use crate::seq::Alignment;
 ///
 /// Serialized `counts` is a list of `{ labels, count }` — a `Split`
 /// serializes as a sorted label list (spec §4).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct BootstrapTally {
     pub method: Method,
     /// Taxon names in alignment order; taxon `i` is bit `i` of a split.
@@ -35,7 +37,10 @@ pub struct BootstrapTally {
     /// Replicates skipped for saturation or missing overlap.
     pub failed: u32,
     /// Grouping -> number of successful replicate trees containing it.
-    /// `BTreeMap` keeps iteration deterministic.
+    /// `BTreeMap` keeps iteration deterministic. On the wire a grouping
+    /// is its sorted label list (spec §4), so the TS type is the
+    /// serialized entry list, not the map.
+    #[ts(type = "{ labels: string[], count: number, }[]")]
     pub counts: BTreeMap<Split, u32>,
 }
 

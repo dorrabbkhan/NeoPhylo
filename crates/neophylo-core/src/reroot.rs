@@ -17,13 +17,15 @@
 use std::collections::{BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::error::NeoError;
 use crate::tree::{BranchAttrs, NodeId, Tree};
 
 /// The result of `reroot_on_outgroup`: the display tree plus whether
 /// the outgroup is a single group (one side of a split) in it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct RerootResult {
     pub tree: Tree,
     pub outgroup_is_group: bool,
