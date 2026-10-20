@@ -2177,10 +2177,20 @@ wedging the start queue.
 - **Consensus tabs mount only at the final stepper position**, matching
   the BootstrapPanel's spoiler gate: support labels (and now the tabs)
   appear only when the finished tree is on screen.
+- **The tab strip is a single horizontally-scrollable row and the
+  canvas has a 96 px floor.** The first e2e run caught the collapse:
+  when the teaching notices squeeze `.trees` to ~160 px, a wrapping
+  two-row tablist plus the reroot note/toggle starved `.tree-canvas`
+  to a zero box and the svg rendered `hidden`. Now the tablist never
+  wraps (`overflow-x: auto`), `.consensus-tabs`/`.consensus-tabpanel`/
+  `.tree-panel` refuse to shrink below content, and `.tree-col` gets
+  `overflow-y: auto` so the whole block scrolls instead of clipping
+  the drawing or painting over the heatmap row.
 - **Files outside the Files block:**
   - `web/src/views/consensusTabs.ts` — new; shared tab metadata
     (react-refresh rule, see above).
-  - `web/src/index.css` — styles for the tab strip and dropped line.
+  - `web/src/index.css` — styles for the tab strip, the size floor and
+    the dropped line.
   - `web/e2e/bootstrap.spec.ts` — the owner's cytochrome-c acceptance:
     the majority-rule view draws rerooted with wheat on its own branch
     and no support label clipped or overlapping.
