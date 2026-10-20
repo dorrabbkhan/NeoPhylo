@@ -106,9 +106,11 @@ export type BootstrapStatus =
  *   results panel can flag "settings changed" (Review Focus 3).
  * - `jobId` is the client's current job; `cancelJobId` is a job the
  *   session asks the page to cancel (a running job whose results were
- *   just cleared by a data change, or an autorun the estimate ruled
- *   out). The App effect turns it into `client.cancel` + this action
- *   `bootstrapCancelled` to acknowledge.
+ *   just cleared by a data change, an autorun the estimate ruled out,
+ *   or the panel's Cancel button). The App effect turns it into
+ *   `client.cancel` + a jobId-scoped `bootstrapCancelled` ack, which
+ *   settles only that pending cancel — a newer request may already be
+ *   estimating in its place.
  * - `autorun` marks a request from a `ran: true` link: an over-budget
  *   estimate degrades to `idle` + `prefilledRun` instead of the
  *   confirm dialog (spec §6.1).
@@ -270,7 +272,12 @@ export type Action =
     }
   | { type: "bootstrapDone"; jobId: number; result: BootstrapResult }
   | { type: "bootstrapFailed"; jobId: number; error: NeoError }
-  | { type: "bootstrapCancelled" }
+  // v1.2 Task 11: the panel's Cancel button moves the current job into
+  // `cancelJobId` for the page to cancel; `bootstrapCancelled` is the
+  // page's ack. A jobId-scoped ack settles only that pending cancel —
+  // a newer request may already be estimating in its place.
+  | { type: "bootstrapCancelRequested" }
+  | { type: "bootstrapCancelled"; jobId?: number }
   | {
       type: "setBootstrapSettings";
       patch: { replicates?: number; seed?: number };
@@ -928,8 +935,35 @@ export function reducer(s: Session, a: Action): Session {
         },
       };
     }
+    case "bootstrapCancelRequested": {
+      const b = s.bootstrap;
+      const active =
+        b.status === "estimating" ||
+        b.status === "confirming" ||
+        b.status === "running";
+      if (!active) return s;
+      return {
+        ...s,
+        bootstrap: {
+          ...b,
+          status: "cancelled",
+          jobId: null,
+          // The page cancels the job and acks with bootstrapCancelled.
+          cancelJobId: b.jobId ?? b.cancelJobId,
+          autorun: false,
+          prefilledRun: false,
+        },
+      };
+    }
     case "bootstrapCancelled": {
       const b = s.bootstrap;
+      if (a.jobId !== undefined) {
+        // Scoped ack: settles exactly the pending cancel it names. A
+        // stale ack (the session moved on to a newer job) is ignored,
+        // and it never touches another request's status or jobId.
+        if (b.cancelJobId !== a.jobId) return s;
+        return { ...s, bootstrap: { ...b, cancelJobId: null } };
+      }
       const active =
         b.status === "estimating" ||
         b.status === "confirming" ||

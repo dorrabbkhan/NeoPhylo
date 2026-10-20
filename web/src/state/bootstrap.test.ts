@@ -181,6 +181,37 @@ describe("bootstrap session state", () => {
     expect(s.bootstrap.cancelJobId).toBeNull();
   });
 
+  // v1.2 Task 11: the Cancel button goes through the same cancelJobId
+  // channel as a data-change clear — the App effect turns it into
+  // client.cancel, and the scoped ack settles exactly that job.
+  it("bootstrapCancelRequested hands the job to the page for cancel", () => {
+    const s = reducer(running(), { type: "bootstrapCancelRequested" });
+    expect(s.bootstrap.status).toBe("cancelled");
+    expect(s.bootstrap.jobId).toBeNull();
+    expect(s.bootstrap.cancelJobId).toBe(7);
+    // The matching ack settles the pending cancel.
+    const settled = reducer(s, { type: "bootstrapCancelled", jobId: 7 });
+    expect(settled.bootstrap.cancelJobId).toBeNull();
+    expect(settled.bootstrap.status).toBe("cancelled");
+  });
+
+  it("a scoped ack for an old job cannot kill a newer request", () => {
+    // Running job 7 → data change (idle, cancelJobId 7) → new Run
+    // (estimating, cancelJobId still 7). The ack for 7 must not flip
+    // the new request to cancelled.
+    let s = reducer(running(), {
+      type: "setAnalysis",
+      patch: { correction: "K80" },
+    });
+    s = reducer(s, { type: "bootstrapRequested", jobId: 9 });
+    expect(s.bootstrap.status).toBe("estimating");
+    expect(s.bootstrap.cancelJobId).toBe(7);
+    s = reducer(s, { type: "bootstrapCancelled", jobId: 7 });
+    expect(s.bootstrap.status).toBe("estimating");
+    expect(s.bootstrap.jobId).toBe(9);
+    expect(s.bootstrap.cancelJobId).toBeNull();
+  });
+
   it("ignores messages for a job that isn't current", () => {
     const s = reducer(running(), {
       type: "bootstrapProgress",
