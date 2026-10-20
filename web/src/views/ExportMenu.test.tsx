@@ -10,8 +10,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
+import type { Tree } from "../engine/generated/Tree";
 
 import { ExportMenu } from "./ExportMenu";
 
@@ -76,6 +78,9 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={MATRIX}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
@@ -91,6 +96,9 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={null}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
       />,
     );
     expect(
@@ -112,9 +120,154 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={long}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
     expect(screen.getByText(/Relaxed names/)).toBeTruthy();
+  });
+});
+
+// ---- v1.2 Task 15: exports follow the current display (spec §6.8) ----
+
+function parse(nwk: string): Tree {
+  const r = engine.parseNewick(nwk);
+  if (!r.ok) throw new Error(`parseNewick failed: ${JSON.stringify(r.error)}`);
+  return r.value;
+}
+
+/** A tree carrying bootstrap support on one internal branch. */
+function supportTree(): Tree {
+  const t = parse("((A:0.1,B:0.2):0.05,C:0.3);");
+  const internal = t.nodes.findIndex(
+    (n, i) => n.children.length > 0 && n.parent !== null && i !== t.root,
+  );
+  t.branches[internal].support = 0.87;
+  return t;
+}
+
+/** Capture downloaded (name, text) pairs by stubbing URL.createObjectURL. */
+async function stubDownloadTexts(): Promise<{
+  names: string[];
+  texts: () => Promise<string[]>;
+}> {
+  const names: string[] = [];
+  const blobs: Blob[] = [];
+  vi.stubGlobal("URL", {
+    ...URL,
+    createObjectURL: vi.fn((b: Blob) => {
+      blobs.push(b);
+      return "blob:fake";
+    }),
+    revokeObjectURL: vi.fn(),
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+    function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    },
+  );
+  return { names, texts: () => Promise.all(blobs.map((b) => b.text())) };
+}
+
+const BASE = {
+  alignment: ALN,
+  correction: "Jc69" as const,
+  method: "Nj" as const,
+  clampNegative: false,
+  matrix: null,
+};
+
+describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
+  it("names the tree items after the display's rooting", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={["wheat"]}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Newick (rooted on wheat)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "SVG (rooted on wheat)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "PNG (rooted on wheat)" }),
+    ).toBeTruthy();
+  });
+
+  it("Newick export writes support as integer-% internal labels", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Newick" }));
+    expect(names).toEqual(["neophylo-tree.nwk"]);
+    const [nwk] = await texts();
+    expect(nwk).toContain(")87:0.05");
+  });
+
+  it("Consensus (Newick) exports the current tab's tree, disabled without one", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    const consensus = parse("((A,B),(C,D),E);");
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={null}
+        consensusTree={consensus}
+        replicates={100}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Consensus (Newick)" }),
+    );
+    expect(names).toEqual(["neophylo-consensus.nwk"]);
+    const [nwk] = await texts();
+    expect(nwk).toContain("((A,B),(C,D),E);");
+  });
+
+  it("Consensus (Newick) is disabled when no bootstrap result exists", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Consensus (Newick)" }),
+    ).toHaveProperty("disabled", true);
+  });
+
+  it("the R script gains boot.phylo when a run happened", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={100}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "R script" }));
+    expect(names).toEqual(["neophylo-analysis.R"]);
+    const [script] = await texts();
+    expect(script).toContain("boot.phylo");
+    expect(script).toContain("B = 100");
   });
 });

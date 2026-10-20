@@ -48,6 +48,20 @@ pub fn parse_newick(text: &str) -> Result<Tree, NeoError> {
 /// Serialize `tree` as Newick. Iterative, so degenerate or cyclic inputs
 /// cannot overflow the stack; unreachable or repeated nodes are skipped.
 pub fn write_newick(tree: &Tree) -> String {
+    write(tree, false)
+}
+
+/// Serialize `tree` as Newick with bootstrap support written as
+/// internal node labels (v1.2 spec §6.8): a node whose branch carries
+/// `support` gets `Math.round(100·s)` as its label, the convention
+/// `ape::read.tree`'s `node.label`, FigTree and iTOL read. The label
+/// replaces any the node already had — a node can carry only one — and
+/// `parse_newick` re-reads the values as ordinary internal labels.
+pub fn write_newick_with_support(tree: &Tree) -> String {
+    write(tree, true)
+}
+
+fn write(tree: &Tree, support: bool) -> String {
     let mut out = String::new();
     let n = tree.nodes.len();
     if n == 0 || tree.root.0 as usize >= n {
@@ -73,7 +87,7 @@ pub fn write_newick(tree: &Tree) -> String {
                 emit_open(tree, c, &mut out);
             }
         } else {
-            emit_close(tree, NodeId(u as u32), &mut out);
+            emit_close(tree, NodeId(u as u32), support, &mut out);
         }
     }
     out.push(';');
@@ -87,14 +101,29 @@ fn emit_open(tree: &Tree, id: NodeId, out: &mut String) {
     }
 }
 
-/// Emit `)`, then the label, then `:length` (never on the root).
-fn emit_close(tree: &Tree, id: NodeId, out: &mut String) {
+/// Emit `)`, then the label, then `:length` (never on the root). With
+/// `support` a branch fraction wins over the node's own label and is
+/// written bare as an integer percent clamped to 0–100 (NaN-safe).
+fn emit_close(tree: &Tree, id: NodeId, support: bool, out: &mut String) {
     let node = &tree.nodes[id.0 as usize];
     if !node.children.is_empty() {
         out.push(')');
     }
-    if let Some(label) = &node.label {
-        write_label(label, out);
+    // Internal nodes only: support labels mark groupings, and a leaf
+    // must never lose its taxon name to a stray branch fraction.
+    let s = (support && !node.children.is_empty())
+        .then(|| tree.branches[id.0 as usize].support)
+        .flatten();
+    match s {
+        Some(s) => {
+            let pct = (s * 100.0).round().clamp(0.0, 100.0) as u64;
+            out.push_str(&pct.to_string());
+        }
+        None => {
+            if let Some(label) = &node.label {
+                write_label(label, out);
+            }
+        }
     }
     if id != tree.root {
         if let Some(len) = tree.branch_length(id) {

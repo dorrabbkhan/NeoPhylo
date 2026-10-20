@@ -2154,3 +2154,50 @@ wedging the start queue.
 - **Screenshot attachments** for the PR live on the orphan branch
   `assets/cp12-shots` (review attachments can't be uploaded via `gh`;
   they stay out of the PR diff so they never reach main on merge).
+
+## v1.2 Task 15: exports
+
+- **`write_newick_with_support` writes the integer percent in place of
+  a node's own label** — a Newick node carries one label, and spec
+  §6.8 names it "the" internal node label, so support wins (the
+  convention `ape::read.tree`'s `node.label`, FigTree and iTOL read).
+  Nodes without support keep their label; `write_newick` is
+  byte-for-byte unchanged.
+- **Tree exports follow the drawn tree, not the computed one.** `App`
+  passes `drawnTree` — support labels applied, rerooted on the
+  reference's outgroup when that view is on — and the menu items say
+  which ("SVG (rooted on wheat)"). "Consensus (Newick)" exports the
+  tree of `bootstrap.view` (the support tree on "Your tree with
+  support", else that view's consensus) so it already maps to the tab
+  Task 12's ConsensusTabs will draw.
+- **The R script's bootstrap block runs `boot.phylo` with the same
+  distance + method inside FUN** — protein included, where `x` is the
+  alignment as a character matrix and Kimura's `-log(1 - p - 0.2p²)`
+  sits inside the FUN (the protein block is skipped when the tree is
+  unbuildable). `trees = TRUE` + `phangorn::plotBS` (ape has no
+  `plotBS`); the script warns that R's draws differ and that B
+  replicates can take a while.
+- **The parity check runs the exported boot block on failure-safe
+  alignments** (jc12 JC69, p8_250 Kimura — 0 failed replicates at the
+  sampled counts), because `boot.phylo` aborts on the first FUN error
+  and cannot skip replicates the way the engine does.
+- **`ape::read.tree` cannot read an apostrophe label** (`''` reads as
+  NA, a bare `'` errors) — Review Focus 4's label round-trip is
+  asserted through our own parser; the R step checks only `Ntip` and
+  `node.label` = the supports, which is all the task asks of it.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/lib.rs` — re-export so the wasm binding
+    can call the new writer.
+  - `crates/neophylo-wasm/src/lib.rs`, `web/src/engine/index.ts` —
+    `write_newick_with_support` must cross wasm for the UI to use it;
+    adding the export is less invasive than changing `write_newick`'s
+    bytes for every existing caller.
+  - `web/src/views/App.tsx` — the displayed tree (`drawnTree`), the
+    rooted-on note, the current view's tree and the run's replicates
+    all originate in App's session/render state.
+  - `crates/neophylo-core/tests/newick.rs`,
+    `web/src/export/svg.test.ts`, `web/src/export/rscript.test.ts`,
+    `web/src/views/ExportMenu.test.tsx` — the task's tests (AGENTS.md
+    ships tests in the same PR).
+  - `docs/decisions.md` (this entry).
+

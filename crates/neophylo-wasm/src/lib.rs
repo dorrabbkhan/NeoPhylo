@@ -109,6 +109,13 @@ pub fn write_newick(tree: JsValue) -> JsValue {
     to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::write_newick(&t)))
 }
 
+/// Serialize a `Tree` to Newick with bootstrap support as internal
+/// node labels — integer percent (v1.2 spec §6.8).
+#[wasm_bindgen]
+pub fn write_newick_with_support(tree: JsValue) -> JsValue {
+    to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::write_newick_with_support(&t)))
+}
+
 /// Compute pairwise distances under `model` (spec §4.3).
 #[wasm_bindgen]
 pub fn distances(aln: JsValue, model: JsValue) -> JsValue {

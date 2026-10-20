@@ -31,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { REPO_URL } from "../config";
 import { bootstrapClient } from "../engine/bootstrapClient";
 import { engine, initEngine } from "../engine";
+import type { ConsensusKind } from "../engine/generated/ConsensusKind";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
 import { loadLesson } from "../lessons/loader";
@@ -76,6 +77,13 @@ import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
 
 const NO_HIGHLIGHT = new Set<number>();
+
+/** Bootstrap view → the consensus kind its tab draws (v1.2 spec §6.8). */
+const CONSENSUS_KIND: Record<"majority" | "extended" | "strict", ConsensusKind> = {
+  majority: "Majority",
+  extended: "Extended",
+  strict: "Strict",
+};
 
 export function App({ exercise }: { exercise?: Exercise }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -452,6 +460,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const showReroot = reroot !== null && session.rerootDisplay;
   const drawnTree = showReroot ? reroot!.tree : drawnInferred;
 
+  // Exports follow the current display (v1.2 spec §6.8): the drawn
+  // tree — rooted like the reference when that view is on — and the
+  // bootstrap view's own tree for "Consensus (Newick)".
+  const boot = session.bootstrap;
+  const consensusViewTree =
+    boot.consensus === null
+      ? null
+      : boot.view === "support"
+        ? boot.support
+        : boot.consensus[CONSENSUS_KIND[boot.view]];
+  const exportReplicates =
+    boot.status === "done" ? (boot.settingsUsed?.replicates ?? null) : null;
+
   // Shared leaf spacing for both trees: the row height minus the
   // caption, divided by the leaf count, clamped to 18–48 px.
   const sharedSpacing = leafSpacingFor(
@@ -601,12 +622,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
             <ImportPanel session={session} dispatch={dispatch} />
           )}
           <ExportMenu
-            tree={inferred}
+            tree={drawnTree}
             alignment={session.alignment}
             correction={session.exercise.analysis.correction}
             method={session.exercise.analysis.method}
             clampNegative={session.clampNegative}
             matrix={session.matrix}
+            rootedOn={showReroot ? reroot!.outgroup : null}
+            consensusTree={consensusViewTree}
+            replicates={exportReplicates}
           />
         </aside>
         <section className="col-center">

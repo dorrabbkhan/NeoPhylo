@@ -68,6 +68,9 @@ function runR(script) {
     writeFileSync(file, script);
     return execFileSync("Rscript", [file], {
       encoding: "utf8",
+      // plot()/plotBS write Rplots.pdf — keep it in the temp dir, not
+      // the working tree.
+      cwd: dir,
       maxBuffer: 16 * 1024 * 1024,
     });
   } finally {
@@ -329,6 +332,116 @@ for (const file of proteinRefs) {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  }
+}
+
+// --- v1.2 Task 15: exports -------------------------------------------
+// Review Focus 4: a tree with quoted taxa ('Homo sapiens', O'Brien)
+// and branch support writes via write_newick_with_support and
+// re-parses through our parser with labels and integer supports
+// intact — and ape::read.tree must find node.label equal to the
+// supports.
+{
+  const tree = unwrap(
+    wasm.parse_newick(
+      "(('Homo sapiens':0.1,'O''Brien':0.15):0.05," +
+        "('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04," +
+        "'Triticum aestivum':0.4);",
+    ),
+    "parse_newick (support export)",
+  );
+  const internal = tree.nodes
+    .map((n, i) => ({ n, i }))
+    .filter(
+      ({ n, i }) =>
+        n.children.length > 0 && n.parent !== null && i !== tree.root,
+    );
+  tree.branches[internal[0].i].support = 0.87;
+  tree.branches[internal[1].i].support = 0.42;
+  const nwk = unwrap(
+    wasm.write_newick_with_support(tree),
+    "write_newick_with_support",
+  );
+  // Our own parser: labels and integer supports intact.
+  const back = unwrap(wasm.parse_newick(nwk), "re-parse (support export)");
+  const tips = back.nodes
+    .filter((n) => n.children.length === 0)
+    .map((n) => n.label);
+  const want = [
+    "Homo sapiens",
+    "O'Brien",
+    "Rattus norvegicus",
+    "Gallus gallus",
+    "Triticum aestivum",
+  ];
+  if (JSON.stringify(tips) !== JSON.stringify(want)) {
+    fail(`support Newick: tips ${JSON.stringify(tips)} != ${JSON.stringify(want)}`);
+  } else {
+    const labels = back.nodes
+      .filter((n, i) => n.children.length > 0 && n.parent !== null)
+      .map((n) => n.label)
+      .sort();
+    if (JSON.stringify(labels) !== '["42","87"]') {
+      fail(`support Newick: internal labels ${JSON.stringify(labels)}`);
+    }
+  }
+  // ape's side: read.tree must see the supports as node.label. (ape
+  // cannot read an apostrophe label — '' reads as NA and a bare '
+  // errors outright — so only the structure and node.label are
+  // checked; label round-trip is the engine's own parser above.)
+  const rOut = runR(
+    `t <- ape::read.tree(text = "${escapeR(nwk)}")\n` +
+      `cat(jsonlite::toJSON(list(ntip = ape::Ntip(t),\n` +
+      `  node_label = unname(t$node.label)), auto_unbox = TRUE), "\\n")\n`,
+  );
+  const line = rOut
+    .trim()
+    .split("\n")
+    .find((l) => l.trim().startsWith('{"ntip"'));
+  if (!line) {
+    fail(`support Newick: no JSON from read.tree: ${rOut.slice(0, 200)}`);
+  } else {
+    const { ntip, node_label: nl } = JSON.parse(line);
+    const nums = (nl ?? [])
+      .filter((s) => s !== "")
+      .map(Number)
+      .sort((a, b) => a - b);
+    if (ntip !== 5 || JSON.stringify(nums) !== "[42,87]") {
+      fail(
+        `support Newick: read.tree ntip=${ntip} node.label=` +
+          `${JSON.stringify(nl)} (expected 5 tips, supports 42,87)`,
+      );
+    } else {
+      checked += 1;
+      console.log("ok support Newick: read.tree node.label = 42,87");
+    }
+  }
+}
+
+// The exported script's boot.phylo block must run (v1.2 Task 15).
+// B stays small — the unit test pins B = <replicates> — and the
+// alignments are ones whose replicates never saturate (boot.phylo
+// aborts on the first FUN error; it cannot skip failed replicates
+// like the engine does). jc12 JC69: 0 failed of 1,000; p8_250 Kimura:
+// 0 failed of 200.
+for (const [tag, input, correction] of [
+  ["jc12 JC69/NJ", "inputs/jc12.fasta", "Jc69"],
+  ["p8_250 Kimura/NJ", "inputs/protein/p8_250.fasta", "Kimura"],
+  ["p8_250 JTT/NJ", "inputs/protein/p8_250.fasta", "Jtt"],
+]) {
+  const fasta = readFileSync(join(fixturesDir, input), "utf8");
+  const alignment = unwrap(wasm.parse_fasta(fasta), `parse_fasta ${tag}`);
+  const script = exportR(alignment, correction, "Nj", { replicates: 25 });
+  if (!script.includes("ape::boot.phylo")) {
+    fail(`${tag}: exported script has no boot.phylo block`);
+    continue;
+  }
+  try {
+    runR(script);
+    checked += 1;
+    console.log(`ok ${tag}: exported bootstrap script runs`);
+  } catch (e) {
+    fail(`${tag}: exported bootstrap script failed: ${e.message.slice(0, 300)}`);
   }
 }
 

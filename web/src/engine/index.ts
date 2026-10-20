@@ -24,6 +24,7 @@ import init, {
   support_on_tree,
   with_alphabet,
   write_newick,
+  write_newick_with_support,
   write_phylip_matrix,
 } from "./pkg/neophylo_wasm.js";
 
@@ -75,6 +76,18 @@ export const engine = {
   writeNewick(t: Tree): string {
     const r: Result<string> = write_newick(t);
     if (!r.ok) throw new Error(`write_newick failed: ${r.error.kind}`);
+    return r.value;
+  },
+  /**
+   * Serialize a `Tree` to Newick with bootstrap support as internal
+   * node labels — integer percent (v1.2 spec §6.8). Same error
+   * contract as `writeNewick`.
+   */
+  writeNewickWithSupport(t: Tree): string {
+    const r: Result<string> = write_newick_with_support(t);
+    if (!r.ok) {
+      throw new Error(`write_newick_with_support failed: ${r.error.kind}`);
+    }
     return r.value;
   },
   distances(a: Alignment, m: DistModel): Result<DistanceMatrix> {

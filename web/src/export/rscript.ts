@@ -13,6 +13,11 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
 
+/** The bootstrap settings a finished run used (v1.2 spec §6.8). */
+export interface ExportBootstrap {
+  replicates: number;
+}
+
 const APE_MODEL: Record<Extract<DistModel, "P" | "Jc69" | "K80">, string> = {
   P: "raw",
   Jc69: "JC69",
@@ -42,14 +47,17 @@ function toFasta(aln: Alignment): string {
 /**
  * The equivalent analysis as an R script. `cat(write.tree(tree))`
  * prints the bare Newick line on stdout, which the parity job reads.
+ * With `bootstrap` the script adds an ape::boot.phylo run on the same
+ * distance + method and a phangorn::plotBS support plot (v1.2 §6.8).
  */
 export function exportR(
   alignment: Alignment,
   correction: DistModel,
   method: Method,
+  bootstrap?: ExportBootstrap,
 ): string {
   if (alignment.alphabet === "protein") {
-    return exportProtein(alignment, correction, method);
+    return exportProtein(alignment, correction, method, bootstrap);
   }
   const model = APE_MODEL[correction as keyof typeof APE_MODEL];
   if (model === undefined) {
@@ -58,12 +66,48 @@ export function exportR(
   }
   const fasta = escapeR(toFasta(alignment));
   const build = method === "Upgma" ? "phangorn::upgma(d)" : "ape::nj(d)";
+  const boot =
+    bootstrap === undefined
+      ? ""
+      : bootstrapBlock(
+          "x <- aln",
+          `function(xx) ${buildTree(`ape::dist.dna(xx, model = "${model}", pairwise.deletion = TRUE)`, method)}`,
+          bootstrap.replicates,
+        );
   return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
 fa <- "${fasta}"
 aln <- ape::read.dna(textConnection(fa), format = "fasta")
 d <- ape::dist.dna(aln, model = "${model}", pairwise.deletion = TRUE)
 tree <- ${build}
 cat(ape::write.tree(tree), "\\n")
+${boot}`;
+}
+
+/** `ape::nj(<dist>)` or `phangorn::upgma(<dist>)` for `method`. */
+function buildTree(distExpr: string, method: Method): string {
+  return method === "Upgma"
+    ? `phangorn::upgma(${distExpr})`
+    : `ape::nj(${distExpr})`;
+}
+
+/**
+ * The boot.phylo block (v1.2 spec §6.8): `xLine` names the data
+ * boot.phylo resamples columns of; `fun` is the same distance + tree
+ * builder applied to a resample. `trees = TRUE` keeps the replicate
+ * trees so phangorn::plotBS can place support on the original tree.
+ */
+function bootstrapBlock(
+  xLine: string,
+  fun: string,
+  replicates: number,
+): string {
+  return `${xLine}
+# Bootstrap with ape::boot.phylo: every replicate resamples columns
+# of x and rebuilds the tree with the same distance and method.
+# R's random draws differ from NeoPhylo's; support values vary by a few percent.
+# boot.phylo with B = ${replicates} can take a while.
+bt <- ape::boot.phylo(tree, x, ${fun}, B = ${replicates}, trees = TRUE)
+phangorn::plotBS(tree, bt$trees)
 `;
 }
 
@@ -81,6 +125,7 @@ function exportProtein(
   alignment: Alignment,
   correction: DistModel,
   method: Method,
+  bootstrap?: ExportBootstrap,
 ): string {
   let dist: string;
   switch (correction) {
@@ -110,6 +155,47 @@ d <- phangorn::dist.ml(phangorn::phyDat(as.character(aln),
   }
   const fasta = escapeR(toFasta(alignment));
   const build = method === "Upgma" ? "phangorn::upgma(d)" : "ape::nj(d)";
+  // boot.phylo resamples columns of x, so for protein x is the
+  // alignment as a plain character matrix of letters (rbinding
+  // as.character(aln) gives residue letters; lapply-ing as.character
+  // element-wise yields raw-byte hex codes phyDat rejects) — each
+  // replicate's FUN then redoes the same distance (dist.aa proportion,
+  // the Kimura transform or phangorn's JTT) and tree build above.
+  let fun: string;
+  switch (correction) {
+    case "P":
+      fun = `function(xx) ${buildTree(
+        "ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)",
+        method,
+      )}`;
+      break;
+    case "Kimura":
+      fun = `function(xx) {
+  p <- as.matrix(ape::dist.aa(xx, pairwise.deletion = TRUE,
+                              scaled = TRUE))
+  ${buildTree("as.dist(-log(1 - p - 0.2 * p^2))", method)}
+}`;
+      break;
+    case "Jtt":
+      fun = `function(xx) ${buildTree(
+        'phangorn::dist.ml(phangorn::phyDat(xx, type = "AA"), model = "JTT")',
+        method,
+      )}`;
+      break;
+    default:
+      throw new Error(
+        `R export not supported for correction ${correction} on protein`,
+      );
+  }
+  const boot =
+    bootstrap === undefined
+      ? ""
+      : `if (!inherits(tree, "error")) {
+${bootstrapBlock(
+  "x <- do.call(rbind, as.character(aln))",
+  fun,
+  bootstrap.replicates,
+)}}\n`;
   return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
 fa <- "${fasta}"
 aln <- ape::read.FASTA(textConnection(fa), type = "AA")
@@ -125,5 +211,5 @@ if (inherits(tree, "error")) {
 }
 write.table(format(m, digits = 15), file = stdout(), sep = " ",
             row.names = FALSE, col.names = FALSE, quote = FALSE)
-`;
+${boot}`;
 }

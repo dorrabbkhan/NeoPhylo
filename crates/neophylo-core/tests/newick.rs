@@ -1,5 +1,5 @@
 use neophylo_core::error::NeoError;
-use neophylo_core::newick::{parse_newick, write_newick};
+use neophylo_core::newick::{parse_newick, write_newick, write_newick_with_support};
 use neophylo_core::tree::{NodeId, Tree};
 use proptest::prelude::*;
 
@@ -121,4 +121,98 @@ proptest! {
         let t2 = parse_newick(&s).unwrap_or_else(|e| panic!("parse of {s} failed: {e}"));
         prop_assert!(trees_equal(&t, &t2), "round-trip mismatch for {s}");
     }
+}
+
+/// The Review Focus 4 tree: quoted taxa plus support on both internal
+/// branches (the root carries none). Internal non-root ids follow the
+/// document order of their `(`.
+fn support_tree() -> Tree {
+    let mut t = parse_newick(
+        "(('Homo sapiens':0.1,'O''Brien':0.15):0.05,\
+         ('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04,\
+         'Triticum aestivum':0.4);",
+    )
+    .unwrap();
+    let internal: Vec<usize> = (0..t.nodes.len())
+        .filter(|&i| !t.nodes[i].children.is_empty() && t.nodes[i].parent.is_some())
+        .collect();
+    assert_eq!(internal.len(), 2);
+    t.branches[internal[0]].support = Some(0.87);
+    t.branches[internal[1]].support = Some(0.425);
+    t
+}
+
+#[test]
+fn write_support_labels() {
+    let t = support_tree();
+    assert_eq!(
+        write_newick_with_support(&t),
+        "(('Homo sapiens':0.1,'O''Brien':0.15)87:0.05,\
+('Rattus norvegicus':0.1,'Gallus gallus':0.3)43:0.04,\
+'Triticum aestivum':0.4);"
+    );
+}
+
+#[test]
+fn write_newick_ignores_support() {
+    // The plain writer is unchanged (v1.2 spec §6.8): support never
+    // appears, so existing exports and fixtures keep their bytes.
+    assert_eq!(
+        write_newick(&support_tree()),
+        "(('Homo sapiens':0.1,'O''Brien':0.15):0.05,\
+('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04,\
+'Triticum aestivum':0.4);"
+    );
+}
+
+#[test]
+fn support_labels_reparse() {
+    // Review Focus 4: labels and integer supports survive a round
+    // trip through our own parser (they come back as node labels).
+    let t = support_tree();
+    let t2 = parse_newick(&write_newick_with_support(&t)).unwrap();
+    assert_eq!(
+        t2.leaf_labels(),
+        [
+            "Homo sapiens",
+            "O'Brien",
+            "Rattus norvegicus",
+            "Gallus gallus",
+            "Triticum aestivum"
+        ]
+    );
+    let mut labels: Vec<&str> = t2
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(i, n)| !n.children.is_empty() && n.parent.is_some() && *i != t2.root.0 as usize)
+        .map(|(_, n)| n.label.as_deref().unwrap())
+        .collect();
+    labels.sort();
+    assert_eq!(labels, ["43", "87"]);
+}
+
+#[test]
+fn support_overrides_internal_label() {
+    // spec §6.8: the internal node label IS the integer percent, so
+    // ape/figtree read it as the bootstrap value. Nodes without
+    // support keep their existing label.
+    let mut t = parse_newick("((A:1,B:1)u1:0.5,(C:1,D:1)u2:0.5,E:1);").unwrap();
+    let internal: Vec<usize> = (0..t.nodes.len())
+        .filter(|&i| !t.nodes[i].children.is_empty() && t.nodes[i].parent.is_some())
+        .collect();
+    assert_eq!(internal.len(), 2);
+    t.branches[internal[0]].support = Some(0.5);
+    // A leaf carrying support (which the engine never produces) keeps
+    // its taxon name — support labels mark internal groupings only.
+    let leaf_e = t
+        .nodes
+        .iter()
+        .position(|n| n.label.as_deref() == Some("E"))
+        .unwrap();
+    t.branches[leaf_e].support = Some(0.5);
+    assert_eq!(
+        write_newick_with_support(&t),
+        "((A:1,B:1)50:0.5,(C:1,D:1)u2:0.5,E:1);"
+    );
 }
