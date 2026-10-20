@@ -1941,3 +1941,61 @@ test-only `pendingCancels()` size getter) so these cases run
 in-process in `worker.test.ts`. The wasm `ready()` await is also
 wrapped so a failed init reports an `error` on the job instead of
 wedging the start queue.
+
+## v1.2 Task 10: session bootstrap state and URL v3
+
+- **`Session.bootstrap` carries five bookkeeping fields beyond spec
+  §6.1's shape** (plus `settingsUsed`, which the task names): `jobId`
+  (the client's current job), `cancelJobId` (a job the reducer asks the
+  page to cancel — set on clear-on-data-change and on a declined
+  autorun), `autorun` (the request came from a `ran: true` link),
+  `prefilledRun` (an autorun whose estimate exceeded 10,000 ms: show a
+  prefilled Run button instead of the confirm dialog), and `error`
+  (the `NeoError` behind the "error" status). `etaMs` is
+  `number | null` — the spec lists the field but not its type, and
+  there is no estimate until the first message lands.
+- **The reducer, not the page, owns the autorun decision.**
+  `bootstrapEstimated` resolves to `running` at ≤ 10,000 ms, to
+  `confirming` for a manual run over budget, and to `idle` +
+  `prefilledRun` for an autorun over budget (the pending job moves to
+  `cancelJobId`). This matches the plan's test wording ("the
+  auto-start decision uses the estimate") while §5's client still
+  auto-confirms under the threshold — the reducer rule covers the
+  autorun case the client's silent confirm would otherwise bypass.
+- **`ran` means "a run is in flight or finished"** in
+  `sessionUrlState` — `estimating`/`confirming`/`running`/`done`
+  encode `ran: true`; `idle`/`cancelled`/`error` encode `false`. The
+  spec doesn't define `ran` for failed or cancelled runs; re-running
+  an errored run on open felt wrong, and a user-cancelled run likewise.
+- **Query links carry bootstrap settings in a `b=` lz-param**, same
+  pattern as `o=`/`d=`; `#x=` payloads get the `bootstrap` field in the
+  JSON. A malformed block rejects the whole link, matching the
+  `src`/`overrides` rule.
+- **Bootstrap settings (replicates, seed, view) survive `load` and
+  data changes; results never do.** They are user preferences, like
+  `mode`/`clampNegative`/`matrixView`/`rerootDisplay`, which persist
+  across lessons. `clearBootstrap` resets results and moves an
+  in-flight `jobId` to `cancelJobId` so the App effect can
+  `client.cancel` it.
+- **`setBranchScale` and `setAlphabet` also clear bootstrap state** —
+  the task names `setSim`/`setAnalysis`/`importAlignment`/`importTree`/
+  `load`, but branch scale changes the simulated alignment and an
+  alphabet switch can change both models, so they follow the same
+  spec §6.1 "data, model or method" rule. `enterSandbox` changes
+  nothing about the data and does not clear.
+- **The pair panel isn't a session action** — it's App-local state —
+  so Review Focus 2's "opening the pair panel" is covered by testing
+  every session-level navigation action (`step`, `setMode`,
+  `setMatrixView`, `setBootstrapView`, `setReplicateIndex`,
+  `toggleRerootDisplay`, `hover`) leaves a running job untouched.
+- **Job messages are adopted by id.** `bootstrapRequested` without a
+  `jobId` (the `ran: true` path — `applyUrlState` is pure and cannot
+  call `client.start`) leaves `jobId: null` in "estimating"; the first
+  job-scoped message adopts its id. Every other mismatch is ignored,
+  mirroring the client's stale filter.
+- **Files outside the Files block:**
+  - `web/src/state/urlRestore.ts` — `sessionUrlState`/`applyUrlState`
+    are the URL v3 write/read pair for the live session; keeping them
+    in `url.ts` would put session-redux logic in the codec module.
+  - `web/src/views/App.url.test.tsx` — a `v: 2` literal became `v: 3`.
+  - `docs/decisions.md` (this entry).

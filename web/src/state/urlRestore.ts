@@ -117,6 +117,20 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
   }
   s = reducer(s, { type: "step", to: fromUrl.step });
   s = reducer(s, { type: "setMode", mode: fromUrl.mode });
+  // Bootstrap settings last (v1.2 spec §6.1): a `ran: true` link
+  // queues a run request the App's bootstrap effect picks up; the
+  // estimate decides auto-start vs the prefilled Run button.
+  if (fromUrl.bootstrap !== undefined) {
+    const bs = fromUrl.bootstrap;
+    s = reducer(s, {
+      type: "setBootstrapSettings",
+      patch: { replicates: bs.replicates, seed: bs.seed },
+    });
+    s = reducer(s, { type: "setBootstrapView", view: bs.view });
+    if (bs.ran) {
+      s = reducer(s, { type: "bootstrapRequested", autorun: true });
+    }
+  }
   return s;
 }
 
@@ -128,10 +142,24 @@ export function applyUrlState(s: Session, fromUrl: UrlState): Session {
  * default of 1.
  */
 export function sessionUrlState(s: Session, link: LinkKind): UrlState {
+  const b = s.bootstrap;
   return {
-    v: 2,
+    v: 3,
     step: s.step,
     mode: s.mode,
+    // Links carry bootstrap *settings* only (v1.2 spec §6.1); `ran`
+    // means a run is in flight or finished, so reopening can re-run
+    // it subject to the estimate. Results are never stored.
+    bootstrap: {
+      replicates: b.replicates,
+      seed: b.seed,
+      view: b.view,
+      ran:
+        b.status === "estimating" ||
+        b.status === "confirming" ||
+        b.status === "running" ||
+        b.status === "done",
+    },
     ...(s.source === "sandbox" ? { src: "sandbox" as const } : {}),
     overrides: {
       ...(exerciseSim(s.exercise) !== null

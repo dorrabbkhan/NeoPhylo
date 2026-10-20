@@ -16,12 +16,14 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
+import type { BootstrapView } from "./session";
+
 export interface UrlState {
-  /** Schema version; the current version is 2 (v1.1 spec §3.6: v1
-   * payloads — including `#x=` exercises in the v1 file shape — are
-   * converted by `migrate`). Only `#x=` fragment payloads carry `v`;
-   * `?lesson=` query links are version-free and always decode as v2. */
-  v: 2;
+  /** Schema version; the current version is 3 (v1.2 spec §6.1: adds
+   * `bootstrap`; v0–v2 payloads are converted by `migrate`). Only
+   * `#x=` fragment payloads carry `v`; `?lesson=` query links are
+   * version-free and always decode as v3. */
+  v: 3;
   /** Built-in lesson id, when the exercise came from exercises/. */
   lesson?: string;
   /** A full custom exercise, when one was imported. */
@@ -42,13 +44,22 @@ export interface UrlState {
     alignment?: Alignment;
     trueTree?: string;
   };
+  /** Bootstrap settings (v1.2 spec §6.1, URL v3). `ran` records that a
+   * run was requested so reopening the link can auto-start it —
+   * results themselves are never stored in links. */
+  bootstrap?: {
+    replicates: number;
+    seed: number;
+    view: BootstrapView;
+    ran: boolean;
+  };
 }
 
 type DecodeResult =
   | { ok: true; state: UrlState }
   | { ok: false; reason: string };
 
-const DEFAULT_STATE: UrlState = { v: 2, step: 0, mode: "concept" };
+const DEFAULT_STATE: UrlState = { v: 3, step: 0, mode: "concept" };
 
 /**
  * Serialize `s` for `history.replaceState`. The returned string is a
@@ -69,6 +80,9 @@ export function encode(s: UrlState): string {
   }
   if (s.imported !== undefined) {
     p.set("d", compressToEncodedURIComponent(JSON.stringify(s.imported)));
+  }
+  if (s.bootstrap !== undefined) {
+    p.set("b", compressToEncodedURIComponent(JSON.stringify(s.bootstrap)));
   }
   return "?" + p.toString();
 }
@@ -172,6 +186,24 @@ export function decode(href: string): DecodeResult {
     state.imported = normalizeImported(raw);
   }
 
+  const bParam = params.get("b");
+  if (bParam !== null) {
+    const json = decompressFromEncodedURIComponent(bParam);
+    if (json === null || json === "") {
+      return { ok: false, reason: "the bootstrap settings could not be decompressed" };
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      return { ok: false, reason: "the bootstrap settings are not valid JSON" };
+    }
+    if (!validBootstrap(raw)) {
+      return { ok: false, reason: "the bootstrap settings are malformed" };
+    }
+    state.bootstrap = raw;
+  }
+
   return { ok: true, state };
 }
 
@@ -198,6 +230,24 @@ function normalizeImported(raw: Record<string, unknown>): UrlState["imported"] {
   return raw as unknown as UrlState["imported"];
 }
 
+/** The URL v3 `bootstrap` block: exactly the four settings fields
+ * (v1.2 spec §6.1). A malformed field rejects the payload, matching
+ * the `src`/`overrides` rule — never a silently dropped setting. */
+function validBootstrap(x: unknown): x is NonNullable<UrlState["bootstrap"]> {
+  return (
+    isRecord(x) &&
+    typeof x.replicates === "number" &&
+    Number.isFinite(x.replicates) &&
+    typeof x.seed === "number" &&
+    Number.isFinite(x.seed) &&
+    (x.view === "support" ||
+      x.view === "majority" ||
+      x.view === "extended" ||
+      x.view === "strict") &&
+    typeof x.ran === "boolean"
+  );
+}
+
 /**
  * Convert a raw parsed payload into a current UrlState. v1 and v2
  * payloads are validated field by field; the v0 format carried only
@@ -213,12 +263,12 @@ export function migrate(raw: unknown): UrlState | null {
   if (!isRecord(raw)) return null;
   if (raw.v === 0) {
     return {
-      v: 2,
+      v: 3,
       step: validStep(raw.step) ? raw.step : 0,
       mode: raw.mode === "math" ? "math" : "concept",
     };
   }
-  if (raw.v !== 1 && raw.v !== 2) return null;
+  if (raw.v !== 1 && raw.v !== 2 && raw.v !== 3) return null;
   if (!validStep(raw.step)) return null;
   if (raw.mode !== "concept" && raw.mode !== "math") return null;
   if (raw.lesson !== undefined && typeof raw.lesson !== "string") return null;
@@ -226,8 +276,13 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.src !== undefined && raw.src !== "sandbox") return null;
   if (raw.overrides !== undefined && !isRecord(raw.overrides)) return null;
   if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
+  // `bootstrap` exists only at v3; v1/v2 payloads migrate to defaults
+  // (no block = replicates 100, seed 1, view "support", ran false).
+  if (raw.bootstrap !== undefined && !validBootstrap(raw.bootstrap)) {
+    return null;
+  }
 
-  const state: UrlState = { v: 2, step: raw.step, mode: raw.mode };
+  const state: UrlState = { v: 3, step: raw.step, mode: raw.mode };
   if (raw.lesson !== undefined) state.lesson = raw.lesson;
   if (raw.x !== undefined) {
     if (raw.v === 1) {
@@ -246,6 +301,9 @@ export function migrate(raw: unknown): UrlState | null {
   }
   if (raw.imported !== undefined) {
     state.imported = normalizeImported(raw.imported);
+  }
+  if (raw.v === 3 && raw.bootstrap !== undefined) {
+    state.bootstrap = raw.bootstrap;
   }
   return state;
 }
