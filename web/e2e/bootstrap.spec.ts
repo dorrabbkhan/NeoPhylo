@@ -347,6 +347,7 @@ test("cytochrome-c: drawn support matches the tally, each grouping labeled once"
           ): {
             ok: boolean;
             value: {
+              labels: string[];
               counts: { labels: string[]; count: number }[];
               successful: number;
             };
@@ -404,12 +405,20 @@ test("cytochrome-c: drawn support matches the tally, each grouping labeled once"
       return out;
     };
     // The (horse, human) split's tally support → the expected label.
-    const hh = tally.value.counts.find(
-      (c) =>
-        c.labels.length === 2 &&
-        c.labels.includes("horse") &&
-        c.labels.includes("human"),
-    );
+    // A Split serializes canonically: the side holding the smallest
+    // label, so a grouping may be stored as its complement.
+    const all = new Set<string>(tally.value.labels);
+    const hhSide = new Set(["horse", "human"]);
+    const rowMatches = (row: string[], side: Set<string>) =>
+      row.length === side.size && row.every((l) => side.has(l));
+    const hh = tally.value.counts.find((c) => {
+      if (rowMatches(c.labels, hhSide)) return true;
+      const comp: string[] = [];
+      all.forEach((l) => {
+        if (!c.labels.includes(l)) comp.push(l);
+      });
+      return rowMatches(comp, hhSide);
+    });
     if (hh === undefined) throw new Error("no (horse,human) tally row");
     const hhPct = Math.round((100 * hh.count) / tally.value.successful);
     // Node id whose leaf set is exactly {horse, human} in the drawn
