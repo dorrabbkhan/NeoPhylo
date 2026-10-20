@@ -1882,3 +1882,39 @@ and the following ci/release entry. Both entries were kept verbatim.)
     `web/src/engine/generated/` for the spec §4 bigint ban (not
     possible inside a wasm32 test).
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 9: bootstrap worker and client
+
+- **`cancelled` is an eighth worker→page message.** Spec §5's cancel
+  rule ("acknowledged within 1 s, or terminate and respawn") needs an
+  acknowledgement the §5 message table never names; `cancelled` is it.
+  The worker sends it when a job ends after a cancel (including a job
+  cancelled while queued), never for a normal finish.
+- **`runBootstrapJob`'s `post` takes `WorkerToPageJob`, not
+  `WorkerToPage`.** The job doesn't know its jobId — the worker stamps
+  it onto every message — so the job emits the same union minus
+  `jobId` (and minus `cancelled`, which only the worker sends). The
+  wire union keeps spec §5's fields exactly.
+- **A `start` while a job runs cancels the running job and queues the
+  new one** rather than interleaving two jobs on the worker's single
+  thread; the page still drops anything whose jobId isn't current, and
+  a `cancel` for a not-yet-started job is acknowledged on dequeue.
+- **All-failed batches are counted, not fatal.** `bootstrap_batch`
+  returns `BootstrapFailed` when every replicate in a batch fails
+  (Task 4 semantics); the job counts those replicates toward `done`
+  and `failed` and only posts `BootstrapFailed` when zero replicates
+  succeeded overall.
+- **The client auto-confirms, the worker always waits.** `onEstimate`
+  fires only when `totalMs` exceeds `confirmThresholdMs` (default
+  10,000); under the threshold the client sends `confirm` immediately,
+  matching spec §5's "the page confirms immediately".
+- **`onStaleMessage` is an observability option** on `BootstrapClient`
+  so tests and e2e can assert the §5 stale-results rule fires; the app
+  singleton doesn't set it.
+- **Files outside the Files block:**
+  - `web/src/main.tsx` — installs the `?e2e` page hook
+    (`window.__neophylo` with the engine, `BootstrapClient` and the
+    shared client) so e2e/bootstrap.spec.ts can drive real worker jobs;
+    the flag is a runtime query check so it works in the preview build,
+    and URL decode ignores unknown params.
+  - `docs/decisions.md` (this entry).

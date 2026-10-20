@@ -101,6 +101,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       workbox: {
+        // `**/*.js` also covers the emitted bootstrap worker chunk, so
+        // bootstrap runs work offline (v1.2 spec §5).
         globPatterns: ["**/*.{js,css,html,svg,wasm,json}"],
         // The wasm engine (~300 KB today) plus everything else stays
         // well under this; the default 2 MiB cap would silently drop a
@@ -121,6 +123,11 @@ export default defineConfig({
       },
     }),
   ],
+  worker: {
+    // The bootstrap worker is constructed with `{ type: "module" }`
+    // (v1.2 Task 9); the build must emit an ES worker bundle.
+    format: "es",
+  },
   server: {
     // The default lesson embeds exercises/nj-basics.json via a ?raw
     // import (Task 23); the exercises dir is outside web/, so the fs
