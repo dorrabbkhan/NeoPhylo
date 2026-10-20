@@ -1,10 +1,11 @@
 // Simulation and analysis controls (plan Task 17, spec §6.1-6.2, §7).
 // Every change dispatches setSim or setAnalysis; the session reducer
 // re-runs the pipeline synchronously. Fields named in exercise.locked
-// render disabled with the "Fixed for this lesson." tooltip (Task 21),
-// and all sim controls are inert while an imported or embedded
-// alignment is in place — disabled, with the "real sequences" tooltip
-// (no control is left visible and inert).
+// render disabled with the "Fixed for this lesson." tooltip (Task 21).
+// Without a re-simulatable alignment the Simulation section collapses
+// to a single line instead of greyed fields (checkpoint 11): embedded
+// lesson data says "Real sequences: not simulated." and an imported
+// alignment says "Your sequences: not simulated."
 //
 // Number inputs keep a local text copy so typing multi-digit values is
 // not clobbered by clamping: a commit only happens when the typed value
@@ -28,8 +29,9 @@ import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
 export interface ControlsProps {
-  /** The exercise's sim spec; `null` for embedded data, whose section
-   * collapses to "Real sequences: not simulated." (checkpoint 12). */
+  /** The exercise's sim spec; `null` for embedded data. Without a
+   * re-simulatable alignment the section collapses to a single line
+   * (checkpoints 11–12). */
   sim: SimSpec | null;
   analysis: Analysis;
   /** Locked field paths from the exercise, e.g. "sim.model". */
@@ -41,9 +43,9 @@ export interface ControlsProps {
    * lowest Q is the answer, so the switch is disabled with a tooltip
    * (checkpoint 12). */
   qGated?: boolean;
-  /** Where the alignment came from: "simulated" enables the sim fields,
-   * "imported" disables them with the real-sequences tooltip, and
-   * "embedded" collapses the section to a single line (checkpoint 12). */
+  /** Where the alignment came from: "simulated" enables the sim fields;
+   * "imported" and "embedded" both collapse the Simulation section to a
+   * single line (checkpoints 11–12). */
   alignmentOrigin: Session["alignmentOrigin"];
   /** The active alphabet: model menus are filtered to the models valid
    * for it (v1.1 spec §5.1). */
@@ -127,9 +129,9 @@ export function Controls({
   const simEnabled = alignmentOrigin === "simulated";
   const simDisabled = !simEnabled || sim === null;
   // A disabled sim control always says why: a non-re-simulatable
-  // alignment (imported) wins over a lesson lock, and so does a missing
-  // sim spec. Embedded data never reaches these controls — the section
-  // renders its single real-data line instead.
+  // alignment wins over a lesson lock, and so does a missing sim spec.
+  // Imported and embedded data never reach these controls — the
+  // section renders its single not-simulated line instead.
   const simTitle = (path: string) =>
     !simEnabled || sim === null
       ? REAL_SEQUENCES_TOOLTIP
@@ -168,8 +170,12 @@ export function Controls({
   return (
     <div className="controls">
       <h2>Simulation</h2>
-      {alignmentOrigin === "embedded" ? (
-        <p className="sim-real">Real sequences: not simulated.</p>
+      {alignmentOrigin !== "simulated" ? (
+        <p className="sim-real">
+          {alignmentOrigin === "embedded"
+            ? "Real sequences: not simulated."
+            : "Your sequences: not simulated."}
+        </p>
       ) : (
         <>
       <label className="field">

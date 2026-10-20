@@ -168,6 +168,78 @@ describe("support labels", () => {
   // The degree-2 root after a display reroot: the split's support lives
   // on the ingroup-side edge only (Task 5's single-placement rule), so
   // each grouping's label appears exactly once.
+  // Checkpoint 11: labels are pills left of and above the child-end
+  // node, and the u1/u2/… internal names hide while labels are shown
+  // so they can never overlap.
+  it("draws the support value inside a background pill", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.874)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const group = container.querySelector('g[data-node="3"] .support');
+    expect(group?.querySelector("rect.support-pill")).not.toBeNull();
+    expect(group?.querySelector(".support-label")?.textContent).toBe("87");
+  });
+
+  it("hides internal node names while support labels are shown", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.874)}
+        layoutKind="phylogram"
+        highlight={new Set([3, 4])}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const texts = [...container.querySelectorAll("text")].map(
+      (t) => t.textContent,
+    );
+    // u1 and u2 are step-through aids — hidden so the pills can sit
+    // where the names would go.
+    expect(texts).not.toContain("u1");
+    expect(texts).not.toContain("u2");
+    // Without support labels the highlighted names are still drawn.
+    const plain = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set([3, 4])}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    const plainTexts = [...plain.container.querySelectorAll("text")].map(
+      (t) => t.textContent,
+    );
+    expect(plainTexts).toContain("u1");
+    expect(plainTexts).toContain("u2");
+  });
+
+  it("never draws text below the 12px minimum", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.41)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        leafSpacing={18}
+        title="Inferred tree"
+      />,
+    );
+    for (const t of container.querySelectorAll("text")) {
+      expect(Number(t.getAttribute("font-size"))).toBeGreaterThanOrEqual(12);
+    }
+  });
+
   it("labels each grouping exactly once on a rerooted degree-2 root", () => {
     const t: Tree = {
       rooted: true,

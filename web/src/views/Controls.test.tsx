@@ -191,12 +191,31 @@ describe("Controls — select value is always a displayed option", () => {
 
   it("the empty model option holds the null-sim value", () => {
     render(
-      <Controls {...props({ sim: null, alignmentOrigin: "imported" })} />,
+      <Controls {...props({ sim: null, alignmentOrigin: "simulated" })} />,
     );
     const select = screen.getByLabelText(
       "Simulation model",
     ) as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.value)).toContain("");
+  });
+});
+
+describe("Controls — imported data (checkpoint 11)", () => {
+  it("collapses the Simulation section to 'Your sequences: not simulated.'", () => {
+    // An imported alignment can't be re-simulated; like embedded lesson
+    // data the section renders a single line instead of greyed fields.
+    render(<Controls {...props({ alignmentOrigin: "imported" })} />);
+    expect(
+      screen.getByText("Your sequences: not simulated."),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Simulation model")).toBeNull();
+    expect(screen.queryByLabelText("Length")).toBeNull();
+    expect(screen.queryByLabelText("Seed")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "New seed" }),
+    ).toBeNull();
+    // The Analysis section is unaffected.
+    expect(screen.getByLabelText("Distance correction")).toBeTruthy();
   });
 });
 
@@ -239,11 +258,12 @@ describe("Controls — gated Distance/Q", () => {
 
 describe("Controls — non-simulatable data", () => {
   it("shows disabled sim controls with no model name when sim is null", () => {
-    // Imported data has no sim spec: the simulation section renders but
-    // every control is disabled with the real-sequences tooltip and the
-    // model menu shows no model.
+    // A simulated-origin session with no sim spec keeps the controls
+    // but disables every one with the real-sequences tooltip and shows
+    // no model. (Imported and embedded data no longer reach this path —
+    // their section collapses to a single line, see above.)
     render(
-      <Controls {...props({ sim: null, alignmentOrigin: "imported" })} />,
+      <Controls {...props({ sim: null, alignmentOrigin: "simulated" })} />,
     );
     const select = screen.getByLabelText(
       "Simulation model",

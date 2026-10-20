@@ -649,9 +649,16 @@ export function reducer(s: Session, a: Action): Session {
         }),
       );
     }
-    case "setAnalysis":
+    case "setAnalysis": {
       // Analysis inputs do not affect simulation, so keep the alignment.
-      return recompute(
+      // Checkpoint 11: a stepper sitting at its final position lands on
+      // the new tree's final position — re-analyzing at the end shows
+      // the finished new tree (and its bootstrap panel) immediately.
+      // Any earlier position still resets to step 0, and bootstrap
+      // results clear either way (clearBootstrap → status idle).
+      const prevMax = s.result?.trace ? traceLength(s.result.trace) : 0;
+      const wasAtFinal = s.result !== null && s.step === prevMax;
+      const next = recompute(
         clearBootstrap({
           ...s,
           notice: null,
@@ -661,6 +668,11 @@ export function reducer(s: Session, a: Action): Session {
           },
         }),
       );
+      if (!wasAtFinal) return next;
+      // A traceless result (>50 taxa) is always at its final position.
+      const nextMax = next.result?.trace ? traceLength(next.result.trace) : 0;
+      return nextMax === 0 ? next : { ...next, step: nextMax };
+    }
     case "setAlphabet": {
       // The alphabet override (badge's "Treat as protein/DNA", v1.1
       // spec §5.1). reconcileModels switches any model that is invalid

@@ -2073,3 +2073,50 @@ wedging the start queue.
   1's id) and `dispose` never ran — previously only `> 0` cancels was
   checked. The pending ack is flushed with `await act(async () => {})`
   first so the count covers the settled lifecycle.
+
+## v1.2 checkpoint 11 fixes
+
+- **Support labels are pills, placed by `layout/supportLabels.ts`.**
+  Each labeled branch's value draws in a backgrounded pill just left of
+  and above the node at the branch's child end — near the node, never
+  on it. Placement is a pure function so collision handling is unit-
+  tested: node markers, leaf names and "0" markers are obstacles, and a
+  colliding pill nudges vertically (up first, below when the canvas top
+  is reached). Internal u-names are a step-through aid, so they hide
+  whenever support labels are on screen rather than moving below the
+  node — the checkpoint allowed either, and hiding keeps `TreeView`
+  from needing a second placement pass.
+- **`layout()` grew `minBranchPx` (12 px in `TreeView`).** Internal
+  branches carrying support stretch to ≥12 px, display-only — the extra
+  length is a subtree shift, so a node's own branch grows by exactly
+  its own stretch and the underlying tree never changes. Shifts are
+  computed over the full tree so positions stay stable across steps;
+  cladogram tips re-align on a uniform shift.
+- **Imported alignments collapse the Simulation section** to "Your
+  sequences: not simulated." — the embedded lessons' treatment with
+  importer-appropriate wording — instead of disabled fields.
+- **`setAnalysis` lands on the new final step** when the stepper was at
+  its final position (re-analyzing at the end shows the finished tree
+  and the bootstrap panel at once); any earlier position still resets
+  to step 0. `clearBootstrap` runs either way, so results clear to
+  idle and a queued cancel still goes out.
+- **The reroot toggle is a state button, not a switch.** The label says
+  what a click switches to ("Show as computed (unrooted)" ↔ "Show
+  rooted like the reference") and `aria-pressed` says which view is on
+  (pressed = rooted). This replaces the fixed label + `role="switch"`.
+- **Text floor is 12 px everywhere in the tree views.** `treePanel`
+  exports `MIN_FONT_PX`; `TreeView` clamps both the name font and the
+  small (support/zero-length) font to it, so only branch geometry ever
+  scales.
+- **`isNj` and the cancel-once assertions were already on main** (PR
+  #49); this branch only re-verified them — no duplicate changes.
+- **Tests added:** `layout/supportLabels.test.ts` (weak-support ladder
+  with two sub-10-px internal branches on one row: pills clear markers,
+  names and each other; branches stretch to 12 px); `TreeView` tests
+  for the pill, hidden u-names and the 12 px floor; `Controls`/
+  `App.sandbox` for the imported-data line; `session.test.ts` for the
+  final-vs-middle stepper rule incl. bootstrap clearing; App-level
+  tests for the toggle states, rooted/computed font parity and the
+  protein-models p→JTT final/middle switches; and an e2e acceptance
+  test asserting zero pill overlaps in both views on cytochrome-c
+  (100 reps, seed 1) with screenshots saved to `test-results/`.

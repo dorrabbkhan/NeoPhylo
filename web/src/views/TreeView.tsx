@@ -5,7 +5,9 @@
 // - Negative branch lengths are dashed and carry the class "negative".
 // - Highlighted nodes get data-highlight="true", a thicker stroke and a
 //   visible label (their display name via state/names.ts: leaf labels and
-//   u1, u2, … for internal nodes).
+//   u1, u2, … for internal nodes) — except while support labels are drawn,
+//   when the u-names hide so they can never overlap a support pill
+//   (checkpoint 11).
 // - Wrong clades get a dotted outline around the clade plus a "✕" marker.
 // - Leaf labels are SVG <text> children, so React escapes them and markup in
 //   a taxon name can never be parsed as HTML (Review Focus 2).
@@ -14,10 +16,12 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Tree } from "../engine/generated/Tree";
 import { layout, type LaidOutNode } from "../layout/phylogram";
+import { supportLabels } from "../layout/supportLabels";
 import {
   leafFontSize,
   leafSpacingFor,
   labelRoomFor,
+  MIN_FONT_PX,
 } from "../layout/treePanel";
 import { nodeName } from "../state/names";
 
@@ -47,6 +51,10 @@ const PAD = 8;
 const LABEL_OFFSET = 4;
 const NODE_RADIUS = 3;
 const WRONG_PAD = 6;
+/** Display-only minimum drawn length for support-carrying internal
+ * branches, so the weak (<50%) thin stroke stays visible on short
+ * branches (checkpoint 11). */
+const MIN_SUPPORT_BRANCH_PX = 12;
 /** Fallback panel width before the first ResizeObserver callback (also
  * used under jsdom, where the observer is a no-op stub). */
 const DEFAULT_PANEL_WIDTH = 560;
@@ -99,7 +107,10 @@ export function TreeView({
     0,
   );
   const spacing = leafSpacing ?? leafSpacingFor(box.height, leaves);
-  const fontSize = leafFontSize(spacing);
+  // Fixed minimum text size: only branch geometry scales (checkpoint
+  // 11), so leaf names, node names and support labels never draw below
+  // MIN_FONT_PX no matter the tree's scale.
+  const fontSize = Math.max(MIN_FONT_PX, leafFontSize(spacing));
   const labelRoom = labelRoomFor(
     tree.nodes.map((n) => n.label),
     fontSize,
@@ -113,8 +124,24 @@ export function TreeView({
     leafSpacing: spacing,
     width: drawWidth,
     visibleNodes,
+    minBranchPx: MIN_SUPPORT_BRANCH_PX,
   });
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
+
+  // Support labels are pills placed left of and above each labeled
+  // node; supportLabels resolves every collision up front (never onto
+  // a node marker, a leaf name or another pill). While they are drawn
+  // the u1/u2/… internal names hide — they are a step-through aid and
+  // would sit exactly where the pills go.
+  const smallFont = Math.max(MIN_FONT_PX, fontSize - 3);
+  const placed = supportLabels(tree, laid, {
+    fontSize: smallFont,
+    nameFontSize: fontSize,
+    nodeRadius: NODE_RADIUS,
+    labelOffset: LABEL_OFFSET,
+  });
+  const labelById = new Map(placed.map((p) => [p.id, p]));
+  const hideInternalNames = placed.length > 0;
 
   const width = laid.width + labelRoom + PAD * 2;
   const height = laid.height + PAD * 2;
@@ -164,14 +191,15 @@ export function TreeView({
             const isHighlighted = highlight.has(n.id);
             const strokeWidth = isHighlighted ? 3 : 1.5;
             // Bootstrap support (v1.2 spec §6.3): the edge above a node
-            // carries a 0-1 fraction, drawn as Math.round(100·s) over
-            // the branch. Weak (<50%) gets a thinner stroke plus a
-            // marker glyph — never color alone (§6.5).
+            // carries a 0-1 fraction, drawn as Math.round(100·s) in a
+            // pill left of the node. Weak (<50%) gets a thinner stroke
+            // plus a marker glyph — never color alone (§6.5).
             const support = hasVisibleParent
               ? tree.branches[n.id].support
               : null;
             const weak = support !== null && support < 0.5;
             const edgeWidth = weak ? Math.min(1, strokeWidth) : strokeWidth;
+            const placedLabel = labelById.get(n.id);
             return (
               <g
                 key={n.id}
@@ -213,35 +241,47 @@ export function TreeView({
                     className="zero-len"
                     x={(tx(n.parentX) + tx(n.x)) / 2}
                     y={ty(n.y) - 4}
-                    fontSize={fontSize - 3}
+                    fontSize={smallFont}
                     textAnchor="middle"
                   >
                     0
                   </text>
                 )}
-                {support !== null && (
-                  <text
-                    className="support-label"
-                    x={(tx(n.parentX) + tx(n.x)) / 2}
-                    y={ty(n.y) - 4}
-                    fontSize={fontSize - 3}
-                    textAnchor="middle"
-                    fill="currentColor"
-                  >
-                    {Math.round(support * 100)}
-                  </text>
-                )}
-                {weak && (
-                  <text
-                    className="weak-marker"
-                    x={(tx(n.parentX) + tx(n.x)) / 2 + fontSize / 2}
-                    y={ty(n.y) - 4}
-                    fontSize={fontSize - 3}
-                    textAnchor="middle"
-                    fill="currentColor"
-                  >
-                    *
-                  </text>
+                {placedLabel !== undefined && (
+                  <g className="support">
+                    <rect
+                      className="support-pill"
+                      x={tx(placedLabel.box.minX)}
+                      y={ty(placedLabel.box.minY)}
+                      width={placedLabel.box.maxX - placedLabel.box.minX}
+                      height={placedLabel.box.maxY - placedLabel.box.minY}
+                      rx={(placedLabel.box.maxY - placedLabel.box.minY) / 2}
+                    />
+                    <text
+                      className="support-label"
+                      x={tx(placedLabel.textX)}
+                      y={ty(placedLabel.textY)}
+                      fontSize={smallFont}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="currentColor"
+                    >
+                      {placedLabel.text}
+                    </text>
+                    {placedLabel.markerX !== null && (
+                      <text
+                        className="weak-marker"
+                        x={tx(placedLabel.markerX)}
+                        y={ty(placedLabel.textY)}
+                        fontSize={smallFont}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="currentColor"
+                      >
+                        *
+                      </text>
+                    )}
+                  </g>
                 )}
                 {n.leaf ? (
                   <text
@@ -261,7 +301,8 @@ export function TreeView({
                     {n.label}
                   </text>
                 ) : (
-                  isHighlighted && (
+                  isHighlighted &&
+                  !hideInternalNames && (
                     <text
                       x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
                       y={ty(n.y)}

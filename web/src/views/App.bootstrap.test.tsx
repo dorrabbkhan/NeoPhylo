@@ -3,6 +3,9 @@
 // spied: the App effect is the only page code that talks to it, so a
 // run is driven by invoking the captured handlers directly.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import {
   act,
   cleanup,
@@ -352,20 +355,35 @@ describe("reference rooting display (spec §6.7)", () => {
     expect(rr.value.tree.nodes.length).toBe(s.result!.tree.nodes.length + 1);
   });
 
-  it("the 'Show as computed (unrooted)' toggle restores the v1.1 caption", async () => {
+  // Checkpoint 11: the toggle's label says what a click switches TO,
+  // and aria-pressed says which view is on (pressed = rooted like the
+  // reference).
+  it("the reroot toggle reflects state in its label and aria-pressed", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     stepToEnd(NJ_BASICS);
-    fireEvent.click(
-      screen.getByRole("switch", { name: "Show as computed (unrooted)" }),
-    );
-    expect(screen.getByText(/drawn here from an arbitrary point/)).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("switch", { name: "Show as computed (unrooted)" }),
-    );
+    // Rooted view is the default: pressed, offering the computed view.
+    const toComputed = screen.getByRole("button", {
+      name: "Show as computed (unrooted)",
+    });
+    expect(toComputed.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toComputed);
+    expect(
+      screen.getByText(/drawn here from an arbitrary point/),
+    ).toBeTruthy();
+    // Computed view: unpressed, offering the rooted view back.
+    const toRooted = screen.getByRole("button", {
+      name: "Show rooted like the reference",
+    });
+    expect(toRooted.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toRooted);
     expect(
       screen.getByText(/same outgroup as the reference/),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Show as computed (unrooted)" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   it("no reroot for UPGMA", async () => {
@@ -373,9 +391,7 @@ describe("reference rooting display (spec §6.7)", () => {
     render(<App exercise={ex} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     stepToEnd(ex);
-    expect(
-      screen.queryByRole("switch", { name: "Show as computed (unrooted)" }),
-    ).toBeNull();
+    expect(document.querySelector(".reroot-toggle")).toBeNull();
     expect(screen.queryByText(/same outgroup as the reference/)).toBeNull();
   });
 
@@ -500,6 +516,28 @@ describe("reference rooting display (spec §6.7)", () => {
     ).toBeTruthy();
   });
 
+  // Checkpoint 11: only branch geometry scales — text stays at the
+  // same font size in both views, never below the 12 px floor.
+  it("labels keep the same font size in the rooted and computed views", async () => {
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(NJ_BASICS);
+    const leafFont = () => {
+      const el = Array.from(
+        inferredSvg().querySelectorAll("g[data-node] > text"),
+      ).find((t) => t.textContent === "A");
+      if (!el) throw new Error("leaf label A not found");
+      return el.getAttribute("font-size");
+    };
+    const rooted = leafFont();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show as computed (unrooted)" }),
+    );
+    const computed = leafFont();
+    expect(computed).toBe(rooted);
+    expect(Number(computed)).toBeGreaterThanOrEqual(12);
+  });
+
   it("a 60-taxon UPGMA sandbox alignment stays unrerooted", async () => {
     const inferred = sixtyTaxonTree(); // any 60-label tree works here
     const cherry = inferred.nodes.find(
@@ -530,5 +568,101 @@ describe("reference rooting display (spec §6.7)", () => {
       inferredSvg().querySelectorAll("[data-node]").length,
     ).toBe(built.value.tree.nodes.length);
     expect(screen.queryByText(/same outgroup|arbitrary point/)).toBeNull();
+  });
+});
+
+// Checkpoint 11: an analysis change with the stepper at its final
+// position shows the new tree's final step immediately — bootstrap
+// panel visible, stale support labels gone. From a middle position it
+// still resets to step 0.
+describe("stepper position after an analysis change (checkpoint 11)", () => {
+  // The protein-models lesson's own file: 7 taxa, NJ, correction p →
+  // JTT, with a predict_pair gate at position 0.
+  const proteinModels = (): Exercise => {
+    const r = engine.loadExercise(
+      readFileSync(
+        resolve("..", "exercises", "protein-models.json"),
+        "utf8",
+      ),
+    );
+    if (!r.ok) throw new Error("protein-models failed to load");
+    return r.value;
+  };
+
+  /** Answer the lesson's position-0 predict_pair with the join's
+   * chosen pair (indices into the step's active clusters, which are
+   * the matrix's row/column indices). */
+  function answerGate(ex: Exercise) {
+    const s = loaded(ex);
+    const t = s.result!.trace!;
+    if (!("Nj" in t)) throw new Error("expected an NJ trace");
+    const [a, b] = t.Nj.steps[0].chosen;
+    const [i, j] = a < b ? [a, b] : [b, a];
+    const grid = screen.getByRole("grid", { name: "Distance matrix" });
+    const cell = grid.querySelector(`[data-i="${i}"][data-j="${j}"]`);
+    if (cell === null) throw new Error(`no cell ${i},${j}`);
+    fireEvent.click(cell);
+  }
+
+  const stepText = () =>
+    document.querySelector(".stepper-status")!.textContent!;
+
+  it("final position: switching p → JTT stays at the new tree's end", async () => {
+    const ex = proteinModels();
+    render(<App exercise={ex} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    answerGate(ex);
+    // 7 taxa → 4 NJ joins + the final three-way join = position 5.
+    fireEvent.change(screen.getByRole("slider"), { target: { value: "5" } });
+    expect(stepText()).toContain("step 5 of 5");
+    expect(
+      screen.getByRole("heading", { name: "How sure are we?" }),
+    ).toBeTruthy();
+
+    // A finished run's support labels are on screen before the switch.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    act(() => {
+      handlers!.onProgress({
+        done: 50,
+        total: 100,
+        failed: 0,
+        etaMs: 200,
+        support: withSupport(loaded(ex).result!.tree, 0.42),
+      });
+    });
+    expect(
+      inferredSvg().querySelectorAll(".support-label").length,
+    ).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText("Distance correction"), {
+      target: { value: "Jtt" },
+    });
+    // The new tree's final step shows at once: panel back at idle with
+    // a Run button, and the old run's labels are gone.
+    expect(stepText()).toContain("step 5 of 5");
+    expect(
+      screen.getByRole("heading", { name: "How sure are we?" }),
+    ).toBeTruthy();
+    expect(inferredSvg().querySelectorAll(".support-label")).toHaveLength(
+      0,
+    );
+  });
+
+  it("middle position: switching p → JTT resets to step 0", async () => {
+    const ex = proteinModels();
+    render(<App exercise={ex} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    answerGate(ex);
+    fireEvent.change(screen.getByRole("slider"), { target: { value: "2" } });
+    expect(stepText()).toContain("step 2 of 5");
+
+    fireEvent.change(screen.getByLabelText("Distance correction"), {
+      target: { value: "Jtt" },
+    });
+    expect(stepText()).toContain("step 0 of 5");
+    expect(screen.queryByText("How sure are we?")).toBeNull();
   });
 });

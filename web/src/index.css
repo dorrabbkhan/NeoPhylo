@@ -1108,3 +1108,12 @@ button:disabled {
 .weak-marker {
   font-weight: 500;
 }
+
+/* The support pill keeps the label readable over branch lines and
+ * connector elbows (checkpoint 11): a page-background fill with a hair
+ * border in both themes. */
+.support-pill {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1;
+}

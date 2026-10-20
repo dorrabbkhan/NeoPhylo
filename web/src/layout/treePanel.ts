@@ -14,6 +14,11 @@ export const LEAF_SPACING_MIN = 18;
 export const LEAF_SPACING_MAX = 48;
 const DEFAULT_SPACING = 24;
 
+/** Text never draws below 12 px: the font sizes below are already ≥12,
+ * but every text element in TreeView clamps to this so branch-scale
+ * changes can never shrink text (checkpoint 11). */
+export const MIN_FONT_PX = 12;
+
 /** Total vertical padding inside the drawing box (top + bottom). */
 export const TREE_PAD_Y = 16;
 /** Approximate height of the figcaption row above the drawing box; App

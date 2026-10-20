@@ -129,6 +129,27 @@ describe("Sandbox true-tree origin", () => {
     expect(screen.queryByText(/RF = \d/)).toBeNull();
   });
 
+  // Checkpoint 11: an imported alignment collapses the Simulation
+  // section to "Your sequences: not simulated." — the same treatment
+  // embedded lessons get, instead of greyed-out fields.
+  it("shows 'Your sequences: not simulated.' for imported data", async () => {
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    fireEvent.change(screen.getByLabelText("Paste sequences or a tree"), {
+      target: { value: SIX_TAXA_FASTA },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(
+      screen.getByText("Your sequences: not simulated."),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Simulation model")).toBeNull();
+    expect(screen.queryByLabelText("Length")).toBeNull();
+    expect(screen.queryByLabelText("Seed")).toBeNull();
+    // Analysis controls stay live on imported data.
+    expect(screen.getByLabelText("Distance correction")).toBeTruthy();
+  });
+
   it("offers the alphabet override on imported DNA", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
