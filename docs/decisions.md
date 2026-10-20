@@ -2154,3 +2154,34 @@ wedging the start queue.
 - **Screenshot attachments** for the PR live on the orphan branch
   `assets/cp12-shots` (review attachments can't be uploaded via `gh`;
   they stay out of the PR diff so they never reach main on merge).
+
+## v1.2 Task 12: consensus tabs
+
+- **Tab metadata lives in `consensusTabs.ts`, not the component file.**
+  The react-refresh lint forbids a component file exporting
+  non-component symbols; `CONSENSUS_TABS`, `consensusKind`, `viewLabel`
+  and `droppedLine` are shared by `ConsensusTabs.tsx` and `App.tsx`
+  (which picks the tree to draw), so they sit in a sibling `.ts` — the
+  same split as `stepEmphasis.ts`.
+- **A stored consensus view without results falls back to "support".**
+  `Session.bootstrap.view` survives `clearBootstrap`, and a `ran: false`
+  link can name a consensus tab; with no `done` run the consensus tabs
+  are disabled, so the selected tab and the drawn tree both fall back
+  to the support view instead of showing a disabled selection over the
+  wrong tree.
+- **Consensus views are rerooted exactly like the support tree.** The
+  App's existing `reroot` block operates on `drawnInferred`, which now
+  includes the active consensus tree — NJ consensus trees (unrooted)
+  are rooted on the reference's outgroup under the same toggle, while
+  UPGMA consensus trees are already rooted and untouched.
+- **Consensus tabs mount only at the final stepper position**, matching
+  the BootstrapPanel's spoiler gate: support labels (and now the tabs)
+  appear only when the finished tree is on screen.
+- **Files outside the Files block:**
+  - `web/src/views/consensusTabs.ts` — new; shared tab metadata
+    (react-refresh rule, see above).
+  - `web/src/index.css` — styles for the tab strip and dropped line.
+  - `web/e2e/bootstrap.spec.ts` — the owner's cytochrome-c acceptance:
+    the majority-rule view draws rerooted with wheat on its own branch
+    and no support label clipped or overlapping.
+  - `docs/decisions.md` (this entry).
