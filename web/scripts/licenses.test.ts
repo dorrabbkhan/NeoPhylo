@@ -18,7 +18,10 @@ import {
 // URL()), so the repo root is simply its parent.
 const REPO_ROOT = resolve(process.cwd(), "..");
 
-describe("licenses page", () => {
+// These tests do real license aggregation — walking the repo and
+// node_modules — so they take a few seconds under parallel vitest load.
+// The 20 s budget is headroom for that I/O, not a performance bound.
+describe("licenses page", { timeout: 20_000 }, () => {
   it("contains the PHYLIP, UniProt and npm notices the licenses require", () => {
     const html = buildLicensesHtml(REPO_ROOT);
     expect(html).toContain("Felsenstein"); // PHYLIP BSD-2-Clause notice
