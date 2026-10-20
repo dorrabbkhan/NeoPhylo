@@ -1927,3 +1927,17 @@ and the following ci/release entry. Both entries were kept verbatim.)
     strips unknown params, so the flag was gone by the offline reload —
     localStorage survives reloads and works in the preview build too.
   - `docs/decisions.md` (this entry).
+
+**Review fix.** The first implementation leaked `cancelledBeforeStart`
+entries and never acknowledged a queued job's cancel: a `cancel` for a
+jobId that was never started (or already finished) added a permanent
+set entry, and a queued start skipped by `cancelledBeforeStart` posted
+no `cancelled` ack — so `cancel()` always fell through to the 1 s
+terminate+respawn. Now a queued start's cancel is acked when the job
+is skipped on dequeue, and a cancel for a jobId that is neither active
+nor queued is acked immediately with no bookkeeping. The wiring moved
+into an exported `installWorkerScope(postMessage, ready)` (with a
+test-only `pendingCancels()` size getter) so these cases run
+in-process in `worker.test.ts`. The wasm `ready()` await is also
+wrapped so a failed init reports an `error` on the job instead of
+wedging the start queue.

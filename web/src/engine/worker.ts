@@ -245,25 +245,27 @@ interface JobState {
   confirm: ((proceed: boolean) => void) | null;
 }
 
-const isDedicatedWorker =
-  typeof (globalThis as { importScripts?: unknown }).importScripts ===
-    "function" &&
-  typeof (globalThis as { WorkerGlobalScope?: unknown }).WorkerGlobalScope !==
-    "undefined";
+/**
+ * The worker's message handling, factored out of the global-scope
+ * wiring so tests can drive it in-process with a fake `postMessage`.
+ * `ready` resolves when the wasm engine is usable.
+ */
+export interface WorkerScope {
+  onmessage(e: { data: PageToWorker }): void;
+  /** Test-only: cancels recorded for not-yet-started jobs (must stay
+   * 0 — an entry for a job that never starts would cancel a future
+   * job that reuses the id). */
+  pendingCancels(): number;
+}
 
-if (isDedicatedWorker) {
-  const scope = globalThis as unknown as {
-    postMessage(m: WorkerToPage): void;
-    onmessage: ((e: MessageEvent<PageToWorker>) => void) | null;
-  };
-
-  let initPromise: Promise<unknown> | null = null;
-  const ready = () => (initPromise ??= init());
-
+export function installWorkerScope(
+  postMessage: (m: WorkerToPage) => void,
+  ready: () => Promise<unknown>,
+): WorkerScope {
   let active: JobState | null = null;
   // `start` messages received while a job runs: it is cancelled and the
   // queued start runs once the loop is free. JobIds cancelled before
-  // they start are skipped but still acknowledged.
+  // they start are skipped and acknowledged on dequeue.
   const pendingStarts: Array<PageToWorker & { type: "start" }> = [];
   const cancelledBeforeStart = new Set<number>();
 
@@ -273,10 +275,31 @@ if (isDedicatedWorker) {
     // landing during init is handled against this job (never a second
     // concurrent job).
     active = job;
-    await ready();
-    if (!job.cancelled && !cancelledBeforeStart.delete(job.jobId)) {
+    let initOk = true;
+    try {
+      await ready();
+    } catch (err) {
+      // Init must not wedge the queue: report the failure on this job
+      // and keep draining pending starts.
+      initOk = false;
+      postMessage({
+        type: "error",
+        jobId: job.jobId,
+        error: {
+          kind: "InvalidExercise",
+          field: "bootstrap",
+          msg: `engine init failed: ${String(err)}`,
+        },
+      });
+    }
+    // A queued start cancelled before it ran is skipped — but still
+    // acknowledged below, so the page's cancel() resolves without the
+    // 1 s terminate+respawn. The delete clears the bookkeeping entry
+    // either way.
+    const skippedBeforeStart = cancelledBeforeStart.delete(job.jobId);
+    if (initOk && !job.cancelled && !skippedBeforeStart) {
       const post = (m: WorkerToPageJob) =>
-        scope.postMessage({ ...m, jobId: job.jobId });
+        postMessage({ ...m, jobId: job.jobId });
       try {
         await runBootstrapJob(
           {
@@ -311,43 +334,70 @@ if (isDedicatedWorker) {
         });
       }
     }
-    if (job.cancelled) {
-      scope.postMessage({ type: "cancelled", jobId: job.jobId });
+    if (job.cancelled || skippedBeforeStart) {
+      postMessage({ type: "cancelled", jobId: job.jobId });
     }
     active = null;
     const next = pendingStarts.shift();
     if (next !== undefined) void runNext(next);
   };
 
-  scope.onmessage = (e: MessageEvent<PageToWorker>) => {
-    const m = e.data;
-    if (m.type === "start") {
-      if (active !== null) {
-        // Cancel the running job; the queued start runs once it exits.
-        active.cancelled = true;
-        active.confirm?.(false);
-        active.confirm = null;
-        pendingStarts.push(m);
-      } else {
-        void runNext(m);
+  return {
+    onmessage(e) {
+      const m = e.data;
+      if (m.type === "start") {
+        if (active !== null) {
+          // Cancel the running job; the queued start runs once it exits.
+          active.cancelled = true;
+          active.confirm?.(false);
+          active.confirm = null;
+          pendingStarts.push(m);
+        } else {
+          void runNext(m);
+        }
+        return;
       }
-      return;
-    }
-    if (m.type === "confirm") {
-      if (active?.jobId === m.jobId && active.confirm !== null) {
-        active.confirm(true);
-        active.confirm = null;
+      if (m.type === "confirm") {
+        if (active?.jobId === m.jobId && active.confirm !== null) {
+          active.confirm(true);
+          active.confirm = null;
+        }
+        return;
       }
-      return;
-    }
-    if (m.type === "cancel") {
-      if (active?.jobId === m.jobId) {
-        active.cancelled = true;
-        active.confirm?.(false);
-        active.confirm = null;
-      } else {
-        cancelledBeforeStart.add(m.jobId);
+      if (m.type === "cancel") {
+        if (active?.jobId === m.jobId) {
+          active.cancelled = true;
+          active.confirm?.(false);
+          active.confirm = null;
+        } else if (pendingStarts.some((s) => s.jobId === m.jobId)) {
+          // Queued start: skipped and acknowledged on dequeue.
+          cancelledBeforeStart.add(m.jobId);
+        } else {
+          // Unknown or already-finished job: nothing to stop — ack
+          // now so the page doesn't wait out its 1 s deadline, and
+          // keep no bookkeeping that could poison a later jobId.
+          postMessage({ type: "cancelled", jobId: m.jobId });
+        }
       }
-    }
+    },
+    pendingCancels: () => cancelledBeforeStart.size,
   };
+}
+
+const isDedicatedWorker =
+  typeof (globalThis as { importScripts?: unknown }).importScripts ===
+    "function" &&
+  typeof (globalThis as { WorkerGlobalScope?: unknown }).WorkerGlobalScope !==
+    "undefined";
+
+if (isDedicatedWorker) {
+  const scope = globalThis as unknown as {
+    postMessage(m: WorkerToPage): void;
+    onmessage: ((e: MessageEvent<PageToWorker>) => void) | null;
+  };
+
+  let initPromise: Promise<unknown> | null = null;
+  const ready = () => (initPromise ??= init());
+  const handler = installWorkerScope((m) => scope.postMessage(m), ready);
+  scope.onmessage = handler.onmessage;
 }

@@ -8,9 +8,14 @@ import { describe, expect, it } from "vitest";
 
 import type { ConsensusKind } from "./generated/ConsensusKind";
 import type { Alignment } from "./generated/Alignment";
-import type { BootstrapParams, WorkerToPageJob } from "./bootstrapProtocol";
+import type {
+  BootstrapParams,
+  PageToWorker,
+  WorkerToPage,
+  WorkerToPageJob,
+} from "./bootstrapProtocol";
 import { engine } from "./index";
-import { runBootstrapJob } from "./worker";
+import { installWorkerScope, runBootstrapJob } from "./worker";
 
 /** Seeded PRNG (mulberry32); unseeded randomness is forbidden. */
 function mulberry32(seed: number): () => number {
@@ -197,5 +202,108 @@ describe("runBootstrapJob", () => {
     // Declining during the confirm wait ends the job after the
     // estimate: no progress, no result.
     expect(msgs.map((m) => m.type)).toEqual(["estimate"]);
+  });
+});
+
+/* The real worker wiring, driven in-process: installWorkerScope takes
+ * a fake postMessage and a resolved `ready`, and `pendingCancels`
+ * exposes the cancelledBeforeStart bookkeeping for leak checks. */
+
+/** One macrotask turn — flushes the MessageChannel yields inside the
+ * job loop and the runNext continuations. */
+const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+/** Enough turns for init, the queue drain, and small jobs to finish. */
+async function settle(turns = 15): Promise<void> {
+  for (let i = 0; i < turns; i++) await tick();
+}
+
+function makeScope(): {
+  posts: WorkerToPage[];
+  send(m: PageToWorker): void;
+  pendingCancels(): number;
+} {
+  const posts: WorkerToPage[] = [];
+  const scope = installWorkerScope(
+    (m) => posts.push(m),
+    () => Promise.resolve(),
+  );
+  return {
+    posts,
+    send: (m) => scope.onmessage({ data: m }),
+    pendingCancels: () => scope.pendingCancels(),
+  };
+}
+
+const startMsg = (jobId: number, p: BootstrapParams): PageToWorker => ({
+  type: "start",
+  jobId,
+  ...p,
+});
+
+describe("installWorkerScope", () => {
+  it("acks a cancel of a queued job when it is skipped on dequeue", async () => {
+    const { posts, send, pendingCancels } = makeScope();
+    const p = params({ replicates: 5 });
+    // A starts; B queues behind it (a start while active cancels A).
+    send(startMsg(1, p));
+    send(startMsg(2, p));
+    send({ type: "cancel", jobId: 2 });
+    expect(pendingCancels()).toBe(1);
+
+    await settle();
+    // A is acknowledged after its cancel; B is skipped but still
+    // acknowledged — the page's cancel() resolves without the 1 s
+    // terminate+respawn.
+    expect(posts).toContainEqual({ type: "cancelled", jobId: 1 });
+    expect(posts).toContainEqual({ type: "cancelled", jobId: 2 });
+    // And B never produced job output.
+    expect(posts.some((m) => m.jobId === 2 && m.type !== "cancelled")).toBe(
+      false,
+    );
+    expect(pendingCancels()).toBe(0);
+  });
+
+  it("acks a cancel for a jobId that was never started, with no bookkeeping left", () => {
+    const { posts, send, pendingCancels } = makeScope();
+    send({ type: "cancel", jobId: 99 });
+    expect(posts).toEqual([{ type: "cancelled", jobId: 99 }]);
+    expect(pendingCancels()).toBe(0);
+  });
+
+  it("acks a cancel for a finished job immediately, with no bookkeeping left", async () => {
+    const { posts, send, pendingCancels } = makeScope();
+    const p = params({ replicates: 3 });
+    send(startMsg(1, p));
+    await settle(3);
+    // The job is now waiting on confirm; approve it and let it finish.
+    expect(posts).toContainEqual(
+      expect.objectContaining({ type: "estimate", jobId: 1 }),
+    );
+    send({ type: "confirm", jobId: 1 });
+    await settle();
+    expect(posts).toContainEqual(
+      expect.objectContaining({ type: "result", jobId: 1 }),
+    );
+
+    send({ type: "cancel", jobId: 1 });
+    expect(posts[posts.length - 1]).toEqual({
+      type: "cancelled",
+      jobId: 1,
+    });
+    expect(pendingCancels()).toBe(0);
+  });
+
+  it("still acks a cancel of the running job", async () => {
+    const { posts, send, pendingCancels } = makeScope();
+    const p = params({ replicates: 5 });
+    send(startMsg(1, p));
+    await settle(3);
+    send({ type: "confirm", jobId: 1 });
+    send({ type: "cancel", jobId: 1 });
+    await settle();
+    expect(posts).toContainEqual({ type: "cancelled", jobId: 1 });
+    expect(posts.some((m) => m.type === "result")).toBe(false);
+    expect(pendingCancels()).toBe(0);
   });
 });

@@ -198,6 +198,20 @@ describe("BootstrapClient", () => {
     expect(workers[0].terminated).toBe(false);
   });
 
+  it("cancel of a job queued behind another resolves on its ack without respawning", async () => {
+    const { client, workers } = makeClient({});
+    client.start({ ...PARAMS }, handlers()); // A occupies the worker
+    const idB = client.start({ ...PARAMS }, handlers()); // B queued worker-side
+    const done = client.cancel(idB);
+    expect(workers[0].posted).toContainEqual({ type: "cancel", jobId: idB });
+    // The worker acknowledges the queued job as soon as it is dequeued
+    // and skipped — before the 1 s deadline, so no terminate/respawn.
+    workers[0].emit({ type: "cancelled", jobId: idB });
+    await expect(done).resolves.toBeUndefined();
+    expect(workers[0].terminated).toBe(false);
+    expect(workers).toHaveLength(1);
+  });
+
   it("cancel terminates and respawns the worker when no ack arrives in 1 s", async () => {
     vi.useFakeTimers();
     const { client, workers } = makeClient({ cancelAckTimeoutMs: 1000 });
