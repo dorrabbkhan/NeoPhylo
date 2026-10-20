@@ -126,6 +126,10 @@ export interface BootstrapState {
   total: number;
   failed: number;
   etaMs: number | null;
+  /** Measured cost of one replicate from the run's estimate (spec §5).
+   * The replicate view routes through the worker when this tops ~2 s
+   * (spec §6.5); null until an estimate lands. */
+  msPerReplicate: number | null;
   support: Tree | null;
   consensus: Record<ConsensusKind, Tree> | null;
   dropped: Record<ConsensusKind, DroppedGroup[]> | null;
@@ -150,6 +154,7 @@ export function defaultBootstrap(): BootstrapState {
     total: 0,
     failed: 0,
     etaMs: null,
+    msPerReplicate: null,
     support: null,
     consensus: null,
     dropped: null,
@@ -833,6 +838,7 @@ export function reducer(s: Session, a: Action): Session {
           total: b.replicates,
           failed: 0,
           etaMs: null,
+          msPerReplicate: null,
           support: null,
           consensus: null,
           dropped: null,
@@ -855,6 +861,7 @@ export function reducer(s: Session, a: Action): Session {
             jobId: a.jobId,
             autorun: false,
             etaMs: a.totalMs,
+            msPerReplicate: a.msPerReplicate,
           },
         };
       }
@@ -872,6 +879,7 @@ export function reducer(s: Session, a: Action): Session {
             autorun: false,
             prefilledRun: true,
             etaMs: a.totalMs,
+            msPerReplicate: a.msPerReplicate,
           },
         };
       }
@@ -882,6 +890,7 @@ export function reducer(s: Session, a: Action): Session {
           status: "confirming",
           jobId: a.jobId,
           etaMs: a.totalMs,
+          msPerReplicate: a.msPerReplicate,
         },
       };
     }

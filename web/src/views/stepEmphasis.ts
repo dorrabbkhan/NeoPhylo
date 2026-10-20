@@ -45,7 +45,8 @@ export function leafCount(tree: Tree): number {
   );
 }
 
-function sameSet<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
+/** Set equality on readonly sets (leaf-label comparisons). */
+export function sameSet<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
   if (a.size !== b.size) return false;
   for (const v of a) if (!b.has(v)) return false;
   return true;

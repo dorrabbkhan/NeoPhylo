@@ -306,4 +306,32 @@ describe("installWorkerScope", () => {
     expect(posts.some((m) => m.type === "result")).toBe(false);
     expect(pendingCancels()).toBe(0);
   });
+
+  // v1.2 Task 13: the §6.5 one-replicate job — a single engine call
+  // with no estimate or progress messages.
+  it("a detail job answers with replicate_detail for the asked index", async () => {
+    const { posts, send } = makeScope();
+    const p = params();
+    send({
+      type: "detail",
+      jobId: 1,
+      alignment: p.alignment,
+      model: p.model,
+      method: p.method,
+      seed: p.seed,
+      index: 3,
+    });
+    await settle();
+    const want = engine.replicateDetail(
+      p.alignment,
+      p.model,
+      p.method,
+      p.seed,
+      3,
+    );
+    if (!want.ok) throw new Error("replicate_detail failed");
+    expect(posts).toEqual([
+      { type: "detail", jobId: 1, detail: want.value },
+    ]);
+  });
 });

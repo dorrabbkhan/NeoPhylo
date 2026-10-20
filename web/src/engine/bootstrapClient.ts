@@ -11,12 +11,16 @@ import type {
   WorkerToPage,
   BootstrapParams,
   BootstrapHandlers,
+  ReplicateDetailParams,
+  ReplicateDetailHandlers,
 } from "./bootstrapProtocol";
 
 export type {
   BootstrapHandlers,
   BootstrapParams,
   BootstrapResult,
+  ReplicateDetailParams,
+  ReplicateDetailHandlers,
 } from "./bootstrapProtocol";
 
 export interface BootstrapClientOptions {
@@ -43,7 +47,7 @@ export class BootstrapClient {
   private nextId = 0;
   /** The jobId the page currently accepts messages for; 0 = none. */
   private currentId = 0;
-  private handlers = new Map<number, BootstrapHandlers>();
+  private handlers = new Map<number, (m: WorkerToPage) => void>();
   /** Jobs a cancel was sent for; their late messages are dropped. */
   private cancelling = new Set<number>();
   private cancelWaiters = new Map<number, () => void>();
@@ -55,19 +59,45 @@ export class BootstrapClient {
     this.onStaleMessage = opts.onStaleMessage;
   }
 
-  /** Start a job; returns its jobId. A running job is cancelled first —
-   * the page never has two live jobs. */
-  start(p: BootstrapParams, h: BootstrapHandlers): number {
-    const w = this.ensureWorker();
+  /** Take the single live-job slot: the current job (if any) is sent a
+   * cancel and its late messages are dropped (spec §5 stale rule). */
+  private claimJob(): number {
     const jobId = ++this.nextId;
     if (this.currentId !== 0) {
-      w.postMessage({ type: "cancel", jobId: this.currentId });
+      this.worker?.postMessage({ type: "cancel", jobId: this.currentId });
       this.cancelling.add(this.currentId);
       this.handlers.delete(this.currentId);
     }
     this.currentId = jobId;
-    this.handlers.set(jobId, h);
+    return jobId;
+  }
+
+  /** Start a job; returns its jobId. A running job is cancelled first —
+   * the page never has two live jobs. */
+  start(p: BootstrapParams, h: BootstrapHandlers): number {
+    const w = this.ensureWorker();
+    const jobId = this.claimJob();
+    this.handlers.set(jobId, (m) => this.onRunMessage(jobId, m, h));
     w.postMessage({ type: "start", jobId, ...p });
+    return jobId;
+  }
+
+  /** Ask the worker for one replicate's teaching detail (spec §6.5):
+   * the same single-job slot as a run, so it is never concurrent with
+   * one. */
+  detail(p: ReplicateDetailParams, h: ReplicateDetailHandlers): number {
+    const w = this.ensureWorker();
+    const jobId = this.claimJob();
+    this.handlers.set(jobId, (m) => {
+      if (m.type === "detail") {
+        h.onDetail(m.detail);
+        this.clearJob(m.jobId);
+      } else if (m.type === "error") {
+        h.onError(m.error);
+        this.clearJob(m.jobId);
+      }
+    });
+    w.postMessage({ type: "detail", jobId, ...p });
     return jobId;
   }
 
@@ -144,12 +174,20 @@ export class BootstrapClient {
       this.onStaleMessage?.(m);
       return;
     }
-    const h = this.handlers.get(m.jobId);
-    if (h === undefined) return;
+    this.handlers.get(m.jobId)?.(m);
+  }
+
+  /** Dispatch a message for a `start` job (estimate → confirm gate,
+   * progress, result, error). */
+  private onRunMessage(
+    jobId: number,
+    m: WorkerToPage,
+    h: BootstrapHandlers,
+  ): void {
     switch (m.type) {
       case "estimate":
         if (m.totalMs <= this.confirmThresholdMs) {
-          this.confirm(m.jobId);
+          this.confirm(jobId);
         } else {
           h.onEstimate({
             msPerReplicate: m.msPerReplicate,
@@ -174,11 +212,11 @@ export class BootstrapClient {
           dropped: m.dropped,
           failed: m.failed,
         });
-        this.clearJob(m.jobId);
+        this.clearJob(jobId);
         break;
       case "error":
         h.onError(m.error);
-        this.clearJob(m.jobId);
+        this.clearJob(jobId);
         break;
     }
   }
