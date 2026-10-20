@@ -1971,12 +1971,17 @@ wedging the start queue.
   pattern as `o=`/`d=`; `#x=` payloads get the `bootstrap` field in the
   JSON. A malformed block rejects the whole link, matching the
   `src`/`overrides` rule.
-- **Bootstrap settings (replicates, seed, view) survive `load` and
-  data changes; results never do.** They are user preferences, like
-  `mode`/`clampNegative`/`matrixView`/`rerootDisplay`, which persist
-  across lessons. `clearBootstrap` resets results and moves an
-  in-flight `jobId` to `cancelJobId` so the App effect can
-  `client.cancel` it.
+- **A lesson load resets bootstrap settings; sandbox data changes
+  keep them.** The v1.1 rule that nothing carries over between
+  lessons applies to settings too, not just results: `load` rebuilds
+  `Session.bootstrap` from `defaultBootstrap()` plus the exercise's
+  own `bootstrap` block (spec §7.1; Task 14 adds the field to the
+  `Exercise` type — `exerciseBootstrap` reads it defensively until
+  then) or the defaults (100 replicates, seed 1, view "support").
+  Sandbox imports (`importAlignment`/`importTree`) and model/data
+  edits keep the user's replicates/seed/view as preferences while
+  `clearBootstrap` resets results and moves an in-flight `jobId` to
+  `cancelJobId` so the App effect can `client.cancel` it.
 - **`setBranchScale` and `setAlphabet` also clear bootstrap state** —
   the task names `setSim`/`setAnalysis`/`importAlignment`/`importTree`/
   `load`, but branch scale changes the simulated alignment and an

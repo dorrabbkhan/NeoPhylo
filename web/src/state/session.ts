@@ -192,6 +192,31 @@ export function clearBootstrap(s: Session): Session {
   };
 }
 
+/** The exercise's own bootstrap settings, if it declares them (v1.2
+ * spec §7.1: files may include `bootstrap: { replicates, seed }` —
+ * Task 14 adds the field to the `Exercise` type, so the block is read
+ * defensively here). Invalid or missing fields fall back to the
+ * `defaultBootstrap` values; the view is not part of the block. */
+function exerciseBootstrap(e: Exercise): {
+  replicates?: number;
+  seed?: number;
+} {
+  const block = (e as { bootstrap?: unknown }).bootstrap;
+  if (typeof block !== "object" || block === null) return {};
+  const b = block as { replicates?: unknown; seed?: unknown };
+  const out: { replicates?: number; seed?: number } = {};
+  if (typeof b.replicates === "number" && Number.isFinite(b.replicates)) {
+    out.replicates = Math.min(
+      MAX_REPLICATES,
+      Math.max(MIN_REPLICATES, Math.round(b.replicates)),
+    );
+  }
+  if (typeof b.seed === "number" && Number.isFinite(b.seed)) {
+    out.seed = Math.max(0, Math.round(b.seed));
+  }
+  return out;
+}
+
 /** A job-scoped message is honored only for the current job — or
  * adopted while an unassigned request (autorun; `jobId` still null)
  * waits in "estimating". `BootstrapClient` already drops stale
@@ -573,11 +598,13 @@ export function reducer(s: Session, a: Action): Session {
         notice: null,
         bootstrap: {
           ...defaultBootstrap(),
-          // Settings are user preferences and survive a lesson reload
-          // (like mode/clampNegative); results never do.
-          replicates: s.bootstrap.replicates,
-          seed: s.bootstrap.seed,
-          view: s.bootstrap.view,
+          // v1.1 rule: nothing carries over between lessons, so
+          // settings reset to the exercise's own `bootstrap` block
+          // (spec §7.1; Task 14 adds it to the Exercise type) or the
+          // defaults. Only sandbox data changes keep the user's
+          // settings — `load` is not one of those paths. A running job
+          // still asks the page for a cancel.
+          ...exerciseBootstrap(a.exercise),
           cancelJobId: s.bootstrap.jobId ?? s.bootstrap.cancelJobId,
         },
         rerootDisplay: s.rerootDisplay,

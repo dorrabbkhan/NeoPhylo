@@ -24,8 +24,23 @@ const EXERCISE_JSON = `{
   "analysis": { "correction": "JC69", "method": "NJ" }
 }`;
 
+const EXERCISE_JSON_B = `{
+  "schema_version": 1,
+  "id": "another-lesson",
+  "title": "Another lesson",
+  "true_tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+  "sim": { "model": "JC69", "length": 500, "seed": 7 },
+  "analysis": { "correction": "JC69", "method": "NJ" }
+}`;
+
 function exercise(): Exercise {
   const r = engine.loadExercise(EXERCISE_JSON);
+  if (!r.ok) throw new Error("loadExercise failed");
+  return r.value;
+}
+
+function exerciseB(): Exercise {
+  const r = engine.loadExercise(EXERCISE_JSON_B);
   if (!r.ok) throw new Error("loadExercise failed");
   return r.value;
 }
@@ -275,5 +290,72 @@ describe("bootstrap session state", () => {
     expect(s.rerootDisplay).toBe(false);
     // Progress fields never changed hands.
     expect(s.bootstrap.support).toBe(before.support);
+  });
+
+  it("loading a lesson resets bootstrap settings to defaults", () => {
+    let s = loaded();
+    s = reducer(s, {
+      type: "setBootstrapSettings",
+      patch: { replicates: 200, seed: 7 },
+    });
+    s = reducer(s, { type: "setBootstrapView", view: "majority" });
+    s = reducer(s, {
+      type: "load",
+      exercise: exerciseB(),
+      source: "lesson",
+    });
+    expect(s.bootstrap.replicates).toBe(100);
+    expect(s.bootstrap.seed).toBe(1);
+    expect(s.bootstrap.view).toBe("support");
+    expect(s.bootstrap.status).toBe("idle");
+  });
+
+  it("loading a lesson with a bootstrap block uses its replicates/seed", () => {
+    let s = loaded();
+    s = reducer(s, {
+      type: "setBootstrapSettings",
+      patch: { replicates: 200, seed: 7 },
+    });
+    // Task 14 adds `bootstrap` to the Exercise type; the reducer reads
+    // it defensively so already-normalized payloads work today.
+    const withBlock = {
+      ...exerciseB(),
+      bootstrap: { replicates: 50, seed: 99 },
+    } as Exercise;
+    s = reducer(s, {
+      type: "load",
+      exercise: withBlock,
+      source: "lesson",
+    });
+    expect(s.bootstrap.replicates).toBe(50);
+    expect(s.bootstrap.seed).toBe(99);
+    // The block carries replicates/seed only; the view still resets.
+    expect(s.bootstrap.view).toBe("support");
+  });
+
+  it("sandbox keeps bootstrap settings across imported data", () => {
+    let s = loaded();
+    s = reducer(s, { type: "enterSandbox" });
+    s = reducer(s, {
+      type: "setBootstrapSettings",
+      patch: { seed: 7 },
+    });
+    s = reducer(s, {
+      type: "importAlignment",
+      alignment: {
+        labels: ["x1", "x2", "x3", "x4"],
+        seqs: [
+          [65, 67, 71, 84],
+          [65, 67, 71, 84],
+          [65, 67, 71, 84],
+          [65, 67, 71, 84],
+        ],
+        alphabet: "dna" as const,
+      },
+    });
+    // Results clear on the data change, but the settings are the
+    // user's preferences and stay.
+    expect(s.bootstrap.seed).toBe(7);
+    expect(s.bootstrap.status).toBe("idle");
   });
 });
