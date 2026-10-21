@@ -2155,6 +2155,47 @@ wedging the start queue.
   `assets/cp12-shots` (review attachments can't be uploaded via `gh`;
   they stay out of the PR diff so they never reach main on merge).
 
+## v1.2 Task 12: consensus tabs
+
+- **Tab metadata lives in `consensusTabs.ts`, not the component file.**
+  The react-refresh lint forbids a component file exporting
+  non-component symbols; `CONSENSUS_TABS`, `consensusKind`, `viewLabel`
+  and `droppedLine` are shared by `ConsensusTabs.tsx` and `App.tsx`
+  (which picks the tree to draw), so they sit in a sibling `.ts` — the
+  same split as `stepEmphasis.ts`.
+- **A stored consensus view without results falls back to "support".**
+  `Session.bootstrap.view` survives `clearBootstrap`, and a `ran: false`
+  link can name a consensus tab; with no `done` run the consensus tabs
+  are disabled, so the selected tab and the drawn tree both fall back
+  to the support view instead of showing a disabled selection over the
+  wrong tree.
+- **Consensus views are rerooted exactly like the support tree.** The
+  App's existing `reroot` block operates on `drawnInferred`, which now
+  includes the active consensus tree — NJ consensus trees (unrooted)
+  are rooted on the reference's outgroup under the same toggle, while
+  UPGMA consensus trees are already rooted and untouched.
+- **Consensus tabs mount only at the final stepper position**, matching
+  the BootstrapPanel's spoiler gate: support labels (and now the tabs)
+  appear only when the finished tree is on screen.
+- **The tab strip is a single horizontally-scrollable row and the
+  canvas has a 96 px floor.** The first e2e run caught the collapse:
+  when the teaching notices squeeze `.trees` to ~160 px, a wrapping
+  two-row tablist plus the reroot note/toggle starved `.tree-canvas`
+  to a zero box and the svg rendered `hidden`. Now the tablist never
+  wraps (`overflow-x: auto`), `.consensus-tabs`/`.consensus-tabpanel`/
+  `.tree-panel` refuse to shrink below content, and `.tree-col` gets
+  `overflow-y: auto` so the whole block scrolls instead of clipping
+  the drawing or painting over the heatmap row.
+- **Files outside the Files block:**
+  - `web/src/views/consensusTabs.ts` — new; shared tab metadata
+    (react-refresh rule, see above).
+  - `web/src/index.css` — styles for the tab strip, the size floor and
+    the dropped line.
+  - `web/e2e/bootstrap.spec.ts` — the owner's cytochrome-c acceptance:
+    the majority-rule view draws rerooted with wheat on its own branch
+    and no support label clipped or overlapping.
+  - `docs/decisions.md` (this entry).
+
 ## v1.2 Task 13: watch one replicate
 
 - **The worker `detail` job is a new protocol message.** Spec §6.5's

@@ -454,6 +454,151 @@ test("cytochrome-c: drawn support matches the tally, each grouping labeled once"
   ).toBeVisible();
 });
 
+// Task 12 (spec §6.4): the majority-rule consensus tab draws the
+// consensus tree as a cladogram, rerooted on the reference's outgroup
+// like the support tree — cytochrome-c puts wheat on its own branch —
+// with support labels that never clip or overlap.
+test("cytochrome-c: majority-rule view rooted like the reference, wheat on its own branch", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page
+    .getByRole("button", { name: /Run bootstrap/ })
+    .click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 30_000 });
+
+  await page.getByRole("tab", { name: "Majority-rule" }).click();
+  const svg = page.locator('svg[aria-label="Majority-rule consensus"]');
+  await expect(svg).toBeVisible();
+
+  // Recompute the expected drawing in the page: majority consensus of
+  // the same tally, rerooted on the reference's outgroup (wheat).
+  const expected = await page.evaluate(async () => {
+    const w = window as unknown as {
+      __neophylo: {
+        engine: {
+          parseFasta(t: string): { ok: boolean; value: unknown };
+          parseNewick(t: string): { ok: boolean; value: unknown };
+          distances(
+            a: unknown,
+            model: string,
+          ): { ok: boolean; value: unknown };
+          bootstrapBatch(
+            a: unknown,
+            model: string,
+            method: string,
+            seed: number,
+            start: number,
+            count: number,
+          ): { ok: boolean; value: unknown };
+          consensus(
+            tally: unknown,
+            kind: string,
+            labels: string[],
+          ): { ok: boolean; value: unknown };
+          referenceOutgroup(t: unknown): { ok: boolean; value: string[] };
+          rerootOnOutgroup(
+            t: unknown,
+            og: string[],
+          ): {
+            ok: boolean;
+            value: {
+              tree: {
+                nodes: { parent: number | null; children: number[]; label: string | null }[];
+                branches: { length: number | null; support: number | null }[];
+                root: number;
+              };
+              outgroup_is_group: boolean;
+            };
+          };
+        };
+      };
+    };
+    const { engine } = w.__neophylo;
+    const ex = await fetch("/exercises/cytochrome-c.json").then((r) =>
+      r.json(),
+    );
+    const aln = engine.parseFasta(ex.data.fasta);
+    if (!aln.ok) throw new Error("parseFasta failed");
+    const tally = engine.bootstrapBatch(aln.value, "Jtt", "Nj", 1, 0, 100);
+    if (!tally.ok) throw new Error("bootstrapBatch failed");
+    const labels = (tally.value as { labels: string[] }).labels;
+    const cons = engine.consensus(tally.value, "Majority", labels);
+    if (!cons.ok) throw new Error("consensus failed");
+    const ref = engine.parseNewick(ex.reference.newick);
+    if (!ref.ok) throw new Error("parseNewick failed");
+    const og = engine.referenceOutgroup(ref.value);
+    if (!og.ok) throw new Error("referenceOutgroup failed");
+    const rr = engine.rerootOnOutgroup(cons.value, og.value);
+    if (!rr.ok) throw new Error("rerootOnOutgroup failed");
+    const t = rr.value.tree;
+    // Wheat on its own branch: its leaf hangs directly off the new
+    // degree-2 root.
+    const wheat = t.nodes.findIndex((n) => n.label === "wheat");
+    const own = wheat >= 0 && t.nodes[wheat].parent === t.root;
+    const labeledEdges = t.nodes.filter(
+      (n, i) => n.parent !== null && t.branches[i].support !== null,
+    ).length;
+    return { nodes: t.nodes.length, og: og.value, own, labeledEdges };
+  });
+
+  expect(expected.og).toEqual(["wheat"]);
+  expect(expected.own).toBe(true);
+  await expect(svg.locator("[data-node]")).toHaveCount(expected.nodes);
+  await expect(svg.locator(".support-label")).toHaveCount(
+    expected.labeledEdges,
+  );
+
+  // The rerooted-consensus caption is the same as the support view's.
+  await expect(
+    page.getByText(
+      "Drawn with the same outgroup as the reference; rerooting " +
+        "changes only the drawing, not the groupings.",
+    ),
+  ).toBeVisible();
+
+  // No support pill intersects a node marker, a leaf name or another
+  // pill (the checkpoint-11 box check, on the consensus svg).
+  const overlaps = await svg.evaluate((el) => {
+    const box = (e: Element) => (e as SVGGraphicsElement).getBBox();
+    const pills = Array.from(
+      el.querySelectorAll("rect.support-pill"),
+    ).map(box);
+    const markers = Array.from(
+      el.querySelectorAll("g[data-node] > circle"),
+    ).map(box);
+    const names = Array.from(el.querySelectorAll("g[data-node] > text"))
+      .filter((t) => !t.classList.contains("support-label"))
+      .map(box);
+    const hit = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ) =>
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y;
+    const out: string[] = [];
+    pills.forEach((p, i) => {
+      markers.forEach((m, j) => {
+        if (hit(p, m)) out.push(`pill ${i} vs marker ${j}`);
+      });
+      names.forEach((n, j) => {
+        if (hit(p, n)) out.push(`pill ${i} vs name ${j}`);
+      });
+      pills.forEach((q, j) => {
+        if (j > i && hit(p, q)) out.push(`pill ${i} vs pill ${j}`);
+      });
+    });
+    return out;
+  });
+  expect(overlaps).toEqual([]);
+});
+
 // Checkpoint 11 acceptance: at the final step with a done 100-replicate
 // run (seed 1), no support label's pill box intersects a node marker, a
 // leaf name or another label — in BOTH the rooted (default) and the
