@@ -91,46 +91,63 @@ describe("exportR protein (v1.1 spec §5.6)", () => {
   });
 });
 
-describe("exportR bootstrap (v1.2 spec §6.8)", () => {
-  it("adds boot.phylo with the same distance and method, B = replicates", () => {
-    const s = exportR(ALN, "Jc69", "Nj", { replicates: 100 });
-    expect(s).toContain(
-      'ape::boot.phylo(tree, x, function(xx) ape::nj(ape::dist.dna(xx, model = "JC69", pairwise.deletion = TRUE)), B = 100, trees = TRUE)',
-    );
+describe("exportR bootstrap (v1.2 spec §6.8, checkpoint 15)", () => {
+  it("resamples in an explicit loop that skips saturated replicates", () => {
+    const s = exportR(ALN, "Jc69", "Nj", { replicates: 100, seed: 1 });
+    // No boot.phylo — it aborts on the first FUN error and cannot
+    // express the engine's skipped-replicate rule.
+    expect(s).not.toContain("boot.phylo(tree");
     expect(s).toContain("x <- aln");
-    expect(s).toContain("phangorn::plotBS(tree, bt$trees)");
+    expect(s).toContain("set.seed(1)");
+    expect(s).toContain("B <- 100");
+    expect(s).toContain("for (i in seq_len(B))");
+    expect(s).toContain("xx <- x[, sample.int(ncol(x), replace = TRUE)]");
+    // Same distance as the main analysis, then the non-finite check.
+    expect(s).toContain(
+      'distOf <- function(xx) ape::dist.dna(xx, model = "JC69", pairwise.deletion = TRUE)',
+    );
+    expect(s).toContain("any(!is.finite(m_i[lower.tri(m_i)]))");
+    expect(s).toContain("tr <- tryCatch(ape::nj(d_i)");
+    // Skipped accounting and support on the kept trees.
+    expect(s).toContain('sprintf("Skipped (saturated): %d of %d');
+    expect(s).toContain("skipped / B > 0.1");
+    expect(s).toContain("kept == 0L");
+    expect(s).toContain("ape::prop.clades(tree, trees) / kept");
     expect(s).toContain(
       "R's random draws differ from NeoPhylo's; support values vary by a few percent.",
     );
-    expect(s).toContain("boot.phylo with B = 100 can take a while");
   });
 
-  it("UPGMA keeps phangorn::upgma inside the bootstrap function", () => {
-    const s = exportR(ALN, "K80", "Upgma", { replicates: 250 });
-    expect(s).toContain("phangorn::upgma(ape::dist.dna(xx,");
-    expect(s).toContain("B = 250");
-    expect(s).not.toContain("nj(ape::dist.dna(xx");
+  it("UPGMA keeps phangorn::upgma inside the replicate loop", () => {
+    const s = exportR(ALN, "K80", "Upgma", { replicates: 250, seed: 7 });
+    expect(s).toContain("tr <- tryCatch(phangorn::upgma(d_i)");
+    expect(s).toContain("B <- 250");
+    expect(s).toContain("set.seed(7)");
+    expect(s).not.toContain("nj(d_i)");
   });
 
-  it("protein Kimura computes the distance inside boot.phylo's function", () => {
-    const s = exportR(PROT, "Kimura", "Nj", { replicates: 100 });
-    expect(s).toContain("ape::boot.phylo(tree, x, function(xx)");
+  it("protein Kimura computes the distance inside distOf", () => {
+    const s = exportR(PROT, "Kimura", "Nj", { replicates: 100, seed: 1 });
+    expect(s).not.toContain("boot.phylo(tree");
+    expect(s).toContain("distOf <- function(xx)");
     expect(s).toContain("ape::dist.aa(xx, pairwise.deletion = TRUE");
-    expect(s).toContain("-log(1 - p - 0.2 * p^2)");
-    expect(s).toContain("B = 100");
-    expect(s).toContain("boot.phylo with B = 100 can take a while");
+    expect(s).toContain("as.dist(-log(1 - p - 0.2 * p^2))");
+    expect(s).toContain("B <- 100");
+    expect(s).toContain('x <- do.call(rbind, as.character(aln))');
   });
 
   it("protein p and JTT reuse the export's distance expressions", () => {
-    const p = exportR(PROT, "P", "Nj", { replicates: 20 });
-    expect(p).toContain("ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)");
-    const jtt = exportR(PROT, "Jtt", "Nj", { replicates: 20 });
+    const p = exportR(PROT, "P", "Nj", { replicates: 20, seed: 1 });
+    expect(p).toContain(
+      "distOf <- function(xx) ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)",
+    );
+    const jtt = exportR(PROT, "Jtt", "Nj", { replicates: 20, seed: 1 });
     expect(jtt).toContain("phangorn::dist.ml(phangorn::phyDat(xx,");
     expect(jtt).toContain('model = "JTT"');
   });
 
   it("leaves the script unchanged when no bootstrap ran", () => {
-    expect(exportR(ALN, "Jc69", "Nj")).not.toContain("boot.phylo");
-    expect(exportR(PROT, "Kimura", "Nj")).not.toContain("boot.phylo");
+    expect(exportR(ALN, "Jc69", "Nj")).not.toContain("seq_len(B)");
+    expect(exportR(PROT, "Kimura", "Nj")).not.toContain("seq_len(B)");
   });
 });

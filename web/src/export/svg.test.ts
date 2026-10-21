@@ -77,4 +77,86 @@ describe("exportSvg", () => {
     });
     expect(svg).not.toContain("support-pill");
   });
+
+  // Checkpoint 15: the export is the SAME figure the screen draws —
+  // same treeFigure() geometry, content-fit bounds and data-split
+  // keys — only serialized as a document.
+  describe("figure parity (checkpoint 15)", () => {
+    const supported = () => {
+      const t = parse("((A:1,B:2):0.5,(C:1,D:1):0.4,E:2);");
+      const internal = t.nodes
+        .map((n, i) => ({ n, i }))
+        .filter(
+          ({ n, i }) =>
+            n.children.length > 0 && n.parent !== null && i !== t.root,
+        );
+      t.branches[internal[0].i].support = 0.87;
+      t.branches[internal[1].i].support = 0.42;
+      return t;
+    };
+
+    it("carries data-split on every node and support label", () => {
+      const svg = exportSvg(supported(), {
+        kind: "phylogram",
+        clampNegative: false,
+      });
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      // Unrooted convention: the key is the side NOT containing taxa[0]
+      // ("A"), sorted and "|-joined — the tally's row format.
+      const groups = Array.from(doc.querySelectorAll("g[data-node]"));
+      expect(groups.length).toBe(8);
+      for (const g of groups) {
+        expect(g.getAttribute("data-split")).not.toBeNull();
+      }
+      const labels = Array.from(doc.querySelectorAll(".support-label"));
+      expect(labels).toHaveLength(2);
+      const keys = labels.map((l) => l.getAttribute("data-split"));
+      // (A,B) contains taxa[0] "A", so its key is the complement;
+      // (C,D) is stored under its own side.
+      expect(keys).toEqual(["C|D|E", "C|D"]);
+      // The label's key equals its node's key, so the figure can be
+      // matched to the tally grouping-for-grouping.
+      const nodeKeys = new Set(
+        groups.map((g) => g.getAttribute("data-split")),
+      );
+      for (const k of keys) expect(nodeKeys.has(k)).toBe(true);
+    });
+
+    it("fits the content: no clipping, no empty right margin", () => {
+      const svg = exportSvg(supported(), {
+        kind: "phylogram",
+        clampNegative: false,
+      });
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      const [vx, vy, vw, vh] = doc.documentElement
+        .getAttribute("viewBox")!
+        .split(" ")
+        .map(Number);
+      // The rightmost drawn element reaches the viewBox minus the pad:
+      // the old export reserved a fixed label room and produced the
+      // reported large empty area on the right.
+      let maxRight = -Infinity;
+      doc.querySelectorAll("line, circle, rect, text").forEach((el) => {
+        const x = el.getAttribute("x");
+        const w = el.getAttribute("width");
+        const cx = el.getAttribute("cx");
+        const x2 = el.getAttribute("x2");
+        for (const v of [
+          x !== null && w !== null ? Number(x) + Number(w) : null,
+          cx !== null ? Number(cx) : null,
+          x2 !== null ? Number(x2) : null,
+          x !== null && w === null ? Number(x) : null,
+        ]) {
+          if (v !== null) maxRight = Math.max(maxRight, v);
+        }
+      });
+      // Text's drawn width exceeds its anchor x, so allow the leaf
+      // label room (≤ ~0.62em/char × longest label ≈ small).
+      expect(vx + vw - maxRight).toBeLessThan(40);
+      expect(vx).toBe(0);
+      expect(vy).toBe(0);
+      expect(vw).toBeGreaterThan(0);
+      expect(vh).toBeGreaterThan(0);
+    });
+  });
 });

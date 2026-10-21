@@ -18,7 +18,7 @@ import type { Tree } from "../engine/generated/Tree";
 import { exportPng } from "../export/png";
 import { phylipMatrix } from "../export/phylip";
 import { exportR } from "../export/rscript";
-import { exportSvg } from "../export/svg";
+import { exportSvg, type ExportSvgOptions } from "../export/svg";
 
 export interface ExportMenuProps {
   /** The tree the user sees: support labels and reference rooting
@@ -41,9 +41,17 @@ export interface ExportMenuProps {
    * "Your tree with support" tab, else the view's consensus tree —
    * exported by "Consensus (Newick)" (v1.2 spec §6.8). */
   consensusTree: Tree | null;
-  /** Replicates of the finished run, for the R script's boot.phylo
-   * block; null when no run has finished. */
-  replicates: number | null;
+  /** The layout inputs of the displayed figure (kind, leaf spacing,
+   * measured panel width, visible nodes, split-key taxa/convention).
+   * The SVG/PNG exports serialize the SAME figure the screen draws
+   * (checkpoint 15); omitted in tests, which then get the standalone
+   * defaults. */
+  figure?: Omit<ExportSvgOptions, "kind" | "clampNegative"> & {
+    kind?: "phylogram" | "cladogram";
+  };
+  /** Replicates and seed of the finished run, for the R script's
+   * bootstrap block; null when no run has finished. */
+  bootstrap: { replicates: number; seed: number } | null;
 }
 
 /** Trigger a browser download of `content` under `filename`. */
@@ -85,7 +93,8 @@ export function ExportMenu({
   matrix,
   treeView,
   consensusTree,
-  replicates,
+  figure,
+  bootstrap,
 }: ExportMenuProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -109,8 +118,15 @@ export function ExportMenu({
       ? engine.compatibleNames((tree ?? consensusTree) as Tree)
       : [];
 
+  // The figure options App measured on the displayed tree — the
+  // export draws the identical layout, only in document form
+  // (checkpoint 15). `kind` defaults to phylogram for standalone use.
   const svg = () =>
-    exportSvg(tree as Tree, { kind: "phylogram", clampNegative });
+    exportSvg(tree as Tree, {
+      ...figure,
+      kind: figure?.kind ?? "phylogram",
+      clampNegative,
+    });
 
   const onSvg = () =>
     download("neophylo-tree.svg", new Blob([svg()], { type: "image/svg+xml" }));
@@ -159,7 +175,7 @@ export function ExportMenu({
             alignment as Alignment,
             correction,
             method,
-            replicates === null ? undefined : { replicates },
+            bootstrap === null ? undefined : bootstrap,
           ),
         ],
         { type: "text/plain" },

@@ -134,6 +134,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // tabs block keeps a min height; the caption + toggle ride below).
   const treeColRef = useRef<HTMLDivElement | null>(null);
 
+  // The displayed tree panel's measured width — the SVG/PNG exports
+  // lay out with it so the figure matches the screen exactly
+  // (checkpoint 15).
+  const [exportPanelW, setExportPanelW] = useState(0);
+
   // Checkpoint 15: the reroot toggle sits at the column's bottom, so
   // clicking it scrolls the column down to reveal it — clipping the
   // drawing's top (and its caption) when the new view paints. Always
@@ -585,8 +590,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
       : boot.view === "support"
         ? boot.support
         : boot.consensus[CONSENSUS_KIND[boot.view]];
-  const exportReplicates =
-    boot.status === "done" ? (boot.settingsUsed?.replicates ?? null) : null;
+  const exportBootstrap =
+    boot.status === "done" ? boot.settingsUsed : null;
+  // Taxon labels in alignment order — the canonical-side convention
+  // behind every drawn data-split key (checkpoint 15).
+  const splitTaxa =
+    session.alignment?.labels ?? session.matrix?.labels ?? undefined;
 
   // Shared leaf spacing for both trees: the row height minus the
   // caption, divided by the leaf count, clamped to 18–48 px.
@@ -754,7 +763,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
             // the reference's outgroup while that view is on — so the
             // export matches the item's name (checkpoint 15).
             consensusTree={consensusViewTree === null ? null : drawnTree}
-            replicates={exportReplicates}
+            // The SAME layout inputs the on-screen figure uses, so the
+            // SVG/PNG serialize this exact drawing (checkpoint 15).
+            figure={{
+              kind: consensusTree === null ? "phylogram" : "cladogram",
+              leafSpacing: sharedSpacing,
+              panelWidth: exportPanelW,
+              visibleNodes:
+                drawnTree === inferred ? visibleNodes : undefined,
+              splitTaxa,
+              splitRooted: !isNj,
+            }}
+            bootstrap={exportBootstrap}
           />
         </aside>
         <section className="col-center">
@@ -804,6 +824,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 wrong={NO_HIGHLIGHT}
                 clampNegative={session.clampNegative}
                 leafSpacing={sharedSpacing}
+                splitTaxa={splitTaxa}
+                splitRooted
                 onHoverLeaf={onHoverLeaf}
                 onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
               />
@@ -834,6 +856,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         drawnTree === inferred ? visibleNodes : undefined
                       }
                       leafSpacing={sharedSpacing}
+                      splitTaxa={splitTaxa}
+                      splitRooted={!isNj}
+                      onPanelSize={setExportPanelW}
                       onHoverLeaf={onHoverLeaf}
                       onPickLeaf={
                         gating !== null ? promptGate.onPickLeaf : undefined

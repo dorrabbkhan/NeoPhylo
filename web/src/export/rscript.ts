@@ -13,9 +13,12 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
 
-/** The bootstrap settings a finished run used (v1.2 spec §6.8). */
+/** The bootstrap settings a finished run used (v1.2 spec §6.8):
+ * replicate count and the run's seed — the exported script passes it
+ * to set.seed() before its resample loop. */
 export interface ExportBootstrap {
   replicates: number;
+  seed: number;
 }
 
 const APE_MODEL: Record<Extract<DistModel, "P" | "Jc69" | "K80">, string> = {
@@ -71,8 +74,9 @@ export function exportR(
       ? ""
       : bootstrapBlock(
           "x <- aln",
-          `function(xx) ${buildTree(`ape::dist.dna(xx, model = "${model}", pairwise.deletion = TRUE)`, method)}`,
-          bootstrap.replicates,
+          `distOf <- function(xx) ape::dist.dna(xx, model = "${model}", pairwise.deletion = TRUE)`,
+          method,
+          bootstrap,
         );
   return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
 fa <- "${fasta}"
@@ -83,31 +87,63 @@ cat(ape::write.tree(tree), "\\n")
 ${boot}`;
 }
 
-/** `ape::nj(<dist>)` or `phangorn::upgma(<dist>)` for `method`. */
-function buildTree(distExpr: string, method: Method): string {
-  return method === "Upgma"
-    ? `phangorn::upgma(${distExpr})`
-    : `ape::nj(${distExpr})`;
-}
-
 /**
- * The boot.phylo block (v1.2 spec §6.8): `xLine` names the data
- * boot.phylo resamples columns of; `fun` is the same distance + tree
- * builder applied to a resample. `trees = TRUE` keeps the replicate
- * trees so phangorn::plotBS can place support on the original tree.
+ * The bootstrap block (v1.2 spec §6.8, checkpoint 15). The loop
+ * mirrors NeoPhylo's replicate rule (spec §3.3): resample columns of
+ * x with replacement, recompute the same distance, and skip the
+ * replicate when any off-diagonal value is non-finite (saturated or
+ * unestimable — ape::boot.phylo cannot express that rule: it aborts
+ * on the first FUN error, which is how p6_150 Kimura crashed). `xLine`
+ * names the data resampled; `distDef` defines distOf(xx), the same
+ * distance the main analysis computes. Support is prop.clades over
+ * the kept trees, printed as node-label percents — plus the boot
+ * tree's Newick so the parity job can read the values back.
  */
 function bootstrapBlock(
   xLine: string,
-  fun: string,
-  replicates: number,
+  distDef: string,
+  method: Method,
+  boot: ExportBootstrap,
 ): string {
+  const build = method === "Upgma" ? "phangorn::upgma" : "ape::nj";
   return `${xLine}
-# Bootstrap with ape::boot.phylo: every replicate resamples columns
-# of x and rebuilds the tree with the same distance and method.
+${distDef}
+# Bootstrap, mirroring NeoPhylo (spec §3.3): every replicate resamples
+# columns of x with replacement, recomputes the same distance and
+# rebuilds the tree with the same method. A replicate whose distance
+# has a non-finite off-diagonal value (saturated/unestimable) is
+# skipped — ape::boot.phylo cannot express that rule.
 # R's random draws differ from NeoPhylo's; support values vary by a few percent.
-# boot.phylo with B = ${replicates} can take a while.
-bt <- ape::boot.phylo(tree, x, ${fun}, B = ${replicates}, trees = TRUE)
-phangorn::plotBS(tree, bt$trees)
+set.seed(${boot.seed})
+B <- ${boot.replicates}
+trees <- vector("list", B)
+kept <- 0L
+skipped <- 0L
+for (i in seq_len(B)) {
+  xx <- x[, sample.int(ncol(x), replace = TRUE)]
+  d_i <- tryCatch(distOf(xx), error = function(e) NULL)
+  if (is.null(d_i)) { skipped <- skipped + 1L; next }
+  m_i <- as.matrix(d_i)
+  if (any(!is.finite(m_i[lower.tri(m_i)]))) { skipped <- skipped + 1L; next }
+  tr <- tryCatch(${build}(d_i), error = function(e) NULL)
+  if (is.null(tr)) { skipped <- skipped + 1L; next }
+  kept <- kept + 1L
+  trees[[kept]] <- tr
+}
+trees <- trees[seq_len(kept)]
+class(trees) <- "multiPhylo"
+cat(sprintf("Skipped (saturated): %d of %d\\n", skipped, B))
+if (skipped / B > 0.1) {
+  warning(sprintf("%d of %d bootstrap replicates skipped (saturated distances)", skipped, B))
+}
+if (kept == 0L) {
+  stop("every bootstrap replicate was skipped (saturated distances); no support values")
+}
+# Support on the original tree: share of kept replicates containing
+# each grouping, shown as node-label percents.
+tree$node.label <- sprintf("%.0f", 100 * ape::prop.clades(tree, trees) / kept)
+plot(tree, show.node.label = TRUE)
+cat(ape::write.tree(tree), "\\n")
 `;
 }
 
@@ -155,32 +191,28 @@ d <- phangorn::dist.ml(phangorn::phyDat(as.character(aln),
   }
   const fasta = escapeR(toFasta(alignment));
   const build = method === "Upgma" ? "phangorn::upgma(d)" : "ape::nj(d)";
-  // boot.phylo resamples columns of x, so for protein x is the
-  // alignment as a plain character matrix of letters (rbinding
+  // The bootstrap loop resamples columns of x, so for protein x is
+  // the alignment as a plain character matrix of letters (rbinding
   // as.character(aln) gives residue letters; lapply-ing as.character
   // element-wise yields raw-byte hex codes phyDat rejects) — each
-  // replicate's FUN then redoes the same distance (dist.aa proportion,
-  // the Kimura transform or phangorn's JTT) and tree build above.
+  // replicate's distOf then redoes the same distance (dist.aa
+  // proportion, the Kimura transform or phangorn's JTT) as the main
+  // analysis above.
   let fun: string;
   switch (correction) {
     case "P":
-      fun = `function(xx) ${buildTree(
-        "ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)",
-        method,
-      )}`;
+      fun =
+        "function(xx) ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)";
       break;
     case "Kimura":
       fun = `function(xx) {
   p <- as.matrix(ape::dist.aa(xx, pairwise.deletion = TRUE,
                               scaled = TRUE))
-  ${buildTree("as.dist(-log(1 - p - 0.2 * p^2))", method)}
+  as.dist(-log(1 - p - 0.2 * p^2))
 }`;
       break;
     case "Jtt":
-      fun = `function(xx) ${buildTree(
-        'phangorn::dist.ml(phangorn::phyDat(xx, type = "AA"), model = "JTT")',
-        method,
-      )}`;
+      fun = `function(xx) phangorn::dist.ml(phangorn::phyDat(xx, type = "AA"), model = "JTT")`;
       break;
     default:
       throw new Error(
@@ -193,8 +225,9 @@ d <- phangorn::dist.ml(phangorn::phyDat(as.character(aln),
       : `if (!inherits(tree, "error")) {
 ${bootstrapBlock(
   "x <- do.call(rbind, as.character(aln))",
-  fun,
-  bootstrap.replicates,
+  `distOf <- ${fun}`,
+  method,
+  bootstrap,
 )}}\n`;
   return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
 fa <- "${fasta}"

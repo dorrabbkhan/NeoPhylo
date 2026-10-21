@@ -133,9 +133,11 @@ describe("supportLabels (checkpoint 11)", () => {
     }
   });
 
-  it("a second label nudges clear instead of stacking", () => {
-    // Same-row labels on the ladder collide without nudging; the later
-    // one must move vertically.
+  it("a second label takes another in-reach spot instead of stacking", () => {
+    // Same-row labels on the ladder collide on the preferred spot; the
+    // later one must move to a disjoint box still adjacent to its own
+    // node (checkpoint 15: candidates keep labels within ~30 px rather
+    // than climbing a staircase).
     const t = weakLadder();
     const l = layout(t, OPTS);
     const labels = supportLabels(t, l, {
@@ -145,18 +147,19 @@ describe("supportLabels (checkpoint 11)", () => {
       labelOffset: LABEL_OFFSET,
     });
     const [first, second] = labels;
-    // Without collision handling both would occupy the preferred row;
-    // the resolved boxes must differ in y enough to be disjoint.
-    const firstH = first.box.maxY - first.box.minY;
-    const secondH = second.box.maxY - second.box.minY;
-    expect(firstH).toBeGreaterThan(0);
-    expect(secondH).toBeGreaterThan(0);
-    expect(
-      Math.min(
-        Math.abs(first.box.minY - second.box.maxY),
-        Math.abs(second.box.minY - first.box.maxY),
-      ),
-    ).toBeLessThanOrEqual(2);
+    expect(first.box.maxY - first.box.minY).toBeGreaterThan(0);
+    expect(second.box.maxY - second.box.minY).toBeGreaterThan(0);
+    // Disjoint boxes…
+    expect(hit(first.box, second.box)).toBe(false);
+    // …and each still within 30 px of its node (anchor distance).
+    for (const p of labels) {
+      const n = l.nodes.find((x) => x.id === p.id)!;
+      const d = Math.hypot(
+        (p.box.minX + p.box.maxX) / 2 - n.x,
+        (p.box.minY + p.box.maxY) / 2 - n.y,
+      );
+      expect(d, `pill on node ${p.id}`).toBeLessThanOrEqual(30);
+    }
   });
 
   it("no support values → no labels and no name hiding", () => {

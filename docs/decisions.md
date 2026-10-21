@@ -2386,3 +2386,67 @@ wedging the start queue.
   leaf names inside the svg rect, the svg + caption inside the column,
   and `scrollTop === 0` after toggling — plus the downloaded Newick's
   top-level structure (wheat is a root child rooted, not computed).
+
+## v1.2 checkpoint 15 fixes (release blocker): figure exports and the R bootstrap
+
+- **One figure path for screen and export.** The SVG/PNG export ran its
+  own fixed-geometry layout (22 px spacing, 480 px draw width, a label
+  room reserved even where no label reached it), while the screen
+  derived the same quantities from the measured panel. The exported
+  tree was therefore a *different drawing*: pill collision resolution
+  placed support labels up to ~300 px from their nodes (read by the
+  owner as "labels on the wrong groupings"), short support branches
+  were all stretched to a 12 px floor (the "staircase"), and the
+  reserved label room showed as a large empty right area. Layout,
+  label placement and content bounds now live in
+  `web/src/layout/treeFigure.ts`; `TreeView` and `exportSvg` both
+  consume it. App feeds the export the same inputs the screen used
+  (shared leaf spacing, the measured `.tree-canvas` width via
+  `TreeView`'s `onPanelSize`, the view's `kind`, `visibleNodes`), so
+  the only export/screen differences are serialization and padding.
+- **`data-split` keys are computed in TS.** Every `g[data-node]` and
+  `.support-label` carries the canonical grouping key
+  (`web/src/layout/splitKeys.ts`): sorted labels of the canonical
+  side — the side not containing taxa[0] for unrooted (NJ) tallies,
+  the node's own leaf set for rooted-cluster (UPGMA) tallies — `|`-joined,
+  matching the form `BootstrapTally.counts` rows serialize to. The
+  canonicalization mirrors `bootstrap/split.rs` display-side; the
+  engine itself is unchanged. A rerooted NJ drawing keeps unrooted
+  keys (`splitRooted={!isNj}`) because rerooting changes only the
+  drawing; the reference tree draws its own clusters.
+- **The exported R bootstrap skips saturated replicates.** `boot.phylo`
+  aborts on the first FUN error, so a single saturated replicate
+  (p6_150 under Kimura) killed the exported run. The block is now an
+  explicit loop mirroring spec §3.3: `set.seed(<seed>)`, resample
+  columns with replacement, recompute the same distance (`distOf`),
+  skip the replicate when any off-diagonal value is non-finite (or the
+  distance/build call errors), then `ape::prop.clades(tree, kept)` over
+  the kept trees as node-label percents. It prints
+  `Skipped (saturated): S of B`, warns when `S/B > 10%` and stops with
+  a clear message when nothing succeeds. `ExportBootstrap` gained
+  `seed`; the support tree's Newick is printed last so the parity job
+  can read the values back.
+- **Checks that must fail on the pre-fix code.** Unit: `data-split` on
+  nodes/labels and content-fit bounds in `export/svg.test.ts`; the
+  loop/seed/prop.clades assertions in `export/rscript.test.ts` and
+  `ExportMenu.test.tsx`. e2e (`e2e/export-figure.spec.ts`): per-view
+  label grouping/value vs screen and tally, ≤30 px label distance,
+  ≤1% branch-length match, PNG = fitted SVG × 2, and a Newick
+  per-grouping support guard in both views. R parity
+  (`scripts/r-parity.mjs`): p6_150 Kimura must complete with
+  `Skipped > 0` and supports within 10 pp for groupings ≥ 50.
+
+### Support-label proximity (part of the same checkpoint)
+
+- **Pills may sit over the incoming branch.** The old rule "labels
+  never hang left of nodes" existed only because the fixed viewBox
+  could not extend past x=0 (a left pill clipped on the owner
+  screenshot). With content-fit bounds that cannot happen, so
+  `supportLabels` now tries, in order: right-above, right-below, then
+  the mirrored spots over the node end of the incoming branch — where
+  FigTree/iTOL put support values — and finally a 1 px scan of every
+  pill-centre position whose anchor stays within 30 px of the node.
+  Only if the whole 30 px disc is blocked does the legacy vertical
+  climb run. This is what keeps every cytochrome-c label within ~25 px
+  of its node in both views (previously 110 px in the rooted view's
+  dense cluster — the "staircase" that read as wrong groupings).
