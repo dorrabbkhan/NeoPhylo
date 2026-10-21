@@ -5,7 +5,9 @@ use neophylo_core::algos::Method;
 use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::DistModel;
 use neophylo_core::error::NeoError;
-use neophylo_core::exercise::{load_exercise, ExerciseData, PromptType, Reference, ReferenceKind};
+use neophylo_core::exercise::{
+    load_exercise, ExerciseBootstrap, ExerciseData, PromptType, Reference, ReferenceKind,
+};
 use neophylo_core::seq::parse_fasta;
 use neophylo_core::sim::SimModel;
 
@@ -401,5 +403,118 @@ fn v1_rejects_protein_sim() {
             assert_eq!(alphabet, Alphabet::Dna);
         }
         other => panic!("expected ModelAlphabetMismatch, got {other:?}"),
+    }
+}
+
+// --- v1.2 spec §7.1: predict_branch and the bootstrap block -----------
+
+/// A v2 exercise with a `predict_branch` prompt and a bootstrap block.
+/// NJ on 5 taxa has 2 pair joins plus the final three-way join —
+/// 4 stepper positions — so `at: "bootstrap"` resolves to at_step 4.
+const PREDICT_BRANCH_EXERCISE: &str = r#"{
+  "schema_version": 2,
+  "id": "boot",
+  "title": "Bootstrap",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+    "sim": { "model": "JC69", "length": 300, "seed": 42 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "bootstrap": { "replicates": 100, "seed": 7 },
+  "prompts": [
+    { "type": "predict_branch", "at": "bootstrap",
+      "concept": "Click the internal branch you expect to be weakest." }
+  ]
+}"#;
+
+#[test]
+fn predict_branch_loads_and_anchors_to_the_final_position() {
+    let ex = load_exercise(PREDICT_BRANCH_EXERCISE).unwrap();
+    assert_eq!(ex.prompts.len(), 1);
+    assert_eq!(ex.prompts[0].r#type, PromptType::PredictBranch);
+    // NJ on 5 taxa: 4 positions (0..=3); the bootstrap panel shows at
+    // the last one, so the resolved step is positions.
+    assert_eq!(ex.prompts[0].at_step, 4);
+    assert_eq!(
+        ex.bootstrap,
+        Some(ExerciseBootstrap {
+            replicates: 100,
+            seed: 7
+        })
+    );
+}
+
+#[test]
+fn predict_branch_anchors_final_position_for_upgma_too() {
+    // UPGMA on 5 taxa has 5 positions (0..=4) — resolved step is 5.
+    let json = PREDICT_BRANCH_EXERCISE.replace(r#""method": "NJ""#, r#""method": "UPGMA""#);
+    let ex = load_exercise(&json).unwrap();
+    assert_eq!(ex.prompts[0].r#type, PromptType::PredictBranch);
+    assert_eq!(ex.prompts[0].at_step, 5);
+}
+
+#[test]
+fn predict_branch_requires_the_bootstrap_anchor() {
+    // A wrong anchor value is rejected.
+    let bad = PREDICT_BRANCH_EXERCISE.replace(r#""at": "bootstrap""#, r#""at": "final""#);
+    match load_exercise(&bad).unwrap_err() {
+        NeoError::InvalidExercise { field, .. } => assert_eq!(field, "prompts.0.at"),
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+    // A missing anchor is rejected.
+    let missing = PREDICT_BRANCH_EXERCISE.replace(r#", "at": "bootstrap""#, "");
+    match load_exercise(&missing).unwrap_err() {
+        NeoError::InvalidExercise { field, .. } => assert_eq!(field, "prompts.0.at"),
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+}
+
+#[test]
+fn step_prompts_still_require_at_step() {
+    // `at` does not substitute for `at_step` on step-anchored types.
+    for kind in ["predict_pair", "note"] {
+        let json = PREDICT_BRANCH_EXERCISE.replace(
+            r#""type": "predict_branch", "at": "bootstrap""#,
+            &format!(r#""type": "{kind}", "at": "bootstrap""#),
+        );
+        match load_exercise(&json).unwrap_err() {
+            NeoError::InvalidExercise { field, .. } => {
+                assert_eq!(field, "prompts.0.at_step", "type {kind}")
+            }
+            other => panic!("expected InvalidExercise, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn bootstrap_replicates_bounded() {
+    // spec §3.8/§7.1: exercise replicates are 10..=1,000 and report
+    // field "bootstrap.replicates".
+    for bad in ["5", "9", "1001", "2000", "-4", "1.5"] {
+        let json = PREDICT_BRANCH_EXERCISE
+            .replace(r#""replicates": 100"#, &format!(r#""replicates": {bad}"#));
+        let err = load_exercise(&json).unwrap_err();
+        match err {
+            NeoError::InvalidExercise { field, .. } => {
+                assert_eq!(field, "bootstrap.replicates", "replicates {bad}")
+            }
+            other => panic!("expected InvalidExercise, got {other:?}"),
+        }
+    }
+    for ok in ["10", "1000"] {
+        let json = PREDICT_BRANCH_EXERCISE
+            .replace(r#""replicates": 100"#, &format!(r#""replicates": {ok}"#));
+        assert!(load_exercise(&json).is_ok(), "replicates {ok}");
+    }
+}
+
+#[test]
+fn bootstrap_seed_must_be_nonnegative() {
+    let json = PREDICT_BRANCH_EXERCISE.replace(r#""seed": 7"#, r#""seed": -1"#);
+    match load_exercise(&json).unwrap_err() {
+        NeoError::InvalidExercise { field, .. } => assert_eq!(field, "bootstrap.seed"),
+        other => panic!("expected InvalidExercise, got {other:?}"),
     }
 }

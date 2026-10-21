@@ -51,6 +51,7 @@ function makeExercise(newick: string, method: Method): Exercise {
     analysis: { correction: "Jc69", method },
     locked: [],
     prompts: [],
+    bootstrap: null,
   };
 }
 
@@ -121,13 +122,19 @@ function done(): Session {
 }
 
 /** Stateful wrapper: panel actions run through the real reducer. */
-function Harness({ initial }: { initial: Session }) {
+function Harness({
+  initial,
+  runGated = false,
+}: {
+  initial: Session;
+  runGated?: boolean;
+}) {
   const [s, setS] = useState(initial);
   const dispatch: Dispatch<Action> = (a) =>
     setS((cur) => reducer(cur, a));
   return (
     <div className="controls">
-      <BootstrapPanel session={s} dispatch={dispatch} />
+      <BootstrapPanel session={s} dispatch={dispatch} runGated={runGated} />
     </div>
   );
 }
@@ -320,5 +327,23 @@ describe("BootstrapPanel", () => {
     const { container } = render(<Harness initial={s} />);
     // KaTeX renders into elements with class .katex.
     expect(container.querySelectorAll(".katex").length).toBeGreaterThan(0);
+  });
+});
+
+describe("predict_branch gating (v1.2 Task 14)", () => {
+  it("Run is disabled while an unanswered predict_branch prompt gates it", () => {
+    render(<Harness initial={loaded()} runGated />);
+    expect(
+      (screen.getByRole("button", { name: /Run bootstrap/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it("Run is enabled once the gate clears", () => {
+    render(<Harness initial={loaded()} runGated={false} />);
+    expect(
+      (screen.getByRole("button", { name: /Run bootstrap/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 });

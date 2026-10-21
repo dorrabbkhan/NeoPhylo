@@ -39,6 +39,7 @@ const NJ_BASICS: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: ["sim.model", "analysis.method"],
   prompts: [],
+    bootstrap: null,
 };
 
 /** A session already in sandbox mode (load with source "sandbox" flips

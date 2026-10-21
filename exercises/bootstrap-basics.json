@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "id": "bootstrap-basics",
+  "title": "Bootstrap: how sure is the tree?",
+  "summary": "Predict which grouping the data supports least, then resample and see.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
+    "sim": { "model": "JC69", "length": 300, "seed": 7 }
+  },
+  "reference": {
+    "newick": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
+    "kind": "true"
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "locked": ["sim.model", "sim.seed", "analysis.correction", "analysis.method"],
+  "bootstrap": { "replicates": 100, "seed": 39 },
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "These eight sequences share a true tree, but the alignment is deliberately short. Build the NJ tree, then step to the end to ask: how sure are we that each grouping is real?",
+      "math": "A short internal branch leaves few sites where its grouping differs from the rest — exactly the sites a resample can miss."
+    },
+    {
+      "type": "predict_branch",
+      "at": "bootstrap",
+      "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
+      "math": "Each replicate resamples the 300 columns with replacement and rebuilds the tree; a grouping's support is the share of successful replicate trees that contain it.",
+      "reveal": "The weakest grouping is the one on the true tree's shortest internal branch. At 300 columns, only a handful of sites carry evidence for it, so many resampled datasets rebuild a different grouping there."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. With 1,000 replicates instead of 100, they settle down. So don't read much into small differences like 52 versus 57.",
+      "math": null
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "Now try more data. Raise Length to 3,000 — ten times as many columns — and run again. Watch what happens to that grouping's support.",
+      "math": "Signal scales with sites: the same tree under 10× the columns puts ~10× the expected substitutions on every branch, short ones included."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "Read the numbers carefully. When a grouping shows 87, it means 87 of 100 resampled datasets rebuilt it, not that it has an 87% chance of being true. Support measures how consistently the data points to a grouping. Low support means this dataset says little about that grouping, not that the grouping is wrong: here the weak grouping was real, and a longer alignment raised its support. Small differences between seeds or runs are noise; don't overinterpret them.",
+      "math": null
+    }
+  ]
+}

@@ -741,6 +741,7 @@ describe("lesson load resets state (checkpoint 13)", () => {
       analysis: { correction: "Jtt", method: "Nj" },
       locked: [],
       prompts: [],
+    bootstrap: null,
     };
     const s = reducer(emptySession(mismatched), {
       type: "load",

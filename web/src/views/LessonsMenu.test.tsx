@@ -52,7 +52,7 @@ describe("LessonsMenu", () => {
     const onPick = vi.fn();
     render(<LessonsMenu currentId="nj-basics" onPick={onPick} />);
     fireEvent.click(menuButton());
-    fireEvent.click(items()[3]);
+    fireEvent.click(items()[4]);
     expect(onPick).toHaveBeenCalledWith("protein-models");
     expect(screen.queryByRole("menu")).toBeNull();
     // Focus returns to the menu button after a pick.

@@ -28,6 +28,14 @@ import { gatingPrompt, leafClusterIndex, promptsAt } from "./prompts";
  * must be stable across renders, see the module docstring). */
 const NO_PROMPTS: Prompt[] = [];
 
+/** The scored prediction as first computed — locked thereafter
+ * (owner note): reruns never re-score. */
+export interface BranchVerdict {
+  correct: boolean;
+  weakest: string[];
+  supportPct: number;
+}
+
 export interface PromptGate {
   /** Prompts to display at the current position (empty in sandbox mode). */
   shown: Prompt[];
@@ -39,6 +47,30 @@ export interface PromptGate {
   answerPair: [string, string] | null;
   /** The student's pick for the prompt at join step `at`, if answered. */
   picked: (at: number) => [string, string] | null;
+  /** v1.2 §7.1: the shown unanswered predict_branch prompt, or null.
+   * Branch prompts never gate the stepper — they gate the bootstrap
+   * panel's Run button. */
+  branchGating: Prompt | null;
+  /** The clicked internal branch's split key for the prompt at step
+   * `at`, if answered. */
+  pickedBranch: (at: number) => string | null;
+  /** True when the student clicked a terminal edge while a
+   * predict_branch prompt is open — the card explains leaf branches
+   * can't be the answer (v1.2 spec §7.1). */
+  terminalPick: boolean;
+  /** Record an internal-branch click (split key) as the answer to the
+   * shown predict_branch prompt. */
+  onPickBranch: (splitKey: string) => void;
+  /** Record a terminal-edge click against the shown predict_branch
+   * prompt — not an answer, just the "joins two or more taxa" hint. */
+  onPickTerminal: () => void;
+  /** The locked verdict for the prompt at step `at` — null until the
+   * first completed run after answering scored it. */
+  branchVerdictFor: (at: number) => BranchVerdict | null;
+  /** Score the prompt's pick once (owner note: "evaluate the
+   * prediction once, on the first completed run after answering").
+   * A second call for the same prompt keeps the first verdict. */
+  recordBranchVerdict: (at: number, v: BranchVerdict) => void;
   /** First leaf of an in-progress two-leaf pick (for highlighting). */
   leafPick: string | null;
   /** Answer a predict prompt with matrix cell (i, j); ignores diagonal. */
@@ -72,7 +104,18 @@ export function usePromptGate({
   const [answered, setAnswered] = useState<
     ReadonlyMap<number, [string, string]>
   >(new Map());
+  // v1.2 §7.1: predict_branch answers — prompt at_step → clicked
+  // branch's canonical split key.
+  const [branchAnswered, setBranchAnswered] = useState<
+    ReadonlyMap<number, string>
+  >(new Map());
+  const [terminalPick, setTerminalPick] = useState(false);
   const [leafPick, setLeafPick] = useState<string | null>(null);
+  // predict_branch verdicts — the first completed run's scoring,
+  // frozen per prompt (owner note: later reruns never change it).
+  const [branchVerdicts, setBranchVerdicts] = useState<
+    ReadonlyMap<number, BranchVerdict>
+  >(new Map());
 
   // A new exercise (new prompts array) forgets all answers; a position
   // change abandons a half-finished leaf pick.
@@ -81,10 +124,14 @@ export function usePromptGate({
   if (promptList !== lastPrompts) {
     setLastPrompts(promptList);
     setAnswered(new Map());
+    setBranchAnswered(new Map());
+    setTerminalPick(false);
     setLeafPick(null);
+    setBranchVerdicts(new Map());
   }
   if (position !== lastPosition) {
     setLastPosition(position);
+    setTerminalPick(false);
     setLeafPick(null);
   }
 
@@ -100,6 +147,29 @@ export function usePromptGate({
     sm !== null && sm.chosen !== null
       ? [sm.labels[sm.chosen[0]], sm.labels[sm.chosen[1]]]
       : null;
+  // The predict_branch prompt shown now and still unanswered gates the
+  // bootstrap Run button, not the stepper.
+  const branchGating =
+    shown.find(
+      (p) => p.type === "predict_branch" && !branchAnswered.has(p.at_step),
+    ) ?? null;
+  const onPickBranch = (splitKey: string) => {
+    if (branchGating === null) return;
+    setBranchAnswered((m) => new Map(m).set(branchGating.at_step, splitKey));
+    setTerminalPick(false);
+  };
+  // A leaf edge is never the answer: flag the miss so the card can
+  // explain, but leave the prompt unanswered (Run stays gated).
+  const onPickTerminal = () => {
+    if (branchGating === null) return;
+    setTerminalPick(true);
+  };
+  // Guarded one-time write: the updater returns the SAME map when the
+  // prompt is already scored, so calling it during render (the
+  // adjust-during-render pattern this hook already uses) converges.
+  const recordBranchVerdict = (at: number, v: BranchVerdict) => {
+    setBranchVerdicts((m) => (m.has(at) ? m : new Map(m).set(at, v)));
+  };
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
     setLeafPick(null);
@@ -135,6 +205,13 @@ export function usePromptGate({
     gated: gating !== null,
     answerPair,
     picked: (at) => answered.get(at) ?? null,
+    branchGating,
+    pickedBranch: (at) => branchAnswered.get(at) ?? null,
+    terminalPick,
+    onPickBranch,
+    onPickTerminal,
+    branchVerdictFor: (at) => branchVerdicts.get(at) ?? null,
+    recordBranchVerdict,
     leafPick,
     onPickCell,
     onPickLeaf,

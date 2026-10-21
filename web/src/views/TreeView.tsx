@@ -59,6 +59,16 @@ export interface TreeViewProps {
   /** Called with the leaf's label on click — predict_pair prompts use
    * two leaf picks as an answer (Task 21); unset otherwise. */
   onPickLeaf?: (label: string) => void;
+  /** Called with the edge's canonical split key when an internal
+   * branch is clicked — predict_branch prompts (v1.2 spec §7.1). A
+   * wide invisible hit line is drawn over each internal edge while
+   * this is set. */
+  onPickBranch?: (splitKey: string) => void;
+  /** Called (no argument) when a terminal edge is clicked —
+   * predict_branch prompts use it to explain that a leaf's branch
+   * can't be the answer (v1.2 spec §7.1). Draws a hit line over each
+   * terminal edge while set. */
+  onPickTerminal?: () => void;
   /** Panel caption and the svg's accessible name. "True tree" /
    * "Inferred tree", or the classification variant (v1.1 spec §5.3). */
   title: string;
@@ -67,6 +77,71 @@ export interface TreeViewProps {
 interface Size {
   width: number;
   height: number;
+}
+
+/** The focusable internal-branch hit lines in the same drawing —
+ * arrow keys rove among them while a predict_branch prompt is open
+ * (v1.2 spec §7.1). */
+function branchHits(el: SVGLineElement): SVGLineElement[] {
+  return Array.from(
+    el.ownerSVGElement?.querySelectorAll<SVGLineElement>(
+      '.branch-hit[role="button"]',
+    ) ?? [],
+  );
+}
+
+/** The pickable overlay on an internal edge while a predict_branch
+ * prompt is open: a wide invisible line that is also a real button —
+ * Tab/arrows reach it, a dashed outline shows focus, Enter/Space
+ * picks. Its accessible name is the grouping on the edge's far side
+ * ("Branch to (E, F, G, H)"). */
+function BranchHit({
+  x1,
+  y1,
+  x2,
+  y2,
+  splitKey,
+  onPick,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  /** The edge's canonical split key, e.g. "E|F|G|H". */
+  splitKey: string;
+  onPick: (key: string) => void;
+}) {
+  return (
+    <line
+      className="branch-hit"
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      role="button"
+      tabIndex={0}
+      aria-label={`Branch to (${splitKey.split("|").join(", ")})`}
+      onClick={() => onPick(splitKey)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onPick(splitKey);
+          return;
+        }
+        const dir =
+          e.key === "ArrowRight" || e.key === "ArrowDown"
+            ? 1
+            : e.key === "ArrowLeft" || e.key === "ArrowUp"
+              ? -1
+              : 0;
+        if (dir === 0) return;
+        e.preventDefault();
+        const hits = branchHits(e.currentTarget);
+        const i = hits.indexOf(e.currentTarget);
+        hits[(i + dir + hits.length) % hits.length]?.focus();
+      }}
+    />
+  );
 }
 
 /** Measures the drawing box via ResizeObserver; {0,0} until it fires. */
@@ -99,6 +174,8 @@ export function TreeView({
   onPanelSize,
   onHoverLeaf,
   onPickLeaf,
+  onPickBranch,
+  onPickTerminal,
   title,
 }: TreeViewProps) {
   const [boxRef, box] = usePanelSize();
@@ -201,6 +278,26 @@ export function TreeView({
                     stroke="currentColor"
                     strokeWidth={edgeWidth}
                     strokeDasharray={n.negative ? "4 3" : undefined}
+                  />
+                )}
+                {hasVisibleParent && !n.leaf && onPickBranch !== undefined && (
+                  <BranchHit
+                    x1={tx(n.parentX)}
+                    y1={ty(n.y)}
+                    x2={tx(n.x)}
+                    y2={ty(n.y)}
+                    splitKey={keys.get(n.id) ?? ""}
+                    onPick={onPickBranch}
+                  />
+                )}
+                {hasVisibleParent && n.leaf && onPickTerminal !== undefined && (
+                  <line
+                    className="branch-hit"
+                    x1={tx(n.parentX)}
+                    y1={ty(n.y)}
+                    x2={tx(n.x)}
+                    y2={ty(n.y)}
+                    onClick={() => onPickTerminal()}
                   />
                 )}
                 {children.length > 0 && (

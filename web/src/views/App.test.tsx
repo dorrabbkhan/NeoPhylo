@@ -33,6 +33,7 @@ const NJ_BASICS: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: ["sim.model", "analysis.method"],
   prompts: [],
+    bootstrap: null,
 };
 
 // Very short branches keep p distances small, so the 60-taxon run is a
@@ -58,6 +59,7 @@ const SIXTY: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
+    bootstrap: null,
 };
 
 /** The session App builds for `exercise`, computed independently in the test. */
@@ -223,6 +225,7 @@ const CLASSIFY: Exercise = {
   analysis: { correction: "Jtt", method: "Nj" },
   locked: [],
   prompts: [],
+    bootstrap: null,
 };
 
 describe("v1.1 alphabet badge and reference labels", () => {

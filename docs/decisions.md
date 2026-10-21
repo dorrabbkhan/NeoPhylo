@@ -2510,7 +2510,57 @@ wedging the start queue.
   both views, on top of the no-overlap boxes.
 - Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
   ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
-  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.- fix/label-measured-widths (owner note): support-label placement now
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+  
+## Task 14 (v1.2): predict_branch and the bootstrap-basics lesson
+
+- Outside Files block: the verdict needs machinery the Files list did
+  not name — `web/src/lessons/promptGate.ts` (branch-pick state keyed by
+  at_step), `web/src/views/TreeView.tsx` (`onPickBranch` + invisible
+  `.branch-hit` lines on internal edges only), `web/src/views/App.tsx`
+  (weakest-branch scan on the run's support tree via `splitKeys`),
+  `web/src/index.css` (`.branch-hit` cursor/width), and
+  `web/src/state/session.ts` (typed `Exercise.bootstrap` read).
+- `predict_branch`'s `at: "bootstrap"` resolves to the final stepper
+  position: step n−1 for NJ and n for UPGMA on n taxa — the position
+  where the bootstrap panel shows.
+- Verdict rule: "Correct" when the clicked branch's support equals the
+  minimum across the support tree's internal branches — a tie for
+  weakest counts as correct.
+- Seed search required NJ to recover the exact true topology (rf == 0)
+  at both 300 and 3,000 sites on top of the §7.2 premises, so the
+  verdict names a real weak-but-true grouping. First pair in scan
+  order: sim seed 4, bootstrap seed 96 — (E,F,G,H) at 57% on 300 sites,
+  rising to 90% at 3,000.
+- `ExerciseBootstrap.seed` is `u64` exported as `number`
+  (`#[ts(type = "number")]`), the same convention Task 12 set for
+  `SimSpec.seed`.
+- The lesson's predict_branch math note, the length note and the
+  closing note are spoiler-safe: math lines render in math mode before
+  the run, so none names the designed branch; only the post-verdict
+  reveal does.
+- Task-14 follow-up (owner notes): terminal edges draw hit lines too —
+  a leaf-edge click is not an answer but explains itself via
+  `onPickTerminal` → "Pick a branch that joins two or more taxa." This
+  changes the earlier "terminal branches are unpickable" design; the
+  hint is separate from the answer state so Run stays gated. The lesson
+  gained a seed-variance note (different bootstrap seed → ±few points;
+  1,000 replicates steadies) and the closing note warns against
+  overinterpreting small differences. The final-step figure screenshot
+  ships in docs/media/ (rule 10 names media the exception) for the
+  PR's owner-review figure.
+- Task-14 round 2 (owner notes): seeds re-searched for a clear margin —
+  sim 7 / bootstrap 39 (scan: crates/neophylo-core/tests/seed_scan.rs,
+  #[ignore]d). {E,F,G,H} is the weakest grouping at 67% on 300 sites,
+  next-weakest C|D|E|F|G|H at 98% (margin 31 pts), rising to 87% at
+  3,000 (+20); rf = 0 at both lengths. Verdict now tolerant (within 5
+  points of the lowest counts Correct) and LOCKED — promptGate's
+  branchVerdicts freezes the first completed run's scoring; reruns
+  never re-evaluate. Card text: "Your prediction: Correct" /
+  "Your prediction: Not quite — the weakest group was (…) at N%." The
+  tolerance e2e uses 20 replicates/seed 391 (EFGH 95 vs lowest 90).
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+- fix/label-measured-widths (owner note): support-label placement now
   uses MEASURED text metrics. `web/src/measureText.ts` parks a hidden
   <text> probe on <body> and returns getComputedTextLength()+getBBox()
   extents {w, top, bottom} per (text, fontSize, baseline); layout

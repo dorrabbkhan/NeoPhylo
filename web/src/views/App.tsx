@@ -84,6 +84,7 @@ import { Stepper } from "./Stepper";
 import { stepMatrix, traceLength } from "./stepMatrix";
 import type { StepMatrix } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
+import { splitKeys } from "../layout/splitKeys";
 import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
@@ -597,6 +598,37 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const splitTaxa =
     session.alignment?.labels ?? session.matrix?.labels ?? undefined;
 
+  // predict_branch verdict (v1.2 spec §7.1): the weakest internal
+  // branch of the run's support tree, plus every internal grouping's
+  // support indexed by the canonical split key the drawn edges
+  // advertise (data-split). Null until a run finishes; the prompt
+  // card shows "Prediction saved" meanwhile.
+  const weakestBranch = (() => {
+    const st = session.bootstrap.support;
+    if (
+      session.bootstrap.status !== "done" ||
+      st === null ||
+      splitTaxa === undefined
+    ) {
+      return null;
+    }
+    const keys = splitKeys(st, splitTaxa, !isNj);
+    const byKey = new Map<string, number>();
+    let weakest: { key: string; support: number } | null = null;
+    for (let id = 0; id < st.nodes.length; id += 1) {
+      const node = st.nodes[id];
+      if (node.children.length === 0 || node.parent === null) continue;
+      const s = st.branches[id].support;
+      if (s === null) continue;
+      const key = keys.get(id) ?? "";
+      byKey.set(key, s);
+      if (weakest === null || s < weakest.support) {
+        weakest = { key, support: s };
+      }
+    }
+    return weakest === null ? null : { weakest, byKey };
+  })();
+
   // Shared leaf spacing for both trees: the row height minus the
   // caption, divided by the leaf count, clamped to 18–48 px.
   const sharedSpacing = leafSpacingFor(
@@ -738,7 +770,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
             dispatch={dispatch}
             bootstrapPanel={
               atFinal && inferred !== null ? (
-                <BootstrapPanel session={session} dispatch={dispatch} />
+                <BootstrapPanel
+                  session={session}
+                  dispatch={dispatch}
+                  runGated={promptGate.branchGating !== null}
+                />
               ) : undefined
             }
           />
@@ -793,13 +829,53 @@ export function App({ exercise }: { exercise?: Exercise }) {
           </div>
           {shownPrompts.length > 0 && (
             <div className="prompts">
-              {shownPrompts.map((p) => (
+              {shownPrompts.map((p, i) => (
                 <PromptCard
-                  key={p.at_step}
+                  key={`${p.at_step}:${i}`}
                   prompt={p}
                   mode={session.mode}
                   picked={promptGate.picked(p.at_step)}
                   answer={answerPair}
+                  branch={
+                    p.type === "predict_branch"
+                      ? {
+                          picked: promptGate.pickedBranch(p.at_step),
+                          terminalPicked: promptGate.terminalPick,
+                          verdict: (() => {
+                            const picked = promptGate.pickedBranch(
+                              p.at_step,
+                            );
+                            if (picked === null) return null;
+                            // Owner note: the verdict is evaluated ONCE,
+                            // on the first completed run after the pick,
+                            // and locked thereafter — later reruns never
+                            // change it.
+                            const locked = promptGate.branchVerdictFor(
+                              p.at_step,
+                            );
+                            if (locked !== null) return locked;
+                            if (weakestBranch === null) return null;
+                            const pickedS =
+                              weakestBranch.byKey.get(picked);
+                            const v = {
+                              // Correct within 5 points of the lowest
+                              // support, not only on the weakest itself.
+                              correct:
+                                pickedS !== undefined &&
+                                pickedS - weakestBranch.weakest.support <=
+                                  0.05 + 1e-9,
+                              weakest:
+                                weakestBranch.weakest.key.split("|"),
+                              supportPct: Math.round(
+                                100 * weakestBranch.weakest.support,
+                              ),
+                            };
+                            promptGate.recordBranchVerdict(p.at_step, v);
+                            return v;
+                          })(),
+                        }
+                      : undefined
+                  }
                   onShowPair={setPair}
                 />
               ))}
@@ -862,6 +938,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
                       onHoverLeaf={onHoverLeaf}
                       onPickLeaf={
                         gating !== null ? promptGate.onPickLeaf : undefined
+                      }
+                      onPickBranch={
+                        promptGate.branchGating !== null &&
+                        consensusTree === null
+                          ? promptGate.onPickBranch
+                          : undefined
+                      }
+                      onPickTerminal={
+                        promptGate.branchGating !== null &&
+                        consensusTree === null
+                          ? promptGate.onPickTerminal
+                          : undefined
                       }
                     />
                   );

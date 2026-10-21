@@ -35,8 +35,8 @@ pub use compare::{rf, RfResult, Split};
 pub use dist::{compute, Cell, DistModel, DistanceMatrix};
 pub use error::NeoError;
 pub use exercise::{
-    load_exercise, Analysis, Exercise, ExerciseData, Prompt, PromptType, Reference, ReferenceKind,
-    Source,
+    load_exercise, Analysis, Exercise, ExerciseBootstrap, ExerciseData, Prompt, PromptType,
+    Reference, ReferenceKind, Source,
 };
 pub use matrix::Matrix;
 pub use model::{RateModel, JTT};

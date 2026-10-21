@@ -37,7 +37,16 @@
       "items": { "type": "string" },
       "description": "Dotted control paths fixed for the lesson, e.g. \"sim.model\"."
     },
-    "prompts": { "$ref": "#/$defs/prompts" }
+    "prompts": { "$ref": "#/$defs/prompts" },
+    "bootstrap": {
+      "type": "object",
+      "required": ["replicates", "seed"],
+      "properties": {
+        "replicates": { "type": "integer", "minimum": 10, "maximum": 1000 },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "description": "v1.2 spec 7.1: the lesson's own bootstrap settings — the panel's initial replicates and seed. Absent means the app defaults (100 replicates, seed 1)."
+    }
   },
   "$defs": {
     "sim": {
@@ -114,14 +123,18 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["at_step", "type", "concept"],
+        "required": ["type", "concept"],
         "properties": {
           "at_step": {
             "type": "integer",
             "minimum": 0,
             "description": "1-based number of the join being discussed. The prompt appears at stepper position at_step-1, where that join is still the pending join; one past the last join (at_step = steps+2 for NJ, steps+1 for UPGMA) shows on the completed tree. A predict_pair must never target NJ's final three-way join — there is no pair to predict."
           },
-          "type": { "enum": ["predict_pair", "note"] },
+          "at": {
+            "type": "string",
+            "description": "v1.2 spec 7.1: a predict_branch prompt is anchored to the bootstrap panel with \"at\": \"bootstrap\" instead of at_step; it shows when the 'How sure are we?' panel first shows."
+          },
+          "type": { "enum": ["predict_pair", "note", "predict_branch"] },
           "concept": { "type": "string" },
           "math": { "type": ["string", "null"] },
           "reveal": {
@@ -135,7 +148,21 @@
             "maxItems": 2,
             "description": "Optional pair of taxon labels: the answered prompt card shows a \"Show a vs b\" button opening the pair-detail panel, and the next step's explanation keeps a \"Revisit\" link. Both labels must be alignment taxon names — checked by the engine at load, not by this schema."
           }
-        }
+        },
+        "allOf": [{ "$ref": "#/$defs/promptAnchor" }]
+      }
+    },
+    "promptAnchor": {
+      "if": {
+        "properties": { "type": { "const": "predict_branch" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["at"],
+        "properties": { "at": { "const": "bootstrap" } }
+      },
+      "else": {
+        "required": ["at_step"]
       }
     }
   }

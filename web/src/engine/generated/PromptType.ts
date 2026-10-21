@@ -3,4 +3,4 @@
 /**
  * What a prompt asks for at a join step.
  */
-export type PromptType = "predict_pair" | "note";
+export type PromptType = "predict_pair" | "note" | "predict_branch";

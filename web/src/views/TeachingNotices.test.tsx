@@ -42,6 +42,7 @@ const SATURATING: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
+    bootstrap: null,
 };
 
 const NJ_BASICS: Exercise = {
@@ -61,6 +62,7 @@ const NJ_BASICS: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
+    bootstrap: null,
 };
 
 function loaded(ex: Exercise): Session {
@@ -271,6 +273,7 @@ describe("TeachingNotices — embedded saturation", () => {
     analysis: { correction: "Jc69", method: "Nj" },
     locked: [],
     prompts: [],
+    bootstrap: null,
   };
 
   it("embedded_saturation_fixes: offers only the p-distance fix", () => {

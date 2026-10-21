@@ -200,17 +200,17 @@ export function clearBootstrap(s: Session): Session {
 }
 
 /** The exercise's own bootstrap settings, if it declares them (v1.2
- * spec §7.1: files may include `bootstrap: { replicates, seed }` —
- * Task 14 adds the field to the `Exercise` type, so the block is read
- * defensively here). Invalid or missing fields fall back to the
- * `defaultBootstrap` values; the view is not part of the block. */
+ * spec §7.1: `bootstrap: { replicates, seed }`). The engine validates
+ * loaded lessons, but `#x=` links carry trusted exercises that were
+ * never re-parsed (url.ts), so the values are still clamped here.
+ * Invalid or missing fields fall back to the `defaultBootstrap`
+ * values; the view is not part of the block. */
 function exerciseBootstrap(e: Exercise): {
   replicates?: number;
   seed?: number;
 } {
-  const block = (e as { bootstrap?: unknown }).bootstrap;
-  if (typeof block !== "object" || block === null) return {};
-  const b = block as { replicates?: unknown; seed?: unknown };
+  const b = e.bootstrap;
+  if (b === null || b === undefined) return {};
   const out: { replicates?: number; seed?: number } = {};
   if (typeof b.replicates === "number" && Number.isFinite(b.replicates)) {
     out.replicates = Math.min(

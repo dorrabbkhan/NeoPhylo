@@ -6,7 +6,11 @@ import type { PromptType } from "./PromptType";
  */
 export type Prompt = { 
 /**
- * 1-based join step at which the prompt appears.
+ * 1-based join step at which the prompt appears. For
+ * `predict_branch` (file anchor `at: "bootstrap"`) this is
+ * resolved at load to one past the final join — the stepper
+ * position where the "How sure are we?" panel shows (v1.2 spec
+ * §7.1).
  */
 at_step: number, type: PromptType, concept: string, math: string | null, 
 /**

@@ -2,8 +2,8 @@
 // Testing Library (plan M3 preamble). Trees are hand-built arenas matching the
 // `Tree` type emitted by neophylo-wasm — no wasm needed for view tests.
 
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Tree } from "../engine/generated/Tree";
 import {
@@ -369,5 +369,108 @@ describe("tree panel sizing", () => {
   it("keeps leaf labels between 14 and 16px", () => {
     expect(leafFontSize(18)).toBe(14);
     expect(leafFontSize(48)).toBe(16);
+  });
+});
+
+describe("onPickBranch (v1.2 spec §7.1)", () => {
+  it("internal edges fire onPickBranch with the split key; terminal edges fire onPickTerminal", () => {
+    const onPickBranch = vi.fn();
+    const onPickTerminal = vi.fn();
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+        onPickBranch={onPickBranch}
+        onPickTerminal={onPickTerminal}
+      />,
+    );
+    // Internal node 3 (the (A,B) cherry) has a pickable branch hit line…
+    const hit = container.querySelector('g[data-node="3"] .branch-hit');
+    expect(hit).not.toBeNull();
+    fireEvent.click(hit!);
+    expect(onPickBranch).toHaveBeenCalledTimes(1);
+    // The callback carries the same canonical grouping key the node
+    // advertises via data-split.
+    const key = container
+      .querySelector('g[data-node="3"]')
+      ?.getAttribute("data-split");
+    expect(onPickBranch).toHaveBeenCalledWith(key);
+    // Terminal (leaf) edges hit onPickTerminal — not an answer.
+    const leafHit = container.querySelector('g[data-node="0"] .branch-hit');
+    expect(leafHit).not.toBeNull();
+    fireEvent.click(leafHit!);
+    expect(onPickTerminal).toHaveBeenCalledTimes(1);
+    expect(onPickBranch).toHaveBeenCalledTimes(1);
+  });
+
+  it("internal hits are named, focusable buttons; Enter picks and arrows rove", () => {
+    const onPickBranch = vi.fn();
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+        onPickBranch={onPickBranch}
+        onPickTerminal={vi.fn()}
+      />,
+    );
+    const hit = container.querySelector('g[data-node="3"] .branch-hit')!;
+    // A real button: focusable, named for the grouping on the edge.
+    expect(hit.getAttribute("role")).toBe("button");
+    expect(hit.getAttribute("tabindex")).toBe("0");
+    expect(hit.getAttribute("aria-label")).toMatch(/^Branch to \(/);
+    // Enter/Space selects the branch.
+    fireEvent.keyDown(hit, { key: "Enter" });
+    expect(onPickBranch).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(hit, { key: " " });
+    expect(onPickBranch).toHaveBeenCalledTimes(2);
+    // Arrows rove among the internal hits only.
+    const buttons = container.querySelectorAll('.branch-hit[role="button"]');
+    expect(buttons.length).toBeGreaterThan(0);
+    (hit as SVGLineElement).focus();
+    fireEvent.keyDown(hit, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(
+      buttons[(Array.from(buttons).indexOf(hit) + 1) % buttons.length],
+    );
+    // Terminal hits are pointer-only — no role, no tab stop.
+    const leafHit = container.querySelector('g[data-node="0"] .branch-hit')!;
+    expect(leafHit.getAttribute("role")).toBeNull();
+    expect(leafHit.getAttribute("tabindex")).toBeNull();
+  });
+
+  it("terminal edges carry no hit line without an onPickTerminal handler", () => {
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+        onPickBranch={vi.fn()}
+      />,
+    );
+    expect(container.querySelector('g[data-node="0"] .branch-hit')).toBeNull();
+  });
+
+  it("no hit lines are drawn without an onPickBranch handler", () => {
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    expect(container.querySelectorAll(".branch-hit")).toHaveLength(0);
   });
 });
