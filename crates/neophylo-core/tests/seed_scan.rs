@@ -8,8 +8,8 @@
 // Not part of the shipped suite — deleted after the scan reports.
 
 use neophylo_core::{
-    bootstrap_batch, build_tree, compute, parse_newick, rf, support_on_tree,
-    tree_splits, BuildOptions, DistModel, Method, SimModel, SimSpec,
+    bootstrap_batch, build_tree, compute, parse_newick, rf, support_on_tree, tree_splits,
+    BuildOptions, DistModel, Method, SimModel, SimSpec,
 };
 
 const TRUE: &str =
@@ -17,11 +17,7 @@ const TRUE: &str =
 
 /** Support per internal grouping, keyed by the canonical-side labels
  * joined "|" — the same key the drawn `data-split` carries. */
-fn supports(
-    tree: &neophylo_core::Tree,
-    labels: &[String],
-) -> Vec<(String, f64)> {
-    let n = labels.len();
+fn supports(tree: &neophylo_core::Tree, labels: &[String]) -> Vec<(String, f64)> {
     let a_ix = labels.iter().position(|l| l == "A").unwrap();
     let mut out = Vec::new();
     for (id, split) in tree_splits(tree, labels, false) {
@@ -30,18 +26,17 @@ fn supports(
             continue;
         }
         // Canonical side = the side that does not contain taxon 0 ("A").
-        let mut side: Vec<&str> = Vec::new();
-        if split.contains(a_ix) {
-            for i in 0..n {
-                if !split.contains(i) {
-                    side.push(&labels[i]);
-                }
+        let in_side = |i: usize| {
+            if split.contains(a_ix) {
+                !split.contains(i)
+            } else {
+                split.contains(i)
             }
-        } else {
-            for i in 0..n {
-                if split.contains(i) {
-                    side.push(&labels[i]);
-                }
+        };
+        let mut side: Vec<&str> = Vec::new();
+        for (i, label) in labels.iter().enumerate() {
+            if in_side(i) {
+                side.push(label);
             }
         }
         side.sort_unstable();
@@ -69,12 +64,14 @@ fn seed_scan() {
             length: 300,
             seed: sim_seed,
         };
-        let aln300 =
-            neophylo_core::simulate(&truth, &spec300).expect("sim 300");
-        let nj300 =
-            build_tree(&compute(&aln300, DistModel::Jc69).unwrap(), Method::Nj, opts)
-                .unwrap()
-                .tree;
+        let aln300 = neophylo_core::simulate(&truth, &spec300).expect("sim 300");
+        let nj300 = build_tree(
+            &compute(&aln300, DistModel::Jc69).unwrap(),
+            Method::Nj,
+            opts,
+        )
+        .unwrap()
+        .tree;
         if rf(&truth, &nj300).map(|r| r.rf).unwrap_or(u32::MAX) != 0 {
             continue;
         }
@@ -83,12 +80,14 @@ fn seed_scan() {
             length: 3000,
             seed: sim_seed,
         };
-        let aln3000 =
-            neophylo_core::simulate(&truth, &spec3000).expect("sim 3000");
-        let nj3000 =
-            build_tree(&compute(&aln3000, DistModel::Jc69).unwrap(), Method::Nj, opts)
-                .unwrap()
-                .tree;
+        let aln3000 = neophylo_core::simulate(&truth, &spec3000).expect("sim 3000");
+        let nj3000 = build_tree(
+            &compute(&aln3000, DistModel::Jc69).unwrap(),
+            Method::Nj,
+            opts,
+        )
+        .unwrap()
+        .tree;
         if rf(&truth, &nj3000).map(|r| r.rf).unwrap_or(u32::MAX) != 0 {
             continue;
         }
@@ -96,8 +95,7 @@ fn seed_scan() {
 
         for boot_seed in 0u64..200 {
             let tally =
-                bootstrap_batch(&aln300, DistModel::Jc69, Method::Nj, boot_seed, 0, 100)
-                    .unwrap();
+                bootstrap_batch(&aln300, DistModel::Jc69, Method::Nj, boot_seed, 0, 100).unwrap();
             let st = support_on_tree(&nj300, &tally);
             let sup = supports(&st, &labels);
             let efg = sup.iter().find(|(k, _)| k == target).map(|(_, s)| *s);
@@ -109,19 +107,12 @@ fn seed_scan() {
             let margin = min_other - efg300;
 
             if margin >= 0.10 - 1e-9 && efg300 < 0.70 {
-                let tally3 = bootstrap_batch(
-                    &aln3000,
-                    DistModel::Jc69,
-                    Method::Nj,
-                    boot_seed,
-                    0,
-                    100,
-                )
-                .unwrap();
+                let tally3 =
+                    bootstrap_batch(&aln3000, DistModel::Jc69, Method::Nj, boot_seed, 0, 100)
+                        .unwrap();
                 let st3 = support_on_tree(&nj3000, &tally3);
                 let sup3 = supports(&st3, &labels);
-                let efg3000 =
-                    sup3.iter().find(|(k, _)| k == target).map(|(_, s)| *s);
+                let efg3000 = sup3.iter().find(|(k, _)| k == target).map(|(_, s)| *s);
                 if let Some(e3) = efg3000 {
                     if e3 - efg300 >= 0.20 - 1e-9 {
                         println!(
@@ -134,11 +125,26 @@ fn seed_scan() {
                         break 'sim;
                     }
                 }
-                near.push((margin, sim_seed, boot_seed, efg300, min_other, f64::NAN, f64::NAN));
-            } else if efg300 < others.iter().map(|(_, s)| *s).fold(f64::INFINITY, f64::min)
-            {
+                near.push((
+                    margin,
+                    sim_seed,
+                    boot_seed,
+                    efg300,
+                    min_other,
+                    f64::NAN,
+                    f64::NAN,
+                ));
+            } else if efg300 < others.iter().map(|(_, s)| *s).fold(f64::INFINITY, f64::min) {
                 // EFGH uniquely weakest but margin < 10 — a candidate.
-                near.push((margin, sim_seed, boot_seed, efg300, min_other, f64::NAN, f64::NAN));
+                near.push((
+                    margin,
+                    sim_seed,
+                    boot_seed,
+                    efg300,
+                    min_other,
+                    f64::NAN,
+                    f64::NAN,
+                ));
             }
         }
     }
@@ -176,8 +182,7 @@ fn close_pair_scan() {
     for reps in [10u32, 20, 25, 50, 100] {
         for boot_seed in 0u64..500 {
             let tally =
-                bootstrap_batch(&aln, DistModel::Jc69, Method::Nj, boot_seed, 0, reps)
-                    .unwrap();
+                bootstrap_batch(&aln, DistModel::Jc69, Method::Nj, boot_seed, 0, reps).unwrap();
             let st = support_on_tree(&nj, &tally);
             let mut sup = supports(&st, &labels);
             sup.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
@@ -214,16 +219,18 @@ fn e2e_seed_values() {
     let opts = BuildOptions { trace: false };
     let aln = neophylo_core::simulate(
         &truth,
-        &SimSpec { model: SimModel::Jc69, length: 300, seed: 7 },
+        &SimSpec {
+            model: SimModel::Jc69,
+            length: 300,
+            seed: 7,
+        },
     )
     .unwrap();
-    let nj =
-        build_tree(&compute(&aln, DistModel::Jc69).unwrap(), Method::Nj, opts)
-            .unwrap()
-            .tree;
+    let nj = build_tree(&compute(&aln, DistModel::Jc69).unwrap(), Method::Nj, opts)
+        .unwrap()
+        .tree;
     for b in [1u64, 40, 97] {
-        let t =
-            bootstrap_batch(&aln, DistModel::Jc69, Method::Nj, b, 0, 100).unwrap();
+        let t = bootstrap_batch(&aln, DistModel::Jc69, Method::Nj, b, 0, 100).unwrap();
         let st = support_on_tree(&nj, &t);
         let mut sup = supports(&st, &labels);
         sup.sort_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
