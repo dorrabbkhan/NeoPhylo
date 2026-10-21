@@ -164,8 +164,14 @@ export function exportSvg(tree: Tree, opts: ExportSvgOptions): string {
     if (placedLabel !== undefined) {
       const w = placedLabel.box.maxX - placedLabel.box.minX;
       const h = placedLabel.box.maxY - placedLabel.box.minY;
+      const leader = placedLabel.leader;
+      parts.push(`<g class="support">`);
+      if (leader !== undefined) {
+        parts.push(
+          `<line class="support-leader" x1="${tx(leader.x1).toFixed(2)}" y1="${ty(leader.y1).toFixed(2)}" x2="${tx(leader.x2).toFixed(2)}" y2="${ty(leader.y2).toFixed(2)}" stroke="${INK}" stroke-width="1" stroke-dasharray="3 2"/>`,
+        );
+      }
       parts.push(
-        `<g class="support">`,
         `<rect class="support-pill" x="${tx(placedLabel.box.minX).toFixed(2)}" y="${ty(placedLabel.box.minY).toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${(h / 2).toFixed(2)}" fill="${PILL_FILL}" stroke="${PILL_STROKE}" stroke-width="1"/>`,
         `<text class="support-label" data-split="${escapeXml(key)}" x="${tx(placedLabel.textX).toFixed(2)}" y="${ty(placedLabel.textY).toFixed(2)}" font-size="${smallFont}" fill="${INK}" text-anchor="middle" dominant-baseline="middle">${escapeXml(placedLabel.text)}</text>`,
         `</g>`,

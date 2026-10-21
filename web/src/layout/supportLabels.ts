@@ -1,26 +1,27 @@
-// Support-label placement (v1.2 spec §6.3, checkpoint 11/12 fixes).
-// Pure geometry: given the laid-out tree, position each internal
-// branch's support percentage as a small pill just RIGHT of the node
-// marker at the branch's child end, above the start of the descending
-// branch — the usual node-label spot on a horizontal phylogram. The
-// candidates also try the node end of the incoming branch (left of the
-// node) before the vertical climb — safe now that bounds fit content
-// (checkpoint 15; see below).
+// Support-label placement (v1.2 spec §6.3; owner checkpoint 21-10-26).
+// Pure geometry: given the laid-out tree, each internal branch's
+// support percentage is drawn as a small pill centred just ABOVE the
+// horizontal segment that leads into its node — right-aligned near the
+// node end. Every node has exactly one such segment, so the label can
+// never read as belonging to a neighbour (the corner-candidate scheme
+// left pills floating between nodes in dense clusters).
 //
-// Collision avoidance: a label's pill box may not intersect any node
-// marker, leaf name, "0" zero-length marker or an already-placed label.
-// Spots are tried in order of proximity to the node: the four corners
-// first — right of and above/below the node, then the same two left of
-// it over the node end of its incoming branch (the textbook spot; the
-// old fixed viewBox could not contain left pills — they clipped at x=0
-// — but content-fit bounds can, checkpoint 15) — then a bounded scan
-// of every pill-centre position within 30 px of the node. Crowded leaf
-// names used to push labels a whole staircase above their node — ~100
-// px away, read as "labels on the wrong groupings"; the vertical
-// climb remains, but only after every within-reach spot failed, so
-// labels stay by their node. Internal node names (u1, u2, …) are not
-// drawn while support labels are shown, so they are not obstacles
-// here.
+// Segment fit: layout() stretches a supported edge until it can hold
+// its pill with headroom (SEG_MARGIN px beyond the pill at its left —
+// the owner's "label width + 4 px" rule applied to the padded pill).
+// When the stretch would widen the drawing by more than 20% the cap
+// refuses it (see treeFigure): the pill is then drawn OFFSET above
+// the node with a thin leader line down to it — the callout keeps the
+// association explicit where on-segment placement is impossible.
+//
+// Collision avoidance: a pill box may not intersect any node marker,
+// leaf name, "0" zero-length marker or an already-placed label. The
+// right-aligned spot slides left along its own segment when blocked
+// (staying over the segment keeps the association unambiguous); only
+// a fully blocked segment falls back to stacking straight up. Branch
+// lines and connector elbows are not obstacles — the opaque pill is
+// meant to sit over them. Internal node names (u1, u2, …) are not
+// drawn while support labels are shown, so they are not obstacles.
 //
 // Text metrics are estimates (0.62 em per character, like
 // labelRoomFor): the browser never gives layout real glyph widths, so
@@ -48,6 +49,10 @@ export interface SupportLabel {
   /** Baseline anchor for the text (textAnchor middle). */
   textX: number;
   textY: number;
+  /** Set when the segment could not hold the pill (stretch capped):
+   * the pill is offset and a thin leader runs from its bottom centre
+   * to the node. Both renderers draw it from the same geometry. */
+  leader?: { x1: number; y1: number; x2: number; y2: number };
 }
 
 export interface SupportLabelOptions {
@@ -69,16 +74,48 @@ const PILL_PAD_Y = 2;
 // A name or marker box is slightly larger than the glyph estimate so a
 // pill never visually grazes the text it avoids.
 const NAME_PAD = 2;
+// Headroom the fitted segment keeps free left of the pill — the
+// owner's "segment at least label width + 4 px" rule.
+const SEG_MARGIN = 4;
+// Extra lift for a leader-offset pill: clearly off the row it
+// annotates, close enough that the leader reads as a callout.
+const LEADER_RAISE = 10;
+
+/** The drawn text: the rounded percent, "*" merged in for weak. */
+export function supportText(s: number): string {
+  return `${Math.round(s * 100)}${s < 0.5 ? "*" : ""}`;
+}
+
+/** Padded pill width for `text` at `fontSize` (0.62 em estimate). */
+export function pillWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * 0.62 + PILL_PAD_X * 2;
+}
+
+/**
+ * Drawn segment length (px) needed to hold this label's pill:
+ * pill + marker clearance at the node end + SEG_MARGIN headroom.
+ * layout() uses this to stretch supported edges; supportLabels uses
+ * the same value to decide whether a pill rides on its segment or is
+ * leader-offset.
+ */
+export function segFitPx(
+  text: string,
+  fontSize: number,
+  nodeRadius: number,
+): number {
+  return pillWidth(text, fontSize) + nodeRadius + 1 + GAP + SEG_MARGIN;
+}
 
 function intersects(a: LabelBox, b: LabelBox): boolean {
   return a.minX < b.maxX && a.maxX > b.minX && a.minY < b.maxY && a.maxY > b.minY;
 }
 
 /**
- * One pill per branch carrying `branches[id].support`, placed just
- * right of and above the child-end node. Nodes are processed in layout
- * order (preorder — parents first), so "the later one" that nudges is
- * simply the later id in `laid.nodes`.
+ * One pill per branch carrying `branches[id].support`, centred just
+ * above the horizontal segment into its node and right-aligned near
+ * the node end. Nodes are processed in layout order (preorder —
+ * parents first), so "the later one" that nudges is simply the later
+ * id in `laid.nodes`.
  */
 export function supportLabels(
   tree: Tree,
@@ -143,113 +180,72 @@ export function supportLabels(
     if (s === null || parent === null || !byId.has(parent)) continue;
 
     const weak = s < 0.5;
-    // One text node per label: the full value including the weak "*"
-    // (checkpoint 12 — the number and marker are a single string so the
-    // whole label, not just its tail, is what readers see).
-    const text = `${Math.round(s * 100)}${weak ? "*" : ""}`;
+    const text = supportText(s);
     const textW = text.length * charW;
     const pillW = textW + PILL_PAD_X * 2;
+    // Pill + marker clearance + headroom, mirroring segFitPx (kept in
+    // terms of the actual pill width so a charWidth override stays
+    // consistent).
+    const fitPx = pillW + markerR + 1 + GAP + SEG_MARGIN;
+    // The horizontal segment into the node runs [parentX, x] at y.
+    const segLen = n.x - n.parentX;
+    // Right edge clears the marker box plus a gap — "right-aligned
+    // near the node end".
+    const right = n.x - markerR - 1 - GAP;
 
-    // Candidate spots in preference order, first non-colliding wins.
-    // Right spots hang the pill off the node (over the descending
-    // branch); left spots put it over the node end of the incoming
-    // branch. Every candidate keeps the label within ~25 px of its
-    // node — far better than the climb's staircase (checkpoint 15).
-    const rightX0 = n.x + markerR + GAP;
-    const leftX0 = n.x - markerR - GAP - pillW;
-    const rightAbove: LabelBox = {
-      minX: rightX0,
-      maxX: rightX0 + pillW,
-      minY: n.y - markerR - GAP - pillH,
-      maxY: n.y - markerR - GAP,
-    };
-    const rightBelow: LabelBox = {
-      ...rightAbove,
-      minY: n.y + markerR + GAP,
-      maxY: n.y + markerR + GAP + pillH,
-    };
-    const leftAbove: LabelBox = {
-      minX: leftX0,
-      maxX: leftX0 + pillW,
-      minY: rightAbove.minY,
-      maxY: rightAbove.maxY,
-    };
-    const leftBelow: LabelBox = {
-      ...leftAbove,
-      minY: rightBelow.minY,
-      maxY: rightBelow.maxY,
-    };
-    let box = [rightAbove, rightBelow, leftAbove, leftBelow].find(
-      (b) => firstHit(b) === null,
-    );
-
-    if (box === undefined) {
-      // The four slots are all blocked — dense clusters take the
-      // corner spots for later nodes. Scan every pill-centre position
-      // whose anchor stays within 30 px of the node (the acceptance
-      // distance for figure parity), on each side, nearest first. A
-      // 1 px vertical step finds the slivers between already-placed
-      // pills that whole-pill nudges jump over.
-      const near: { box: LabelBox; d: number }[] = [];
-      for (const x0 of [rightX0, leftX0]) {
-        const dx = x0 + pillW / 2 - n.x;
-        const dyMax = Math.floor(
-          Math.sqrt(Math.max(0, 30 * 30 - dx * dx)),
-        );
-        for (let dy = -dyMax; dy <= dyMax; dy++) {
-          const cy = n.y + dy;
-          near.push({
-            box: {
-              minX: x0,
-              maxX: x0 + pillW,
-              minY: cy - pillH / 2,
-              maxY: cy + pillH / 2,
-            },
-            d: Math.hypot(dx, dy),
-          });
-        }
-      }
-      // Nearest anchor first; prefer the right side, then above, on
-      // ties.
-      near.sort(
-        (a, b) =>
-          a.d - b.d ||
-          b.box.minX - a.box.minX ||
-          a.box.minY - b.box.minY,
-      );
-      const hit = near.find((c) => firstHit(c.box) === null);
-      if (hit !== undefined) box = hit.box;
-    }
-
-    if (box === undefined) {
-      // Last resort: nudge upward past whatever the pill would sit on.
-      // Each jump moves the box strictly above the hit obstacle, so the
-      // loop is monotone and terminates; running off the canvas top
-      // falls back to below.
-      box = rightAbove;
+    const rightBox = (raise: number): LabelBox => ({
+      minX: right - pillW,
+      maxX: right,
+      minY: n.y - raise - pillH,
+      maxY: n.y - raise,
+    });
+    // Monotone climb: each jump puts the box strictly above the last
+    // obstacle it touched, so the loop terminates.
+    const climb = (start: LabelBox): LabelBox => {
+      let box = start;
       let hit = firstHit(box);
       let guard = 0;
       while (hit !== null && guard++ < 1000) {
         box = { ...box, maxY: hit.minY - 1, minY: hit.minY - 1 - pillH };
-        if (box.minY < 0) break;
         hit = firstHit(box);
       }
-      if (hit !== null || box.minY < 0) {
-        box = {
-          ...box,
-          minY: n.y + markerR + GAP,
-          maxY: n.y + markerR + GAP + pillH,
-        };
+      // The last box is kept regardless — a degenerate tree is still
+      // better drawn than dropped.
+      return box;
+    };
+
+    let box: LabelBox | undefined;
+    if (segLen >= fitPx - 0.5) {
+      // On-segment: right-aligned just above the line; when blocked,
+      // slide left while the box still lies over its own segment.
+      const leftEdge = n.parentX + 1;
+      let x0 = right - pillW;
+      box = rightBox(GAP);
+      let hit = firstHit(box);
+      let guard = 0;
+      while (hit !== null && x0 > leftEdge && guard++ < 1000) {
+        x0 = Math.max(leftEdge, hit.minX - pillW - 1);
+        box = { ...box, minX: x0, maxX: x0 + pillW };
         hit = firstHit(box);
-        guard = 0;
-        while (hit !== null && guard++ < 1000) {
-          box = { ...box, minY: hit.maxY + 1, maxY: hit.maxY + 1 + pillH };
-          hit = firstHit(box);
-        }
-        // A canvas-bottom overflow can't happen (labels stay inside
-        // the laid-out height); the last box is kept regardless — a
-        // degenerate tree is still better drawn than dropped.
       }
+      if (hit !== null) box = undefined;
+    }
+
+    let leader: SupportLabel["leader"];
+    if (box === undefined) {
+      // The pill cannot sit on its segment — the 20%-of-width cap
+      // refused the stretch, or every spot over the segment collided.
+      // A stacked label that strays toward a neighbour's segment is
+      // exactly the ambiguity this checkpoint removes, so instead the
+      // pill is offset above the node (right-aligned, still hanging
+      // over its own edge) with a thin leader down to the node.
+      box = climb(rightBox(GAP + pillH + LEADER_RAISE));
+      leader = {
+        x1: (box.minX + box.maxX) / 2,
+        y1: box.maxY,
+        x2: n.x,
+        y2: n.y,
+      };
     }
 
     const textY = (box.minY + box.maxY) / 2;
@@ -260,6 +256,7 @@ export function supportLabels(
       box,
       textX: (box.minX + box.maxX) / 2,
       textY,
+      leader,
     });
   }
   return labels;

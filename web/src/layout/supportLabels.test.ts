@@ -1,9 +1,14 @@
-// Support-label placement tests (v1.2 plan Task 11, spec §6.3;
-// checkpoint 11 fixes). The fixture is a ladder whose two internal
-// branches draw under 10 px wide and whose labeled nodes share a row —
-// the worst case the collision rule exists for. Every support pill
-// must stay clear of node markers, leaf names, "0" markers and the
-// other pills, and the labeled branches must stretch to ≥12 px.
+// Support-label placement tests (v1.2 spec §6.3; owner checkpoint:
+// labels must sit above the segment into their node, not float between
+// nodes). Every support pill is drawn centred just above the
+// horizontal segment that leads into its node and right-aligned near
+// the node end — so for every label the nearest incoming segment is
+// unambiguously its own. A segment too short for the pill is stretched
+// (display-only) unless the stretch would exceed 20% of the drawing
+// width; then the label is drawn offset with a leader line to the
+// node. In every case a pill stays clear of node markers, leaf names,
+// "0" markers and other pills, and lies inside the content bounds that
+// become the fitted viewBox.
 
 import { describe, expect, it } from "vitest";
 
@@ -11,7 +16,11 @@ import { engine } from "../engine/index";
 import type { Tree } from "../engine/generated/Tree";
 
 import { layout } from "./phylogram";
-import { supportLabels, type LabelBox } from "./supportLabels";
+import {
+  supportLabels,
+  segFitPx,
+  type LabelBox,
+} from "./supportLabels";
 import {
   treeFigure,
   FIGURE_DEFAULT_PANEL_WIDTH,
@@ -81,7 +90,35 @@ function nameBox(
   };
 }
 
-describe("supportLabels (checkpoint 11)", () => {
+/** Point→horizontal-segment distance (the incoming branch of a node). */
+function segDist(
+  px: number,
+  py: number,
+  x1: number,
+  x2: number,
+  y: number,
+): number {
+  const lo = Math.min(x1, x2);
+  const hi = Math.max(x1, x2);
+  const dx = px < lo ? lo - px : px > hi ? px - hi : 0;
+  return Math.hypot(dx, py - y);
+}
+
+const SL_OPTS = {
+  fontSize: FONT,
+  nameFontSize: NAME_FONT,
+  nodeRadius: NODE_RADIUS,
+  labelOffset: LABEL_OFFSET,
+};
+
+const FIG_OPTS = {
+  kind: "phylogram" as const,
+  clampNegative: false,
+  leafSpacing: 20,
+  panelWidth: FIGURE_DEFAULT_PANEL_WIDTH,
+};
+
+describe("supportLabels: on-segment placement", () => {
   it("stretches support-carrying internal branches to ≥12 px", () => {
     const t = weakLadder();
     const unclamped = layout(t, { ...OPTS, minBranchPx: 0 });
@@ -99,15 +136,69 @@ describe("supportLabels (checkpoint 11)", () => {
     }
   });
 
+  it("draws each supported edge ≥ its label's fit width, or uses a leader", () => {
+    const t = weakLadder();
+    const fig = treeFigure(t, FIG_OPTS);
+    for (const p of fig.placed) {
+      const n = fig.byId.get(p.id)!;
+      const seg = n.x - n.parentX;
+      const fit = segFitPx(p.text, fig.smallFont, FIGURE_NODE_RADIUS);
+      // At the default panel width the 20% cap never binds: every
+      // segment is extended until it holds its pill.
+      expect(p.leader).toBeUndefined();
+      expect(seg, `edge into node ${p.id}`).toBeGreaterThanOrEqual(fit - 0.5);
+    }
+  });
+
+  it("places each pill just above its own incoming segment, right-aligned", () => {
+    const t = weakLadder();
+    const fig = treeFigure(t, FIG_OPTS);
+    expect(fig.placed).toHaveLength(2);
+    for (const p of fig.placed) {
+      const n = fig.byId.get(p.id)!;
+      // Right-aligned near the node end: the right edge clears the
+      // marker box by the gap (markerR + 1 + GAP = 6 px left of x).
+      expect(p.box.maxX).toBeCloseTo(n.x - NODE_RADIUS - 1 - 2, 5);
+      // Centred just above the segment: bottom edge one gap over the
+      // line at the node's row.
+      expect(p.box.maxY).toBeCloseTo(n.y - 2, 5);
+      // The whole pill lies over its own segment [parentX, x).
+      expect(p.box.minX).toBeGreaterThanOrEqual(n.parentX);
+      expect(p.box.maxX).toBeLessThanOrEqual(n.x);
+      // Full text, "*" merged in for weak support.
+      expect(p.text).toBe("30*");
+      expect(p.weak).toBe(true);
+    }
+  });
+
+  it("the nearest incoming segment to each label is its own node's", () => {
+    const t = weakLadder();
+    const fig = treeFigure(t, FIG_OPTS);
+    // Every node with a visible parent owns a horizontal segment.
+    const segs = fig.laid.nodes.filter((n) => n.parentX !== n.x);
+    for (const p of fig.placed) {
+      const n = fig.byId.get(p.id)!;
+      // The label's anchor: its pill's bottom centre, or the leader's
+      // endpoint at the node when it is drawn as a callout.
+      const ax = p.leader?.x2 ?? (p.box.minX + p.box.maxX) / 2;
+      const ay = p.leader?.y2 ?? p.box.maxY;
+      const own = segDist(ax, ay, n.parentX, n.x, n.y);
+      for (const m of segs) {
+        if (m.id === n.id) continue;
+        const other = segDist(ax, ay, m.parentX, m.x, m.y);
+        expect(
+          own < other,
+          `label ${p.text} on node ${p.id}: own ${own.toFixed(1)} vs ` +
+            `segment into ${m.id} ${other.toFixed(1)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("no pill intersects a node marker, a leaf name or another pill", () => {
     const t = weakLadder();
     const l = layout(t, OPTS);
-    const labels = supportLabels(t, l, {
-      fontSize: FONT,
-      nameFontSize: NAME_FONT,
-      nodeRadius: NODE_RADIUS,
-      labelOffset: LABEL_OFFSET,
-    });
+    const labels = supportLabels(t, l, SL_OPTS);
     expect(labels.length).toBe(2);
 
     for (const p of labels) {
@@ -130,135 +221,92 @@ describe("supportLabels (checkpoint 11)", () => {
           `pills on nodes ${p.id} and ${q.id}`,
         ).toBe(false);
       }
-      // Placement contract (checkpoint 15): the pill lands RIGHT of
-      // its node when that space is free — this fixture leaves it free,
-      // so that is what is asserted here — and LEFT over the incoming
-      // branch only when the right candidates collide (the blockedRight
-      // fixture below covers that). In every case the box lies inside
-      // the figure's content bounds, which the renderers pad into the
-      // SVG viewBox.
-      const node = l.nodes.find((n) => n.id === p.id)!;
-      expect(p.box.minX).toBeGreaterThanOrEqual(node.x + NODE_RADIUS);
-      // …and reads the full value, "*" merged in for weak support.
-      expect(p.text).toBe("30*");
-      expect(p.weak).toBe(true);
       // The pill is wide enough for its text (≥ 0.5 em per character).
       const w = p.box.maxX - p.box.minX;
       expect(w).toBeGreaterThanOrEqual(p.text.length * 0.5 * FONT);
     }
   });
 
-  it("a second label takes another in-reach spot instead of stacking", () => {
-    // Same-row labels on the ladder collide on the preferred spot; the
-    // later one must move to a disjoint box still adjacent to its own
-    // node (checkpoint 15: candidates keep labels within ~30 px rather
-    // than climbing a staircase).
+  it("every label box lies inside the fitted content bounds", () => {
     const t = weakLadder();
-    const l = layout(t, OPTS);
-    const labels = supportLabels(t, l, {
-      fontSize: FONT,
-      nameFontSize: NAME_FONT,
-      nodeRadius: NODE_RADIUS,
-      labelOffset: LABEL_OFFSET,
-    });
-    const [first, second] = labels;
-    expect(first.box.maxY - first.box.minY).toBeGreaterThan(0);
-    expect(second.box.maxY - second.box.minY).toBeGreaterThan(0);
-    // Disjoint boxes…
-    expect(hit(first.box, second.box)).toBe(false);
-    // …and each still within 30 px of its node (anchor distance).
-    for (const p of labels) {
-      const n = l.nodes.find((x) => x.id === p.id)!;
-      const d = Math.hypot(
-        (p.box.minX + p.box.maxX) / 2 - n.x,
-        (p.box.minY + p.box.maxY) / 2 - n.y,
-      );
-      expect(d, `pill on node ${p.id}`).toBeLessThanOrEqual(30);
+    const fig = treeFigure(t, FIG_OPTS);
+    for (const p of fig.placed) {
+      expect(p.box.minX).toBeGreaterThanOrEqual(fig.bounds.minX);
+      expect(p.box.maxX).toBeLessThanOrEqual(fig.bounds.maxX);
+      expect(p.box.minY).toBeGreaterThanOrEqual(fig.bounds.minY);
+      expect(p.box.maxY).toBeLessThanOrEqual(fig.bounds.maxY);
     }
   });
+});
 
-  it("places the label LEFT of the node when the right side is occupied", () => {
-    // ((A:0.01,B:0.005):1.5,C:3): A and B sit one and two rows around
-    // the labeled node with near-zero terminal branches, so their leaf
-    // names cover BOTH right-side candidate spots. The branch into the
-    // node is long, leaving the left spots over the incoming branch
-    // clear — placement must take one of them (checkpoint 15).
-    const t = parse("((A:0.01,B:0.005):1.5,C:3);");
-    const withSupport = {
-      ...t,
-      branches: t.branches.map((b, id) =>
-        t.nodes[id].children.length > 0 && t.nodes[id].parent !== null
-          ? { ...b, support: 0.47 }
-          : b,
-      ),
-    };
-    const fig = treeFigure(withSupport, {
-      kind: "phylogram",
-      clampNegative: false,
-      leafSpacing: 20,
-      panelWidth: FIGURE_DEFAULT_PANEL_WIDTH,
-    });
-    expect(fig.placed).toHaveLength(1);
-    const p = fig.placed[0];
-    const node = fig.byId.get(p.id)!;
-
-    // Premise: the preferred right-above spot really is occupied by
-    // A's name (B's name covers right-below), so a right placement is
-    // impossible here.
-    const pillW = p.box.maxX - p.box.minX;
-    const pillH = p.box.maxY - p.box.minY;
-    const rightAbove: LabelBox = {
-      minX: node.x + FIGURE_NODE_RADIUS + 2,
-      maxX: node.x + FIGURE_NODE_RADIUS + 2 + pillW,
-      minY: node.y - FIGURE_NODE_RADIUS - 2 - pillH,
-      maxY: node.y - FIGURE_NODE_RADIUS - 2,
-    };
-    const aNode = fig.laid.nodes.find((n) => n.label === "A")!;
-    expect(
-      hit(rightAbove, nameBox(aNode.x, aNode.y, "A", fig.fontSize)),
-      "fixture premise: the right-above spot must be occupied",
-    ).toBe(true);
-
-    // The pill hangs LEFT of the node, over the incoming branch…
-    expect(p.box.maxX).toBeLessThanOrEqual(node.x - FIGURE_NODE_RADIUS);
-    // …within the 30 px reach, full text intact…
-    const anchor = Math.hypot(
-      (p.box.minX + p.box.maxX) / 2 - node.x,
-      (p.box.minY + p.box.maxY) / 2 - node.y,
-    );
-    expect(anchor).toBeLessThanOrEqual(30);
-    expect(p.text).toBe("47*");
-    expect(p.weak).toBe(true);
-    // …fully inside the fitted content bounds (the old fixed viewBox
-    // clipped left-hanging pills at x = 0)…
-    expect(p.box.minX).toBeGreaterThanOrEqual(fig.bounds.minX);
-    expect(p.box.maxX).toBeLessThanOrEqual(fig.bounds.maxX);
-    expect(p.box.minY).toBeGreaterThanOrEqual(fig.bounds.minY);
-    expect(p.box.maxY).toBeLessThanOrEqual(fig.bounds.maxY);
-    // …and clear of every marker and leaf name.
-    for (const n of fig.laid.nodes) {
-      expect(
-        hit(p.box, markerBox(n.x, n.y)),
-        `left pill vs marker ${n.id}`,
-      ).toBe(false);
-      if (n.leaf && n.label !== null) {
+describe("supportLabels: leader offset (20% stretch cap)", () => {
+  it("offsets the pill with a leader when stretching would distort >20%", () => {
+    const t = weakLadder();
+    // A 120 px panel leaves ~80 px of draw width; the cap is ~16 px
+    // while each pill needs ~42 — the stretch is refused and both
+    // labels become leader callouts.
+    const fig = treeFigure(t, { ...FIG_OPTS, panelWidth: 120 });
+    expect(fig.placed).toHaveLength(2);
+    for (const p of fig.placed) {
+      const n = fig.byId.get(p.id)!;
+      const fit = segFitPx(p.text, fig.smallFont, FIGURE_NODE_RADIUS);
+      // The segment stayed short (floor stretch only)…
+      expect(n.x - n.parentX).toBeLessThan(fit - 0.5);
+      // …the pill is offset (no longer in the just-above-the-segment
+      // band) but still hangs over its own node end…
+      expect(p.leader).toBeDefined();
+      expect(p.box.maxX).toBeLessThanOrEqual(n.x);
+      expect(p.box.maxY).toBeLessThan(n.y - fig.smallFont);
+      // …and the leader runs from the pill's bottom centre down to
+      // the node itself.
+      const leader = p.leader!;
+      expect(leader.x1).toBeCloseTo((p.box.minX + p.box.maxX) / 2, 5);
+      expect(leader.y1).toBeCloseTo(p.box.maxY, 5);
+      expect(leader.x2).toBeCloseTo(n.x, 5);
+      expect(leader.y2).toBeCloseTo(n.y, 5);
+      // In bounds, and clear of markers and names.
+      expect(p.box.minX).toBeGreaterThanOrEqual(fig.bounds.minX);
+      expect(p.box.maxX).toBeLessThanOrEqual(fig.bounds.maxX);
+      expect(p.box.minY).toBeGreaterThanOrEqual(fig.bounds.minY);
+      expect(p.box.maxY).toBeLessThanOrEqual(fig.bounds.maxY);
+      for (const m of fig.laid.nodes) {
+        expect(hit(p.box, markerBox(m.x, m.y)), `leader pill vs marker ${m.id}`).toBe(false);
+        if (m.leaf && m.label !== null) {
+          expect(
+            hit(p.box, nameBox(m.x, m.y, m.label, fig.fontSize)),
+            `leader pill vs leaf name ${m.label}`,
+          ).toBe(false);
+        }
+      }
+    }
+    // The two leader pills are disjoint from each other.
+    expect(hit(fig.placed[0].box, fig.placed[1].box)).toBe(false);
+    // Association stays explicit: each leader endpoint sits on its
+    // own segment (distance 0). In a same-row chain the node point is
+    // also its child's segment start — a boundary tie, not ambiguity,
+    // since the line lands on the node marker itself — hence ≤.
+    const segs = fig.laid.nodes.filter((n) => n.parentX !== n.x);
+    for (const p of fig.placed) {
+      const n = fig.byId.get(p.id)!;
+      const own = segDist(p.leader!.x2, p.leader!.y2, n.parentX, n.x, n.y);
+      for (const m of segs) {
+        if (m.id === n.id) continue;
         expect(
-          hit(p.box, nameBox(n.x, n.y, n.label, fig.fontSize)),
-          `left pill vs leaf name ${n.label}`,
-        ).toBe(false);
+          own <=
+            segDist(p.leader!.x2, p.leader!.y2, m.parentX, m.x, m.y) +
+              1e-9,
+          `leader on node ${p.id} nearer a segment into ${m.id}`,
+        ).toBe(true);
       }
     }
   });
+});
 
+describe("supportLabels: misc", () => {
   it("no support values → no labels and no name hiding", () => {
     const t = parse("((A:1,B:1):1,C:2);");
     const l = layout(t, OPTS);
-    const labels = supportLabels(t, l, {
-      fontSize: FONT,
-      nameFontSize: NAME_FONT,
-      nodeRadius: NODE_RADIUS,
-      labelOffset: LABEL_OFFSET,
-    });
+    const labels = supportLabels(t, l, SL_OPTS);
     expect(labels).toHaveLength(0);
   });
 
@@ -276,12 +324,7 @@ describe("supportLabels (checkpoint 11)", () => {
       ),
     };
     const l = layout(withSupport, OPTS);
-    const labels = supportLabels(withSupport, l, {
-      fontSize: FONT,
-      nameFontSize: NAME_FONT,
-      nodeRadius: NODE_RADIUS,
-      labelOffset: LABEL_OFFSET,
-    });
+    const labels = supportLabels(withSupport, l, SL_OPTS);
     expect(labels.length).toBe(1);
     const p = labels[0];
     expect(p.text).toBe("90");

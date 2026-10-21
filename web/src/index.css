@@ -1131,6 +1131,14 @@ button:disabled {
   stroke-width: 1;
 }
 
+/* A leader-offset pill's callout line: dashed hairline so it never
+ * reads as a branch (the svg.ts export inlines the same geometry and
+ * stroke). */
+.support-leader {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
 /* ---- Consensus tabs (v1.2 §6.4) ---- */
 
 /* The tabs + panel fill the tree column so the TreeView inside the

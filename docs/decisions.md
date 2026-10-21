@@ -2450,3 +2450,33 @@ wedging the start queue.
   climb run. This is what keeps every cytochrome-c label within ~25 px
   of its node in both views (previously 110 px in the rooted view's
   dense cluster — the "staircase" that read as wrong groupings).
+
+## Support labels ride the incoming branch segment (owner checkpoint 21-10-26)
+
+- **Placement convention replaced.** In dense regions the corner-
+  candidate scheme left labels visibly ambiguous between neighbouring
+  nodes even while each stayed inside its 30 px reach. Each pill is
+  now centred just ABOVE the horizontal segment into its node,
+  right-aligned near the node end — the nearest incoming segment is
+  always its own, so the grouping it annotates is unambiguous.
+- **Segment fit is per-edge.** `minBranchPx` became a per-node
+  resolver: a supported edge stretches (display-only, like the old
+  12 px stroke floor) until it can hold its pill — pill width plus
+  marker clearance plus 4 px headroom, the owner's "label width +
+  4 px" rule. `supportLabels` reuses the same `segFitPx` value, so the
+  layout pass and the placement pass can never disagree.
+- **20% distortion cap → leader line.** If the needed stretch exceeds
+  20% of the drawing width the edge keeps the 12 px floor and the
+  label is drawn offset above the node with a thin dashed leader to
+  it (`SupportLabel.leader`). The same fallback covers a segment
+  whose every on-segment spot is blocked — a silently stacked pill
+  would re-create the ambiguity this change removes. Both renderers
+  draw the leader from the stored geometry; PNG inherits it through
+  the shared SVG.
+- **Tests assert the association, not a distance budget.** The
+  nearest incoming horizontal segment to each label's anchor (pill
+  bottom centre, or the leader endpoint at the node) must be its own
+  node's — a boundary tie is allowed only where the node point is
+  literally a child's segment start. Overlap-vs-markers/names/pills
+  and in-bounds checks are kept; the stretch test still pins the
+  12 px floor and a narrow-panel test pins the cap→leader path.
