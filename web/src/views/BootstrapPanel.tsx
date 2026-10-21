@@ -187,6 +187,17 @@ export function BootstrapPanel({ session, dispatch }: BootstrapPanelProps) {
       )}
 
       <div className="bootstrap-actions">
+        {b.support !== null && (
+          <button
+            type="button"
+            // Disabled while a job is active: the worker's one-job slot
+            // is busy, and a detail job must never cancel a run.
+            disabled={active}
+            onClick={() => dispatch({ type: "setReplicateIndex", index: 0 })}
+          >
+            Watch one replicate
+          </button>
+        )}
         {b.status === "confirming" && (
           <button
             type="button"

@@ -14,6 +14,7 @@ import type { Tree } from "./generated/Tree";
 import type {
   BootstrapParams,
   PageToWorker,
+  ReplicateDetailParams,
   WorkerToPage,
   WorkerToPageJob,
 } from "./bootstrapProtocol";
@@ -258,18 +259,42 @@ export interface WorkerScope {
   pendingCancels(): number;
 }
 
+/** Jobs the worker can run: a bootstrap run (`start`) or one
+ * replicate's teaching detail (`detail`, spec §6.5). */
+type QueuedJob = PageToWorker & ({ type: "start" } | { type: "detail" });
+
+/** A one-replicate `replicate_detail` job (spec §6.5): a single
+ * synchronous engine call — no estimate, batches or progress. */
+function runDetailJob(
+  p: ReplicateDetailParams,
+  post: (m: WorkerToPageJob) => void,
+): void {
+  const r = engine.replicateDetail(
+    p.alignment,
+    p.model,
+    p.method,
+    p.seed,
+    p.index,
+  );
+  post(
+    r.ok
+      ? { type: "detail", detail: r.value }
+      : { type: "error", error: r.error },
+  );
+}
+
 export function installWorkerScope(
   postMessage: (m: WorkerToPage) => void,
   ready: () => Promise<unknown>,
 ): WorkerScope {
   let active: JobState | null = null;
-  // `start` messages received while a job runs: it is cancelled and the
-  // queued start runs once the loop is free. JobIds cancelled before
-  // they start are skipped and acknowledged on dequeue.
-  const pendingStarts: Array<PageToWorker & { type: "start" }> = [];
+  // `start`/`detail` messages received while a job runs: it is cancelled
+  // and the queued job runs once the loop is free. JobIds cancelled
+  // before they start are skipped and acknowledged on dequeue.
+  const pendingStarts: QueuedJob[] = [];
   const cancelledBeforeStart = new Set<number>();
 
-  const runNext = async (start: PageToWorker & { type: "start" }) => {
+  const runNext = async (start: QueuedJob) => {
     const job: JobState = { jobId: start.jobId, cancelled: false, confirm: null };
     // Claim the active slot before the async init so a start or cancel
     // landing during init is handled against this job (never a second
@@ -301,25 +326,29 @@ export function installWorkerScope(
       const post = (m: WorkerToPageJob) =>
         postMessage({ ...m, jobId: job.jobId });
       try {
-        await runBootstrapJob(
-          {
-            alignment: start.alignment,
-            model: start.model,
-            method: start.method,
-            seed: start.seed,
-            replicates: start.replicates,
-          },
-          post,
-          () => job.cancelled,
-          () =>
-            new Promise<boolean>((resolve) => {
-              if (job.cancelled) {
-                resolve(false);
-              } else {
-                job.confirm = resolve;
-              }
-            }),
-        );
+        if (start.type === "detail") {
+          runDetailJob(start, post);
+        } else {
+          await runBootstrapJob(
+            {
+              alignment: start.alignment,
+              model: start.model,
+              method: start.method,
+              seed: start.seed,
+              replicates: start.replicates,
+            },
+            post,
+            () => job.cancelled,
+            () =>
+              new Promise<boolean>((resolve) => {
+                if (job.cancelled) {
+                  resolve(false);
+                } else {
+                  job.confirm = resolve;
+                }
+              }),
+          );
+        }
       } catch (err) {
         // The engine returns errors as values; a throw is a boundary
         // bug (e.g. OOM) — surface it as an error message, never crash
@@ -345,9 +374,9 @@ export function installWorkerScope(
   return {
     onmessage(e) {
       const m = e.data;
-      if (m.type === "start") {
+      if (m.type === "start" || m.type === "detail") {
         if (active !== null) {
-          // Cancel the running job; the queued start runs once it exits.
+          // Cancel the running job; the queued job runs once it exits.
           active.cancelled = true;
           active.confirm?.(false);
           active.confirm = null;

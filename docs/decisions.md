@@ -2195,3 +2195,83 @@ wedging the start queue.
     the majority-rule view draws rerooted with wheat on its own branch
     and no support label clipped or overlapping.
   - `docs/decisions.md` (this entry).
+
+## v1.2 Task 13: watch one replicate
+
+- **The worker `detail` job is a new protocol message.** Spec §6.5's
+  "one-replicate job" needed a name the §5 table doesn't give;
+  `detail` carries `ReplicateDetailParams` (alignment, model, method,
+  seed, index) and answers `{ type: "detail", detail }` or `error`. It
+  shares the client's single live-job slot: `BootstrapClient.detail`
+  cancels whatever is current, exactly like `start`, so the spec's
+  "never two live jobs" rule is unchanged. The worker queues it behind
+  a running job like a `start`.
+- **`BootstrapState.msPerReplicate` stores the run's estimate.** §6.5
+  routes the detail through the worker when "estimated > 2 s"; the
+  only estimate available once a run finishes is the `estimate`
+  message's `msPerReplicate`, so `bootstrapEstimated` now keeps it.
+  One `replicate_detail` call costs about one bootstrap replicate
+  (weights + weighted distances + build + compare), which is what the
+  estimate measures.
+- **The Watch button shows whenever `support !== null`, disabled while
+  a job is active.** A run in flight holds the worker's job slot, so a
+  detail request then would cancel it — gating on `!active` prevents
+  that (and matches Review Focus 2: a run must never be cancelled by
+  navigation). The panel uses `settingsUsed.seed` and the run's total
+  so the view matches the run the results belong to (Review Focus 3).
+- **`rf_to_original` drives the difference line verbatim:** "This
+  replicate's tree differs from your tree in K grouping(s)." K is the
+  method's own comparison — unrooted RF for NJ, rooted cluster
+  difference for UPGMA — which is exactly what the engine reports
+  (Task 4 fix), so the panel never recomputes it.
+- **Outlines reuse the wrong-clade mark.** `differing` groupings are
+  matched to drawn nodes by leaf set: exact side for UPGMA clusters,
+  side or complement for NJ splits (the canonical side never holds
+  taxon 0). Each differing grouping exists in exactly one tree, so it
+  is outlined exactly once across the pair.
+- **Both trees follow the main view's rooting.** `original` is the
+  `drawnTree` prop — support labels and the §6.7 reference rooting
+  included; the replicate tree is rerooted on the same outgroup when
+  that display is on ("same toggle state"). Support labels come free
+  via TreeView's checkpoint-11 pill layout.
+- **Files outside the Files block:**
+  - `web/src/engine/bootstrapProtocol.ts` — the `detail` message pair
+    and handler types.
+  - `web/src/engine/bootstrapClient.ts` — `detail()` plus the
+    handlers-map refactor (per-job dispatch closures) it required.
+  - `web/src/engine/worker.ts` — `detail` job handling in
+    `installWorkerScope`.
+  - `web/src/state/session.ts` — `msPerReplicate` (see above).
+  - `web/src/views/BootstrapPanel.tsx` — the "Watch one replicate"
+    button that dispatches `setReplicateIndex(0)`.
+  - `web/src/views/App.tsx` — detail acquisition (sync or worker
+    route) and the panel render.
+  - `web/src/views/stepEmphasis.ts` — `sameSet` exported for grouping
+    matching.
+  - `web/src/index.css` — dialog, column strip and tree-pair styles.
+  - `docs/decisions.md` (this entry).
+
+### Checkpoint fixes: orientation and difference wording
+
+- **The replicate tree is drawn in the original's orientation.** The
+  outgroup it roots on is the `outgroup` prop when the reference-rooted
+  display is on (unchanged), otherwise the leaf set of the original
+  drawing's root-side first child — rerooted via `reroot_on_outgroup`
+  (the engine's terminal-branch fallback covers a side that isn't a
+  split in the replicate). Its children are then sorted by each
+  subtree's earliest leaf position in the original's drawn leaf order
+  (`orderLike`), so a replicate with the same groupings draws with the
+  same leaf order — verified by test, not just by construction. Both
+  are view-only transforms; no topology changes.
+- **The difference line counts against your tree.** `differing`
+  entries found in the original's drawn tree are "missing here"; the
+  rest "appear instead". For NJ's unrooted splits on binary trees the
+  counts are equal (M = K/2); for UPGMA's rooted clusters they are the
+  actual counts, which can differ in general. When `rf_to_original` is
+  0 the line reads "This replicate's tree has the same groupings as
+  your tree."
+- **Display reroot caveat:** "missing" counts match `differing`
+  against `original` only, and "extra" is `|differing| − missing`, so
+  the wording stays exact even when the display reroot moves a UPGMA
+  cluster off the drawn replicate tree — an outline then simply has
+  nowhere to draw on that side.
