@@ -2508,3 +2508,6 @@ wedging the start queue.
 - **cytochrome-c acceptance:** the e2e now asserts zero
   `.support-leader` elements and |pill centre − node y| ≤ 10 px in
   both views, on top of the no-overlap boxes.
+- Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
+  ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
