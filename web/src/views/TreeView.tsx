@@ -218,6 +218,18 @@ export function TreeView({
                 )}
                 {placedLabel !== undefined && (
                   <g className="support">
+                    {placedLabel.leader !== undefined && (
+                      <line
+                        className="support-leader"
+                        x1={tx(placedLabel.leader.x1)}
+                        y1={ty(placedLabel.leader.y1)}
+                        x2={tx(placedLabel.leader.x2)}
+                        y2={ty(placedLabel.leader.y2)}
+                        stroke="currentColor"
+                        strokeWidth={1}
+                        strokeDasharray="3 2"
+                      />
+                    )}
                     <rect
                       className="support-pill"
                       x={tx(placedLabel.box.minX)}

@@ -667,6 +667,36 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
       return out;
     });
 
+  /** On-segment convention (21-10-26 refinement): no leader callouts,
+   * and each pill's centre stays within 10 px of its node's row — a
+   * short segment lets the pill overhang left past its start instead
+   * (the pill's background masks the parent's vertical line). */
+  const placement = () =>
+    svg.evaluate((el) => {
+      const out: string[] = [];
+      el.querySelectorAll("g[data-node]").forEach((g) => {
+        if (
+          g.querySelector(":scope > g.support > line.support-leader") !==
+          null
+        )
+          out.push(`leader on node ${g.getAttribute("data-node")}`);
+        const pill = g.querySelector(
+          ":scope > g.support > rect.support-pill",
+        );
+        if (pill === null) return;
+        const pb = (pill as SVGGraphicsElement).getBBox();
+        const cy = Number(
+          g.querySelector(":scope > circle")!.getAttribute("cy"),
+        );
+        const dy = Math.abs(pb.y + pb.height / 2 - cy);
+        if (dy > 10 + 1e-6)
+          out.push(
+            `node ${g.getAttribute("data-node")}: ${dy.toFixed(1)} px off-row`,
+          );
+      });
+      return out;
+    });
+
   /** Font size of the leaf named "human" in the inferred svg. */
   const leafFont = () =>
     svg.evaluate(
@@ -678,6 +708,7 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
 
   // Rooted view (default, §6.7).
   expect(await overlaps()).toEqual([]);
+  expect(await placement()).toEqual([]);
   const rootedFont = await leafFont();
   expect(Number(rootedFont)).toBeGreaterThanOrEqual(12);
   await page
@@ -694,6 +725,7 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
     page.getByRole("button", { name: "Show rooted like the reference" }),
   ).toHaveAttribute("aria-pressed", "false");
   expect(await overlaps()).toEqual([]);
+  expect(await placement()).toEqual([]);
   // Text size is independent of the drawing: same font size as rooted.
   expect(await leafFont()).toBe(rootedFont);
   await page

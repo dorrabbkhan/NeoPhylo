@@ -25,10 +25,12 @@
 //   omitted from the result, never re-laid out.
 // - `minBranchPx` (display-only, checkpoint 11) stretches internal branches
 //   that carry a support value to at least that many drawn pixels, so a
-//   weak branch's thinner stroke stays visible on very short edges. The
-//   extra width is a shift inherited by the whole subtree: a node's drawn
-//   branch grows by its own stretch only, positions stay stable across
-//   steps, and `width` grows past `opts.width` by whatever the shifts add.
+//   weak branch's thinner stroke stays visible on very short edges. It is
+//   a flat floor, not a fit: labels overhang short segments leftward
+//   rather than stretching them (refinement 21-10-26). The extra width is
+//   a shift inherited by the whole subtree: a node's drawn branch grows
+//   by its own stretch only, positions stay stable across steps, and
+//   `width` grows past `opts.width` by whatever the shifts add.
 
 import type { Tree } from "../engine/generated/Tree";
 

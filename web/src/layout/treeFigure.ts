@@ -93,6 +93,7 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
   // 11), so leaf names, node names and support labels never draw below
   // MIN_FONT_PX no matter the tree's scale.
   const fontSize = Math.max(MIN_FONT_PX, leafFontSize(opts.leafSpacing));
+  const smallFont = Math.max(MIN_FONT_PX, fontSize - 3);
   const labelRoom = labelRoomFor(
     tree.nodes.map((n) => n.label),
     fontSize,
@@ -104,6 +105,10 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
     panelWidth - labelRoom - FIGURE_PANEL_PAD * 2,
   );
 
+  // Supported edges get only the 12 px display-only stroke floor:
+  // their labels sit just above the incoming segment right-aligned
+  // to the node and may overhang left past the segment's start, so
+  // no fit-stretch is needed (owner refinement 21-10-26).
   const laid = layout(tree, {
     kind: opts.kind,
     clampNegative: opts.clampNegative,
@@ -114,12 +119,11 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
   });
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
-  // Support labels are pills placed right of and above each labeled
-  // node; supportLabels resolves every collision up front (never onto
-  // a node marker, a leaf name or another pill). While they are drawn
-  // the u1/u2/… internal names hide — they are a step-through aid and
-  // would sit exactly where the pills go.
-  const smallFont = Math.max(MIN_FONT_PX, fontSize - 3);
+  // Support labels are pills placed above the segment into each
+  // labeled node; supportLabels resolves every collision up front
+  // (never onto a node marker, a leaf name or another pill). While
+  // they are drawn the u1/u2/… internal names hide — they are a
+  // step-through aid and would sit exactly where the pills go.
   const placed = supportLabels(tree, laid, {
     fontSize: smallFont,
     nameFontSize: fontSize,

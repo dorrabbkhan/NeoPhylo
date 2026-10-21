@@ -150,8 +150,18 @@ interface ScreenNode {
   split: string | null;
   cx: number;
   cy: number;
+  /** Drawn length of the incoming segment (null when none). */
   branch: number | null;
-  label: { text: string; split: string | null; x: number; y: number } | null;
+  /** The incoming segment's left end (parentX); null when no branch. */
+  segX0: number | null;
+  label: {
+    text: string;
+    split: string | null;
+    x: number;
+    y: number;
+    /** Leader line endpoint at the node, when the label is a callout. */
+    leaderEnd: { x: number; y: number } | null;
+  } | null;
 }
 
 /** Extract node/label geometry from an svg — works on the live DOM
@@ -162,6 +172,9 @@ function figureNodes(el: Element): Record<string, ScreenNode> {
     const circle = g.querySelector(":scope > circle");
     const branch = g.querySelector(":scope > line.branch");
     const lab = g.querySelector(":scope > g.support > text.support-label");
+    const leader = g.querySelector(
+      ":scope > g.support > line.support-leader",
+    );
     nodes[g.getAttribute("data-node")!] = {
       split: g.getAttribute("data-split"),
       cx: Number(circle!.getAttribute("cx")),
@@ -171,6 +184,7 @@ function figureNodes(el: Element): Record<string, ScreenNode> {
           ? null
           : Number(branch.getAttribute("x2")) -
             Number(branch.getAttribute("x1")),
+      segX0: branch === null ? null : Number(branch.getAttribute("x1")),
       label:
         lab === null
           ? null
@@ -179,6 +193,13 @@ function figureNodes(el: Element): Record<string, ScreenNode> {
               split: lab.getAttribute("data-split"),
               x: Number(lab.getAttribute("x")),
               y: Number(lab.getAttribute("y")),
+              leaderEnd:
+                leader === null
+                  ? null
+                  : {
+                      x: Number(leader.getAttribute("x2")),
+                      y: Number(leader.getAttribute("y2")),
+                    },
             },
     };
   });
@@ -232,17 +253,41 @@ function checkFigure(
       const want = expected[s.split as string];
       expect(want, `${view}: tally row for ${s.split}`).toBeDefined();
       expect(s.label.text).toBe(want.text);
-      // Within 30 px of its node (in the document's own coordinates).
-      const d = Math.hypot(e.label!.x - e.cx, e.label!.y - e.cy);
-      expect(d, `${view}: label distance node ${id}`).toBeLessThanOrEqual(30);
+      // On-segment convention: the label's anchor — its text centre,
+      // or the leader endpoint at the node when drawn as a callout —
+      // must be nearest to its own node's incoming segment
+      // (point→segment distance). Boundary ties are allowed: the
+      // leader endpoint at a node is also its child's segment start.
+      const anchor = e.label!.leaderEnd ?? { x: e.label!.x, y: e.label!.y };
+      const segDist = (n: ScreenNode) => {
+        if (n.segX0 === null) return Infinity;
+        const lo = Math.min(n.segX0, n.cx);
+        const hi = Math.max(n.segX0, n.cx);
+        const dx =
+          anchor.x < lo ? lo - anchor.x : anchor.x > hi ? anchor.x - hi : 0;
+        return Math.hypot(dx, anchor.y - n.cy);
+      };
+      const own = segDist(e);
+      for (const otherId of ids) {
+        if (otherId === id) continue;
+        const other = segDist(exported[otherId]);
+        expect(
+          own <= other + 1e-9,
+          `${view}: label ${e.label!.text} on node ${id} nearer the ` +
+            `segment into node ${otherId} (${own.toFixed(1)} vs ` +
+            `${other.toFixed(1)})`,
+        ).toBe(true);
+      }
     }
   }
   expect(labels, `${view}: support labels drawn`).toBeGreaterThan(0);
   expect(branches, `${view}: branches drawn`).toBeGreaterThan(0);
 }
 
-/** Click an export item and return the downloaded bytes. */
-async function downloadBytes(page: Page, name: string) {
+/** Click an export item, save the file under test-results/ (as
+ * saveName when given — the two views share a suggested filename) and
+ * return the downloaded bytes. */
+async function downloadBytes(page: Page, name: string, saveName?: string) {
   const [dl] = await Promise.all([
     page.waitForEvent("download"),
     page
@@ -250,6 +295,7 @@ async function downloadBytes(page: Page, name: string) {
       .getByRole("button", { name, exact: true })
       .click(),
   ]);
+  await dl.saveAs(`test-results/${saveName ?? dl.suggestedFilename()}`);
   return readFile((await dl.path())!);
 }
 
@@ -300,7 +346,9 @@ test("cytochrome-c: exported SVG/PNG is the on-screen figure, both views", async
     const view = i === 0 ? "rooted" : "computed";
 
     const screen = await svg.evaluate(figureNodes);
-    const svgText = (await downloadBytes(page, v.item)).toString("utf8");
+    const svgText = (
+      await downloadBytes(page, v.item, `c11-tree-${view}.svg`)
+    ).toString("utf8");
     const parsed = await page.evaluate(
       (args) => {
         const fn = new Function(
@@ -334,6 +382,7 @@ test("cytochrome-c: exported SVG/PNG is the on-screen figure, both views", async
     const png = await downloadBytes(
       page,
       view === "rooted" ? "PNG (rooted on wheat)" : "PNG (as computed, unrooted)",
+      `c11-tree-${view}.png`,
     );
     const size = pngSize(png);
     expect(size.w).toBe(Math.max(1, Math.ceil(parsed.vw * 2)));

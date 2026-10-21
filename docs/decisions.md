@@ -2450,3 +2450,64 @@ wedging the start queue.
   climb run. This is what keeps every cytochrome-c label within ~25 px
   of its node in both views (previously 110 px in the rooted view's
   dense cluster — the "staircase" that read as wrong groupings).
+
+## Support labels ride the incoming branch segment (owner checkpoint 21-10-26)
+
+- **Placement convention replaced.** In dense regions the corner-
+  candidate scheme left labels visibly ambiguous between neighbouring
+  nodes even while each stayed inside its 30 px reach. Each pill is
+  now centred just ABOVE the horizontal segment into its node,
+  right-aligned near the node end — the nearest incoming segment is
+  always its own, so the grouping it annotates is unambiguous.
+- **Segment fit is per-edge.** `minBranchPx` became a per-node
+  resolver: a supported edge stretches (display-only, like the old
+  12 px stroke floor) until it can hold its pill — pill width plus
+  marker clearance plus 4 px headroom, the owner's "label width +
+  4 px" rule. `supportLabels` reuses the same `segFitPx` value, so the
+  layout pass and the placement pass can never disagree.
+- **20% distortion cap → leader line.** If the needed stretch exceeds
+  20% of the drawing width the edge keeps the 12 px floor and the
+  label is drawn offset above the node with a thin dashed leader to
+  it (`SupportLabel.leader`). The same fallback covers a segment
+  whose every on-segment spot is blocked — a silently stacked pill
+  would re-create the ambiguity this change removes. Both renderers
+  draw the leader from the stored geometry; PNG inherits it through
+  the shared SVG.
+- **Tests assert the association, not a distance budget.** The
+  nearest incoming horizontal segment to each label's anchor (pill
+  bottom centre, or the leader endpoint at the node) must be its own
+  node's — a boundary tie is allowed only where the node point is
+  literally a child's segment start. Overlap-vs-markers/names/pills
+  and in-bounds checks are kept; the stretch test still pins the
+  12 px floor and a narrow-panel test pins the cap→leader path.
+
+### Refinement (same checkpoint): overhang replaces stretch-to-fit
+
+- **Leaders stopped being the short-segment default.** A leader label
+  raised by a full pill height landed on a neighbour's row and read as
+  that node's value (the 35* at zebrafish height report). Short
+  segments are no longer stretched to fit at all: the pill keeps the
+  node's own y, right-aligned, and simply extends left past the
+  segment's start — over the parent's vertical, which the opaque pill
+  masks. `minBranchPx` is back to the flat 12 px stroke floor; the
+  per-node resolver and the 20% cap are gone.
+- **Nudge before leader, with the drop extended.** Collision
+  obstacles are labels, leaf names and node markers only (branch
+  lines are maskable). A blocked spot nudges vertically ±6 px — down
+  first, since the pill may mask the segment it straddles and that
+  keeps the centre closest to the row. *Deviation:* if the ±6 px
+  band is fully blocked the pill keeps descending while its centre
+  stays within the 10 px row bound — covering its own segment is
+  allowed (it masks like any branch line). The dense cytochrome-c
+  cluster needs this: the 35*/52 stack collides with the parent
+  marker 8–10 px off base, and a strict 6 px cap would produce the
+  leaders the acceptance case forbids. A label that can't fit within
+  the 10 px bound still earns a leader. The leader's attach point is
+  searched along the pill's bottom edge then right edge so the
+  straight line to the node crosses no drawn segment or connector.
+- **cytochrome-c acceptance:** the e2e now asserts zero
+  `.support-leader` elements and |pill centre − node y| ≤ 10 px in
+  both views, on top of the no-overlap boxes.
+- Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
+  ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
