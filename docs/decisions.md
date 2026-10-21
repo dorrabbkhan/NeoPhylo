@@ -2232,3 +2232,123 @@ wedging the start queue.
   `ExportMenu.test.tsx`, `web/src/index.css` (one select rule),
   `web/scripts/r-parity.mjs`, `docs/decisions.md`.
 
+## v1.2 Task 12: consensus tabs
+
+- **Tab metadata lives in `consensusTabs.ts`, not the component file.**
+  The react-refresh lint forbids a component file exporting
+  non-component symbols; `CONSENSUS_TABS`, `consensusKind`, `viewLabel`
+  and `droppedLine` are shared by `ConsensusTabs.tsx` and `App.tsx`
+  (which picks the tree to draw), so they sit in a sibling `.ts` — the
+  same split as `stepEmphasis.ts`.
+- **A stored consensus view without results falls back to "support".**
+  `Session.bootstrap.view` survives `clearBootstrap`, and a `ran: false`
+  link can name a consensus tab; with no `done` run the consensus tabs
+  are disabled, so the selected tab and the drawn tree both fall back
+  to the support view instead of showing a disabled selection over the
+  wrong tree.
+- **Consensus views are rerooted exactly like the support tree.** The
+  App's existing `reroot` block operates on `drawnInferred`, which now
+  includes the active consensus tree — NJ consensus trees (unrooted)
+  are rooted on the reference's outgroup under the same toggle, while
+  UPGMA consensus trees are already rooted and untouched.
+- **Consensus tabs mount only at the final stepper position**, matching
+  the BootstrapPanel's spoiler gate: support labels (and now the tabs)
+  appear only when the finished tree is on screen.
+- **The tab strip is a single horizontally-scrollable row and the
+  canvas has a 96 px floor.** The first e2e run caught the collapse:
+  when the teaching notices squeeze `.trees` to ~160 px, a wrapping
+  two-row tablist plus the reroot note/toggle starved `.tree-canvas`
+  to a zero box and the svg rendered `hidden`. Now the tablist never
+  wraps (`overflow-x: auto`), `.consensus-tabs`/`.consensus-tabpanel`/
+  `.tree-panel` refuse to shrink below content, and `.tree-col` gets
+  `overflow-y: auto` so the whole block scrolls instead of clipping
+  the drawing or painting over the heatmap row.
+- **Files outside the Files block:**
+  - `web/src/views/consensusTabs.ts` — new; shared tab metadata
+    (react-refresh rule, see above).
+  - `web/src/index.css` — styles for the tab strip, the size floor and
+    the dropped line.
+  - `web/e2e/bootstrap.spec.ts` — the owner's cytochrome-c acceptance:
+    the majority-rule view draws rerooted with wheat on its own branch
+    and no support label clipped or overlapping.
+  - `docs/decisions.md` (this entry).
+
+## v1.2 Task 13: watch one replicate
+
+- **The worker `detail` job is a new protocol message.** Spec §6.5's
+  "one-replicate job" needed a name the §5 table doesn't give;
+  `detail` carries `ReplicateDetailParams` (alignment, model, method,
+  seed, index) and answers `{ type: "detail", detail }` or `error`. It
+  shares the client's single live-job slot: `BootstrapClient.detail`
+  cancels whatever is current, exactly like `start`, so the spec's
+  "never two live jobs" rule is unchanged. The worker queues it behind
+  a running job like a `start`.
+- **`BootstrapState.msPerReplicate` stores the run's estimate.** §6.5
+  routes the detail through the worker when "estimated > 2 s"; the
+  only estimate available once a run finishes is the `estimate`
+  message's `msPerReplicate`, so `bootstrapEstimated` now keeps it.
+  One `replicate_detail` call costs about one bootstrap replicate
+  (weights + weighted distances + build + compare), which is what the
+  estimate measures.
+- **The Watch button shows whenever `support !== null`, disabled while
+  a job is active.** A run in flight holds the worker's job slot, so a
+  detail request then would cancel it — gating on `!active` prevents
+  that (and matches Review Focus 2: a run must never be cancelled by
+  navigation). The panel uses `settingsUsed.seed` and the run's total
+  so the view matches the run the results belong to (Review Focus 3).
+- **`rf_to_original` drives the difference line verbatim:** "This
+  replicate's tree differs from your tree in K grouping(s)." K is the
+  method's own comparison — unrooted RF for NJ, rooted cluster
+  difference for UPGMA — which is exactly what the engine reports
+  (Task 4 fix), so the panel never recomputes it.
+- **Outlines reuse the wrong-clade mark.** `differing` groupings are
+  matched to drawn nodes by leaf set: exact side for UPGMA clusters,
+  side or complement for NJ splits (the canonical side never holds
+  taxon 0). Each differing grouping exists in exactly one tree, so it
+  is outlined exactly once across the pair.
+- **Both trees follow the main view's rooting.** `original` is the
+  `drawnTree` prop — support labels and the §6.7 reference rooting
+  included; the replicate tree is rerooted on the same outgroup when
+  that display is on ("same toggle state"). Support labels come free
+  via TreeView's checkpoint-11 pill layout.
+- **Files outside the Files block:**
+  - `web/src/engine/bootstrapProtocol.ts` — the `detail` message pair
+    and handler types.
+  - `web/src/engine/bootstrapClient.ts` — `detail()` plus the
+    handlers-map refactor (per-job dispatch closures) it required.
+  - `web/src/engine/worker.ts` — `detail` job handling in
+    `installWorkerScope`.
+  - `web/src/state/session.ts` — `msPerReplicate` (see above).
+  - `web/src/views/BootstrapPanel.tsx` — the "Watch one replicate"
+    button that dispatches `setReplicateIndex(0)`.
+  - `web/src/views/App.tsx` — detail acquisition (sync or worker
+    route) and the panel render.
+  - `web/src/views/stepEmphasis.ts` — `sameSet` exported for grouping
+    matching.
+  - `web/src/index.css` — dialog, column strip and tree-pair styles.
+  - `docs/decisions.md` (this entry).
+
+### Checkpoint fixes: orientation and difference wording
+
+- **The replicate tree is drawn in the original's orientation.** The
+  outgroup it roots on is the `outgroup` prop when the reference-rooted
+  display is on (unchanged), otherwise the leaf set of the original
+  drawing's root-side first child — rerooted via `reroot_on_outgroup`
+  (the engine's terminal-branch fallback covers a side that isn't a
+  split in the replicate). Its children are then sorted by each
+  subtree's earliest leaf position in the original's drawn leaf order
+  (`orderLike`), so a replicate with the same groupings draws with the
+  same leaf order — verified by test, not just by construction. Both
+  are view-only transforms; no topology changes.
+- **The difference line counts against your tree.** `differing`
+  entries found in the original's drawn tree are "missing here"; the
+  rest "appear instead". For NJ's unrooted splits on binary trees the
+  counts are equal (M = K/2); for UPGMA's rooted clusters they are the
+  actual counts, which can differ in general. When `rf_to_original` is
+  0 the line reads "This replicate's tree has the same groupings as
+  your tree."
+- **Display reroot caveat:** "missing" counts match `differing`
+  against `original` only, and "extra" is `|differing| − missing`, so
+  the wording stays exact even when the display reroot moves a UPGMA
+  cluster off the drawn replicate tree — an outline then simply has
+  nowhere to draw on that side.

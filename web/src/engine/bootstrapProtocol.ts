@@ -14,6 +14,7 @@ import type { DistModel } from "./generated/DistModel";
 import type { DroppedGroup } from "./generated/DroppedGroup";
 import type { Method } from "./generated/Method";
 import type { NeoError } from "./generated/NeoError";
+import type { ReplicateDetail } from "./generated/ReplicateDetail";
 import type { Tree } from "./generated/Tree";
 
 /** Everything a bootstrap run needs (spec §5 `start` fields). */
@@ -25,9 +26,21 @@ export interface BootstrapParams {
   replicates: number;
 }
 
-/** Page → worker (spec §5). */
+/** Everything a one-replicate `replicate_detail` job needs (spec §6.5:
+ * for estimates over ~2 s the detail runs in the worker instead of on
+ * the main thread). `index` is the 0-based replicate index. */
+export interface ReplicateDetailParams {
+  alignment: Alignment;
+  model: DistModel;
+  method: Method;
+  seed: number;
+  index: number;
+}
+
+/** Page → worker (spec §5, plus the §6.5 detail job). */
 export type PageToWorker =
   | ({ type: "start"; jobId: number } & BootstrapParams)
+  | ({ type: "detail"; jobId: number } & ReplicateDetailParams)
   | { type: "confirm"; jobId: number }
   | { type: "cancel"; jobId: number };
 
@@ -57,6 +70,7 @@ export type WorkerToPage =
       dropped: Record<ConsensusKind, DroppedGroup[]>;
       failed: number;
     }
+  | { type: "detail"; jobId: number; detail: ReplicateDetail }
   | { type: "error"; jobId: number; error: NeoError }
   | { type: "cancelled"; jobId: number };
 
@@ -87,6 +101,12 @@ export interface BootstrapHandlers {
     support: Tree;
   }): void;
   onResult(r: BootstrapResult): void;
+  onError(e: NeoError): void;
+}
+
+/** Page-side callbacks for a one-replicate detail job (spec §6.5). */
+export interface ReplicateDetailHandlers {
+  onDetail(d: ReplicateDetail): void;
   onError(e: NeoError): void;
 }
 

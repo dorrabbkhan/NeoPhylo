@@ -32,7 +32,9 @@ import { REPO_URL } from "../config";
 import { bootstrapClient } from "../engine/bootstrapClient";
 import { engine, initEngine } from "../engine";
 import type { ConsensusKind } from "../engine/generated/ConsensusKind";
+import type { Result } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
+import type { ReplicateDetail } from "../engine/generated/ReplicateDetail";
 import { errorMessage } from "../explain/errors";
 import { loadLesson } from "../lessons/loader";
 import { usePromptGate } from "../lessons/promptGate";
@@ -53,6 +55,8 @@ import {
 
 import { AlphabetBadge } from "./AlphabetBadge";
 import { BootstrapPanel } from "./BootstrapPanel";
+import { ConsensusTabs } from "./ConsensusTabs";
+import { consensusKind, viewLabel } from "./consensusTabs";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -61,6 +65,7 @@ import { LessonsMenu } from "./LessonsMenu";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
 import { PhylipHelp } from "./PhylipHelp";
+import { ReplicatePanel } from "./ReplicatePanel";
 import { PromptCard } from "./PromptCard";
 import {
   leafCount,
@@ -97,6 +102,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [pair, setPair] = useState<[string, string] | null>(null);
   // "Coming from PHYLIP?" help dialog, opened from the header (§5.5).
   const [phylipHelp, setPhylipHelp] = useState(false);
+  // The last replicate detail delivered by a worker job (spec §6.5);
+  // keyed by replicate index so a stale result can't paint the panel.
+  const [repDetail, setRepDetail] = useState<{
+    index: number;
+    result: Result<ReplicateDetail>;
+  } | null>(null);
 
   // Height of the side-by-side tree row, measured once for both panels
   // so they share one leafSpacing and their rows line up (§6.1). The
@@ -399,6 +410,74 @@ export function App({ exercise }: { exercise?: Exercise }) {
     return engine.jttPairDetail(aln, i, j);
   }, [pair, session]);
 
+  // "Watch one replicate" (v1.2 Task 13, spec §6.5): the panel shows
+  // replicate `replicateIndex` (0-based) of the finished run — its seed
+  // and total come from `settingsUsed`, the settings the results belong
+  // to even after the user edits the fields (Review Focus 3).
+  const repIndex = session?.bootstrap.replicateIndex ?? null;
+  const repSeed =
+    session?.bootstrap.settingsUsed?.seed ?? session?.bootstrap.seed ?? 0;
+  const repAln = session?.alignment ?? null;
+  const repModel = session?.exercise.analysis.correction;
+  const repMethod = session?.exercise.analysis.method;
+  // A single replicate is fast on the main thread; when the run's own
+  // estimate puts one replicate over ~2 s it goes through the worker
+  // as a one-replicate job instead (spec §6.5).
+  const repViaWorker =
+    session !== null &&
+    session.bootstrap.msPerReplicate !== null &&
+    session.bootstrap.msPerReplicate > 2000;
+  useEffect(() => {
+    if (
+      repIndex === null ||
+      !repViaWorker ||
+      repAln === null ||
+      repModel === undefined ||
+      repMethod === undefined
+    ) {
+      return;
+    }
+    const index = repIndex;
+    const jobId = bootstrapClient.detail(
+      {
+        alignment: repAln,
+        model: repModel,
+        method: repMethod,
+        seed: repSeed,
+        index,
+      },
+      {
+        onDetail: (d) =>
+          setRepDetail({ index, result: { ok: true, value: d } }),
+        onError: (e) =>
+          setRepDetail({ index, result: { ok: false, error: e } }),
+      },
+    );
+    return () => {
+      void bootstrapClient.cancel(jobId);
+    };
+  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed]);
+  // The fast path: replicate_detail is one engine call, computed
+  // synchronously like the pair panel's jttPairDetail.
+  const repSync = useMemo(() => {
+    if (
+      repIndex === null ||
+      repViaWorker ||
+      repAln === null ||
+      repModel === undefined ||
+      repMethod === undefined
+    ) {
+      return null;
+    }
+    return engine.replicateDetail(
+      repAln,
+      repModel,
+      repMethod,
+      repSeed,
+      repIndex,
+    );
+  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed]);
+
   // Focus rescue (§6.5): landing on a gated position disables the
   // stepper control under focus and the browser drops focus to <body>;
   // in WebKit the Tab ring can't re-enter from there at all. On the
@@ -433,10 +512,23 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // appear only here — the spoiler rule from the v1.1 checkpoint.
   const atFinal =
     trace === null ? session.result !== null : k === n;
+  // The active consensus tree when the view is a consensus tab and a
+  // done run produced one (spec §6.4). A consensus view with no results
+  // behind it falls back to the support tree — ConsensusTabs shows the
+  // support tab selected in the same case. NJ's consensus is rerooted
+  // on the reference's outgroup by the shared `reroot` block below,
+  // exactly like the support tree; UPGMA's is already rooted.
+  const b = session.bootstrap;
+  const activeKind =
+    atFinal && b.status === "done" && b.consensus !== null
+      ? consensusKind(b.view)
+      : null;
+  const consensusTree =
+    activeKind !== null ? b.consensus![activeKind] : null;
   // Support labels ride on the run's support-bearing tree — only after
   // a run has produced one, only at the final position.
   const drawnInferred = atFinal
-    ? (session.bootstrap.support ?? inferred)
+    ? (consensusTree ?? session.bootstrap.support ?? inferred)
     : inferred;
 
   // Reference rooting (spec §6.7): NJ's tree is drawn rerooted on the
@@ -686,20 +778,44 @@ export function App({ exercise }: { exercise?: Exercise }) {
             )}
             {inferred !== null && drawnTree !== null && (
               <div className="tree-col">
-                <TreeView
-                  title="Inferred tree"
-                  tree={drawnTree}
-                  layoutKind="phylogram"
-                  highlight={inferHi}
-                  wrong={wrong}
-                  clampNegative={session.clampNegative}
-                  visibleNodes={
-                    drawnTree === inferred ? visibleNodes : undefined
-                  }
-                  leafSpacing={sharedSpacing}
-                  onHoverLeaf={onHoverLeaf}
-                  onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
-                />
+                {(() => {
+                  // Consensus tabs (spec §6.4): at the final position
+                  // the tree panel sits inside the tablist's tabpanel.
+                  // A consensus view draws its tree as a cladogram with
+                  // the tab's label as caption; step highlights and
+                  // wrong-clade marks belong to the inferred tree only.
+                  const treePanel = (
+                    <TreeView
+                      title={
+                        consensusTree === null
+                          ? "Inferred tree"
+                          : `${viewLabel(b.view)} consensus`
+                      }
+                      tree={drawnTree}
+                      layoutKind={
+                        consensusTree === null ? "phylogram" : "cladogram"
+                      }
+                      highlight={consensusTree === null ? inferHi : NO_HIGHLIGHT}
+                      wrong={consensusTree === null ? wrong : NO_HIGHLIGHT}
+                      clampNegative={session.clampNegative}
+                      visibleNodes={
+                        drawnTree === inferred ? visibleNodes : undefined
+                      }
+                      leafSpacing={sharedSpacing}
+                      onHoverLeaf={onHoverLeaf}
+                      onPickLeaf={
+                        gating !== null ? promptGate.onPickLeaf : undefined
+                      }
+                    />
+                  );
+                  return atFinal ? (
+                    <ConsensusTabs session={session} dispatch={dispatch}>
+                      {treePanel}
+                    </ConsensusTabs>
+                  ) : (
+                    treePanel
+                  );
+                })()}
                 {/* NJ's tree is unrooted; the arbitrary drawing point can
                     make a correct tree look different from the reference
                     (checkpoint 12). Only a verdict caption — final step.
@@ -826,6 +942,42 @@ export function App({ exercise }: { exercise?: Exercise }) {
           onClose={() => setPair(null)}
         />
       )}
+      {repIndex !== null &&
+        session.alignment !== null &&
+        drawnTree !== null && (
+          <ReplicatePanel
+            method={session.exercise.analysis.method}
+            taxa={session.alignment.labels}
+            index={repIndex}
+            total={Math.max(
+              1,
+              session.bootstrap.total > 0
+                ? session.bootstrap.total
+                : (session.bootstrap.settingsUsed?.replicates ??
+                    session.bootstrap.replicates),
+            )}
+            detail={
+              repViaWorker
+                ? repDetail !== null && repDetail.index === repIndex
+                  ? repDetail.result
+                  : null
+                : repSync
+            }
+            // The original exactly as the main view draws it: support
+            // labels, and the reference rooting while that display is
+            // on — the replicate tree gets the same outgroup.
+            original={drawnTree}
+            outgroup={showReroot ? reroot!.outgroup : null}
+            clampNegative={session.clampNegative}
+            leafSpacing={sharedSpacing}
+            onNavigate={(i) =>
+              dispatch({ type: "setReplicateIndex", index: i })
+            }
+            onClose={() =>
+              dispatch({ type: "setReplicateIndex", index: null })
+            }
+          />
+        )}
     </div>
   );
 }
