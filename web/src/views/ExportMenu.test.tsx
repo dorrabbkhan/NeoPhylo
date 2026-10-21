@@ -78,7 +78,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={MATRIX}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -96,7 +96,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={null}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -120,7 +120,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={long}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -185,8 +185,8 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={["wheat"]}
-        consensusTree={null}
+        treeView={{ kind: "rooted", outgroup: ["wheat"] }}
+        consensusTree={parse("((A,B),(C,D),E);")}
         replicates={null}
       />,
     );
@@ -199,6 +199,85 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
     expect(
       screen.getByRole("button", { name: "PNG (rooted on wheat)" }),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Consensus (Newick, rooted on wheat)",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("names the tree items after the computed (unrooted) view", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        treeView={{ kind: "computed" }}
+        consensusTree={parse("((A,B),(C,D),E);")}
+        replicates={null}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Newick (as computed, unrooted)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "SVG (as computed, unrooted)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "PNG (as computed, unrooted)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Consensus (Newick, as computed, unrooted)",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("the label follows the toggle immediately", () => {
+    const { rerender } = render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        treeView={{ kind: "rooted", outgroup: ["wheat"] }}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Newick (rooted on wheat)" }),
+    ).toBeTruthy();
+    rerender(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        treeView={{ kind: "computed" }}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Newick (as computed, unrooted)" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Newick (rooted on wheat)" }),
+    ).toBeNull();
+  });
+
+  it("keeps the items plain when no reroot view exists", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        treeView={{ kind: "plain" }}
+        consensusTree={parse("((A,B),(C,D),E);")}
+        replicates={null}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Newick" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "SVG" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "PNG" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Consensus (Newick)" }),
+    ).toBeTruthy();
   });
 
   it("Newick export writes support as integer-% internal labels", async () => {
@@ -207,7 +286,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -225,7 +304,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={consensus}
         replicates={100}
       />,
@@ -243,7 +322,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -259,7 +338,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={100}
       />,
@@ -288,7 +367,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
       <ExportMenu
         {...BASE}
         tree={supportTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -307,7 +386,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
       <ExportMenu
         {...BASE}
         tree={quotedTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -326,7 +405,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
       <ExportMenu
         {...BASE}
         tree={quotedTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -349,7 +428,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
       <ExportMenu
         {...BASE}
         tree={quotedTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={null}
         replicates={null}
       />,
@@ -370,7 +449,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
       <ExportMenu
         {...BASE}
         tree={quotedTree()}
-        rootedOn={null}
+        treeView={{ kind: "plain" }}
         consensusTree={consensus}
         replicates={null}
       />,

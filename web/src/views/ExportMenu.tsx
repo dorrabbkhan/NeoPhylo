@@ -30,9 +30,13 @@ export interface ExportMenuProps {
   clampNegative: boolean;
   /** The session's current leaf distance matrix (spec §5.6 export). */
   matrix: DistanceMatrix | null;
-  /** Outgroup labels when `tree` is drawn rooted like the reference;
-   * the tree items name it (e.g. "Newick (rooted on wheat)"). */
-  rootedOn: string[] | null;
+  /** Which drawing `tree` is (v1.2 spec §6.7-6.8, checkpoint 15):
+   * the tree items name it — "rooted": the rerooted reference
+   * outgroup view ("Newick (rooted on wheat)"); "computed": the
+   * unrooted NJ tree the toggle falls back to ("Newick (as computed,
+   * unrooted)"); "plain": no toggle exists (UPGMA, no reference or
+   * mid-trace), so the items are unnamed ("Newick"). */
+  treeView: TreeViewState;
   /** The tree of the current bootstrap view — the support tree on the
    * "Your tree with support" tab, else the view's consensus tree —
    * exported by "Consensus (Newick)" (v1.2 spec §6.8). */
@@ -65,6 +69,13 @@ function nameMapCsv(pairs: [string, string][]): string {
  * tool-compatible names for ape/FigTree/iTOL. */
 type NameLabelMode = "exact" | "compatible";
 
+/** The drawing the tree items export, mirroring the tree column's
+ * current view (checkpoint 15). */
+export type TreeViewState =
+  | { kind: "rooted"; outgroup: string[] }
+  | { kind: "computed" }
+  | { kind: "plain" };
+
 export function ExportMenu({
   tree,
   alignment,
@@ -72,7 +83,7 @@ export function ExportMenu({
   method,
   clampNegative,
   matrix,
-  rootedOn,
+  treeView,
   consensusTree,
   replicates,
 }: ExportMenuProps) {
@@ -167,34 +178,44 @@ export function ExportMenu({
     );
   };
 
-  // spec §6.8: tree items follow the current display — rooted like
-  // the reference when that view is on — and say so in their names.
-  const rootedNote =
-    rootedOn !== null ? ` (rooted on ${rootedOn.join(", ")})` : "";
+  // spec §6.8 + checkpoint 15: tree items follow the current display
+  // and say so in their names — the rerooted outgroup view, the
+  // unrooted computed view, or nothing when no toggle exists (UPGMA
+  // trees are rooted by the method, and there is no reference view).
+  const viewSuffix =
+    treeView.kind === "rooted"
+      ? `rooted on ${treeView.outgroup.join(", ")}`
+      : treeView.kind === "computed"
+        ? "as computed, unrooted"
+        : null;
+  const treeLabel = (base: string) =>
+    viewSuffix === null ? base : `${base} (${viewSuffix})`;
 
   return (
     <section className="export-menu" aria-label="Export">
       <h2>Export</h2>
       <div className="export-buttons">
         <button type="button" disabled={tree === null} onClick={onSvg}>
-          SVG{rootedNote}
+          {treeLabel("SVG")}
         </button>
         <button
           type="button"
           disabled={tree === null || busy}
           onClick={() => void onPng()}
         >
-          {busy ? "PNG…" : `PNG${rootedNote}`}
+          {busy ? "PNG…" : treeLabel("PNG")}
         </button>
         <button type="button" disabled={tree === null} onClick={onNewick}>
-          Newick{rootedNote}
+          {treeLabel("Newick")}
         </button>
         <button
           type="button"
           disabled={consensusTree === null}
           onClick={onConsensus}
         >
-          Consensus (Newick)
+          {viewSuffix === null
+            ? "Consensus (Newick)"
+            : `Consensus (Newick, ${viewSuffix})`}
         </button>
         <button type="button" disabled={alignment === null} onClick={onR}>
           R script

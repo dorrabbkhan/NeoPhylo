@@ -7,6 +7,8 @@
 // Covers cancel's 1 s settle, stale jobId filtering under a forced
 // message delay, and an offline run through the PWA precache.
 
+import { readFile } from "node:fs/promises";
+
 import { test, expect } from "@playwright/test";
 
 import { stepToEnd, waitForApp } from "./helpers";
@@ -702,4 +704,121 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
   expect(
     hit({ x: 0, y: 0, width: 4, height: 4 }, { x: 3, y: 3, width: 4, height: 4 }),
   ).toBe(true);
+});
+
+// Checkpoint 15: the Export menu names the drawing each item exports —
+// the rerooted-on-outgroup view or the computed (unrooted) view — and
+// the downloaded Newick's top-level structure matches the name. The
+// toggle sits below the column's scroll overflow: clicking it must not
+// leave the computed drawing's top clipped, so every leaf name and the
+// panel title stay visible without scrolling (the owner saw zebrafish
+// and the title cut off).
+test("cytochrome-c: export items name the drawing, all leaves visible in both views", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+
+  const menu = page.locator(".export-menu");
+  const item = (name: string) =>
+    menu.getByRole("button", { name, exact: true });
+
+  /** Click an export item and return the downloaded file's text. */
+  const downloadText = async (name: string): Promise<string> => {
+    const [dl] = await Promise.all([
+      page.waitForEvent("download"),
+      item(name).click(),
+    ]);
+    return readFile((await dl.path())!, "utf8");
+  };
+
+  /** Parse a Newick string in the page: is wheat a direct root child? */
+  const wheatAtTop = (nwk: string) =>
+    page.evaluate((text) => {
+      const w = window as unknown as {
+        __neophylo: {
+          engine: {
+            parseNewick(t: string): {
+              ok: boolean;
+              value: {
+                nodes: { parent: number | null; label: string | null }[];
+                root: number;
+              };
+            };
+          };
+        };
+      };
+      const r = w.__neophylo.engine.parseNewick(text);
+      if (!r.ok) throw new Error("downloaded Newick failed to parse");
+      const wheat = r.value.nodes.findIndex((n) => n.label === "wheat");
+      return wheat >= 0 && r.value.nodes[wheat].parent === r.value.root;
+    }, nwk);
+
+  // Rooted-like-the-reference view (default, §6.7): every tree item
+  // names the outgroup, and the exported Newick is rooted with wheat
+  // on its own top-level branch.
+  for (const name of [
+    "Newick (rooted on wheat)",
+    "SVG (rooted on wheat)",
+    "PNG (rooted on wheat)",
+    "Consensus (Newick, rooted on wheat)",
+  ]) {
+    await expect(item(name)).toBeVisible();
+  }
+  expect(await wheatAtTop(await downloadText("Newick (rooted on wheat)")))
+    .toBe(true);
+
+  // Computed view: the labels follow the toggle immediately.
+  await page
+    .getByRole("button", { name: "Show as computed (unrooted)" })
+    .click();
+  for (const name of [
+    "Newick (as computed, unrooted)",
+    "SVG (as computed, unrooted)",
+    "PNG (as computed, unrooted)",
+    "Consensus (Newick, as computed, unrooted)",
+  ]) {
+    await expect(item(name)).toBeVisible();
+  }
+  expect(await wheatAtTop(await downloadText("Newick (as computed, unrooted)")))
+    .toBe(false);
+
+  // Every leaf name and the panel title are on screen without
+  // scrolling the tree column — getBoundingClientRect, since
+  // toBeVisible ignores overflow clipping.
+  const LEAVES = [
+    "human",
+    "horse",
+    "chicken",
+    "zebrafish",
+    "drosophila",
+    "wheat",
+    "yeast",
+    "neurospora",
+  ];
+  const clip = await page.evaluate((names) => {
+    const col = document.querySelector(".tree-col") as HTMLElement;
+    const svg = col.querySelector('svg[aria-label="Inferred tree"]')!;
+    const caption = col.querySelector("figcaption")!;
+    const inside = (r: DOMRect, c: DOMRect) =>
+      r.top >= c.top && r.bottom <= c.bottom + 0.5;
+    const colRect = col.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    const leafRects = Array.from(svg.querySelectorAll("text"))
+      .filter((t) => names.includes(t.textContent ?? ""))
+      .map((t) => t.getBoundingClientRect());
+    return {
+      leaves: leafRects.length,
+      leavesInSvg: leafRects.every((r) => inside(r, svgRect)),
+      svgInCol: inside(svgRect, colRect),
+      captionInCol: inside(caption.getBoundingClientRect(), colRect),
+      scrollTop: col.scrollTop,
+    };
+  }, LEAVES);
+  expect(clip.scrollTop).toBe(0);
+  expect(clip.captionInCol).toBe(true);
+  expect(clip.svgInCol).toBe(true);
+  expect(clip.leaves).toBe(8);
+  expect(clip.leavesInSvg).toBe(true);
 });

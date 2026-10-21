@@ -1199,9 +1199,24 @@ button:disabled {
 /* When the tree row is squeezed (long teaching notices), the flex
  * chain can starve the canvas to a zero box — the svg then exists but
  * is hidden. A floor keeps the drawing visible; the extra height
- * overflows into the notes below instead. */
+ * overflows into the notes below instead.
+ *
+ * The svg is taken out of flow here (checkpoint 15): its intrinsic
+ * aspect-ratio height (width ÷ viewBox ratio) counts as the canvas's
+ * min-content, which pushed the column's content past the row and let
+ * the focused reroot toggle scroll the drawing's top out of view.
+ * Absolutely positioned, the canvas sizes from flex alone and the
+ * viewBox — which already fits every label — scales the whole drawing
+ * into whatever height is available, so every leaf stays visible. The
+ * global rule stays in-flow because the replicate trees' canvas is
+ * sized BY that intrinsic height (no flex space there). */
 .consensus-tabs .tree-canvas {
   min-height: 96px;
+  position: relative;
+}
+.consensus-tabs .tree-canvas svg {
+  position: absolute;
+  inset: 0;
 }
 
 .consensus-dropped {

@@ -2352,3 +2352,37 @@ wedging the start queue.
   the wording stays exact even when the display reroot moves a UPGMA
   cluster off the drawn replicate tree — an outline then simply has
   nowhere to draw on that side.
+
+## v1.2 checkpoint 15 fixes: export item names and computed-view clipping
+
+- **The menu names the drawing, not just the rooting.** `ExportMenu`'s
+  `rootedOn: string[] | null` prop conflated "computed view" with "no
+  reroot view exists", so the items went silent exactly when the user
+  most needed to know they were exporting the unrooted tree. It is now
+  a `TreeViewState` union — `rooted` (outgroup labels), `computed`,
+  `plain` — so the item names cover all three display states, and the
+  Consensus item carries the same qualifier ("Consensus (Newick,
+  rooted on wheat)" / "… as computed, unrooted").
+- **"Consensus (Newick)" exports the drawn tree.** App now passes
+  `drawnTree` (the rerooted view's tree) instead of the stored
+  unrooted consensus whenever a consensus view exists, so the exported
+  file's rooting matches the item's name. The stored consensus is
+  unchanged — this is a display-following export, per §6.8's "the
+  current consensus view".
+- **Top-of-drawing clipped after toggling (the zebrafish bug).** Two
+  causes, both in the tree column: (1) the svg's intrinsic
+  aspect-ratio height counted as the canvas's min-content inside the
+  min-height:auto chain, inflating the column's scroll content past
+  the row, and (2) the toggle sits below that overflow, so clicking it
+  focused-scrolled the column and left the drawing's top clipped.
+  Fixes: `.consensus-tabs .tree-canvas svg` is `position: absolute`
+  (scoped — the replicate trees' canvas is sized by that intrinsic
+  height, so the global rule stays in-flow), and App resets
+  `.tree-col`'s `scrollTop` in a `useLayoutEffect` on `rerootDisplay`.
+  `scrollTop`, not `scrollTo`: jsdom implements the property but not
+  the method (all App tests render this tree).
+- **e2e asserts pixels, not just DOM.** `toBeVisible` ignores overflow
+  clipping, so the new spec checks `getBoundingClientRect` of all 8
+  leaf names inside the svg rect, the svg + caption inside the column,
+  and `scrollTop === 0` after toggling — plus the downloaded Newick's
+  top-level structure (wheat is a root child rooted, not computed).

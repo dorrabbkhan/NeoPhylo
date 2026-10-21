@@ -26,7 +26,14 @@
 // resumes. Pick state lives in `answered` (at_step → picked labels) and
 // resets whenever a different exercise is loaded.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { REPO_URL } from "../config";
 import { bootstrapClient } from "../engine/bootstrapClient";
@@ -122,6 +129,22 @@ export function App({ exercise }: { exercise?: Exercise }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // The inferred tree's column scrolls when the row is squeezed (its
+  // tabs block keeps a min height; the caption + toggle ride below).
+  const treeColRef = useRef<HTMLDivElement | null>(null);
+
+  // Checkpoint 15: the reroot toggle sits at the column's bottom, so
+  // clicking it scrolls the column down to reveal it — clipping the
+  // drawing's top (and its caption) when the new view paints. Always
+  // land on the drawing's top after the view changes.
+  const rerootDisplay = session?.rerootDisplay ?? false;
+  useLayoutEffect(() => {
+    // scrollTop, not scrollTo: jsdom implements the property but not
+    // the method (unit tests render this tree).
+    const el = treeColRef.current;
+    if (el !== null) el.scrollTop = 0;
+  }, [rerootDisplay]);
 
   const dispatch = useCallback(
     (a: Action) => setSession((s) => (s === null ? s : reducer(s, a))),
@@ -720,8 +743,17 @@ export function App({ exercise }: { exercise?: Exercise }) {
             method={session.exercise.analysis.method}
             clampNegative={session.clampNegative}
             matrix={session.matrix}
-            rootedOn={showReroot ? reroot!.outgroup : null}
-            consensusTree={consensusViewTree}
+            treeView={
+              showReroot
+                ? { kind: "rooted", outgroup: reroot!.outgroup }
+                : reroot !== null
+                  ? { kind: "computed" }
+                  : { kind: "plain" }
+            }
+            // The current bootstrap view's tree AS DRAWN — rerooted on
+            // the reference's outgroup while that view is on — so the
+            // export matches the item's name (checkpoint 15).
+            consensusTree={consensusViewTree === null ? null : drawnTree}
             replicates={exportReplicates}
           />
         </aside>
@@ -777,7 +809,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
               />
             )}
             {inferred !== null && drawnTree !== null && (
-              <div className="tree-col">
+              <div className="tree-col" ref={treeColRef}>
                 {(() => {
                   // Consensus tabs (spec §6.4): at the final position
                   // the tree panel sits inside the tablist's tabpanel.
