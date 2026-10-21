@@ -2521,3 +2521,23 @@ wedging the start queue.
   heights are measured too, not just widths; the "0" marker is
   measured on its real alphabetic baseline. Exports measure against
   their own FONT_FAMILY stack.
+
+### fix/tree-scaling-and-replicate-count (owner review)
+
+- **Tree text never scales.** `TreeView`'s svg now renders at its
+  natural pixel size (`width`/`height` = viewBox) and `.tree-canvas`
+  scrolls on overflow — the ≥12 px layout font is the rendered font.
+  *Deviation from checkpoint 11/15:* the svg no longer stretches to
+  fill the panel; small trees draw top-left instead of upscaling.
+- **"Your tree" compares the computed tree.** `ReplicatePanel`'s
+  `original` is now the support-bearing computed tree (display-rooted
+  when the reroot toggle is on), not `drawnTree`. *Deviation from
+  Task 13:* the original spec passed the drawn tree verbatim — under a
+  consensus tab that is the collapsed consensus, which made the
+  "missing" count read 0 while the replicate still showed outlines.
+- **Intrinsic-size ratchet follow-up:** the px `width`/`height` on the
+  svg made it a min-content contribution, and `.trees`' `1fr` tracks
+  (`minmax(auto,1fr)`) pinned the column at the svg's intrinsic width —
+  relayout then sized the svg to the grown canvas, looping ~1 px per
+  frame (CI click timeouts on element stability). Tracks are now
+  `minmax(0,1fr)` and `.tree-panel` carries `min-width:0`.

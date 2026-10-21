@@ -138,7 +138,11 @@ export function TreeView({
 
   // The viewBox fits the CONTENT plus pad (checkpoint 12): nothing
   // clips at any tree size or view — and no empty margin remains where
-  // a fixed label-room reservation used to sit (checkpoint 15).
+  // a fixed label-room reservation used to sit (checkpoint 15). The
+  // svg renders at that natural pixel size (width/height = viewBox):
+  // layout px == rendered px, so the ≥12 px font floor holds — when
+  // the content is bigger than the canvas the panel scrolls instead
+  // of shrinking text (owner review).
   const width = bounds.maxX - bounds.minX + FIGURE_PANEL_PAD * 2;
   const height = bounds.maxY - bounds.minY + FIGURE_PANEL_PAD * 2;
   const tx = (x: number) => x - bounds.minX + FIGURE_PANEL_PAD;
@@ -153,8 +157,14 @@ export function TreeView({
   return (
     <figure className="tree-panel">
       <figcaption>{title}</figcaption>
-      <div className="tree-canvas" ref={boxRef}>
-        <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
+      <div className="tree-canvas" ref={boxRef} tabIndex={0}>
+        <svg
+          role="img"
+          aria-label={title}
+          viewBox={`0 0 ${width} ${height}`}
+          width={width}
+          height={height}
+        >
           {laid.nodes.map((n) => {
             const children = tree.nodes[n.id].children.filter((c) =>
               byId.has(c),
