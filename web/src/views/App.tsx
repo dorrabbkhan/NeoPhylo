@@ -52,6 +52,8 @@ import {
 
 import { AlphabetBadge } from "./AlphabetBadge";
 import { BootstrapPanel } from "./BootstrapPanel";
+import { ConsensusTabs } from "./ConsensusTabs";
+import { consensusKind, viewLabel } from "./consensusTabs";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
@@ -425,10 +427,23 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // appear only here — the spoiler rule from the v1.1 checkpoint.
   const atFinal =
     trace === null ? session.result !== null : k === n;
+  // The active consensus tree when the view is a consensus tab and a
+  // done run produced one (spec §6.4). A consensus view with no results
+  // behind it falls back to the support tree — ConsensusTabs shows the
+  // support tab selected in the same case. NJ's consensus is rerooted
+  // on the reference's outgroup by the shared `reroot` block below,
+  // exactly like the support tree; UPGMA's is already rooted.
+  const b = session.bootstrap;
+  const activeKind =
+    atFinal && b.status === "done" && b.consensus !== null
+      ? consensusKind(b.view)
+      : null;
+  const consensusTree =
+    activeKind !== null ? b.consensus![activeKind] : null;
   // Support labels ride on the run's support-bearing tree — only after
   // a run has produced one, only at the final position.
   const drawnInferred = atFinal
-    ? (session.bootstrap.support ?? inferred)
+    ? (consensusTree ?? session.bootstrap.support ?? inferred)
     : inferred;
 
   // Reference rooting (spec §6.7): NJ's tree is drawn rerooted on the
@@ -662,20 +677,44 @@ export function App({ exercise }: { exercise?: Exercise }) {
             )}
             {inferred !== null && drawnTree !== null && (
               <div className="tree-col">
-                <TreeView
-                  title="Inferred tree"
-                  tree={drawnTree}
-                  layoutKind="phylogram"
-                  highlight={inferHi}
-                  wrong={wrong}
-                  clampNegative={session.clampNegative}
-                  visibleNodes={
-                    drawnTree === inferred ? visibleNodes : undefined
-                  }
-                  leafSpacing={sharedSpacing}
-                  onHoverLeaf={onHoverLeaf}
-                  onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
-                />
+                {(() => {
+                  // Consensus tabs (spec §6.4): at the final position
+                  // the tree panel sits inside the tablist's tabpanel.
+                  // A consensus view draws its tree as a cladogram with
+                  // the tab's label as caption; step highlights and
+                  // wrong-clade marks belong to the inferred tree only.
+                  const treePanel = (
+                    <TreeView
+                      title={
+                        consensusTree === null
+                          ? "Inferred tree"
+                          : `${viewLabel(b.view)} consensus`
+                      }
+                      tree={drawnTree}
+                      layoutKind={
+                        consensusTree === null ? "phylogram" : "cladogram"
+                      }
+                      highlight={consensusTree === null ? inferHi : NO_HIGHLIGHT}
+                      wrong={consensusTree === null ? wrong : NO_HIGHLIGHT}
+                      clampNegative={session.clampNegative}
+                      visibleNodes={
+                        drawnTree === inferred ? visibleNodes : undefined
+                      }
+                      leafSpacing={sharedSpacing}
+                      onHoverLeaf={onHoverLeaf}
+                      onPickLeaf={
+                        gating !== null ? promptGate.onPickLeaf : undefined
+                      }
+                    />
+                  );
+                  return atFinal ? (
+                    <ConsensusTabs session={session} dispatch={dispatch}>
+                      {treePanel}
+                    </ConsensusTabs>
+                  ) : (
+                    treePanel
+                  );
+                })()}
                 {/* NJ's tree is unrooted; the arbitrary drawing point can
                     make a correct tree look different from the reference
                     (checkpoint 12). Only a verdict caption — final step.

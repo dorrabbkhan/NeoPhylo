@@ -291,6 +291,11 @@ p {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  /* A squeezed row can make the consensus-tabs block taller than the
+   * column (its floor keeps the tree visible); scroll rather than clip
+   * so the tree's bottom edge, the dropped line and the notes all stay
+   * reachable instead of painting over the heatmap row. */
+  overflow-y: auto;
 }
 
 .tree-col .tree-panel {
@@ -1116,4 +1121,83 @@ button:disabled {
   fill: var(--bg);
   stroke: var(--border);
   stroke-width: 1;
+}
+
+/* ---- Consensus tabs (v1.2 §6.4) ---- */
+
+/* The tabs + panel fill the tree column so the TreeView inside the
+ * tabpanel keeps its measured box. No min-height:0 — the block must
+ * not shrink below its content (a squeezed row would otherwise starve
+ * the canvas to a zero box and the svg would render hidden); .tree-col
+ * scrolls the overflow instead (see its rule above). */
+.consensus-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* One row that scrolls sideways rather than wrapping: a wrapped
+ * tablist ate enough of the squeezed tree row to starve the canvas to
+ * zero height (e2e: the svg rendered but got a 0-size box). */
+.consensus-tabs [role="tablist"] {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.consensus-tabs [role="tab"] {
+  flex-shrink: 0;
+}
+
+.consensus-tabs [role="tab"] {
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: none;
+  padding: 3px 10px;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.consensus-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--border);
+  /* Keep the selected tab's underline visible — selection is shape +
+   * weight, never color alone. */
+  font-weight: 600;
+}
+
+.consensus-tabs [role="tab"]:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.consensus-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.consensus-tabpanel .tree-panel {
+  flex: 1;
+  /* Overrides .tree-panel's global min-height:0 — see .consensus-tabs. */
+  min-height: auto;
+}
+
+/* When the tree row is squeezed (long teaching notices), the flex
+ * chain can starve the canvas to a zero box — the svg then exists but
+ * is hidden. A floor keeps the drawing visible; the extra height
+ * overflows into the notes below instead. */
+.consensus-tabs .tree-canvas {
+  min-height: 96px;
+}
+
+.consensus-dropped {
+  color: var(--fg);
+  font-size: 13px;
+  margin: 6px 0 0;
 }
