@@ -1028,6 +1028,14 @@ button:disabled {
   margin: 4px 0 0;
 }
 
+/* Newick label-mode select (fix/newick-compatible-names) */
+.newick-name-mode {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */
 
 .bootstrap-panel {

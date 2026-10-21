@@ -335,20 +335,22 @@ for (const file of proteinRefs) {
   }
 }
 
-// --- v1.2 Task 15: exports -------------------------------------------
-// Review Focus 4: a tree with quoted taxa ('Homo sapiens', O'Brien)
-// and branch support writes via write_newick_with_support and
-// re-parses through our parser with labels and integer supports
-// intact — and ape::read.tree must find node.label equal to the
-// supports.
+// --- v1.2 Task 15 + fix/newick-compatible-names: exports -------------
+// Review Focus 4 and the checkpoint-15 owner finding: a tree whose
+// labels need quoting ('Homo sapiens', O'Brien, 'a,b(c)', '<b>x</b>',
+// 'Ångström_1') plus branch support. The Exact write must re-parse
+// through our own parser with every original label and integer
+// support intact. The Compatible write goes through ape::read.tree:
+// tip.label must equal the mapped names exactly — no NA, no quote
+// characters — and node.label the integer supports. `warn = 2` makes
+// every R warning a failure.
 {
   const tree = unwrap(
     wasm.parse_newick(
       "(('Homo sapiens':0.1,'O''Brien':0.15):0.05," +
-        "('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04," +
-        "'Triticum aestivum':0.4);",
+        "('a,b(c)':0.3,'<b>x</b>':0.2):0.04,'Ångström_1':0.4);",
     ),
-    "parse_newick (support export)",
+    "parse_newick (names export)",
   );
   const internal = tree.nodes
     .map((n, i) => ({ n, i }))
@@ -358,63 +360,86 @@ for (const file of proteinRefs) {
     );
   tree.branches[internal[0].i].support = 0.87;
   tree.branches[internal[1].i].support = 0.42;
-  const nwk = unwrap(
+
+  // Exact write → our parser keeps the original labels.
+  const exact = unwrap(
     wasm.write_newick_with_support(tree),
     "write_newick_with_support",
   );
-  // Our own parser: labels and integer supports intact.
-  const back = unwrap(wasm.parse_newick(nwk), "re-parse (support export)");
-  const tips = back.nodes
-    .filter((n) => n.children.length === 0)
-    .map((n) => n.label);
+  const back = unwrap(wasm.parse_newick(exact), "re-parse (exact)");
   const want = [
     "Homo sapiens",
     "O'Brien",
-    "Rattus norvegicus",
-    "Gallus gallus",
-    "Triticum aestivum",
+    "a,b(c)",
+    "<b>x</b>",
+    "Ångström_1",
   ];
+  const tips = back.nodes
+    .filter((n) => n.children.length === 0)
+    .map((n) => n.label);
   if (JSON.stringify(tips) !== JSON.stringify(want)) {
-    fail(`support Newick: tips ${JSON.stringify(tips)} != ${JSON.stringify(want)}`);
-  } else {
-    const labels = back.nodes
-      .filter((n, i) => n.children.length > 0 && n.parent !== null)
-      .map((n) => n.label)
-      .sort();
-    if (JSON.stringify(labels) !== '["42","87"]') {
-      fail(`support Newick: internal labels ${JSON.stringify(labels)}`);
-    }
+    fail(`exact Newick: tips ${JSON.stringify(tips)} != ${JSON.stringify(want)}`);
   }
-  // ape's side: read.tree must see the supports as node.label. (ape
-  // cannot read an apostrophe label — '' reads as NA and a bare '
-  // errors outright — so only the structure and node.label are
-  // checked; label round-trip is the engine's own parser above.)
-  const rOut = runR(
-    `t <- ape::read.tree(text = "${escapeR(nwk)}")\n` +
-      `cat(jsonlite::toJSON(list(ntip = ape::Ntip(t),\n` +
-      `  node_label = unname(t$node.label)), auto_unbox = TRUE), "\\n")\n`,
+
+  // Compatible write → mapped names, no quotes anywhere.
+  const compat = unwrap(
+    wasm.write_newick_compatible(tree, true),
+    "write_newick_compatible",
   );
-  const line = rOut
-    .trim()
-    .split("\n")
-    .find((l) => l.trim().startsWith('{"ntip"'));
-  if (!line) {
-    fail(`support Newick: no JSON from read.tree: ${rOut.slice(0, 200)}`);
-  } else {
-    const { ntip, node_label: nl } = JSON.parse(line);
-    const nums = (nl ?? [])
-      .filter((s) => s !== "")
-      .map(Number)
-      .sort((a, b) => a - b);
-    if (ntip !== 5 || JSON.stringify(nums) !== "[42,87]") {
-      fail(
-        `support Newick: read.tree ntip=${ntip} node.label=` +
-          `${JSON.stringify(nl)} (expected 5 tips, supports 42,87)`,
-      );
+  if (compat.includes("'")) {
+    fail(`compatible Newick still quotes: ${compat}`);
+  }
+  const mapped = [
+    "Homo_sapiens",
+    "O_Brien",
+    "a_b_c_",
+    "_b_x_b_",
+    "_ngstr_m_1",
+  ];
+
+  // ape's side: read.tree must see the mapped tip labels and the
+  // integer supports as node.label. options(warn = 2) fails the run on
+  // any R warning (e.g. the coercion NA the owner hit on 'O''Brien').
+  try {
+    const rOut = runR(
+      "options(warn = 2)\n" +
+        `t <- ape::read.tree(text = "${escapeR(compat)}")\n` +
+        `cat(jsonlite::toJSON(list(tip = t$tip.label,\n` +
+        `  node = unname(t$node.label)), auto_unbox = TRUE), "\\n")\n`,
+    );
+    const line = rOut
+      .trim()
+      .split("\n")
+      .find((l) => l.trim().startsWith('{"tip"'));
+    if (!line) {
+      fail(`compatible Newick: no JSON from read.tree: ${rOut.slice(0, 200)}`);
     } else {
-      checked += 1;
-      console.log("ok support Newick: read.tree node.label = 42,87");
+      const { tip, node } = JSON.parse(line);
+      const nums = (node ?? [])
+        .filter((s) => s !== "" && s !== null)
+        .map(Number)
+        .sort((a, b) => a - b);
+      if (
+        JSON.stringify(tip) !== JSON.stringify(mapped) ||
+        JSON.stringify(nums) !== "[42,87]"
+      ) {
+        fail(
+          `compatible Newick: read.tree tip.label=${JSON.stringify(tip)}` +
+            ` node.label=${JSON.stringify(node)}` +
+            ` (expected tips ${JSON.stringify(mapped)}, supports 42,87)`,
+        );
+      } else {
+        checked += 1;
+        console.log(
+          "ok compatible Newick: read.tree tip.label exact, supports 42,87",
+        );
+      }
     }
+  } catch (e) {
+    fail(
+      `compatible Newick: R run failed (a warning counts): ` +
+        `${e.message.slice(0, 300)}`,
+    );
   }
 }
 

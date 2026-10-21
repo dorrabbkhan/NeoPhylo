@@ -271,3 +271,118 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
     expect(script).toContain("B = 100");
   });
 });
+
+// ---- fix/newick-compatible-names: label mode (checkpoint-15) ----
+
+/** A tree whose leaf names force quoting under standard Newick. */
+function quotedTree(): Tree {
+  return parse("('Homo sapiens':0.1,'O''Brien':0.15,Dog:0.3);");
+}
+
+const MODE_LABEL = /Newick names/;
+
+describe("ExportMenu Newick label mode (checkpoint-15)", () => {
+  it("defaults to Exact when no name needs quoting", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    const sel = screen.getByLabelText(MODE_LABEL);
+    expect(sel).toHaveProperty("value", "exact");
+    fireEvent.click(screen.getByRole("button", { name: "Newick" }));
+    expect(names).toEqual(["neophylo-tree.nwk"]);
+    const [nwk] = await texts();
+    expect(nwk).toContain(")87:0.05");
+    expect(nwk).not.toContain("'");
+  });
+
+  it("defaults to Compatible when a name needs quoting, and explains why", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={quotedTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    expect(screen.getByLabelText(MODE_LABEL)).toHaveProperty(
+      "value",
+      "compatible",
+    );
+    expect(screen.getByText(/Compatible names are the default/)).toBeTruthy();
+    expect(screen.getByText(/O'Brien → O_Brien/)).toBeTruthy();
+  });
+
+  it("compatible Newick writes mapped names plus a name-map CSV", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={quotedTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Newick" }));
+    expect(names).toEqual([
+      "neophylo-tree.nwk",
+      "neophylo-name-map.csv",
+    ]);
+    const [nwk, csv] = await texts();
+    expect(nwk).toBe("(Homo_sapiens:0.1,O_Brien:0.15,Dog:0.3);");
+    expect(csv).toBe(
+      "original,exported\nHomo sapiens,Homo_sapiens\nO'Brien,O_Brien\n",
+    );
+  });
+
+  it("Exact mode stays quoted when the user picks it", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={quotedTree()}
+        rootedOn={null}
+        consensusTree={null}
+        replicates={null}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(MODE_LABEL), {
+      target: { value: "exact" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Newick" }));
+    expect(names).toEqual(["neophylo-tree.nwk"]);
+    const [nwk] = await texts();
+    expect(nwk).toBe("('Homo sapiens':0.1,'O''Brien':0.15,Dog:0.3);");
+  });
+
+  it("the mode applies to Consensus (Newick) too", async () => {
+    const { names, texts } = await stubDownloadTexts();
+    const consensus = parse("('Homo sapiens','O''Brien',Dog);");
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={quotedTree()}
+        rootedOn={null}
+        consensusTree={consensus}
+        replicates={null}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Consensus (Newick)" }),
+    );
+    expect(names).toEqual([
+      "neophylo-consensus.nwk",
+      "neophylo-name-map.csv",
+    ]);
+    const [nwk] = await texts();
+    expect(nwk).toBe("(Homo_sapiens,O_Brien,Dog);");
+  });
+});
