@@ -2209,3 +2209,28 @@ wedging the start queue.
     matching.
   - `web/src/index.css` — dialog, column strip and tree-pair styles.
   - `docs/decisions.md` (this entry).
+
+### Checkpoint fixes: orientation and difference wording
+
+- **The replicate tree is drawn in the original's orientation.** The
+  outgroup it roots on is the `outgroup` prop when the reference-rooted
+  display is on (unchanged), otherwise the leaf set of the original
+  drawing's root-side first child — rerooted via `reroot_on_outgroup`
+  (the engine's terminal-branch fallback covers a side that isn't a
+  split in the replicate). Its children are then sorted by each
+  subtree's earliest leaf position in the original's drawn leaf order
+  (`orderLike`), so a replicate with the same groupings draws with the
+  same leaf order — verified by test, not just by construction. Both
+  are view-only transforms; no topology changes.
+- **The difference line counts against your tree.** `differing`
+  entries found in the original's drawn tree are "missing here"; the
+  rest "appear instead". For NJ's unrooted splits on binary trees the
+  counts are equal (M = K/2); for UPGMA's rooted clusters they are the
+  actual counts, which can differ in general. When `rf_to_original` is
+  0 the line reads "This replicate's tree has the same groupings as
+  your tree."
+- **Display reroot caveat:** "missing" counts match `differing`
+  against `original` only, and "extra" is `|differing| − missing`, so
+  the wording stays exact even when the display reroot moves a UPGMA
+  cluster off the drawn replicate tree — an outline then simply has
+  nowhere to draw on that side.

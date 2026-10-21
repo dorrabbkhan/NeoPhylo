@@ -58,35 +58,88 @@ const EMPTY = new Set<number>();
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/** Internal node ids whose clade is one of `groupings` — for rooted
- * (UPGMA) trees a node matches the grouping itself; for unrooted (NJ)
- * splits it may hold either side, so the complement matches too. */
+/** Internal node ids whose clade is one of `groupings`, and how many
+ * groupings matched — for rooted (UPGMA) trees a node matches the
+ * grouping itself; for unrooted (NJ) splits it may hold either side,
+ * so the complement matches too. */
 function differingNodes(
   tree: Tree,
   groupings: string[][],
   taxa: ReadonlySet<string>,
   rooted: boolean,
-): Set<number> {
+): { nodes: Set<number>; matched: number } {
   const sets = leafLabelSets(tree);
   const sides = groupings.map((g) => new Set(g));
-  const out = new Set<number>();
-  for (const [id, labs] of sets) {
-    if (tree.nodes[id].children.length === 0) continue;
-    for (const side of sides) {
-      if (sameSet(labs, side)) {
-        out.add(id);
-        break;
-      }
-      if (!rooted) {
+  const nodes = new Set<number>();
+  let matched = 0;
+  for (const side of sides) {
+    let found = false;
+    for (const [id, labs] of sets) {
+      if (tree.nodes[id].children.length === 0) continue;
+      let hit = sameSet(labs, side);
+      if (!hit && !rooted) {
         const comp = new Set([...taxa].filter((l) => !side.has(l)));
-        if (sameSet(labs, comp)) {
-          out.add(id);
-          break;
-        }
+        hit = sameSet(labs, comp);
+      }
+      if (hit) {
+        nodes.add(id);
+        found = true;
       }
     }
+    if (found) matched += 1;
   }
-  return out;
+  return { nodes, matched };
+}
+
+/** Leaf positions in `tree`'s drawn order (depth-first from its
+ * root), used to order another drawing the same way. */
+function leafRank(tree: Tree): Map<string, number> {
+  const rank = new Map<string, number>();
+  let next = 0;
+  const dfs = (id: number) => {
+    const n = tree.nodes[id];
+    if (n.children.length === 0) {
+      if (n.label !== null && !rank.has(n.label)) {
+        rank.set(n.label, next);
+        next += 1;
+      }
+      return;
+    }
+    for (const c of n.children) dfs(c);
+  };
+  dfs(tree.root);
+  return rank;
+}
+
+/** Copy of `t` with every node's children sorted by their subtree's
+ * earliest leaf position in `rank`, so groupings that coincide with
+ * the ranked tree draw in the same orientation. Pure view
+ * bookkeeping — no topology change. */
+function orderLike(t: Tree, rank: ReadonlyMap<string, number>): Tree {
+  const best = new Map<number, number>();
+  const score = (id: number): number => {
+    const memo = best.get(id);
+    if (memo !== undefined) return memo;
+    const n = t.nodes[id];
+    let s = Number.MAX_SAFE_INTEGER;
+    if (n.children.length === 0 && n.label !== null) {
+      const r = rank.get(n.label);
+      if (r !== undefined) s = r;
+    }
+    for (const c of n.children) s = Math.min(s, score(c));
+    best.set(id, s);
+    return s;
+  };
+  score(t.root);
+  return {
+    ...t,
+    nodes: t.nodes.map((n) => ({
+      ...n,
+      children: [...n.children].sort(
+        (a, b) => best.get(a)! - best.get(b)!,
+      ),
+    })),
+  };
 }
 
 export function ReplicatePanel({
@@ -162,16 +215,33 @@ export function ReplicatePanel({
 
   const d = detail !== null && detail.ok ? detail.value : null;
 
-  // The replicate tree drawn like the original: when NJ is shown
-  // rooted on the reference's outgroup, the replicate gets the same
-  // rooting (spec §6.5; the toggle is behind the modal, so the state
-  // can't change while the panel is open).
+  // The side the replicate roots on: the reference's outgroup when
+  // that display is on, else the leaf set of the original drawing's
+  // root-side first child — the replicate is drawn in the same
+  // orientation as "Your tree" so coinciding groupings line up
+  // (checkpoint fix; the engine falls back to a terminal branch when
+  // that side isn't a split in the replicate).
+  const drawnOutgroup = useMemo(() => {
+    if (outgroup !== null && outgroup.length > 0) return outgroup;
+    const first = original.nodes[original.root].children[0];
+    if (first === undefined) return null;
+    const set = leafLabelSets(original).get(first);
+    return set === undefined ? null : [...set];
+  }, [outgroup, original]);
+
+  const origRank = useMemo(() => leafRank(original), [original]);
+
   const repTree = useMemo(() => {
     if (d === null || d.tree === null) return null;
-    if (outgroup === null || outgroup.length === 0) return d.tree;
-    const r = engine.rerootOnOutgroup(d.tree, outgroup);
-    return r.ok ? r.value.tree : d.tree;
-  }, [d, outgroup]);
+    let t = d.tree;
+    if (drawnOutgroup !== null && drawnOutgroup.length > 0) {
+      const r = engine.rerootOnOutgroup(t, drawnOutgroup);
+      if (r.ok) t = r.value.tree;
+    }
+    // Children ordered like the original where groupings coincide, so
+    // a replicate with the same groupings draws identically.
+    return orderLike(t, origRank);
+  }, [d, drawnOutgroup, origRank]);
 
   const all = useMemo(() => new Set(taxa), [taxa]);
   const rooted = method === "Upgma";
@@ -180,13 +250,19 @@ export function ReplicatePanel({
   const repWrong = useMemo(
     () =>
       d !== null && repTree !== null
-        ? differingNodes(repTree, d.differing, all, rooted)
+        ? differingNodes(repTree, d.differing, all, rooted).nodes
         : EMPTY,
     [d, repTree, all, rooted],
   );
-  const origWrong = useMemo(
+  // `matched` counts the differing groupings that live in your tree —
+  // the "missing here" half of the difference line. For NJ's
+  // unrooted splits it always equals |differing| / 2 = K / 2; for
+  // UPGMA's rooted clusters missing and extra can differ.
+  const origMatch = useMemo(
     () =>
-      d !== null ? differingNodes(original, d.differing, all, rooted) : EMPTY,
+      d !== null
+        ? differingNodes(original, d.differing, all, rooted)
+        : { nodes: EMPTY, matched: 0 },
     [d, original, all, rooted],
   );
 
@@ -269,13 +345,20 @@ export function ReplicatePanel({
               </p>
             ) : (
               <>
-                {d.rf_to_original !== null && (
-                  <p className="rep-diff">
-                    This replicate's tree differs from your tree in{" "}
-                    {d.rf_to_original} grouping
-                    {d.rf_to_original === 1 ? "" : "s"}.
-                  </p>
-                )}
+                {d.rf_to_original !== null &&
+                  (d.rf_to_original === 0 ? (
+                    <p className="rep-diff">
+                      This replicate's tree has the same groupings as
+                      your tree.
+                    </p>
+                  ) : (
+                    <p className="rep-diff">
+                      {origMatch.matched} of your tree's groupings are
+                      missing here, and{" "}
+                      {d.differing.length - origMatch.matched} different
+                      ones appear instead.
+                    </p>
+                  ))}
                 <div className="replicate-trees">
                   {repTree !== null && (
                     <TreeView
@@ -293,7 +376,7 @@ export function ReplicatePanel({
                     tree={original}
                     layoutKind="phylogram"
                     highlight={EMPTY}
-                    wrong={origWrong}
+                    wrong={origMatch.nodes}
                     clampNegative={clampNegative}
                     leafSpacing={leafSpacing}
                   />

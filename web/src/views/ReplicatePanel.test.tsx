@@ -35,6 +35,7 @@ import { App } from "./App";
 import { BootstrapPanel } from "./BootstrapPanel";
 import { ReplicatePanel } from "./ReplicatePanel";
 import type { ReplicatePanelProps } from "./ReplicatePanel";
+import { leafLabelSets, sameSet } from "./stepEmphasis";
 
 afterEach(cleanup);
 
@@ -101,6 +102,77 @@ function props(over: Partial<ReplicatePanelProps> = {}): ReplicatePanelProps {
     onNavigate: vi.fn(),
     onClose: vi.fn(),
     ...over,
+  };
+}
+
+/* ---- orientation + difference wording helpers (checkpoint fixes) ---- */
+
+const UPGMA_BASICS = makeExercise(TREE5, "Upgma");
+const ALN_UPGMA: Alignment = loaded(UPGMA_BASICS).alignment!;
+
+function upgmaDetail(i: number): Result<ReplicateDetail> {
+  return engine.replicateDetail(ALN_UPGMA, "Jc69", "Upgma", 1, i);
+}
+
+/** Leaf labels of a drawn tree svg, top to bottom. Leaf names are the
+ * only classless <text> directly under a node group. */
+function leafOrder(svg: Element): (string | null)[] {
+  return Array.from(svg.querySelectorAll("g[data-node] > text"))
+    .filter((t) => t.getAttribute("class") === null)
+    .sort(
+      (a, b) =>
+        parseFloat(a.getAttribute("y")!) -
+        parseFloat(b.getAttribute("y")!),
+    )
+    .map((t) => t.textContent);
+}
+
+/** How many of `differing` appear in `tree` — checked independently of
+ * the panel's own bookkeeping (exact side for rooted clusters, side or
+ * complement for unrooted splits). */
+function missingCount(
+  tree: Tree,
+  differing: string[][],
+  taxa: string[],
+  rooted: boolean,
+): number {
+  const sets = leafLabelSets(tree);
+  const all = new Set(taxa);
+  let n = 0;
+  for (const side of differing) {
+    const s = new Set(side);
+    for (const [id, labs] of sets) {
+      if (tree.nodes[id].children.length === 0) continue;
+      if (sameSet(labs, s)) {
+        n += 1;
+        break;
+      }
+      if (!rooted) {
+        const comp = new Set([...all].filter((l) => !s.has(l)));
+        if (sameSet(labs, comp)) {
+          n += 1;
+          break;
+        }
+      }
+    }
+  }
+  return n;
+}
+
+/** A replicate detail claiming the same groupings as the original,
+ * but parsed from a differently-oriented newick — same unrooted NJ
+ * topology as TREE5 with the root flipped and children reordered. */
+function sameGroupingsDetail(): Result<ReplicateDetail> {
+  const d = detail(0);
+  if (!d.ok) throw new Error("replicate_detail failed");
+  return {
+    ok: true,
+    value: {
+      ...d.value,
+      tree: tree("(C:0.3,(D:0.1,E:0.15):0.1,(A:0.1,B:0.2):0.05);"),
+      rf_to_original: 0,
+      differing: [],
+    },
   };
 }
 
@@ -173,8 +245,74 @@ describe("ReplicatePanel", () => {
     expect(container.querySelectorAll("g.wrong").length).toBe(
       d.value.differing.length,
     );
+    // NJ unrooted splits differ symmetrically: the count in your tree
+    // equals the count appearing instead (M = K / 2).
+    const missing = missingCount(
+      loaded().result!.tree,
+      d.value.differing,
+      ALN.labels,
+      false,
+    );
+    expect(missing).toBe(d.value.differing.length / 2);
     expect(
-      screen.getByText(/differs from your tree in \d+ groupings?\./),
+      screen.getByText(
+        `${missing} of your tree's groupings are missing here, and ${missing} different ones appear instead.`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("a replicate with the same groupings says so and draws in the original's orientation", () => {
+    // Same unrooted topology as the original, but the parser produced
+    // it with a different root placement and child order — the panel
+    // must orient it like "Your tree".
+    const d = sameGroupingsDetail();
+    render(<ReplicatePanel {...props({ detail: d })} />);
+    expect(
+      screen.getByText(
+        "This replicate's tree has the same groupings as your tree.",
+      ),
+    ).toBeTruthy();
+    const rep = screen.getByRole("img", { name: "Replicate 1" });
+    const orig = screen.getByRole("img", { name: "Your tree" });
+    expect(leafOrder(rep)).toEqual(leafOrder(orig));
+  });
+
+  it("wording counts missing and extra UPGMA clusters against your tree", () => {
+    const s = loaded(UPGMA_BASICS);
+    let i = 0;
+    let d = upgmaDetail(i);
+    while (
+      i < 50 &&
+      (!d.ok || d.value.failed || d.value.differing.length === 0)
+    ) {
+      i += 1;
+      d = upgmaDetail(i);
+    }
+    if (!d.ok || d.value.differing.length === 0) {
+      throw new Error("no differing UPGMA replicate in the first 50");
+    }
+    render(
+      <ReplicatePanel
+        {...props({
+          method: "Upgma",
+          taxa: ALN_UPGMA.labels,
+          index: i,
+          detail: d,
+          original: s.result!.tree,
+        })}
+      />,
+    );
+    const missing = missingCount(
+      s.result!.tree,
+      d.value.differing,
+      ALN_UPGMA.labels,
+      true,
+    );
+    const extra = d.value.differing.length - missing;
+    expect(
+      screen.getByText(
+        `${missing} of your tree's groupings are missing here, and ${extra} different ones appear instead.`,
+      ),
     ).toBeTruthy();
   });
 
