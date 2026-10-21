@@ -321,13 +321,13 @@ p {
 .tree-canvas {
   flex: 1;
   min-height: 0;
+  overflow: auto;
 }
 
-/* Tree SVGs fill the measured box; the viewBox + preserveAspectRatio
- * keeps the drawing proportionate. */
+/* Tree SVGs render at their natural pixel size (the figure's own
+ * width/height): text never scales below the 12 px floor — the
+ * canvas scrolls when the drawing is larger (owner review). */
 .tree-canvas svg {
-  width: 100%;
-  height: 100%;
   display: block;
   color: var(--fg);
 }
@@ -1228,10 +1228,12 @@ button:disabled {
 .consensus-tabs .tree-canvas {
   min-height: 64px;
   position: relative;
+  overflow: auto;
 }
 .consensus-tabs .tree-canvas svg {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
 }
 
 .consensus-dropped {

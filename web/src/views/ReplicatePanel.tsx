@@ -3,10 +3,13 @@
 // Previous/Next (bounded 1…N) and ←/→/Esc keyboard control. A pure
 // view: App supplies the `replicate_detail` result (computed on the
 // main thread, or through the worker when the run's estimate puts one
-// replicate over ~2 s) and the original tree exactly as the main view
-// draws it — support labels included, rerooted on the reference's
-// outgroup when that display is on (the replicate tree is rerooted the
-// same way, so both drawings share the toggle state).
+// replicate over ~2 s) and the computed original tree — the same
+// unrooted split set (UPGMA: rooted clusters) the engine compared the
+// replicate against, with support labels and the reference rooting
+// when that display is on. The displayed consensus is NOT used: it
+// collapses groupings, so counts and outlines would disagree.
+// (The replicate tree is rerooted the same way, so both drawings
+// share the toggle state.)
 //
 // Content per spec §6.5: a column strip with each column's draw count
 // (0 dimmed, via data-weight), the "U of L columns not drawn" line,
@@ -43,8 +46,8 @@ export interface ReplicatePanelProps {
   /** The engine's `replicate_detail` result; null while a worker job
    * for this index is still in flight. */
   detail: Result<ReplicateDetail> | null;
-  /** The original tree exactly as the main view draws it (support and
-   * reference rooting included). */
+  /** The computed original tree (support labels and reference
+   * rooting included) — never a collapsed consensus. */
   original: Tree;
   /** The reference's outgroup when NJ is drawn rerooted, else null. */
   outgroup: string[] | null;
