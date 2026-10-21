@@ -738,6 +738,91 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
   ).toBe(true);
 });
 
+// Measured text sizes (owner fix): placement must hold whatever font
+// the system resolves — the overlap failure this test reproduces was a
+// vertical graze under a font whose descent exceeds the 0.5em estimate
+// (Firefox's system-ui on Linux). Forcing a different, wider family on
+// every text element stands in for any unexpected installed font; the
+// label layout re-measures and stays clear.
+test("cytochrome-c: label placement holds under a substituted font", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 30_000 });
+
+  const svg = page.locator('svg[aria-label="Inferred tree"]');
+  await expect(svg.locator(".support-label").first()).toBeVisible();
+
+  const overlaps = () =>
+    svg.evaluate((el) => {
+      const box = (e: Element) => (e as SVGGraphicsElement).getBBox();
+      const pills = Array.from(
+        el.querySelectorAll("rect.support-pill"),
+      ).map(box);
+      const markers = Array.from(
+        el.querySelectorAll("g[data-node] > circle"),
+      ).map(box);
+      const names = Array.from(el.querySelectorAll("g[data-node] > text"))
+        .filter((t) => !t.classList.contains("support-label"))
+        .map(box);
+      const out: string[] = [];
+      const overlap = (a: DOMRect, b: DOMRect) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      pills.forEach((p, i) => {
+        markers.forEach((m, j) => {
+          if (overlap(p, m)) out.push(`pill ${i} vs marker ${j}`);
+        });
+        names.forEach((n, j) => {
+          if (overlap(p, n)) out.push(`pill ${i} vs name ${j}`);
+        });
+        pills.forEach((q, j) => {
+          if (j > i && overlap(p, q)) out.push(`pill ${i} vs pill ${j}`);
+        });
+      });
+      return out;
+    });
+
+  expect(await overlaps()).toEqual([]);
+
+  const pillGeom = () =>
+    svg.evaluate((el) =>
+      Array.from(el.querySelectorAll("rect.support-pill")).map(
+        (r) =>
+          `${r.getAttribute("x")},${r.getAttribute("y")},${r.getAttribute("width")}`,
+      ),
+    );
+  const before = await pillGeom();
+
+  // Swap every text element's family — the probe that measures extents
+  // lives under the same rules, so the next layout uses the new font's
+  // real widths and glyph boxes.
+  await page.addStyleTag({
+    content: `text { font-family: "DejaVu Sans", serif !important; }`,
+  });
+  // A resize refires the ResizeObserver so treeFigure re-runs and the
+  // pills are re-placed under the substituted font.
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(svg.locator(".support-label").first()).toBeVisible();
+  const resolved = await svg.evaluate(
+    (el) =>
+      getComputedStyle(el.querySelector("g[data-node] > text")!)
+        .fontFamily,
+  );
+  expect(resolved).toMatch(/dejavu|serif/i);
+  // Re-layout really happened: at least one pill re-measured to a
+  // different position or width under the new font.
+  expect(await pillGeom()).not.toEqual(before);
+  expect(await overlaps()).toEqual([]);
+});
+
 // Checkpoint 15: the Export menu names the drawing each item exports —
 // the rerooted-on-outgroup view or the computed (unrooted) view — and
 // the downloaded Newick's top-level structure matches the name. The
@@ -816,9 +901,9 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
   expect(await wheatAtTop(await downloadText("Newick (as computed, unrooted)")))
     .toBe(false);
 
-  // Every leaf name and the panel title are on screen without
-  // scrolling the tree column — in BOTH views — getBoundingClientRect,
-  // since toBeVisible ignores overflow clipping.
+  // Every leaf name is reachable in the canvas — in BOTH views —
+  // scrolling when the natural-size drawing overflows the column
+  // (owner review: scroll rather than shrink text below 12 px).
   const LEAVES = [
     "human",
     "horse",
@@ -832,45 +917,139 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
   const clipCheck = () =>
     page.evaluate((names) => {
       const col = document.querySelector(".tree-col") as HTMLElement;
+      const canvas = col.querySelector(".tree-canvas") as HTMLElement;
       const svg = col.querySelector('svg[aria-label="Inferred tree"]')!;
       const caption = col.querySelector("figcaption")!;
-      // Symmetric half-pixel tolerance: subpixel layout differs between
-      // font stacks, so either edge may sit a fraction outside.
       const inside = (r: DOMRect, c: DOMRect) =>
         r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5;
       const colRect = col.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
       const svgRect = svg.getBoundingClientRect();
-      const leafRects = Array.from(svg.querySelectorAll("text"))
-        .filter((t) => names.includes(t.textContent ?? ""))
-        .map((t) => t.getBoundingClientRect());
+      const leafEls = Array.from(svg.querySelectorAll("text")).filter(
+        (t) => names.includes(t.textContent ?? ""),
+      );
+      const leafRects = leafEls.map((t) => t.getBoundingClientRect());
+      const scrollable =
+        canvas.scrollHeight > canvas.clientHeight + 0.5;
+      // Scroll to the bottom: the lowest leaf must come into view —
+      // or be visible already when the drawing fits.
+      canvas.scrollTop = canvas.scrollHeight;
+      const lastLeaf = leafEls[leafEls.length - 1];
+      const lastLeafAfterScroll = lastLeaf.getBoundingClientRect();
+      const lastLeafVisible = scrollable
+        ? lastLeafAfterScroll.top >= canvasRect.top - 0.5 &&
+          lastLeafAfterScroll.bottom <= canvasRect.bottom + 0.5
+        : inside(lastLeafAfterScroll, canvasRect);
+      const scrolled = canvas.scrollTop > 0;
+      canvas.scrollTop = 0;
       return {
         leaves: leafRects.length,
         leavesInSvg: leafRects.every((r) => inside(r, svgRect)),
-        svgInCol: inside(svgRect, colRect),
+        scrolled,
+        scrollable,
+        lastLeafVisible,
         captionInCol: inside(caption.getBoundingClientRect(), colRect),
-        scrollTop: col.scrollTop,
-        // Returned verbatim so a failure shows the actual geometry.
-        col: [colRect.top, colRect.bottom],
-        svg: [svgRect.top, svgRect.bottom],
       };
     }, LEAVES);
 
   // Computed view (the view currently on screen).
   let clip = await clipCheck();
-  expect(clip.scrollTop).toBe(0);
   expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
-  expect(clip.svgInCol, JSON.stringify(clip)).toBe(true);
   expect(clip.leaves).toBe(8);
   expect(clip.leavesInSvg).toBe(true);
+  expect(clip.scrolled, JSON.stringify(clip)).toBe(true);
+  expect(clip.lastLeafVisible, JSON.stringify(clip)).toBe(true);
 
   // Rooted view — the same check after toggling back.
   await page
     .getByRole("button", { name: "Show rooted like the reference" })
     .click();
   clip = await clipCheck();
-  expect(clip.scrollTop).toBe(0);
   expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
-  expect(clip.svgInCol, JSON.stringify(clip)).toBe(true);
   expect(clip.leaves).toBe(8);
   expect(clip.leavesInSvg).toBe(true);
+  expect(clip.scrolled, JSON.stringify(clip)).toBe(true);
+  expect(clip.lastLeafVisible, JSON.stringify(clip)).toBe(true);
+});
+
+// Owner review: tree scaling + the replicate-panel count. The svg
+// renders at its natural size — no aspect-fit scaling below the 12px
+// font floor — and "Your tree" in the replicate panel is the computed
+// tree, so the missing/extra counts are the unrooted RF halves the
+// outlines show.
+test("replicate panel: same scale, ≥12px labels, count == outlines", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 60_000 });
+
+  // Main view: every label in the support-labeled inferred tree is at
+  // or above the 12px floor — leaf names, node names, support labels.
+  const fonts = await page
+    .getByRole("img", { name: "Inferred tree" })
+    .locator("text")
+    .evaluateAll((ts) =>
+      ts.map((t) => parseFloat(getComputedStyle(t).fontSize)),
+    );
+  expect(fonts.length).toBeGreaterThan(0);
+  for (const f of fonts) expect(f).toBeGreaterThanOrEqual(12);
+
+  await page
+    .getByRole("button", { name: /Watch one replicate/ })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.locator(".rep-diff")).toBeVisible();
+
+  // Both panel trees share one scale factor: rendered svg width over
+  // the viewBox width is identical (1:1 — natural size).
+  const scaleOf = async (name: string) =>
+    dialog.getByRole("img", { name }).evaluate((el) => {
+      const vb = el.getAttribute("viewBox")!.split(" ").map(Number);
+      return el.getBoundingClientRect().width / vb[2];
+    });
+  let repName = "Replicate 1";
+  const repScale = await scaleOf(repName);
+  expect(await scaleOf("Your tree")).toBeCloseTo(repScale, 3);
+  expect(repScale).toBeCloseTo(1, 3);
+
+  // Labels at or above 12px in both panel trees.
+  for (const name of [repName, "Your tree"]) {
+    const fs = await dialog
+      .getByRole("img", { name })
+      .locator("text")
+      .evaluateAll((ts) =>
+        ts.map((t) => parseFloat(getComputedStyle(t).fontSize)),
+      );
+    for (const f of fs) expect(f).toBeGreaterThanOrEqual(12);
+  }
+
+  // Navigate to a replicate whose tree differs: for NJ the count must
+  // read missing == extra == rf/2, and the outlined groupings on each
+  // tree equal those counts.
+  const diff = dialog.locator(".rep-diff");
+  let matched: RegExpExecArray | null = null;
+  for (let i = 0; i < 30; i++) {
+    const text = await diff.innerText();
+    matched =
+      /(\d+) of your tree's groupings are missing here, and (\d+) different ones appear instead/.exec(
+        text,
+      );
+    if (matched !== null) break;
+    await dialog.getByRole("button", { name: "Next" }).click();
+    repName = `Replicate ${i + 2}`;
+  }
+  expect(matched, "no differing replicate in the first 30").not.toBeNull();
+  const missing = Number(matched![1]);
+  const extra = Number(matched![2]);
+  expect(missing).toBe(extra);
+  expect(missing).toBeGreaterThan(0);
+  const repSvg = dialog.getByRole("img", { name: repName });
+  const origSvg = dialog.getByRole("img", { name: "Your tree" });
+  expect(await repSvg.locator("g.wrong").count()).toBe(extra);
+  expect(await origSvg.locator("g.wrong").count()).toBe(missing);
 });

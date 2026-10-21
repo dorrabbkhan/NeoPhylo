@@ -1108,10 +1108,27 @@ export function App({ exercise }: { exercise?: Exercise }) {
                   : null
                 : repSync
             }
-            // The original exactly as the main view draws it: support
-            // labels, and the reference rooting while that display is
-            // on — the replicate tree gets the same outgroup.
-            original={drawnTree}
+            // "Your tree" is the COMPUTED tree — the same unrooted
+            // split set (UPGMA: rooted clusters) the engine compared
+            // the replicate against — not the displayed consensus,
+            // which collapses groupings and made the "missing" count
+            // read 0 while outlines still showed on the replicate.
+            // Display-rooted like the main view when that toggle is
+            // on, so coinciding groupings still line up.
+            original={(() => {
+              const base = session.bootstrap.support ?? inferred;
+              if (base === null || base === drawnInferred) {
+                return drawnTree;
+              }
+              if (showReroot) {
+                const r = engine.rerootOnOutgroup(
+                  base,
+                  reroot!.outgroup,
+                );
+                if (r.ok) return r.value.tree;
+              }
+              return base;
+            })()}
             outgroup={showReroot ? reroot!.outgroup : null}
             clampNegative={session.clampNegative}
             leafSpacing={sharedSpacing}

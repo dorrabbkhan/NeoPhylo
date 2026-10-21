@@ -262,6 +262,72 @@ describe("ReplicatePanel", () => {
     ).toBeTruthy();
   });
 
+  // Owner review: for NJ (unrooted, fully resolved) the count line
+  // must read missing == extra == rf/2 across the run — and the
+  // outlined groupings are exactly the counted ones on each tree.
+  it("missing == extra == rf/2 and outlines == counts over 20 seeded replicates", () => {
+    let seen = 0;
+    for (let i = 0; i < 20; i++) {
+      const d = detail(i);
+      if (!d.ok || d.value.failed || d.value.differing.length === 0) {
+        continue;
+      }
+      seen += 1;
+      const { unmount } = render(
+        <ReplicatePanel {...props({ index: i, detail: d })} />,
+      );
+      const half = d.value.differing.length / 2;
+      expect(
+        screen.getByText(
+          `${half} of your tree's groupings are missing here, and ${half} different ones appear instead.`,
+        ),
+      ).toBeTruthy();
+      const repSvg = screen.getByRole("img", {
+        name: `Replicate ${i + 1}`,
+      });
+      const origSvg = screen.getByRole("img", { name: "Your tree" });
+      // Outlines equal the counts on each side.
+      expect(repSvg.querySelectorAll("g.wrong").length).toBe(half);
+      expect(origSvg.querySelectorAll("g.wrong").length).toBe(half);
+      unmount();
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  // Owner review: both panel trees render at the same scale factor
+  // (1:1 — the natural-size svg) and the same font sizes, never one
+  // zoomed and the other shrunk.
+  it("the replicate tree and 'Your tree' share one scale factor and font sizes", () => {
+    const i = differingIndex();
+    const d = detail(i);
+    render(<ReplicatePanel {...props({ index: i, detail: d })} />);
+    const scale = (svg: Element) => {
+      const vb = svg.getAttribute("viewBox")!.split(" ").map(Number);
+      return {
+        x: Number(svg.getAttribute("width")) / vb[2],
+        y: Number(svg.getAttribute("height")) / vb[3],
+      };
+    };
+    const repSvg = screen.getByRole("img", { name: `Replicate ${i + 1}` });
+    const origSvg = screen.getByRole("img", { name: "Your tree" });
+    expect(scale(repSvg)).toEqual(scale(origSvg));
+    const fonts = (svg: Element) =>
+      [...svg.querySelectorAll("text")]
+        .map((t) => t.getAttribute("font-size"))
+        .sort();
+    expect(fonts(repSvg)).toEqual(fonts(origSvg));
+    // Every label — leaf names, node names, support labels — at or
+    // above the 12px floor in BOTH trees.
+    for (const svg of [repSvg, origSvg]) {
+      for (const t of svg.querySelectorAll("text")) {
+        expect(Number(t.getAttribute("font-size"))).toBeGreaterThanOrEqual(
+          12,
+        );
+      }
+    }
+    expect(screen.getAllByRole("img")).toHaveLength(2);
+  });
+
   it("a replicate with the same groupings says so and draws in the original's orientation", () => {
     // Same unrooted topology as the original, but the parser produced
     // it with a different root placement and child order — the panel
@@ -485,6 +551,49 @@ function doneResult(): Parameters<
 }
 
 describe("App 'Watch one replicate'", () => {
+  // Owner review: with a consensus tab selected, "Your tree" must
+  // still be the COMPUTED tree — a collapsed consensus made the count
+  // read "0 of your tree's groupings are missing here, and N
+  // different ones appear instead" while the replicate showed
+  // outlines. The panel compares the same unrooted split sets the
+  // engine used for `differing`, never the displayed consensus.
+  it("the Strict-consensus view does not feed the count: missing == extra == rf/2", async () => {
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd();
+    fireEvent.click(screen.getByRole("button", { name: /Run bootstrap/ }));
+    await screen.findByText(/Estimating/);
+    act(() =>
+      runHandlers!.onEstimate({ msPerReplicate: 5, totalMs: 500 }),
+    );
+    const star = tree("(A:0.1,B:0.1,C:0.1,D:0.1,E:0.1);");
+    const r = doneResult();
+    act(() =>
+      runHandlers!.onResult({
+        ...r,
+        consensus: { Strict: star, Majority: r.support, Extended: r.support },
+      }),
+    );
+    // The displayed tree is now the collapsed strict consensus.
+    fireEvent.click(screen.getByRole("tab", { name: "Strict" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Watch one replicate/ }),
+    );
+    // Navigate to the first differing replicate.
+    const i = differingIndex();
+    const next = screen.getByRole("button", { name: "Next" });
+    for (let j = 0; j < i; j++) fireEvent.click(next);
+    expect(
+      await screen.findByText(
+        "1 of your tree's groupings are missing here, and 1 different ones appear instead.",
+      ),
+    ).toBeTruthy();
+    // "Your tree" draws the computed support tree — the differing
+    // grouping is outlined on it too.
+    const orig = screen.getByRole("img", { name: "Your tree" });
+    expect(orig.querySelectorAll("g.wrong").length).toBe(1);
+  });
+
   it("opens at replicate 1 and computes the detail on the main thread when the estimate is small", async () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });

@@ -2511,6 +2511,7 @@ wedging the start queue.
 - Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
   ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
   visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+  
 ## Task 14 (v1.2): predict_branch and the bootstrap-basics lesson
 
 - Outside Files block: the verdict needs machinery the Files list did
@@ -2558,3 +2559,35 @@ wedging the start queue.
   never re-evaluate. Card text: "Your prediction: Correct" /
   "Your prediction: Not quite — the weakest group was (…) at N%." The
   tolerance e2e uses 20 replicates/seed 391 (EFGH 95 vs lowest 90).
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+- fix/label-measured-widths (owner note): support-label placement now
+  uses MEASURED text metrics. `web/src/measureText.ts` parks a hidden
+  <text> probe on <body> and returns getComputedTextLength()+getBBox()
+  extents {w, top, bottom} per (text, fontSize, baseline); layout
+  stays pure — TreeView/export inject the measurer as an option
+  (`measure`), and a null return (jsdom, workers) falls back to the
+  0.62 em estimates so every unit test is unchanged. The local Firefox
+  failure was a VERTICAL graze (name descent > 0.5em estimate), so
+  heights are measured too, not just widths; the "0" marker is
+  measured on its real alphabetic baseline. Exports measure against
+  their own FONT_FAMILY stack.
+
+### fix/tree-scaling-and-replicate-count (owner review)
+
+- **Tree text never scales.** `TreeView`'s svg now renders at its
+  natural pixel size (`width`/`height` = viewBox) and `.tree-canvas`
+  scrolls on overflow — the ≥12 px layout font is the rendered font.
+  *Deviation from checkpoint 11/15:* the svg no longer stretches to
+  fill the panel; small trees draw top-left instead of upscaling.
+- **"Your tree" compares the computed tree.** `ReplicatePanel`'s
+  `original` is now the support-bearing computed tree (display-rooted
+  when the reroot toggle is on), not `drawnTree`. *Deviation from
+  Task 13:* the original spec passed the drawn tree verbatim — under a
+  consensus tab that is the collapsed consensus, which made the
+  "missing" count read 0 while the replicate still showed outlines.
+- **Intrinsic-size ratchet follow-up:** the px `width`/`height` on the
+  svg made it a min-content contribution, and `.trees`' `1fr` tracks
+  (`minmax(auto,1fr)`) pinned the column at the svg's intrinsic width —
+  relayout then sized the svg to the grown canvas, looping ~1 px per
+  frame (CI click timeouts on element stability). Tracks are now
+  `minmax(0,1fr)` and `.tree-panel` carries `min-width:0`.

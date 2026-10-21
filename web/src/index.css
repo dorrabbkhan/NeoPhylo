@@ -271,7 +271,10 @@ p {
 .trees {
   grid-row: 2;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr), not 1fr: the svg's intrinsic pixel width is a
+   * min-content floor under auto minima — it feeds back through the
+   * measured canvas into the next layout (column ↔ svg ratchet). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   width: 100%;
   min-height: 0;
@@ -281,6 +284,9 @@ p {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* The svg's intrinsic width must not set this figure's floor in a
+   * flex row — the canvas scrolls instead. */
+  min-width: 0;
   margin: 0;
 }
 
@@ -321,13 +327,13 @@ p {
 .tree-canvas {
   flex: 1;
   min-height: 0;
+  overflow: auto;
 }
 
-/* Tree SVGs fill the measured box; the viewBox + preserveAspectRatio
- * keeps the drawing proportionate. */
+/* Tree SVGs render at their natural pixel size (the figure's own
+ * width/height): text never scales below the 12 px floor — the
+ * canvas scrolls when the drawing is larger (owner review). */
 .tree-canvas svg {
-  width: 100%;
-  height: 100%;
   display: block;
   color: var(--fg);
 }
@@ -1246,10 +1252,12 @@ button:disabled {
 .consensus-tabs .tree-canvas {
   min-height: 64px;
   position: relative;
+  overflow: auto;
 }
 .consensus-tabs .tree-canvas svg {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
 }
 
 .consensus-dropped {

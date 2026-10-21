@@ -17,18 +17,19 @@
 //   grouping key of the edge above the node (src/layout/splitKeys.ts) —
 //   so figures match the run's tally (checkpoint 15).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Tree } from "../engine/generated/Tree";
 import type { LaidOutNode } from "../layout/phylogram";
 import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
 import {
-  FIGURE_LABEL_OFFSET,
+  treeFigure,
   FIGURE_NODE_RADIUS,
+  FIGURE_LABEL_OFFSET,
   FIGURE_PANEL_PAD,
   FIGURE_WRONG_PAD,
-  treeFigure,
 } from "../layout/treeFigure";
+import { makeTextMeasurer } from "../measureText";
 import { leafSpacingFor } from "../layout/treePanel";
 import { nodeName } from "../state/names";
 
@@ -182,6 +183,11 @@ export function TreeView({
     onPanelSize?.(box.width);
   }, [box.width, onPanelSize]);
 
+  // Measured glyph widths for label collision and content bounds
+  // (owner fix): the probe lives on <body>, where it inherits the same
+  // font the tree's <text> resolves (no tree-scoped font rules exist).
+  const measure = useMemo(() => makeTextMeasurer(), []);
+
   const leaves = tree.nodes.reduce(
     (n, node) => n + (node.children.length === 0 ? 1 : 0),
     0,
@@ -198,6 +204,7 @@ export function TreeView({
     visibleNodes,
     highlight,
     wrong,
+    measure,
   });
   const { laid, byId, labelById, fontSize, smallFont, bounds } = fig;
   const hideInternalNames = fig.hideInternalNames;
@@ -208,7 +215,11 @@ export function TreeView({
 
   // The viewBox fits the CONTENT plus pad (checkpoint 12): nothing
   // clips at any tree size or view — and no empty margin remains where
-  // a fixed label-room reservation used to sit (checkpoint 15).
+  // a fixed label-room reservation used to sit (checkpoint 15). The
+  // svg renders at that natural pixel size (width/height = viewBox):
+  // layout px == rendered px, so the ≥12 px font floor holds — when
+  // the content is bigger than the canvas the panel scrolls instead
+  // of shrinking text (owner review).
   const width = bounds.maxX - bounds.minX + FIGURE_PANEL_PAD * 2;
   const height = bounds.maxY - bounds.minY + FIGURE_PANEL_PAD * 2;
   const tx = (x: number) => x - bounds.minX + FIGURE_PANEL_PAD;
@@ -223,8 +234,14 @@ export function TreeView({
   return (
     <figure className="tree-panel">
       <figcaption>{title}</figcaption>
-      <div className="tree-canvas" ref={boxRef}>
-        <svg role="img" aria-label={title} viewBox={`0 0 ${width} ${height}`}>
+      <div className="tree-canvas" ref={boxRef} tabIndex={0}>
+        <svg
+          role="img"
+          aria-label={title}
+          viewBox={`0 0 ${width} ${height}`}
+          width={width}
+          height={height}
+        >
           {laid.nodes.map((n) => {
             const children = tree.nodes[n.id].children.filter((c) =>
               byId.has(c),

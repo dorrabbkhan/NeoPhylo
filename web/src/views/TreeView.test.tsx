@@ -280,6 +280,28 @@ describe("support labels", () => {
     }
   });
 
+  // Owner review: the svg renders at its natural pixel size — the
+  // viewBox equals the width/height attributes, so the layout px are
+  // the rendered px and the 12px floor is the on-screen floor. The
+  // canvas scrolls instead of scaling the drawing down.
+  it("draws at natural size: svg width/height equal the viewBox", () => {
+    const { container } = render(
+      <TreeView
+        tree={withSupport(0.41)}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        leafSpacing={18}
+        title="Inferred tree"
+      />,
+    );
+    const svg = container.querySelector("svg")!;
+    const viewBox = svg.getAttribute("viewBox")!.split(" ").map(Number);
+    expect(Number(svg.getAttribute("width"))).toBe(viewBox[2]);
+    expect(Number(svg.getAttribute("height"))).toBe(viewBox[3]);
+  });
+
   it("labels each grouping exactly once on a rerooted degree-2 root", () => {
     const t: Tree = {
       rooted: true,

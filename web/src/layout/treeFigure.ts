@@ -57,6 +57,14 @@ export interface TreeFigureOptions {
   /** Wrong clades — drawn on screen only, but included in the bounds
    * for the same reason. */
   wrong?: Set<number>;
+  /** Real glyph extents (src/measureText.ts probe) for label
+   * collision boxes and content bounds — null falls back to the
+   * em estimates, which is what jsdom unit tests exercise. */
+  measure?: (
+    text: string,
+    fontSize: number,
+    baseline?: "middle" | "alphabetic",
+  ) => { w: number; top: number; bottom: number } | null;
 }
 
 export interface TreeFigure {
@@ -129,6 +137,7 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
     nameFontSize: fontSize,
     nodeRadius: FIGURE_NODE_RADIUS,
     labelOffset: FIGURE_LABEL_OFFSET,
+    measure: opts.measure,
   });
   const labelById = new Map(placed.map((p) => [p.id, p]));
   const hideInternalNames = placed.length > 0;
@@ -179,40 +188,45 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       maxY: n.y + NODE_SLACK,
     });
     // Text boxes: dominantBaseline="middle" puts glyphs roughly
-    // 1em above and 0.4em below the anchor — the estimate covers both.
+    // 1em above and 0.4em below the anchor — measured extents replace
+    // the estimates when the DOM can provide them, so the bounds (and
+    // the export's viewBox) cover the real text at any installed font.
     if (n.leaf && n.label !== null) {
+      const m = opts.measure?.(n.label, fontSize);
       grow({
         minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
         maxX:
           n.x +
           FIGURE_LABEL_OFFSET +
           FIGURE_NODE_RADIUS +
-          n.label.length * fontSize * 0.62,
-        minY: n.y - fontSize - 2,
-        maxY: n.y + fontSize * 0.5,
+          (m?.w ?? n.label.length * fontSize * 0.62),
+        minY: n.y + (m?.top ?? -fontSize - 2),
+        maxY: n.y + (m?.bottom ?? fontSize * 0.5),
       });
     } else if (highlight.has(n.id) && !hideInternalNames) {
       const name = nodeName(tree, n.id);
+      const m = opts.measure?.(name, fontSize);
       grow({
         minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
         maxX:
           n.x +
           FIGURE_LABEL_OFFSET +
           FIGURE_NODE_RADIUS +
-          name.length * fontSize * 0.62,
-        minY: n.y - fontSize - 2,
-        maxY: n.y + fontSize * 0.5,
+          (m?.w ?? name.length * fontSize * 0.62),
+        minY: n.y + (m?.top ?? -fontSize - 2),
+        maxY: n.y + (m?.bottom ?? fontSize * 0.5),
       });
     }
     const parent = tree.nodes[n.id].parent;
     if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
       const mid = (n.parentX + n.x) / 2;
-      const w = smallFont + 4;
+      const m = opts.measure?.("0", smallFont, "alphabetic");
+      const w = (m?.w ?? smallFont) + 4;
       grow({
         minX: mid - w / 2,
         maxX: mid + w / 2,
-        minY: n.y - 4 - smallFont - 2,
-        maxY: n.y - 2,
+        minY: n.y - 4 + (m?.top ?? -smallFont - 2),
+        maxY: n.y - 4 + (m?.bottom ?? 2),
       });
     }
   }
