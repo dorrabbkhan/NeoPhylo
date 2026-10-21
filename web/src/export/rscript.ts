@@ -97,7 +97,12 @@ ${boot}`;
  * names the data resampled; `distDef` defines distOf(xx), the same
  * distance the main analysis computes. Support is prop.clades over
  * the kept trees, printed as node-label percents — plus the boot
- * tree's Newick so the parity job can read the values back.
+ * tree's Newick so the parity job can read the values back. Saturating
+ * formulas (e.g. protein Kimura's -log(1-p-0.2p²)) warn "NaNs
+ * produced" per skipped replicate — suppressWarnings keeps the run's
+ * only output the Skipped summary. prop.clades gets an explicit
+ * rooted= flag matching the method's grouping convention (spec §3.3),
+ * not ape's default.
  */
 function bootstrapBlock(
   xLine: string,
@@ -106,13 +111,19 @@ function bootstrapBlock(
   boot: ExportBootstrap,
 ): string {
   const build = method === "Upgma" ? "phangorn::upgma" : "ape::nj";
+  // UPGMA support is rooted clusters; NJ support is unrooted splits
+  // (spec §3.3). Passing rooted= keeps the count on the right
+  // convention regardless of ape's default.
+  const rooted = method === "Upgma" ? "TRUE" : "FALSE";
   return `${xLine}
 ${distDef}
 # Bootstrap, mirroring NeoPhylo (spec §3.3): every replicate resamples
 # columns of x with replacement, recomputes the same distance and
 # rebuilds the tree with the same method. A replicate whose distance
 # has a non-finite off-diagonal value (saturated/unestimable) is
-# skipped — ape::boot.phylo cannot express that rule.
+# skipped — ape::boot.phylo cannot express that rule. Saturated
+# formulas warn "NaNs produced" per replicate; those are expected and
+# already counted in the Skipped line, so they are suppressed.
 # R's random draws differ from NeoPhylo's; support values vary by a few percent.
 set.seed(${boot.seed})
 B <- ${boot.replicates}
@@ -121,7 +132,7 @@ kept <- 0L
 skipped <- 0L
 for (i in seq_len(B)) {
   xx <- x[, sample.int(ncol(x), replace = TRUE)]
-  d_i <- tryCatch(distOf(xx), error = function(e) NULL)
+  d_i <- tryCatch(suppressWarnings(distOf(xx)), error = function(e) NULL)
   if (is.null(d_i)) { skipped <- skipped + 1L; next }
   m_i <- as.matrix(d_i)
   if (any(!is.finite(m_i[lower.tri(m_i)]))) { skipped <- skipped + 1L; next }
@@ -141,7 +152,7 @@ if (kept == 0L) {
 }
 # Support on the original tree: share of kept replicates containing
 # each grouping, shown as node-label percents.
-tree$node.label <- sprintf("%.0f", 100 * ape::prop.clades(tree, trees) / kept)
+tree$node.label <- sprintf("%.0f", 100 * ape::prop.clades(tree, trees, rooted = ${rooted}) / kept)
 plot(tree, show.node.label = TRUE)
 cat(ape::write.tree(tree), "\\n")
 `;

@@ -120,8 +120,11 @@ describe("supportLabels (checkpoint 11)", () => {
           `pills on nodes ${p.id} and ${q.id}`,
         ).toBe(false);
       }
-      // Placement contract: the pill starts right of its node marker —
-      // never left (left-hanging pills clipped at the svg edge).
+      // This fixture leaves the preferred right-of-node spot free, so
+      // every pill lands there. Left-side spots over the incoming
+      // branch are allowed when the right collides (checkpoint 15:
+      // content-fit bounds keep them on canvas) — only the right-when-
+      // free preference is asserted here.
       const node = l.nodes.find((n) => n.id === p.id)!;
       expect(p.box.minX).toBeGreaterThanOrEqual(node.x + NODE_RADIUS);
       // …and reads the full value, "*" merged in for weak support.

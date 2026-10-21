@@ -107,12 +107,20 @@ describe("exportR bootstrap (v1.2 spec §6.8, checkpoint 15)", () => {
       'distOf <- function(xx) ape::dist.dna(xx, model = "JC69", pairwise.deletion = TRUE)',
     );
     expect(s).toContain("any(!is.finite(m_i[lower.tri(m_i)]))");
+    // Saturated formulas' per-replicate warnings are suppressed; only
+    // the Skipped summary reports them.
+    expect(s).toContain(
+      "d_i <- tryCatch(suppressWarnings(distOf(xx)), error = function(e) NULL)",
+    );
     expect(s).toContain("tr <- tryCatch(ape::nj(d_i)");
-    // Skipped accounting and support on the kept trees.
+    // Skipped accounting and support on the kept trees — NJ support is
+    // unrooted splits (spec §3.3), so rooted = FALSE is explicit.
     expect(s).toContain('sprintf("Skipped (saturated): %d of %d');
     expect(s).toContain("skipped / B > 0.1");
     expect(s).toContain("kept == 0L");
-    expect(s).toContain("ape::prop.clades(tree, trees) / kept");
+    expect(s).toContain(
+      "ape::prop.clades(tree, trees, rooted = FALSE) / kept",
+    );
     expect(s).toContain(
       "R's random draws differ from NeoPhylo's; support values vary by a few percent.",
     );
@@ -124,6 +132,10 @@ describe("exportR bootstrap (v1.2 spec §6.8, checkpoint 15)", () => {
     expect(s).toContain("B <- 250");
     expect(s).toContain("set.seed(7)");
     expect(s).not.toContain("nj(d_i)");
+    // UPGMA support is rooted clusters (spec §3.3).
+    expect(s).toContain(
+      "ape::prop.clades(tree, trees, rooted = TRUE) / kept",
+    );
   });
 
   it("protein Kimura computes the distance inside distOf", () => {

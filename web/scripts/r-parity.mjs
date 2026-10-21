@@ -7,7 +7,7 @@
 // distances within 1e-6 (R's write.tree prints limited digits).
 // Run from web/: `node scripts/r-parity.mjs` (check.sh, RPARITY=1).
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
@@ -73,6 +73,33 @@ function runR(script) {
       cwd: dir,
       maxBuffer: 16 * 1024 * 1024,
     });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * runR variant that also returns stderr, so callers can assert on R
+ * warnings (they go to stderr, which execFileSync only attaches to the
+ * thrown error).
+ */
+function runRCapture(script) {
+  const dir = mkdtempSync(join(tmpdir(), "r-parity-"));
+  try {
+    const file = join(dir, "script.R");
+    writeFileSync(file, script);
+    const r = spawnSync("Rscript", [file], {
+      encoding: "utf8",
+      cwd: dir,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    if (r.error) throw r.error;
+    if (r.status !== 0) {
+      throw new Error(
+        `Rscript exited ${r.status}: ${(r.stderr || r.stdout).slice(0, 300)}`,
+      );
+    }
+    return { stdout: r.stdout, stderr: r.stderr ?? "" };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -475,11 +502,13 @@ for (const [tag, input, correction] of [
 // --- v1.2 checkpoint 15: saturated-replicate skips ------------------
 // The exported loop must run where boot.phylo crashed: p6_150 Kimura
 // produces non-finite replicate distances, so the script must complete
-// and report 'Skipped (saturated): S of B' with S > 0. Its node-label
-// supports must be within 10 points of NeoPhylo's for every grouping
-// with NeoPhylo support >= 50. A DNA JC69 case completes too.
+// and report 'Skipped (saturated): S of B' with S > 0. At the owner's
+// B = 1000 checkpoint the run must emit no warnings (suppressWarnings
+// on distOf) and every grouping's node-label support must be within
+// 5 points of NeoPhylo's 1000-replicate values. A DNA JC69 case
+// completes too.
 {
-  const BOOT_B = 200;
+  const BOOT_B = 1000;
   const fasta = readFileSync(
     join(fixturesDir, "inputs/protein/p6_150.fasta"),
     "utf8",
@@ -490,7 +519,15 @@ for (const [tag, input, correction] of [
     seed: 1,
   });
   try {
-    const stdout = runR(script);
+    const { stdout, stderr } = runRCapture(script);
+    // Saturated formulas warn "NaNs produced" per replicate; the run's
+    // only notice must be the Skipped summary line on stdout.
+    if (/warning|NaN/i.test(stderr)) {
+      fail(
+        `p6_150 Kimura export: unexpected warnings on stderr: ` +
+          `${stderr.trim().split("\n").slice(0, 3).join(" | ")}`,
+      );
+    }
     const m = /Skipped \(saturated\): (\d+) of (\d+)/.exec(stdout);
     if (m === null) {
       fail("p6_150 Kimura export: no 'Skipped (saturated)' line");
@@ -534,7 +571,6 @@ for (const [tag, input, correction] of [
       let worst = 0;
       let ok = true;
       for (const [key, frac] of map) {
-        if (frac < 0.5) continue;
         const r = rPct.get(key);
         if (r === undefined) {
           fail(`p6_150 Kimura export: grouping ${key} unlabeled in R tree`);
@@ -543,10 +579,10 @@ for (const [tag, input, correction] of [
         }
         const diff = Math.abs(frac - r);
         worst = Math.max(worst, diff);
-        if (diff > 0.1) {
+        if (diff > 0.05) {
           fail(
             `p6_150 Kimura export: ${key} support ${Math.round(frac * 100)} ` +
-              `vs R ${Math.round(r * 100)} (>10 pp)`,
+              `vs R ${Math.round(r * 100)} (>5 pp)`,
           );
           ok = false;
         }
@@ -554,8 +590,8 @@ for (const [tag, input, correction] of [
       if (ok) {
         checked += 1;
         console.log(
-          `ok p6_150 Kimura export: ${skipped} skipped, supports within ` +
-            `${(worst * 100).toFixed(1)} pp`,
+          `ok p6_150 Kimura export (B=${BOOT_B}): ${skipped} skipped, ` +
+            `no warnings, supports within ${(worst * 100).toFixed(1)} pp`,
         );
       }
     }
