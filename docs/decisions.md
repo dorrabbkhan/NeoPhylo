@@ -2591,3 +2591,21 @@ wedging the start queue.
   relayout then sized the svg to the grown canvas, looping ~1 px per
   frame (CI click timeouts on element stability). Tracks are now
   `minmax(0,1fr)` and `.tree-panel` carries `min-width:0`.
+
+## Task 16 (v1.2): performance budgets and the v1.2 release checkpoint
+
+- Files outside the Files block: this entry (`docs/decisions.md`), as
+  every task records. All other writes are the Files block verbatim.
+- The nj-basics budget is measured end to end — Run-button click to the
+  "Run complete" status — in the built app on the preview server
+  (:4174), the same basis as `perf-protein.spec.ts`.
+- The ETA check compares the worker's `estimate.totalMs` (sent after
+  replicate 0) against the actual start→result wall-clock of the same
+  run; the spec's "actual time" is the whole run, not the post-estimate
+  remainder.
+- The 50 ms main-thread budget maps to zero `longtask` entries — the
+  Long Tasks API only reports tasks that already exceed 50 ms.
+- `CITATION.cff` bumped to 1.2.0 with `date-released` removed rather
+  than left stale — the plan leaves the date for the owner, and a wrong
+  date would assert a release that hasn't been tagged yet (the
+  checkpoint doc has the owner fill it at tag time).

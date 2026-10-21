@@ -29,6 +29,11 @@ builder as a black box.
 - **Distance models.** DNA: p-distance, JC69 and K80. Protein: p-distance,
   the Kimura correction and JTT maximum likelihood — with saturated cells
   shown as "cannot estimate" teaching states rather than silent failures.
+- **Bootstrap, made visible.** `seqboot`-style column resampling (10–1,000
+  replicates) runs in a background worker with live progress, an ETA and
+  cancel. Support lands on the tree itself; strict, majority-rule and
+  extended-majority consensus sit one tab away, and "watch one replicate"
+  shows exactly which columns a resample drew.
 - **"How was this distance computed?"** Click any pair in a protein matrix
   to see the two sequences aligned with every difference marked, p, Kimura
   and JTT side by side, and the likelihood curve showing how JTT picks the
@@ -47,17 +52,19 @@ builder as a black box.
 - **Shareable links.** The full state — lesson, overrides, current step — is
   encoded in the URL; custom exercises travel in the fragment and are never
   sent to a server.
-- **Export.** Tree as SVG, PNG or Newick, a PHYLIP square distance matrix
-  ready for `neighbor`, and a runnable R script that reproduces the analysis
-  with `ape`/`phangorn` (protein included).
+- **Export.** Tree as SVG, PNG or Newick (with bootstrap support as internal
+  labels), the current consensus tree as Newick, a PHYLIP square distance
+  matrix ready for `neighbor`, and a runnable R script that reproduces the
+  analysis — bootstrap included — with `ape`/`phangorn`.
 - **Offline and accessible.** Works offline after first load; full keyboard
   operation, colorblind-safe palette, axe checks in CI.
 
 ## Current scope
 
-NeoPhylo covers distance-based tree building (distances, NJ, UPGMA). Not
-yet: bootstrap support, sequence alignment, parsimony or likelihood tree
-search. These are on the [roadmap](docs/roadmap.md). It is a teaching
+NeoPhylo covers distance-based tree building (distances, NJ, UPGMA) with
+bootstrap support, consensus trees and reference-style rooting. Not yet:
+sequence alignment, parsimony or likelihood tree search. These are on the
+[roadmap](docs/roadmap.md). It is a teaching
 tool; for research analyses use dedicated software such as IQ-TREE or
 RAxML-NG.
 
@@ -81,7 +88,10 @@ Rscript scripts/compare/compare_app.R <alignment> <matrix> <model>
 
 NeoPhylo's JTT reproduces `protdist`'s default model to PHYLIP's printed
 precision (including the documentation's own test example), and its
-exported matrices produce identical trees in `neighbor`.
+exported matrices produce identical trees in `neighbor`. The
+`seqboot` → `neighbor` → `consense` lab runs end to end: bootstrap counts
+and strict, majority-rule and extended-majority consensus match `consense`
+and `ape::prop.clades` exactly on the fixture tree sets.
 
 ## How we know it's correct
 
@@ -89,7 +99,10 @@ exported matrices produce identical trees in `neighbor`.
   lengths and topologies match R (`ape`/`phangorn`) to 10⁻⁹ and PHYLIP to
   its printed precision. Protein distances match PHYLIP `protdist` (JTT,
   Kimura) to its printed precision, including PHYLIP's published test
-  example. All on a committed fixture corpus (`fixtures/`).
+  example. Bootstrap counts and consensus trees match PHYLIP `consense` and
+  `ape::prop.clades` exactly, and support values track `ape::boot.phylo`
+  within 5 percentage points over 1,000 replicates. All on a committed
+  fixture corpus (`fixtures/`).
 - **Property tests.** `proptest` verifies invariants on random inputs: NJ
   recovers any additive matrix, UPGMA recovers any ultrametric matrix, Newick
   round-trips, and more.
@@ -112,6 +125,8 @@ for the full testing strategy.
     breaks UPGMA
   - [`saturation`](exercises/saturation.json): why distance corrections
     matter
+  - [`bootstrap-basics`](exercises/bootstrap-basics.json): how sure are we?
+    (support, resampling, consensus)
   - [`protein-models`](exercises/protein-models.json): when counting
     differences isn't enough (p vs JTT)
   - [`cytochrome-c`](exercises/cytochrome-c.json): a real protein tree from
