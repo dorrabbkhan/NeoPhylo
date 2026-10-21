@@ -7,14 +7,13 @@ abstract: "A browser-based teaching tool for distance-based phylogenetics of
   at a time, compare p, Kimura and JTT distances (matching PHYLIP protdist),
   simulate sequence evolution on a known tree, and work with real data in
   guided lessons and a sandbox that reads and writes PHYLIP formats."
-version: 1.1.0
+version: 1.2.0
 authors:
   - family-names: "Khan"
     given-names: "Dorrabb"
 license: AGPL-3.0-only
 repository-code: "https://github.com/dorrabbkhan/NeoPhylo"
 url: "https://neophylo.netlify.app"
-date-released: 2026-10-19
 keywords:
   - phylogenetics
   - neighbor-joining

@@ -1,7 +1,7 @@
 # NeoPhylo roadmap
 
-**Status:** v1.0 and v1.1 (protein support, PHYLIP I/O) released; **v1.2 in progress** (bootstrap,
-consensus, reference rooting). Last revised 2026-10-19 after a review of current course practice:
+**Status:** v1.0, v1.1 (protein support, PHYLIP I/O) and v1.2 (bootstrap, consensus,
+reference rooting) released. Last revised 2026-10-19 after a review of current course practice:
 MEGA-based labs dominate, and tree-interpretation research matters for intro courses.
 
 **Positioning, two modes:**
@@ -26,7 +26,7 @@ validation discipline: an independent oracle, property tests and fuzzing.
 
 ## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.5)
 
-### v1.2 Bootstrap, consensus and reference rooting (L) · *in progress*
+### v1.2 Bootstrap, consensus and reference rooting (L) · *released*
 - Bootstrap (`seqboot` workflow) with visible resampling; support on the original tree; strict,
   majority and extended-majority consensus; background worker with progress and cancel.
 - Inferred NJ trees drawn rooted like the reference (found at the v1.1 checkpoint, cytochrome-c lesson).
