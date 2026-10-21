@@ -271,7 +271,10 @@ p {
 .trees {
   grid-row: 2;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr), not 1fr: the svg's intrinsic pixel width is a
+   * min-content floor under auto minima — it feeds back through the
+   * measured canvas into the next layout (column ↔ svg ratchet). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   width: 100%;
   min-height: 0;
@@ -281,6 +284,9 @@ p {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* The svg's intrinsic width must not set this figure's floor in a
+   * flex row — the canvas scrolls instead. */
+  min-width: 0;
   margin: 0;
 }
 
