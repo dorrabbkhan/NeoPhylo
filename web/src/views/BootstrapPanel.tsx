@@ -27,6 +27,9 @@ import { NumberField } from "./Controls";
 export interface BootstrapPanelProps {
   session: Session;
   dispatch: Dispatch<Action>;
+  /** v1.2 spec §7.1: an unanswered predict_branch prompt keeps Run
+   * disabled until the student clicks an internal branch. */
+  runGated?: boolean;
 }
 
 /** "4 s" / "2 min" — the T in "Replicate k of N · about T left" and
@@ -56,7 +59,11 @@ function MathLine({ source }: { source: string }) {
   return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export function BootstrapPanel({ session, dispatch }: BootstrapPanelProps) {
+export function BootstrapPanel({
+  session,
+  dispatch,
+  runGated = false,
+}: BootstrapPanelProps) {
   const b = session.bootstrap;
   const taxa = session.alignment?.labels.length ?? 0;
   const method = session.exercise.analysis.method;
@@ -220,7 +227,9 @@ export function BootstrapPanel({ session, dispatch }: BootstrapPanelProps) {
         ) : (
           <button
             type="button"
-            disabled={groupings === 0 || session.alignment === null}
+            disabled={
+            groupings === 0 || session.alignment === null || runGated
+          }
             onClick={() => dispatch({ type: "bootstrapRequested" })}
           >
             {b.prefilledRun

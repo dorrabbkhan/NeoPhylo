@@ -312,6 +312,7 @@ describe("PairPanel wiring in App", () => {
     analysis: { correction: "Jtt", method: "Nj" },
     locked: [],
     prompts: [],
+    bootstrap: null,
   };
 
   const DNA_EX: Exercise = {

@@ -33,6 +33,7 @@ const EXERCISE: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: [],
   prompts: [],
+    bootstrap: null,
 };
 
 describe("PhylipHelp", () => {

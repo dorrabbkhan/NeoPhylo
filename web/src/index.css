@@ -332,6 +332,15 @@ p {
   color: var(--fg);
 }
 
+/* predict_branch (v1.2 spec §7.1): while a branch prompt is open, a wide
+ * invisible hit line sits on each internal edge — generous target for
+ * the click, invisible against the real branch stroke. */
+.tree-canvas .branch-hit {
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: pointer;
+}
+
 /* The heatmap keeps its square aspect inside the lower row; currentColor
  * inside it (cell outlines, axis labels) follows --fg like the trees. */
 .col-center > svg {

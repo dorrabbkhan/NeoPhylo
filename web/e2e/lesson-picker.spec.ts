@@ -13,6 +13,7 @@ const ORDER = [
   "How Neighbor-Joining works",
   "When UPGMA fails: the molecular clock",
   "Saturation and distance correction",
+  "Bootstrap: how sure is the tree?",
   "Protein distances: when counting isn't enough",
   "Cytochrome c: a real protein tree",
 ];

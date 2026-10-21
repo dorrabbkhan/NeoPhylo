@@ -35,6 +35,7 @@ const NJ_BASICS: Exercise = {
   analysis: { correction: "Jc69", method: "Nj" },
   locked: ["sim.model", "analysis.method"],
   prompts: [],
+    bootstrap: null,
 };
 
 describe("URL state", () => {

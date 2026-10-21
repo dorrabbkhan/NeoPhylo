@@ -2,8 +2,8 @@
 // Testing Library (plan M3 preamble). Trees are hand-built arenas matching the
 // `Tree` type emitted by neophylo-wasm — no wasm needed for view tests.
 
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Tree } from "../engine/generated/Tree";
 import {
@@ -347,5 +347,50 @@ describe("tree panel sizing", () => {
   it("keeps leaf labels between 14 and 16px", () => {
     expect(leafFontSize(18)).toBe(14);
     expect(leafFontSize(48)).toBe(16);
+  });
+});
+
+describe("onPickBranch (v1.2 spec §7.1)", () => {
+  it("fires with the internal branch's split key; terminal edges are ignored", () => {
+    const onPickBranch = vi.fn();
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+        onPickBranch={onPickBranch}
+      />,
+    );
+    // Internal node 3 (the (A,B) cherry) has a pickable branch hit line…
+    const hit = container.querySelector('g[data-node="3"] .branch-hit');
+    expect(hit).not.toBeNull();
+    // …and terminal (leaf) edges do not.
+    expect(container.querySelector('g[data-node="0"] .branch-hit')).toBeNull();
+    expect(container.querySelector('g[data-node="2"] .branch-hit')).toBeNull();
+    fireEvent.click(hit!);
+    expect(onPickBranch).toHaveBeenCalledTimes(1);
+    // The callback carries the same canonical grouping key the node
+    // advertises via data-split.
+    const key = container
+      .querySelector('g[data-node="3"]')
+      ?.getAttribute("data-split");
+    expect(onPickBranch).toHaveBeenCalledWith(key);
+  });
+
+  it("no hit lines are drawn without an onPickBranch handler", () => {
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+      />,
+    );
+    expect(container.querySelectorAll(".branch-hit")).toHaveLength(0);
   });
 });

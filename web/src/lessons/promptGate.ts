@@ -39,6 +39,16 @@ export interface PromptGate {
   answerPair: [string, string] | null;
   /** The student's pick for the prompt at join step `at`, if answered. */
   picked: (at: number) => [string, string] | null;
+  /** v1.2 §7.1: the shown unanswered predict_branch prompt, or null.
+   * Branch prompts never gate the stepper — they gate the bootstrap
+   * panel's Run button. */
+  branchGating: Prompt | null;
+  /** The clicked internal branch's split key for the prompt at step
+   * `at`, if answered. */
+  pickedBranch: (at: number) => string | null;
+  /** Record an internal-branch click (split key) as the answer to the
+   * shown predict_branch prompt. */
+  onPickBranch: (splitKey: string) => void;
   /** First leaf of an in-progress two-leaf pick (for highlighting). */
   leafPick: string | null;
   /** Answer a predict prompt with matrix cell (i, j); ignores diagonal. */
@@ -72,6 +82,11 @@ export function usePromptGate({
   const [answered, setAnswered] = useState<
     ReadonlyMap<number, [string, string]>
   >(new Map());
+  // v1.2 §7.1: predict_branch answers — prompt at_step → clicked
+  // branch's canonical split key.
+  const [branchAnswered, setBranchAnswered] = useState<
+    ReadonlyMap<number, string>
+  >(new Map());
   const [leafPick, setLeafPick] = useState<string | null>(null);
 
   // A new exercise (new prompts array) forgets all answers; a position
@@ -81,6 +96,7 @@ export function usePromptGate({
   if (promptList !== lastPrompts) {
     setLastPrompts(promptList);
     setAnswered(new Map());
+    setBranchAnswered(new Map());
     setLeafPick(null);
   }
   if (position !== lastPosition) {
@@ -100,6 +116,16 @@ export function usePromptGate({
     sm !== null && sm.chosen !== null
       ? [sm.labels[sm.chosen[0]], sm.labels[sm.chosen[1]]]
       : null;
+  // The predict_branch prompt shown now and still unanswered gates the
+  // bootstrap Run button, not the stepper.
+  const branchGating =
+    shown.find(
+      (p) => p.type === "predict_branch" && !branchAnswered.has(p.at_step),
+    ) ?? null;
+  const onPickBranch = (splitKey: string) => {
+    if (branchGating === null) return;
+    setBranchAnswered((m) => new Map(m).set(branchGating.at_step, splitKey));
+  };
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
     setLeafPick(null);
@@ -135,6 +161,9 @@ export function usePromptGate({
     gated: gating !== null,
     answerPair,
     picked: (at) => answered.get(at) ?? null,
+    branchGating,
+    pickedBranch: (at) => branchAnswered.get(at) ?? null,
+    onPickBranch,
     leafPick,
     onPickCell,
     onPickLeaf,

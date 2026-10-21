@@ -2511,3 +2511,30 @@ wedging the start queue.
 - Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
   ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
   visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+## Task 14 (v1.2): predict_branch and the bootstrap-basics lesson
+
+- Outside Files block: the verdict needs machinery the Files list did
+  not name — `web/src/lessons/promptGate.ts` (branch-pick state keyed by
+  at_step), `web/src/views/TreeView.tsx` (`onPickBranch` + invisible
+  `.branch-hit` lines on internal edges only), `web/src/views/App.tsx`
+  (weakest-branch scan on the run's support tree via `splitKeys`),
+  `web/src/index.css` (`.branch-hit` cursor/width), and
+  `web/src/state/session.ts` (typed `Exercise.bootstrap` read).
+- `predict_branch`'s `at: "bootstrap"` resolves to the final stepper
+  position: step n−1 for NJ and n for UPGMA on n taxa — the position
+  where the bootstrap panel shows.
+- Verdict rule: "Correct" when the clicked branch's support equals the
+  minimum across the support tree's internal branches — a tie for
+  weakest counts as correct.
+- Seed search required NJ to recover the exact true topology (rf == 0)
+  at both 300 and 3,000 sites on top of the §7.2 premises, so the
+  verdict names a real weak-but-true grouping. First pair in scan
+  order: sim seed 4, bootstrap seed 96 — (E,F,G,H) at 57% on 300 sites,
+  rising to 90% at 3,000.
+- `ExerciseBootstrap.seed` is `u64` exported as `number`
+  (`#[ts(type = "number")]`), the same convention Task 12 set for
+  `SimSpec.seed`.
+- The lesson's predict_branch math note, the length note and the
+  closing note are spoiler-safe: math lines render in math mode before
+  the run, so none names the designed branch; only the post-verdict
+  reveal does.

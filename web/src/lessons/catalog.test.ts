@@ -22,6 +22,7 @@ const ORDER = [
   "nj-basics",
   "upgma-fails",
   "saturation",
+  "bootstrap-basics",
   "protein-models",
   "cytochrome-c",
 ];

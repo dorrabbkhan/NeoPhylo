@@ -6,6 +6,7 @@
 // requires for repo lessons but the engine ignores (§3.6), so it is
 // read from the file, not the parsed Exercise.
 
+import bootstrapBasicsJson from "../../../exercises/bootstrap-basics.json?raw";
 import cytochromeCJson from "../../../exercises/cytochrome-c.json?raw";
 import njBasicsJson from "../../../exercises/nj-basics.json?raw";
 import proteinModelsJson from "../../../exercises/protein-models.json?raw";
@@ -34,6 +35,7 @@ export const LESSONS: LessonMeta[] = [
   njBasicsJson,
   upgmaFailsJson,
   saturationJson,
+  bootstrapBasicsJson,
   proteinModelsJson,
   cytochromeCJson,
 ].map(meta);

@@ -46,6 +46,21 @@ pub struct Exercise {
     pub analysis: Analysis,
     pub locked: Vec<String>,
     pub prompts: Vec<Prompt>,
+    /// The lesson's own bootstrap settings (v1.2 spec §7.1); `None`
+    /// leaves the app defaults (100 replicates, seed 1).
+    #[serde(default)]
+    pub bootstrap: Option<ExerciseBootstrap>,
+}
+
+/// An exercise file's `bootstrap` block (v1.2 spec §7.1): the panel's
+/// initial replicates and seed. `replicates` is validated to the
+/// engine's 10–1,000 range (§3.8) at load.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct ExerciseBootstrap {
+    pub replicates: u32,
+    #[ts(type = "number")]
+    pub seed: u64,
 }
 
 /// Where an exercise's alignment comes from (v1.1 spec §3.6): simulated
@@ -108,13 +123,20 @@ pub struct Analysis {
 pub enum PromptType {
     PredictPair,
     Note,
+    /// v1.2 spec §7.1: anchored to the bootstrap panel (`at:
+    /// "bootstrap"` in the file), not a join step.
+    PredictBranch,
 }
 
 /// A step-triggered teaching prompt (spec §7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Prompt {
-    /// 1-based join step at which the prompt appears.
+    /// 1-based join step at which the prompt appears. For
+    /// `predict_branch` (file anchor `at: "bootstrap"`) this is
+    /// resolved at load to one past the final join — the stepper
+    /// position where the "How sure are we?" panel shows (v1.2 spec
+    /// §7.1).
     pub at_step: u32,
     #[serde(rename = "type")]
     #[ts(rename = "type")]
@@ -186,7 +208,8 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
     check_branch_lengths(&tree)?;
     // Prompts validate against the true tree's leaf labels — v1 data is
     // always simulated along it, so those are the alignment's labels.
-    let prompts = prompts(&f.prompts, &tree.leaf_labels())?;
+    let prompts = prompts(&f.prompts, &tree.leaf_labels(), analysis.method)?;
+    let bootstrap = bootstrap(f.bootstrap)?;
 
     Ok(Exercise {
         schema_version: 2,
@@ -201,6 +224,7 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
         analysis,
         locked: f.locked,
         prompts,
+        bootstrap,
     })
 }
 
@@ -262,7 +286,8 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
     }
 
     let reference = reference(f.reference, &labels)?;
-    let prompts = prompts(&f.prompts, &labels)?;
+    let prompts = prompts(&f.prompts, &labels, analysis.method)?;
+    let bootstrap = bootstrap(f.bootstrap)?;
 
     Ok(Exercise {
         schema_version: 2,
@@ -274,6 +299,7 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
         analysis,
         locked: f.locked,
         prompts,
+        bootstrap,
     })
 }
 
@@ -369,13 +395,51 @@ fn reference(f: Option<ReferenceFile>, labels: &[String]) -> Result<Option<Refer
 /// Convert the file's prompt array, reporting the index of a bad `type`.
 /// `labels` are the alignment's taxon names: a `reveal_pair` must name
 /// two of them (checkpoint 12 — the button opens the pair panel, which
-/// resolves the pair by label).
-fn prompts(fs: &[PromptFile], labels: &[String]) -> Result<Vec<Prompt>, NeoError> {
+/// resolves the pair by label). `method` resolves the `predict_branch`
+/// anchor: `at: "bootstrap"` shows where the bootstrap panel does — the
+/// last stepper position, which is step `n−1` for NJ and `n` for UPGMA
+/// on `n` taxa (v1.2 spec §7.1).
+fn prompts(fs: &[PromptFile], labels: &[String], method: Method) -> Result<Vec<Prompt>, NeoError> {
+    let n = labels.len() as u32;
+    let bootstrap_step = match method {
+        Method::Nj => n.saturating_sub(1).max(1),
+        Method::Upgma => n,
+    };
     let mut prompts = Vec::with_capacity(fs.len());
     for (i, p) in fs.iter().enumerate() {
-        let r#type = match p.kind.as_str() {
-            "predict_pair" => PromptType::PredictPair,
-            "note" => PromptType::Note,
+        let (r#type, at_step) = match p.kind.as_str() {
+            "predict_pair" | "note" => {
+                let t = if p.kind == "predict_pair" {
+                    PromptType::PredictPair
+                } else {
+                    PromptType::Note
+                };
+                let at = p.at_step.ok_or_else(|| {
+                    bad(
+                        &format!("prompts.{i}.at_step"),
+                        "at_step is required for this prompt type",
+                    )
+                })?;
+                (t, at)
+            }
+            "predict_branch" => {
+                match p.at.as_deref() {
+                    Some("bootstrap") => {}
+                    Some(other) => {
+                        return Err(bad(
+                            &format!("prompts.{i}.at"),
+                            &format!("unknown anchor '{other}'"),
+                        ))
+                    }
+                    None => {
+                        return Err(bad(
+                            &format!("prompts.{i}.at"),
+                            "at is required for predict_branch",
+                        ))
+                    }
+                }
+                (PromptType::PredictBranch, bootstrap_step)
+            }
             other => {
                 return Err(bad(
                     &format!("prompts.{i}.type"),
@@ -394,7 +458,7 @@ fn prompts(fs: &[PromptFile], labels: &[String]) -> Result<Vec<Prompt>, NeoError
             }
         }
         prompts.push(Prompt {
-            at_step: p.at_step,
+            at_step,
             r#type,
             concept: p.concept.clone(),
             math: p.math.clone(),
@@ -403,6 +467,27 @@ fn prompts(fs: &[PromptFile], labels: &[String]) -> Result<Vec<Prompt>, NeoError
         });
     }
     Ok(prompts)
+}
+
+/// Validate the file's `bootstrap` block (v1.2 spec §3.8, §7.1):
+/// replicates 10–1,000, seed a non-negative integer. The mirror fields
+/// are `f64` so non-integer or out-of-range values still report their
+/// own field name instead of a bare serde error.
+fn bootstrap(f: Option<BootstrapFile>) -> Result<Option<ExerciseBootstrap>, NeoError> {
+    let Some(f) = f else { return Ok(None) };
+    if f.replicates.fract() != 0.0 || !(10.0..=1000.0).contains(&f.replicates) {
+        return Err(bad(
+            "bootstrap.replicates",
+            "replicates must be an integer in 10..=1000",
+        ));
+    }
+    if f.seed.fract() != 0.0 || f.seed < 0.0 {
+        return Err(bad("bootstrap.seed", "seed must be a non-negative integer"));
+    }
+    Ok(Some(ExerciseBootstrap {
+        replicates: f.replicates as u32,
+        seed: f.seed as u64,
+    }))
 }
 
 /// The file's spelling of a `SimModel` name.
@@ -460,6 +545,10 @@ struct ExerciseFile {
     locked: Vec<String>,
     #[serde(default)]
     prompts: Vec<PromptFile>,
+    /// v1.2 spec §7.1: the lesson's bootstrap settings; absent means
+    /// the app defaults apply.
+    #[serde(default)]
+    bootstrap: Option<BootstrapFile>,
 }
 
 #[derive(Deserialize)]
@@ -492,11 +581,28 @@ struct AnalysisFile {
     method: String,
 }
 
+/// The serde mirror of the `bootstrap` block: `f64` so a negative or
+/// fractional value reaches the range check and reports
+/// `bootstrap.replicates` / `bootstrap.seed` (same pattern as
+/// `SimFile.length`).
+#[derive(Deserialize)]
+struct BootstrapFile {
+    replicates: f64,
+    seed: f64,
+}
+
 #[derive(Deserialize)]
 struct PromptFile {
-    at_step: u32,
+    /// Step-anchored prompts only; `predict_branch` carries `at`
+    /// instead (v1.2 spec §7.1).
+    #[serde(default)]
+    at_step: Option<u32>,
     #[serde(rename = "type")]
     kind: String,
+    /// The panel a `predict_branch` prompt anchors to; only
+    /// `"bootstrap"` is defined.
+    #[serde(default)]
+    at: Option<String>,
     concept: String,
     #[serde(default)]
     math: Option<String>,

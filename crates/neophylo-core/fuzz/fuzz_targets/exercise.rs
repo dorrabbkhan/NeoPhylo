@@ -6,11 +6,17 @@
 //! structurally valid but pathological exercise can still not panic the
 //! engine. `load_exercise` normalizes v1 files to the v2 `data.kind`
 //! shape, so both `Simulated` and `Embedded` are covered here.
+//!
+//! v1.2 Task 14: an exercise carrying a `bootstrap` block also drives a
+//! small bootstrap (two replicates with the block's seed), support
+//! annotation and every consensus kind; with a reference the target
+//! reroots on the reference's outgroup too (spec §3.8).
 
 use libfuzzer_sys::fuzz_target;
 use neophylo_core::{
-    build_tree, compute, load_exercise, parse_fasta, parse_newick, rf, simulate, with_alphabet,
-    BuildOptions, ExerciseData,
+    bootstrap_batch, build_tree, compute, consensus, load_exercise, parse_fasta, parse_newick,
+    reference_outgroup, reroot_on_outgroup, rf, simulate, support_on_tree, with_alphabet,
+    BuildOptions, ConsensusKind, ExerciseData,
 };
 
 fuzz_target!(|data: &[u8]| {
@@ -46,13 +52,36 @@ fuzz_target!(|data: &[u8]| {
     let Ok(built) = build_tree(&m, exercise.analysis.method, BuildOptions { trace: true }) else {
         return;
     };
+    // v1.2 Task 14: an exercise carrying a `bootstrap` block drives the
+    // bootstrap paths too — two replicates keep the run trivial while
+    // still exercising the tally, support annotation and all consensus
+    // kinds (spec §3.8).
+    if let Some(b) = exercise.bootstrap {
+        if let Ok(tally) = bootstrap_batch(
+            &aln,
+            exercise.analysis.correction,
+            exercise.analysis.method,
+            b.seed,
+            0,
+            2,
+        ) {
+            let _ = support_on_tree(&built.tree, &tally);
+            for kind in [
+                ConsensusKind::Strict,
+                ConsensusKind::Majority,
+                ConsensusKind::Extended,
+            ] {
+                let _ = consensus(&tally, kind);
+            }
+        }
+    }
     let Some(reference) = &exercise.reference else {
         return;
     };
     let Ok(truth) = parse_newick(&reference.newick) else {
         return;
     };
-    let Ok(_) = rf(&truth, &built.tree) else {
-        return;
-    };
+    let _ = rf(&truth, &built.tree);
+    let outgroup = reference_outgroup(&truth);
+    let _ = reroot_on_outgroup(&built.tree, &outgroup);
 });

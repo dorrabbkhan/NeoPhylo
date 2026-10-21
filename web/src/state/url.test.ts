@@ -67,6 +67,7 @@ function randomExercise(rand: () => number): Exercise {
     analysis: { correction: pick(CORRECTIONS), method: pick(METHODS) },
     locked: [],
     prompts: [],
+    bootstrap: null,
   };
 }
 
@@ -138,6 +139,7 @@ describe("encode/decode round trip", () => {
         analysis: { correction: "P", method: "Nj" },
         locked: [],
         prompts: [],
+    bootstrap: null,
       },
       step: 1,
       mode: "math",

@@ -55,6 +55,7 @@ function makeExercise(
     analysis: { correction: "Jc69", method },
     locked: opts.locked ?? [],
     prompts: [],
+    bootstrap: null,
   };
 }
 
@@ -419,6 +420,7 @@ describe("reference rooting display (spec §6.7)", () => {
       analysis: { correction: "Jc69", method: "Nj" },
       locked: [],
       prompts: [],
+    bootstrap: null,
     };
     // Premise: the engine agrees {A,B} is not a split of the NJ tree.
     const s = loaded(ex);
@@ -664,5 +666,139 @@ describe("stepper position after an analysis change (checkpoint 11)", () => {
     });
     expect(stepText()).toContain("step 0 of 5");
     expect(screen.queryByText("How sure are we?")).toBeNull();
+  });
+});
+
+// --- predict_branch (v1.2 Task 14, spec §7.1) --------------------------
+// An unanswered predict_branch prompt gates the panel's Run button until
+// the student clicks an internal branch of the inferred tree; the run's
+// verdict names the weakest grouping.
+
+const PREDICT_BRANCH_PROMPT = {
+  at_step: 4, // TREE5 (NJ, 5 taxa): position 3 is the final step.
+  type: "predict_branch",
+  concept: "Before you run, click the internal branch you think the data supports least.",
+  math: null,
+  reveal: "The weakest grouping sits on the shortest internal branch.",
+  reveal_pair: null,
+} as const;
+
+/** The exercise with a predict_branch prompt attached. */
+const PREDICT_EXERCISE: Exercise = {
+  ...NJ_BASICS,
+  prompts: [{ ...PREDICT_BRANCH_PROMPT, reveal_pair: null }],
+};
+
+/** TREE5's inferred tree with per-split support: keys are the grouping's
+ * sorted leaf set ("D,E" for the (D,E) cherry); unlisted internal edges
+ * get 0.75. */
+function supportTree(supports: Record<string, number>): Tree {
+  const t = loaded(NJ_BASICS).result!.tree;
+  const sets = leafLabelSetsForTest(t);
+  return {
+    ...t,
+    branches: t.branches.map((b, i) => {
+      const node = t.nodes[i];
+      if (node.children.length === 0 || node.parent === null) return b;
+      const side = [...(sets.get(i) ?? [])].sort().join(",");
+      for (const [k, v] of Object.entries(supports)) {
+        if (side === k) return { ...b, support: v };
+      }
+      return { ...b, support: 0.75 };
+    }),
+  };
+}
+
+/** Leaf sets under each node of `t` (test-local; mirrors
+ * layout/splitKeys without importing app internals here). */
+function leafLabelSetsForTest(t: Tree): Map<number, Set<string>> {
+  const sets = new Map<number, Set<string>>();
+  const walk = (id: number): Set<string> => {
+    const n = t.nodes[id];
+    if (n.children.length === 0) {
+      const s = new Set(n.label === null ? [] : [n.label]);
+      sets.set(id, s);
+      return s;
+    }
+    const u = new Set<string>();
+    for (const c of n.children) for (const l of walk(c)) u.add(l);
+    sets.set(id, u);
+    return u;
+  };
+  walk(t.root);
+  return sets;
+}
+
+function result(t: Tree) {
+  return {
+    tally: {
+      method: "Nj" as const,
+      labels: ["A", "B", "C", "D", "E"],
+      successful: 100,
+      failed: 0,
+      counts: [],
+    },
+    support: t,
+    consensus: { Strict: t, Majority: t, Extended: t } as Record<
+      ConsensusKind,
+      Tree
+    >,
+    dropped: { Strict: [], Majority: [], Extended: [] },
+    failed: 0,
+  };
+}
+
+describe("predict_branch gating and verdict (v1.2 Task 14)", () => {
+  it("Run is disabled until an internal branch is clicked; terminal edges don't answer", async () => {
+    render(<App exercise={PREDICT_EXERCISE} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(PREDICT_EXERCISE);
+
+    const run = screen.getByRole("button", { name: /Run bootstrap/ });
+    expect((run as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/Click an internal branch/)).toBeTruthy();
+
+    const svg = inferredSvg();
+    // A terminal edge has no pick target at all (leaf D's group carries
+    // its own split key "D").
+    const leafGroup = svg.querySelector('g[data-split="D"]');
+    expect(leafGroup?.querySelector(".branch-hit")).toBeNull();
+    // Clicking the (D,E) internal branch answers the prompt.
+    const hit = svg.querySelector('g[data-split="D|E"] .branch-hit');
+    expect(hit).not.toBeNull();
+    fireEvent.click(hit!);
+    expect(
+      (screen.getByRole("button", { name: /Run bootstrap/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    // No support labels before a run — no spoilers.
+    expect(svg.querySelectorAll(".support-label")).toHaveLength(0);
+  });
+
+  it("after the run the verdict names the weakest grouping", async () => {
+    render(<App exercise={PREDICT_EXERCISE} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(PREDICT_EXERCISE);
+    // Pick the (A,B) side — not the weakest.
+    fireEvent.click(
+      inferredSvg().querySelector('g[data-split="C|D|E"] .branch-hit')!,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    act(() => {
+      handlers!.onResult(
+        result(supportTree({ "A,B": 0.9, "D,E": 0.41 })),
+      );
+    });
+    expect(
+      await screen.findByText(
+        "Not quite: the weakest group was (D, E) at 41%.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/shortest internal branch/),
+    ).toBeTruthy();
   });
 });

@@ -56,6 +56,7 @@ function makeExercise(newick: string, method: Method): Exercise {
     analysis: { correction: "Jc69", method },
     locked: [],
     prompts: [],
+    bootstrap: null,
   };
 }
 

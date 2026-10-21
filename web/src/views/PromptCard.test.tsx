@@ -151,3 +151,90 @@ describe("PromptCard", () => {
     expect(onShowPair).toHaveBeenCalledWith(["horse", "chicken"]);
   });
 });
+
+// --- v1.2 spec §7.1: predict_branch ------------------------------------
+
+const BRANCH: Prompt = {
+  at_step: 4,
+  type: "predict_branch",
+  concept: "Before you run, click the internal branch you think the data supports least.",
+  math: "support = count ÷ successful replicates",
+  reveal: "Short internal branches leave the fewest informative sites.",
+  reveal_pair: null,
+};
+
+describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {
+  it("asks the student to click an internal branch while unanswered", () => {
+    render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{ picked: null, verdict: null }}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Before you run, click the internal branch you think the data supports least.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/Click an internal branch/)).toBeTruthy();
+    expect(screen.queryByText(/Not quite/)).toBeNull();
+    expect(screen.queryByText("Correct")).toBeNull();
+  });
+
+  it("a recorded pick without a run waits for the bootstrap", () => {
+    render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{ picked: "A|B", verdict: null }}
+      />,
+    );
+    expect(screen.getByText(/run the bootstrap/i)).toBeTruthy();
+    expect(screen.queryByText(/Not quite/)).toBeNull();
+    expect(screen.queryByText("Correct")).toBeNull();
+    // The explanation stays hidden until the verdict — it is part of
+    // the answer.
+    expect(screen.queryByText(/Short internal branches/)).toBeNull();
+  });
+
+  it("verdict: Correct when the clicked branch is the weakest", () => {
+    render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{
+          picked: "E|F|G|H",
+          verdict: { correct: true, weakest: ["E", "F", "G", "H"], supportPct: 41 },
+        }}
+      />,
+    );
+    expect(screen.getByText("Correct")).toBeTruthy();
+    expect(screen.getByText(/Short internal branches/)).toBeTruthy();
+  });
+
+  it("verdict: names the weakest group and its support on a miss", () => {
+    render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{
+          picked: "A|B",
+          verdict: { correct: false, weakest: ["E", "F", "G", "H"], supportPct: 41 },
+        }}
+      />,
+    );
+    expect(
+      screen.getByText("Not quite: the weakest group was (E, F, G, H) at 41%."),
+    ).toBeTruthy();
+    expect(screen.getByText(/Short internal branches/)).toBeTruthy();
+  });
+});

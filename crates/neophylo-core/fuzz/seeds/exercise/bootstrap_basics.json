@@ -1,0 +1,46 @@
+{
+  "schema_version": 2,
+  "id": "bootstrap-basics",
+  "title": "Bootstrap: how sure is the tree?",
+  "summary": "Predict which grouping the data supports least, then resample and see.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
+    "sim": { "model": "JC69", "length": 300, "seed": 4 }
+  },
+  "reference": {
+    "newick": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
+    "kind": "true"
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "locked": ["sim.model", "sim.seed", "analysis.correction", "analysis.method"],
+  "bootstrap": { "replicates": 100, "seed": 96 },
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "These eight sequences share a true tree, but the alignment is deliberately short. Build the NJ tree, then step to the end to ask: how sure are we that each grouping is real?",
+      "math": "A short internal branch leaves few sites where its grouping differs from the rest — exactly the sites a resample can miss."
+    },
+    {
+      "type": "predict_branch",
+      "at": "bootstrap",
+      "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
+      "math": "Each replicate resamples the 300 columns with replacement and rebuilds the tree; a grouping's support is the share of successful replicate trees that contain it.",
+      "reveal": "The weakest grouping sits on the shortest internal branch of the true tree — at 300 columns it has recorded very few informative sites, so many resamples rebuild a different split there."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "Now try more data. Raise Length to 3,000 — ten times as many columns — and run again. Watch what happens to that grouping's support.",
+      "math": "Signal scales with sites: the same tree under 10× the columns puts ~10× the expected substitutions on every branch, short ones included."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
+      "concept": "Read the numbers carefully: when a grouping shows 87, it means 87 of 100 resampled datasets rebuilt that grouping — not that the grouping has an 87% chance of being true. The bootstrap measures consistency under resampling, not the probability of being right.",
+      "math": null
+    }
+  ]
+}
