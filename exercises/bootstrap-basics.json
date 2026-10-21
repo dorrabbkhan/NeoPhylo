@@ -28,13 +28,13 @@
       "at": "bootstrap",
       "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
       "math": "Each replicate resamples the 300 columns with replacement and rebuilds the tree; a grouping's support is the share of successful replicate trees that contain it.",
-      "reveal": "The weakest grouping sits on the shortest internal branch of the true tree — at 300 columns it has recorded very few informative sites, so many resamples rebuild a different split there."
+      "reveal": "The weakest grouping is the one on the true tree's shortest internal branch. At 300 columns, only a handful of sites carry evidence for it, so many resampled datasets rebuild a different grouping there."
     },
     {
       "at_step": 7,
       "type": "note",
-      "concept": "Support is an estimate, too. Re-run with a different bootstrap Seed and watch the labels move by a few points — about ±5 near 50% at 100 replicates. Then raise Replicates to 1,000 and run again: the numbers steady to roughly ±1.6.",
-      "math": "Resampling error shrinks like 1/√B: near 50% support it is about ±5 points at 100 replicates and ±1.6 at 1,000."
+      "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. With 1,000 replicates instead of 100, they settle down. So don't read much into small differences like 52 versus 57.",
+      "math": null
     },
     {
       "at_step": 7,
@@ -45,7 +45,7 @@
     {
       "at_step": 7,
       "type": "note",
-      "concept": "Read the numbers carefully: when a grouping shows 87, it means 87 of 100 resampled datasets rebuilt that grouping — not that the grouping has an 87% chance of being true. The bootstrap measures consistency under resampling, not the probability of being right — so don't overinterpret differences of a few points either.",
+      "concept": "Read the numbers carefully. When a grouping shows 87, it means 87 of 100 resampled datasets rebuilt it, not that it has an 87% chance of being true. Support measures how consistently the data points to a grouping. Low support means this dataset says little about that grouping, not that the grouping is wrong: here the weak grouping was real, and a longer alignment raised its support. Small differences between seeds or runs are noise; don't overinterpret them.",
       "math": null
     }
   ]

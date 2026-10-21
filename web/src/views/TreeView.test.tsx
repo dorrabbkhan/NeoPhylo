@@ -385,6 +385,44 @@ describe("onPickBranch (v1.2 spec §7.1)", () => {
     expect(onPickBranch).toHaveBeenCalledTimes(1);
   });
 
+  it("internal hits are named, focusable buttons; Enter picks and arrows rove", () => {
+    const onPickBranch = vi.fn();
+    const { container } = render(
+      <TreeView
+        tree={makeTree()}
+        layoutKind="phylogram"
+        highlight={new Set()}
+        wrong={new Set()}
+        clampNegative={false}
+        title="Inferred tree"
+        onPickBranch={onPickBranch}
+        onPickTerminal={vi.fn()}
+      />,
+    );
+    const hit = container.querySelector('g[data-node="3"] .branch-hit')!;
+    // A real button: focusable, named for the grouping on the edge.
+    expect(hit.getAttribute("role")).toBe("button");
+    expect(hit.getAttribute("tabindex")).toBe("0");
+    expect(hit.getAttribute("aria-label")).toMatch(/^Branch to \(/);
+    // Enter/Space selects the branch.
+    fireEvent.keyDown(hit, { key: "Enter" });
+    expect(onPickBranch).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(hit, { key: " " });
+    expect(onPickBranch).toHaveBeenCalledTimes(2);
+    // Arrows rove among the internal hits only.
+    const buttons = container.querySelectorAll('.branch-hit[role="button"]');
+    expect(buttons.length).toBeGreaterThan(0);
+    (hit as SVGLineElement).focus();
+    fireEvent.keyDown(hit, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(
+      buttons[(Array.from(buttons).indexOf(hit) + 1) % buttons.length],
+    );
+    // Terminal hits are pointer-only — no role, no tab stop.
+    const leafHit = container.querySelector('g[data-node="0"] .branch-hit')!;
+    expect(leafHit.getAttribute("role")).toBeNull();
+    expect(leafHit.getAttribute("tabindex")).toBeNull();
+  });
+
   it("terminal edges carry no hit line without an onPickTerminal handler", () => {
     const { container } = render(
       <TreeView

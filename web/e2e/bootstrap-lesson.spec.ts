@@ -155,3 +155,34 @@ test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own see
   await run.click();
   await expect(label).toHaveText("57", { timeout: 60_000 });
 });
+
+test("bootstrap-basics: the prediction is reachable keyboard-only", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=bootstrap-basics");
+  await waitForApp(page);
+  await stepToEnd(page);
+  const svg = page.locator(INFERRED);
+  const hits = svg.locator('.branch-hit[role="button"]');
+  // 8-taxon NJ rooted for drawing: six internal branches, each a
+  // named focusable button.
+  expect(await hits.count()).toBe(6);
+  const weak = svg.locator('g[data-split="E|F|G|H"] .branch-hit');
+  await expect(weak).toHaveAttribute(
+    "aria-label",
+    "Branch to (E, F, G, H)",
+  );
+  // Arrow keys rove among the branch buttons.
+  await hits.first().focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(hits.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(hits.first()).toBeFocused();
+  // Enter on the weak edge answers the prompt; Run ungates.
+  await weak.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/Prediction saved/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Run bootstrap/ }),
+  ).toBeEnabled();
+});
