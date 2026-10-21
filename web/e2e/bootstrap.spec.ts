@@ -785,8 +785,8 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
     .toBe(false);
 
   // Every leaf name and the panel title are on screen without
-  // scrolling the tree column — getBoundingClientRect, since
-  // toBeVisible ignores overflow clipping.
+  // scrolling the tree column — in BOTH views — getBoundingClientRect,
+  // since toBeVisible ignores overflow clipping.
   const LEAVES = [
     "human",
     "horse",
@@ -797,28 +797,48 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
     "yeast",
     "neurospora",
   ];
-  const clip = await page.evaluate((names) => {
-    const col = document.querySelector(".tree-col") as HTMLElement;
-    const svg = col.querySelector('svg[aria-label="Inferred tree"]')!;
-    const caption = col.querySelector("figcaption")!;
-    const inside = (r: DOMRect, c: DOMRect) =>
-      r.top >= c.top && r.bottom <= c.bottom + 0.5;
-    const colRect = col.getBoundingClientRect();
-    const svgRect = svg.getBoundingClientRect();
-    const leafRects = Array.from(svg.querySelectorAll("text"))
-      .filter((t) => names.includes(t.textContent ?? ""))
-      .map((t) => t.getBoundingClientRect());
-    return {
-      leaves: leafRects.length,
-      leavesInSvg: leafRects.every((r) => inside(r, svgRect)),
-      svgInCol: inside(svgRect, colRect),
-      captionInCol: inside(caption.getBoundingClientRect(), colRect),
-      scrollTop: col.scrollTop,
-    };
-  }, LEAVES);
+  const clipCheck = () =>
+    page.evaluate((names) => {
+      const col = document.querySelector(".tree-col") as HTMLElement;
+      const svg = col.querySelector('svg[aria-label="Inferred tree"]')!;
+      const caption = col.querySelector("figcaption")!;
+      // Symmetric half-pixel tolerance: subpixel layout differs between
+      // font stacks, so either edge may sit a fraction outside.
+      const inside = (r: DOMRect, c: DOMRect) =>
+        r.top >= c.top - 0.5 && r.bottom <= c.bottom + 0.5;
+      const colRect = col.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
+      const leafRects = Array.from(svg.querySelectorAll("text"))
+        .filter((t) => names.includes(t.textContent ?? ""))
+        .map((t) => t.getBoundingClientRect());
+      return {
+        leaves: leafRects.length,
+        leavesInSvg: leafRects.every((r) => inside(r, svgRect)),
+        svgInCol: inside(svgRect, colRect),
+        captionInCol: inside(caption.getBoundingClientRect(), colRect),
+        scrollTop: col.scrollTop,
+        // Returned verbatim so a failure shows the actual geometry.
+        col: [colRect.top, colRect.bottom],
+        svg: [svgRect.top, svgRect.bottom],
+      };
+    }, LEAVES);
+
+  // Computed view (the view currently on screen).
+  let clip = await clipCheck();
   expect(clip.scrollTop).toBe(0);
-  expect(clip.captionInCol).toBe(true);
-  expect(clip.svgInCol).toBe(true);
+  expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
+  expect(clip.svgInCol, JSON.stringify(clip)).toBe(true);
+  expect(clip.leaves).toBe(8);
+  expect(clip.leavesInSvg).toBe(true);
+
+  // Rooted view — the same check after toggling back.
+  await page
+    .getByRole("button", { name: "Show rooted like the reference" })
+    .click();
+  clip = await clipCheck();
+  expect(clip.scrollTop).toBe(0);
+  expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
+  expect(clip.svgInCol, JSON.stringify(clip)).toBe(true);
   expect(clip.leaves).toBe(8);
   expect(clip.leavesInSvg).toBe(true);
 });

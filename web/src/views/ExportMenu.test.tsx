@@ -80,7 +80,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         matrix={MATRIX}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
@@ -98,7 +98,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         matrix={null}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -122,7 +122,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         matrix={long}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
@@ -187,7 +187,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "rooted", outgroup: ["wheat"] }}
         consensusTree={parse("((A,B),(C,D),E);")}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -213,7 +213,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "computed" }}
         consensusTree={parse("((A,B),(C,D),E);")}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -239,7 +239,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "rooted", outgroup: ["wheat"] }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -251,7 +251,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "computed" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -269,7 +269,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={parse("((A,B),(C,D),E);")}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(screen.getByRole("button", { name: "Newick" })).toBeTruthy();
@@ -288,7 +288,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Newick" }));
@@ -306,7 +306,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={consensus}
-        replicates={100}
+        bootstrap={{ replicates: 100, seed: 1 }}
       />,
     );
     fireEvent.click(
@@ -324,7 +324,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(
@@ -332,7 +332,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
     ).toHaveProperty("disabled", true);
   });
 
-  it("the R script gains boot.phylo when a run happened", async () => {
+  it("the R script gains a bootstrap loop when a run happened", async () => {
     const { names, texts } = await stubDownloadTexts();
     render(
       <ExportMenu
@@ -340,14 +340,16 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={100}
+        bootstrap={{ replicates: 100, seed: 1 }}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "R script" }));
     expect(names).toEqual(["neophylo-analysis.R"]);
     const [script] = await texts();
-    expect(script).toContain("boot.phylo");
-    expect(script).toContain("B = 100");
+    expect(script).not.toContain("boot.phylo(tree");
+    expect(script).toContain("for (i in seq_len(B))");
+    expect(script).toContain("B <- 100");
+    expect(script).toContain("set.seed(1)");
   });
 });
 
@@ -369,7 +371,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
         tree={supportTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     const sel = screen.getByLabelText(MODE_LABEL);
@@ -388,7 +390,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
         tree={quotedTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     expect(screen.getByLabelText(MODE_LABEL)).toHaveProperty(
@@ -407,7 +409,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
         tree={quotedTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Newick" }));
@@ -430,7 +432,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
         tree={quotedTree()}
         treeView={{ kind: "plain" }}
         consensusTree={null}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.change(screen.getByLabelText(MODE_LABEL), {
@@ -451,7 +453,7 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
         tree={quotedTree()}
         treeView={{ kind: "plain" }}
         consensusTree={consensus}
-        replicates={null}
+        bootstrap={null}
       />,
     );
     fireEvent.click(
