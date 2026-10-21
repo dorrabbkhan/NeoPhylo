@@ -215,7 +215,7 @@ describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {
         }}
       />,
     );
-    expect(screen.getByText("Correct")).toBeTruthy();
+    expect(screen.getByText("Your prediction: Correct")).toBeTruthy();
     expect(screen.getByText(/Short internal branches/)).toBeTruthy();
   });
 
@@ -233,7 +233,9 @@ describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {
       />,
     );
     expect(
-      screen.getByText("Not quite: the weakest group was (E, F, G, H) at 41%."),
+      screen.getByText(
+        "Your prediction: Not quite — the weakest group was (E, F, G, H) at 41%.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText(/Short internal branches/)).toBeTruthy();
   });

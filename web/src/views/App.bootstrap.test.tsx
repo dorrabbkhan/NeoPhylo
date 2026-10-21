@@ -800,11 +800,68 @@ describe("predict_branch gating and verdict (v1.2 Task 14)", () => {
     });
     expect(
       await screen.findByText(
-        "Not quite: the weakest group was (D, E) at 41%.",
+        "Your prediction: Not quite — the weakest group was (D, E) at 41%.",
       ),
     ).toBeTruthy();
     expect(
       screen.getByText(/shortest internal branch/),
     ).toBeTruthy();
+  });
+
+  it("a pick within 5 points of the weakest is still Correct", async () => {
+    render(<App exercise={PREDICT_EXERCISE} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(PREDICT_EXERCISE);
+    // Pick the (A,B) side (canonical key C|D|E) — at 44 it sits 3
+    // points above the weakest (D,E) at 41.
+    fireEvent.click(
+      inferredSvg().querySelector('g[data-split="C|D|E"] .branch-hit')!,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    act(() => {
+      handlers!.onResult(
+        result(supportTree({ "A,B": 0.44, "D,E": 0.41 })),
+      );
+    });
+    expect(
+      await screen.findByText("Your prediction: Correct"),
+    ).toBeTruthy();
+  });
+
+  it("the verdict is locked after the first completed run", async () => {
+    render(<App exercise={PREDICT_EXERCISE} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(PREDICT_EXERCISE);
+    fireEvent.click(
+      inferredSvg().querySelector('g[data-split="C|D|E"] .branch-hit')!,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    act(() => {
+      handlers!.onResult(
+        result(supportTree({ "D,E": 0.41 })),
+      );
+    });
+    const text =
+      "Your prediction: Not quite — the weakest group was (D, E) at 41%.";
+    expect(await screen.findByText(text)).toBeTruthy();
+
+    // A rerun whose results would rescore the SAME pick as Correct —
+    // the picked grouping becomes the weakest — must not change the
+    // locked verdict.
+    act(() => {
+      handlers!.onResult(
+        result(supportTree({ "C,D,E": 0.3 })),
+      );
+    });
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(
+      screen.queryByText("Your prediction: Correct"),
+    ).toBeNull();
   });
 });

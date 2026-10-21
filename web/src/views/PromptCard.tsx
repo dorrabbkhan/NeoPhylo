@@ -86,8 +86,8 @@ export function PromptCard({
           }
         >
           {verdict.correct
-            ? "Correct"
-            : `Not quite: the weakest group was (${verdict.weakest.join(
+            ? "Your prediction: Correct"
+            : `Your prediction: Not quite — the weakest group was (${verdict.weakest.join(
                 ", ",
               )}) at ${verdict.supportPct}%.`}
         </p>

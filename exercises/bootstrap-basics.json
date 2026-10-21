@@ -7,7 +7,7 @@
   "data": {
     "kind": "simulated",
     "true_tree": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
-    "sim": { "model": "JC69", "length": 300, "seed": 4 }
+    "sim": { "model": "JC69", "length": 300, "seed": 7 }
   },
   "reference": {
     "newick": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);",
@@ -15,7 +15,7 @@
   },
   "analysis": { "correction": "JC69", "method": "NJ" },
   "locked": ["sim.model", "sim.seed", "analysis.correction", "analysis.method"],
-  "bootstrap": { "replicates": 100, "seed": 96 },
+  "bootstrap": { "replicates": 100, "seed": 39 },
   "prompts": [
     {
       "at_step": 1,

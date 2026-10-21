@@ -28,6 +28,14 @@ import { gatingPrompt, leafClusterIndex, promptsAt } from "./prompts";
  * must be stable across renders, see the module docstring). */
 const NO_PROMPTS: Prompt[] = [];
 
+/** The scored prediction as first computed — locked thereafter
+ * (owner note): reruns never re-score. */
+export interface BranchVerdict {
+  correct: boolean;
+  weakest: string[];
+  supportPct: number;
+}
+
 export interface PromptGate {
   /** Prompts to display at the current position (empty in sandbox mode). */
   shown: Prompt[];
@@ -56,6 +64,13 @@ export interface PromptGate {
   /** Record a terminal-edge click against the shown predict_branch
    * prompt — not an answer, just the "joins two or more taxa" hint. */
   onPickTerminal: () => void;
+  /** The locked verdict for the prompt at step `at` — null until the
+   * first completed run after answering scored it. */
+  branchVerdictFor: (at: number) => BranchVerdict | null;
+  /** Score the prompt's pick once (owner note: "evaluate the
+   * prediction once, on the first completed run after answering").
+   * A second call for the same prompt keeps the first verdict. */
+  recordBranchVerdict: (at: number, v: BranchVerdict) => void;
   /** First leaf of an in-progress two-leaf pick (for highlighting). */
   leafPick: string | null;
   /** Answer a predict prompt with matrix cell (i, j); ignores diagonal. */
@@ -96,6 +111,11 @@ export function usePromptGate({
   >(new Map());
   const [terminalPick, setTerminalPick] = useState(false);
   const [leafPick, setLeafPick] = useState<string | null>(null);
+  // predict_branch verdicts — the first completed run's scoring,
+  // frozen per prompt (owner note: later reruns never change it).
+  const [branchVerdicts, setBranchVerdicts] = useState<
+    ReadonlyMap<number, BranchVerdict>
+  >(new Map());
 
   // A new exercise (new prompts array) forgets all answers; a position
   // change abandons a half-finished leaf pick.
@@ -107,6 +127,7 @@ export function usePromptGate({
     setBranchAnswered(new Map());
     setTerminalPick(false);
     setLeafPick(null);
+    setBranchVerdicts(new Map());
   }
   if (position !== lastPosition) {
     setLastPosition(position);
@@ -142,6 +163,12 @@ export function usePromptGate({
   const onPickTerminal = () => {
     if (branchGating === null) return;
     setTerminalPick(true);
+  };
+  // Guarded one-time write: the updater returns the SAME map when the
+  // prompt is already scored, so calling it during render (the
+  // adjust-during-render pattern this hook already uses) converges.
+  const recordBranchVerdict = (at: number, v: BranchVerdict) => {
+    setBranchVerdicts((m) => (m.has(at) ? m : new Map(m).set(at, v)));
   };
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
@@ -183,6 +210,8 @@ export function usePromptGate({
     terminalPick,
     onPickBranch,
     onPickTerminal,
+    branchVerdictFor: (at) => branchVerdicts.get(at) ?? null,
+    recordBranchVerdict,
     leafPick,
     onPickCell,
     onPickLeaf,

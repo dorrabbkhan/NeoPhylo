@@ -841,25 +841,38 @@ export function App({ exercise }: { exercise?: Exercise }) {
                       ? {
                           picked: promptGate.pickedBranch(p.at_step),
                           terminalPicked: promptGate.terminalPick,
-                          verdict:
-                            weakestBranch !== null &&
-                            promptGate.pickedBranch(p.at_step) !== null
-                              ? {
-                                  // Correct when the clicked branch is
-                                  // (one of) the weakest — the same
-                                  // support as the minimum.
-                                  correct:
-                                    (weakestBranch.byKey.get(
-                                      promptGate.pickedBranch(p.at_step)!,
-                                    ) ?? Infinity) <=
-                                    weakestBranch.weakest.support,
-                                  weakest:
-                                    weakestBranch.weakest.key.split("|"),
-                                  supportPct: Math.round(
-                                    100 * weakestBranch.weakest.support,
-                                  ),
-                                }
-                              : null,
+                          verdict: (() => {
+                            const picked = promptGate.pickedBranch(
+                              p.at_step,
+                            );
+                            if (picked === null) return null;
+                            // Owner note: the verdict is evaluated ONCE,
+                            // on the first completed run after the pick,
+                            // and locked thereafter — later reruns never
+                            // change it.
+                            const locked = promptGate.branchVerdictFor(
+                              p.at_step,
+                            );
+                            if (locked !== null) return locked;
+                            if (weakestBranch === null) return null;
+                            const pickedS =
+                              weakestBranch.byKey.get(picked);
+                            const v = {
+                              // Correct within 5 points of the lowest
+                              // support, not only on the weakest itself.
+                              correct:
+                                pickedS !== undefined &&
+                                pickedS - weakestBranch.weakest.support <=
+                                  0.05 + 1e-9,
+                              weakest:
+                                weakestBranch.weakest.key.split("|"),
+                              supportPct: Math.round(
+                                100 * weakestBranch.weakest.support,
+                              ),
+                            };
+                            promptGate.recordBranchVerdict(p.at_step, v);
+                            return v;
+                          })(),
                         }
                       : undefined
                   }

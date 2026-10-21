@@ -2,7 +2,7 @@
 // Drives the real lesson through the real UI and asserts its recorded
 // premises: the predict_branch prompt gates Run until an internal
 // branch click, the verdict names the weakest grouping — the 0.005
-// branch's {E,F,G,H} split at 57% for seeds 4/96 — and raising Length
+// branch's {E,F,G,H} split at 67% for seeds 7/39 — and raising Length
 // to 3,000 lifts that grouping's support by ≥ 20 points.
 //
 // The designed split keys: NJ tallies canonicalize to the side without
@@ -59,14 +59,16 @@ test("bootstrap-basics: branch pick gates Run; the verdict names (E, F, G, H)", 
   await expect(run).toBeEnabled();
   await run.click();
   await expect(
-    page.getByText("Not quite: the weakest group was (E, F, G, H) at 57%."),
+    page.getByText(
+      "Your prediction: Not quite — the weakest group was (E, F, G, H) at 67%.",
+    ),
   ).toBeVisible({ timeout: 60_000 });
 
   // Premise (§7.2): at 300 columns the designed grouping is the weakest
-  // at 57 — the label now shows on its branch.
+  // at 67 — the label now shows on its branch.
   await expect(
     svg.locator('g[data-split="E|F|G|H"] .support-label'),
-  ).toHaveText("57");
+  ).toHaveText("67");
 });
 
 test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 points", async ({
@@ -83,12 +85,12 @@ test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 
   await svg.locator('g[data-split="E|F|G|H"] .branch-hit').dispatchEvent("click");
   await page.getByRole("button", { name: /Run bootstrap/ }).click();
   await expect(page.locator(".prompt-verdict.correct")).toHaveText(
-    "Correct",
+    "Your prediction: Correct",
     { timeout: 60_000 },
   );
   await expect(
     svg.locator('g[data-split="E|F|G|H"] .support-label'),
-  ).toHaveText("57");
+  ).toHaveText("67");
 
   // The follow-up the lesson's note asks for: Length 300 → 3000. The
   // prompt stays answered across the re-sim (answers live on the
@@ -105,7 +107,7 @@ test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 
     expect(
       Number(v),
       "premise: support on (E,F,G,H) rises ≥ 20 points at length 3000",
-    ).toBeGreaterThanOrEqual(77);
+    ).toBeGreaterThanOrEqual(87);
   }).toPass({ timeout: 60_000 });
 });
 
@@ -128,9 +130,9 @@ test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own see
     .click();
   await waitForApp(page);
   await stepToEnd(page);
-  await expect(panel.getByLabel("Seed")).toHaveValue("96");
+  await expect(panel.getByLabel("Seed")).toHaveValue("39");
 
-  // First run at the lesson's seed: 57 on the designed grouping.
+  // First run at the lesson's seed: 67 on the designed grouping.
   const svg = page.locator(INFERRED);
   await svg
     .locator('g[data-split="E|F|G|H"] .branch-hit')
@@ -138,7 +140,7 @@ test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own see
   const run = page.getByRole("button", { name: /Run bootstrap/ });
   await run.click();
   const label = svg.locator(WEAK);
-  await expect(label).toHaveText("57", { timeout: 60_000 });
+  await expect(label).toHaveText("67", { timeout: 60_000 });
 
   // A different bootstrap seed resamples differently — the estimate
   // moves (the lesson's seed-variance note).
@@ -147,13 +149,13 @@ test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own see
   await expect(async () => {
     const v = await label.textContent();
     expect(v).not.toBeNull();
-    expect(Number(v)).not.toBe(57);
+    expect(Number(v)).not.toBe(67);
   }).toPass({ timeout: 60_000 });
 
   // The same seed reproduces the same value — the tally is seeded.
-  await panel.getByLabel("Seed").fill("96");
+  await panel.getByLabel("Seed").fill("39");
   await run.click();
-  await expect(label).toHaveText("57", { timeout: 60_000 });
+  await expect(label).toHaveText("67", { timeout: 60_000 });
 });
 
 test("bootstrap-basics: the prediction is reachable keyboard-only", async ({
@@ -185,4 +187,68 @@ test("bootstrap-basics: the prediction is reachable keyboard-only", async ({
   await expect(
     page.getByRole("button", { name: /Run bootstrap/ }),
   ).toBeEnabled();
+});
+
+// Tolerant verdict (owner round 2): a pick whose support lands within
+// 5 points of the lowest still scores Correct. At sim seed 7 with 20
+// replicates and bootstrap seed 391 the weakest grouping is
+// C|D|E|F|G|H at 90 while the designed E|F|G|H sits at 95 — exactly 5
+// points above the lowest and NOT itself the weakest.
+test("bootstrap-basics: a pick within 5 points of the weakest is Correct", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=bootstrap-basics");
+  await waitForApp(page);
+  await stepToEnd(page);
+  const svg = page.locator(INFERRED);
+  const panel = page.locator(".bootstrap-panel");
+
+  await panel.getByLabel("Replicates").fill("20");
+  await panel.getByLabel("Seed").fill("391");
+  // E|F|G|H is within 5 points of the lowest grouping here — Correct
+  // by tolerance, though it isn't the weakest.
+  await svg
+    .locator('g[data-split="E|F|G|H"] .branch-hit')
+    .dispatchEvent("click");
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    page.locator(".prompt-verdict.correct"),
+  ).toHaveText("Your prediction: Correct", { timeout: 60_000 });
+  await expect(
+    svg.locator('g[data-split="E|F|G|H"] .support-label'),
+  ).toHaveText("95");
+});
+
+// Locked verdict (owner round 2): the prediction is scored once, on
+// the first completed run after answering; later reruns under other
+// seeds never re-score — the card keeps its "Your prediction" line.
+test("bootstrap-basics: the verdict is unchanged after rerunning with another seed", async ({
+  page,
+}) => {
+  test.setTimeout(180_000); // two real bootstrap runs
+  await page.goto("/?lesson=bootstrap-basics");
+  await waitForApp(page);
+  await stepToEnd(page);
+  const svg = page.locator(INFERRED);
+  const panel = page.locator(".bootstrap-panel");
+
+  // A wrong pick: the verdict names the weakest grouping at 67%.
+  await svg.locator('g[data-split="C|D"] .branch-hit').dispatchEvent("click");
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  const verdict = page.locator(".prompt-verdict");
+  await expect(verdict).toHaveText(
+    "Your prediction: Not quite — the weakest group was (E, F, G, H) at 67%.",
+    { timeout: 60_000 },
+  );
+
+  // Seed 1 would rescore the SAME pick to "at 65%" — the verdict is
+  // locked, so the card must keep its first-run text exactly.
+  await panel.getByLabel("Seed").fill("1");
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    svg.locator('g[data-split="E|F|G|H"] .support-label'),
+  ).toHaveText("65", { timeout: 60_000 });
+  await expect(verdict).toHaveText(
+    "Your prediction: Not quite — the weakest group was (E, F, G, H) at 67%.",
+  );
 });

@@ -2548,3 +2548,13 @@ wedging the start queue.
   overinterpreting small differences. The final-step figure screenshot
   ships in docs/media/ (rule 10 names media the exception) for the
   PR's owner-review figure.
+- Task-14 round 2 (owner notes): seeds re-searched for a clear margin —
+  sim 7 / bootstrap 39 (scan: crates/neophylo-core/tests/seed_scan.rs,
+  #[ignore]d). {E,F,G,H} is the weakest grouping at 67% on 300 sites,
+  next-weakest C|D|E|F|G|H at 98% (margin 31 pts), rising to 87% at
+  3,000 (+20); rf = 0 at both lengths. Verdict now tolerant (within 5
+  points of the lowest counts Correct) and LOCKED — promptGate's
+  branchVerdicts freezes the first completed run's scoring; reruns
+  never re-evaluate. Card text: "Your prediction: Correct" /
+  "Your prediction: Not quite — the weakest group was (…) at N%." The
+  tolerance e2e uses 20 replicates/seed 391 (EFGH 95 vs lowest 90).
