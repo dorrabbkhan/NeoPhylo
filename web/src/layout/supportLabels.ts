@@ -22,9 +22,11 @@
 // whose straight line to the node clears every drawn segment and
 // connector.
 //
-// Text metrics are estimates (0.62 em per character, like
-// labelRoomFor): the browser never gives layout real glyph widths, so
-// the pill is padded and the collision boxes include slack.
+// Text metrics come from the caller's `measure` (a real
+// getComputedTextLength probe — see src/measureText.ts) so placement
+// is correct whatever font is installed; when the DOM is unavailable
+// (jsdom, workers) it returns null and the 0.62 em per character
+// estimate (like labelRoomFor) stands in, padded as before.
 
 import type { Tree } from "../engine/generated/Tree";
 import type { Layout } from "./phylogram";
@@ -63,8 +65,18 @@ export interface SupportLabelOptions {
   nodeRadius: number;
   /** Gap between a leaf's marker and the start of its name. */
   labelOffset: number;
-  /** Estimated character width; defaults to 0.62 em like treePanel. */
+  /** Estimated character width; defaults to 0.62 em like treePanel.
+   * Used only when `measure` is absent or returns null. */
   charWidth?: number;
+  /** Real glyph extents of `text` rendered at `fontSize` in the app's
+   * font — a getComputedTextLength + getBBox probe (TextExtents from
+   * src/measureText.ts). Returns null where the DOM can't measure;
+   * the estimates then stand in. */
+  measure?: (
+    text: string,
+    fontSize: number,
+    baseline?: "middle" | "alphabetic",
+  ) => { w: number; top: number; bottom: number } | null;
 }
 
 const GAP = 2;
@@ -154,7 +166,10 @@ export function supportLabels(
   laid: Layout,
   opts: SupportLabelOptions,
 ): SupportLabel[] {
-  const charW = opts.charWidth ?? opts.fontSize * 0.62;
+  // Real glyph extents when the caller can measure (src/measureText.ts),
+  // the per-char estimate otherwise.
+  const textW = (t: string, fs: number): number =>
+    opts.measure?.(t, fs)?.w ?? t.length * (opts.charWidth ?? fs * 0.62);
   const pillH = opts.fontSize + PILL_PAD_Y * 2;
   const markerR = opts.nodeRadius;
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
@@ -169,33 +184,36 @@ export function supportLabels(
       maxY: n.y + markerR + 1,
     });
     // Leaf names run right of the marker. They render with
-    // dominantBaseline="middle", whose glyph box reaches about a full
-    // em ABOVE the anchor and a third below — a symmetric ±0.5em box
-    // underestimates the top and lets pills graze real text (seen as
-    // "pill vs name" overlaps in the computed view).
+    // dominantBaseline="middle" — the obstacle uses the name's REAL
+    // glyph box when the DOM can measure it (a font with a bigger
+    // ascent or descent than the em estimates is exactly how pills
+    // ended up grazing real text); the estimates stand in otherwise.
     if (n.leaf && n.label !== null) {
+      const m = opts.measure?.(n.label, opts.nameFontSize);
       obstacles.push({
         minX: n.x + markerR + opts.labelOffset,
         maxX:
           n.x +
           markerR +
           opts.labelOffset +
-          n.label.length * opts.nameFontSize * 0.62,
-        minY: n.y - opts.nameFontSize - NAME_PAD,
-        maxY: n.y + opts.nameFontSize * 0.5 + NAME_PAD,
+          (m?.w ?? n.label.length * opts.nameFontSize * 0.62),
+        minY: n.y + (m?.top ?? -opts.nameFontSize) - NAME_PAD,
+        maxY: n.y + (m?.bottom ?? opts.nameFontSize * 0.5) + NAME_PAD,
       });
     }
-    // The "0" zero-length marker sits above the branch's midpoint —
-    // drawn text, treated as a marker.
+    // The "0" zero-length marker sits above the branch's midpoint on
+    // the default (alphabetic) baseline — drawn text, treated as a
+    // marker.
     const parent = tree.nodes[n.id].parent;
     if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
       const mid = (n.parentX + n.x) / 2;
-      const w = charW + NAME_PAD * 2;
+      const w = textW("0", opts.fontSize) + NAME_PAD * 2;
+      const m = opts.measure?.("0", opts.fontSize, "alphabetic");
       obstacles.push({
         minX: mid - w / 2,
         maxX: mid + w / 2,
-        minY: n.y - 4 - opts.fontSize - NAME_PAD,
-        maxY: n.y - 4 + NAME_PAD,
+        minY: n.y - 4 + (m?.top ?? -opts.fontSize) - NAME_PAD,
+        maxY: n.y - 4 + (m?.bottom ?? 0) + NAME_PAD,
       });
     }
   }
@@ -269,8 +287,8 @@ export function supportLabels(
 
     const weak = s < 0.5;
     const text = supportText(s);
-    const textW = text.length * charW;
-    const pillW = textW + PILL_PAD_X * 2;
+    const measured = textW(text, opts.fontSize);
+    const pillW = measured + PILL_PAD_X * 2;
     // Right edge clears the marker box plus a gap — "right-aligned
     // near the node end". A short segment lets the pill overhang left
     // past its start, over the parent's vertical (masked by the pill).

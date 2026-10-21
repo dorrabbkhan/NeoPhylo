@@ -738,6 +738,91 @@ test("cytochrome-c: support labels never overlap markers, names or each other", 
   ).toBe(true);
 });
 
+// Measured text sizes (owner fix): placement must hold whatever font
+// the system resolves — the overlap failure this test reproduces was a
+// vertical graze under a font whose descent exceeds the 0.5em estimate
+// (Firefox's system-ui on Linux). Forcing a different, wider family on
+// every text element stands in for any unexpected installed font; the
+// label layout re-measures and stays clear.
+test("cytochrome-c: label placement holds under a substituted font", async ({
+  page,
+}) => {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(
+    page.locator(".bootstrap-panel [role=status]"),
+  ).toContainText("Run complete", { timeout: 30_000 });
+
+  const svg = page.locator('svg[aria-label="Inferred tree"]');
+  await expect(svg.locator(".support-label").first()).toBeVisible();
+
+  const overlaps = () =>
+    svg.evaluate((el) => {
+      const box = (e: Element) => (e as SVGGraphicsElement).getBBox();
+      const pills = Array.from(
+        el.querySelectorAll("rect.support-pill"),
+      ).map(box);
+      const markers = Array.from(
+        el.querySelectorAll("g[data-node] > circle"),
+      ).map(box);
+      const names = Array.from(el.querySelectorAll("g[data-node] > text"))
+        .filter((t) => !t.classList.contains("support-label"))
+        .map(box);
+      const out: string[] = [];
+      const overlap = (a: DOMRect, b: DOMRect) =>
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      pills.forEach((p, i) => {
+        markers.forEach((m, j) => {
+          if (overlap(p, m)) out.push(`pill ${i} vs marker ${j}`);
+        });
+        names.forEach((n, j) => {
+          if (overlap(p, n)) out.push(`pill ${i} vs name ${j}`);
+        });
+        pills.forEach((q, j) => {
+          if (j > i && overlap(p, q)) out.push(`pill ${i} vs pill ${j}`);
+        });
+      });
+      return out;
+    });
+
+  expect(await overlaps()).toEqual([]);
+
+  const pillGeom = () =>
+    svg.evaluate((el) =>
+      Array.from(el.querySelectorAll("rect.support-pill")).map(
+        (r) =>
+          `${r.getAttribute("x")},${r.getAttribute("y")},${r.getAttribute("width")}`,
+      ),
+    );
+  const before = await pillGeom();
+
+  // Swap every text element's family — the probe that measures extents
+  // lives under the same rules, so the next layout uses the new font's
+  // real widths and glyph boxes.
+  await page.addStyleTag({
+    content: `text { font-family: "DejaVu Sans", serif !important; }`,
+  });
+  // A resize refires the ResizeObserver so treeFigure re-runs and the
+  // pills are re-placed under the substituted font.
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(svg.locator(".support-label").first()).toBeVisible();
+  const resolved = await svg.evaluate(
+    (el) =>
+      getComputedStyle(el.querySelector("g[data-node] > text")!)
+        .fontFamily,
+  );
+  expect(resolved).toMatch(/dejavu|serif/i);
+  // Re-layout really happened: at least one pill re-measured to a
+  // different position or width under the new font.
+  expect(await pillGeom()).not.toEqual(before);
+  expect(await overlaps()).toEqual([]);
+});
+
 // Checkpoint 15: the Export menu names the drawing each item exports —
 // the rerooted-on-outgroup view or the computed (unrooted) view — and
 // the downloaded Newick's top-level structure matches the name. The

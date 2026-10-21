@@ -15,6 +15,7 @@ import {
   FIGURE_NODE_RADIUS,
   treeFigure,
 } from "../layout/treeFigure";
+import { makeTextMeasurer } from "../measureText";
 import { labelRoomFor, leafFontSize } from "../layout/treePanel";
 
 export interface ExportSvgOptions {
@@ -90,6 +91,9 @@ export function exportSvg(tree: Tree, opts: ExportSvgOptions): string {
     leafSpacing,
     panelWidth,
     visibleNodes: opts.visibleNodes,
+    // The standalone document declares FONT_FAMILY — measure against
+    // it so pills and bounds match the text the export will draw.
+    measure: makeTextMeasurer(undefined, FONT_FAMILY),
   });
   const { laid, byId, labelById, fontSize: leafFont, smallFont, bounds } = fig;
   const keys = splitKeys(

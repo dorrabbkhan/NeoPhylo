@@ -2510,4 +2510,14 @@ wedging the start queue.
   both views, on top of the no-overlap boxes.
 - Owner sign-off: support labels may drop up to 10 px below their row to avoid collisions (beyond the
   ±6 px nudge); stretch-to-fit (segFitPx / 20% cap) removed in favor of overhang placement. Verified
-  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.
+  visually on cytochrome-c exports (checkpoint 15). Confirmed by owner 2026-10-20.- fix/label-measured-widths (owner note): support-label placement now
+  uses MEASURED text metrics. `web/src/measureText.ts` parks a hidden
+  <text> probe on <body> and returns getComputedTextLength()+getBBox()
+  extents {w, top, bottom} per (text, fontSize, baseline); layout
+  stays pure — TreeView/export inject the measurer as an option
+  (`measure`), and a null return (jsdom, workers) falls back to the
+  0.62 em estimates so every unit test is unchanged. The local Firefox
+  failure was a VERTICAL graze (name descent > 0.5em estimate), so
+  heights are measured too, not just widths; the "0" marker is
+  measured on its real alphabetic baseline. Exports measure against
+  their own FONT_FAMILY stack.

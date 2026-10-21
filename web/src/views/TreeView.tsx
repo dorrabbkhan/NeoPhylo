@@ -17,18 +17,19 @@
 //   grouping key of the edge above the node (src/layout/splitKeys.ts) —
 //   so figures match the run's tally (checkpoint 15).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Tree } from "../engine/generated/Tree";
 import type { LaidOutNode } from "../layout/phylogram";
 import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
 import {
-  FIGURE_LABEL_OFFSET,
+  treeFigure,
   FIGURE_NODE_RADIUS,
+  FIGURE_LABEL_OFFSET,
   FIGURE_PANEL_PAD,
   FIGURE_WRONG_PAD,
-  treeFigure,
 } from "../layout/treeFigure";
+import { makeTextMeasurer } from "../measureText";
 import { leafSpacingFor } from "../layout/treePanel";
 import { nodeName } from "../state/names";
 
@@ -105,6 +106,11 @@ export function TreeView({
     onPanelSize?.(box.width);
   }, [box.width, onPanelSize]);
 
+  // Measured glyph widths for label collision and content bounds
+  // (owner fix): the probe lives on <body>, where it inherits the same
+  // font the tree's <text> resolves (no tree-scoped font rules exist).
+  const measure = useMemo(() => makeTextMeasurer(), []);
+
   const leaves = tree.nodes.reduce(
     (n, node) => n + (node.children.length === 0 ? 1 : 0),
     0,
@@ -121,6 +127,7 @@ export function TreeView({
     visibleNodes,
     highlight,
     wrong,
+    measure,
   });
   const { laid, byId, labelById, fontSize, smallFont, bounds } = fig;
   const hideInternalNames = fig.hideInternalNames;
