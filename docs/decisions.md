@@ -2480,3 +2480,31 @@ wedging the start queue.
   literally a child's segment start. Overlap-vs-markers/names/pills
   and in-bounds checks are kept; the stretch test still pins the
   12 px floor and a narrow-panel test pins the cap→leader path.
+
+### Refinement (same checkpoint): overhang replaces stretch-to-fit
+
+- **Leaders stopped being the short-segment default.** A leader label
+  raised by a full pill height landed on a neighbour's row and read as
+  that node's value (the 35* at zebrafish height report). Short
+  segments are no longer stretched to fit at all: the pill keeps the
+  node's own y, right-aligned, and simply extends left past the
+  segment's start — over the parent's vertical, which the opaque pill
+  masks. `minBranchPx` is back to the flat 12 px stroke floor; the
+  per-node resolver and the 20% cap are gone.
+- **Nudge before leader, with the drop extended.** Collision
+  obstacles are labels, leaf names and node markers only (branch
+  lines are maskable). A blocked spot nudges vertically ±6 px — down
+  first, since the pill may mask the segment it straddles and that
+  keeps the centre closest to the row. *Deviation:* if the ±6 px
+  band is fully blocked the pill keeps descending while its centre
+  stays within the 10 px row bound — covering its own segment is
+  allowed (it masks like any branch line). The dense cytochrome-c
+  cluster needs this: the 35*/52 stack collides with the parent
+  marker 8–10 px off base, and a strict 6 px cap would produce the
+  leaders the acceptance case forbids. A label that can't fit within
+  the 10 px bound still earns a leader. The leader's attach point is
+  searched along the pill's bottom edge then right edge so the
+  straight line to the node crosses no drawn segment or connector.
+- **cytochrome-c acceptance:** the e2e now asserts zero
+  `.support-leader` elements and |pill centre − node y| ≤ 10 px in
+  both views, on top of the no-overlap boxes.

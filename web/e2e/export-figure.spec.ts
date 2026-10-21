@@ -284,8 +284,10 @@ function checkFigure(
   expect(branches, `${view}: branches drawn`).toBeGreaterThan(0);
 }
 
-/** Click an export item and return the downloaded bytes. */
-async function downloadBytes(page: Page, name: string) {
+/** Click an export item, save the file under test-results/ (as
+ * saveName when given — the two views share a suggested filename) and
+ * return the downloaded bytes. */
+async function downloadBytes(page: Page, name: string, saveName?: string) {
   const [dl] = await Promise.all([
     page.waitForEvent("download"),
     page
@@ -293,6 +295,7 @@ async function downloadBytes(page: Page, name: string) {
       .getByRole("button", { name, exact: true })
       .click(),
   ]);
+  await dl.saveAs(`test-results/${saveName ?? dl.suggestedFilename()}`);
   return readFile((await dl.path())!);
 }
 
@@ -343,7 +346,9 @@ test("cytochrome-c: exported SVG/PNG is the on-screen figure, both views", async
     const view = i === 0 ? "rooted" : "computed";
 
     const screen = await svg.evaluate(figureNodes);
-    const svgText = (await downloadBytes(page, v.item)).toString("utf8");
+    const svgText = (
+      await downloadBytes(page, v.item, `c11-tree-${view}.svg`)
+    ).toString("utf8");
     const parsed = await page.evaluate(
       (args) => {
         const fn = new Function(
@@ -377,6 +382,7 @@ test("cytochrome-c: exported SVG/PNG is the on-screen figure, both views", async
     const png = await downloadBytes(
       page,
       view === "rooted" ? "PNG (rooted on wheat)" : "PNG (as computed, unrooted)",
+      `c11-tree-${view}.png`,
     );
     const size = pngSize(png);
     expect(size.w).toBe(Math.max(1, Math.ceil(parsed.vw * 2)));

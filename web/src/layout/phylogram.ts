@@ -25,14 +25,12 @@
 //   omitted from the result, never re-laid out.
 // - `minBranchPx` (display-only, checkpoint 11) stretches internal branches
 //   that carry a support value to at least that many drawn pixels, so a
-//   weak branch's thinner stroke stays visible on very short edges. A
-//   function form lets each edge carry its own minimum — treeFigure uses
-//   it to give every supported edge enough room for its label (checkpoint
-//   15+, on-segment placement) while capping the stretch at a distortion
-//   budget. The extra width is a shift inherited by the whole subtree: a
-//   node's drawn branch grows by its own stretch only, positions stay
-//   stable across steps, and `width` grows past `opts.width` by whatever
-//   the shifts add.
+//   weak branch's thinner stroke stays visible on very short edges. It is
+//   a flat floor, not a fit: labels overhang short segments leftward
+//   rather than stretching them (refinement 21-10-26). The extra width is
+//   a shift inherited by the whole subtree: a node's drawn branch grows
+//   by its own stretch only, positions stay stable across steps, and
+//   `width` grows past `opts.width` by whatever the shifts add.
 
 import type { Tree } from "../engine/generated/Tree";
 
@@ -60,12 +58,8 @@ export interface LayoutOptions {
   width: number;
   visibleNodes?: Set<number>;
   /** Display-only minimum drawn length (px) for internal branches that
-   * carry a support value; 0/omitted disables the stretch. The function
-   * form receives the node id and the edge's natural drawn px and returns
-   * that edge's minimum — used to fit each pill on its own segment, and
-   * to cap a stretch that would distort the drawing too much (the edge
-   * then keeps the floor and its label is leader-offset instead). */
-  minBranchPx?: number | ((id: number, drawnPx: number) => number);
+   * carry a support value; 0/omitted disables the stretch. */
+  minBranchPx?: number;
 }
 
 export function layout(tree: Tree, opts: LayoutOptions): Layout {
@@ -120,9 +114,8 @@ export function layout(tree: Tree, opts: LayoutOptions): Layout {
   // because the parent's shift cancels. Computed over the full tree —
   // visibility changes nothing, so positions stay stable across steps.
   const minPx = opts.minBranchPx ?? 0;
-  const stretchOn = typeof minPx === "function" || minPx > 0;
   const shift = new Map<number, number>();
-  if (stretchOn) {
+  if (minPx > 0) {
     for (const id of order) {
       const parent = tree.nodes[id].parent;
       if (parent === null) {
@@ -136,9 +129,7 @@ export function layout(tree: Tree, opts: LayoutOptions): Layout {
         tree.nodes[id].children.length > 0
       ) {
         const edgePx = (cum.get(id)! - cum.get(parent)!) * scale;
-        const want =
-          typeof minPx === "function" ? minPx(id, edgePx) : minPx;
-        extra = Math.max(0, want - edgePx);
+        extra = Math.max(0, minPx - edgePx);
       }
       shift.set(id, parentShift + extra);
     }
@@ -169,7 +160,7 @@ export function layout(tree: Tree, opts: LayoutOptions): Layout {
 
   // A cladogram's tips still share one x after stretching: ancestors'
   // shifts differ per leaf, so every tip gets the maximum leaf shift.
-  if (stretchOn && opts.kind === "cladogram") {
+  if (minPx > 0 && opts.kind === "cladogram") {
     const tipX = nodes.reduce((m, n) => (n.leaf ? Math.max(m, n.x) : m), 0);
     for (const n of nodes) if (n.leaf) n.x = tipX;
   }

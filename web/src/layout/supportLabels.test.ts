@@ -1,31 +1,21 @@
-// Support-label placement tests (v1.2 spec §6.3; owner checkpoint:
-// labels must sit above the segment into their node, not float between
-// nodes). Every support pill is drawn centred just above the
-// horizontal segment that leads into its node and right-aligned near
-// the node end — so for every label the nearest incoming segment is
-// unambiguously its own. A segment too short for the pill is stretched
-// (display-only) unless the stretch would exceed 20% of the drawing
-// width; then the label is drawn offset with a leader line to the
-// node. In every case a pill stays clear of node markers, leaf names,
-// "0" markers and other pills, and lies inside the content bounds that
-// become the fitted viewBox.
+// Support-label placement tests (v1.2 spec §6.3; owner checkpoint
+// 21-10-26 refined same day). Every support pill sits just above the
+// horizontal segment into its node, right-aligned near the node end
+// and holding the node's own y — a short segment lets the pill
+// overhang LEFT past the segment's start (over the parent's vertical;
+// the pill's background masks it). Collisions are checked against
+// labels, leaf names and node markers only — never branch lines — and
+// resolved by a ≤ 6 px vertical nudge; only a still-blocked spot earns
+// a leader line, routed so it crosses no branch.
 
 import { describe, expect, it } from "vitest";
 
 import { engine } from "../engine/index";
 import type { Tree } from "../engine/generated/Tree";
 
-import { layout } from "./phylogram";
-import {
-  supportLabels,
-  segFitPx,
-  type LabelBox,
-} from "./supportLabels";
-import {
-  treeFigure,
-  FIGURE_DEFAULT_PANEL_WIDTH,
-  FIGURE_NODE_RADIUS,
-} from "./treeFigure";
+import { layout, type Layout } from "./phylogram";
+import { supportLabels, type LabelBox } from "./supportLabels";
+import { treeFigure, FIGURE_DEFAULT_PANEL_WIDTH } from "./treeFigure";
 
 function parse(nwk: string): Tree {
   const r = engine.parseNewick(nwk);
@@ -47,9 +37,11 @@ const OPTS = {
 
 /**
  * (((A:1,B:1):0.005):0.005,C:2): the two internal edges are 0.005 of a
- * ~2-unit span — about 1 px at a 400 px width — and both internal nodes
- * sit at y of the (A,B) midpoint, i.e. the same row. Both carry weak
- * support.
+ * ~2-unit span — about 1 px at a 400 px width — so both pills must
+ * overhang far left past their segment's start. And because the middle
+ * node is degree-2 (a single-child wrapper), it shares its child's row:
+ * the two pills collide on the same row and the later one earns a
+ * leader — the one collision a nudge cannot fix.
  */
 function weakLadder(): Tree {
   const t = parse("(((A:1,B:1):0.005):0.005,C:2);");
@@ -104,6 +96,64 @@ function segDist(
   return Math.hypot(dx, py - y);
 }
 
+/**
+ * True when point (x, y) lies strictly inside segment s (u ∈ (0, 1)) —
+ * the leader-interior crossing check for branch polylines.
+ */
+function onSegInterior(
+  x: number,
+  y: number,
+  s: { x1: number; y1: number; x2: number; y2: number },
+): boolean {
+  const dxs = s.x2 - s.x1;
+  const dys = s.y2 - s.y1;
+  if (Math.abs(dxs) > Math.abs(dys)) {
+    const u = (x - s.x1) / dxs;
+    return u > 1e-6 && u < 1 - 1e-6 && Math.abs(s.y1 + u * dys - y) < 1e-6;
+  }
+  const u = dys === 0 ? -1 : (y - s.y1) / dys;
+  return u > 1e-6 && u < 1 - 1e-6 && Math.abs(s.x1 + u * dxs - x) < 1e-6;
+}
+
+/** The drawn branch polylines, mirroring the renderers: incoming
+ * horizontal segments plus vertical connectors. */
+function drawnBranches(t: Tree, l: Layout) {
+  const byId = new Map(l.nodes.map((n) => [n.id, n]));
+  const segs: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (const n of l.nodes) {
+    if (n.parentX !== n.x)
+      segs.push({ x1: n.parentX, y1: n.y, x2: n.x, y2: n.y });
+    const kids = t.nodes[n.id].children.filter((c) => byId.has(c));
+    if (kids.length > 0) {
+      const ys = kids.map((c) => byId.get(c)!.y);
+      segs.push({
+        x1: n.x,
+        y1: Math.min(...ys),
+        x2: n.x,
+        y2: Math.max(...ys),
+      });
+    }
+  }
+  return segs;
+}
+
+/** Sampled interior of a leader crosses no drawn branch. */
+function expectLeaderClear(
+  leader: { x1: number; y1: number; x2: number; y2: number },
+  segs: { x1: number; y1: number; x2: number; y2: number }[],
+) {
+  for (let k = 0; k <= 200; k += 1) {
+    const t01 = (k / 200) * 0.97; // stay short of the node landing
+    const px = leader.x1 + (leader.x2 - leader.x1) * t01;
+    const py = leader.y1 + (leader.y2 - leader.y1) * t01;
+    for (const s of segs)
+      expect(
+        onSegInterior(px, py, s),
+        `leader crosses ${JSON.stringify(s)} at t=${t01.toFixed(2)}`,
+      ).toBe(false);
+  }
+}
+
 const SL_OPTS = {
   fontSize: FONT,
   nameFontSize: NAME_FONT,
@@ -119,77 +169,70 @@ const FIG_OPTS = {
 };
 
 describe("supportLabels: on-segment placement", () => {
-  it("stretches support-carrying internal branches to ≥12 px", () => {
+  it("keeps the 12 px stroke floor on supported internal branches", () => {
     const t = weakLadder();
     const unclamped = layout(t, { ...OPTS, minBranchPx: 0 });
     const stretched = layout(t, OPTS);
     const labeled = t.nodes
       .map((n, id) => ({ n, id }))
-      .filter(({ n, id }) => n.parent !== null && t.branches[id].support !== null);
+      .filter(
+        ({ n, id }) => n.parent !== null && t.branches[id].support !== null,
+      );
     for (const { id } of labeled) {
       const before = unclamped.nodes.find((n) => n.id === id)!;
       const after = stretched.nodes.find((n) => n.id === id)!;
       // Premise: the fixture's labeled branches really are < 10 px.
       expect(before.x - before.parentX).toBeLessThan(10);
-      // Display-only stretch: the branch draws at least 12 px wide.
+      // Display-only floor: the weak-styled stroke stays ≥12 px.
       expect(after.x - after.parentX).toBeGreaterThanOrEqual(12);
     }
   });
 
-  it("draws each supported edge ≥ its label's fit width, or uses a leader", () => {
-    const t = weakLadder();
-    const fig = treeFigure(t, FIG_OPTS);
-    for (const p of fig.placed) {
-      const n = fig.byId.get(p.id)!;
-      const seg = n.x - n.parentX;
-      const fit = segFitPx(p.text, fig.smallFont, FIGURE_NODE_RADIUS);
-      // At the default panel width the 20% cap never binds: every
-      // segment is extended until it holds its pill.
-      expect(p.leader).toBeUndefined();
-      expect(seg, `edge into node ${p.id}`).toBeGreaterThanOrEqual(fit - 0.5);
-    }
-  });
-
-  it("places each pill just above its own incoming segment, right-aligned", () => {
+  it("right-aligns a free pill just above its node, overhanging left", () => {
     const t = weakLadder();
     const fig = treeFigure(t, FIG_OPTS);
     expect(fig.placed).toHaveLength(2);
-    for (const p of fig.placed) {
-      const n = fig.byId.get(p.id)!;
-      // Right-aligned near the node end: the right edge clears the
-      // marker box by the gap (markerR + 1 + GAP = 6 px left of x).
-      expect(p.box.maxX).toBeCloseTo(n.x - NODE_RADIUS - 1 - 2, 5);
-      // Centred just above the segment: bottom edge one gap over the
-      // line at the node's row.
-      expect(p.box.maxY).toBeCloseTo(n.y - 2, 5);
-      // The whole pill lies over its own segment [parentX, x).
-      expect(p.box.minX).toBeGreaterThanOrEqual(n.parentX);
-      expect(p.box.maxX).toBeLessThanOrEqual(n.x);
-      // Full text, "*" merged in for weak support.
-      expect(p.text).toBe("30*");
-      expect(p.weak).toBe(true);
-    }
+    // The first-laid label (the parent's) keeps its row…
+    const p = fig.placed[0];
+    const n = fig.byId.get(p.id)!;
+    const seg = n.x - n.parentX;
+    const pillW = p.box.maxX - p.box.minX;
+    // …the segment is far shorter than the pill and NOT stretched to
+    // fit — the pill overhangs left past its start instead.
+    expect(seg).toBeLessThan(pillW);
+    expect(p.box.minX).toBeLessThan(n.parentX);
+    // Right-aligned: right edge clears the marker by the gap.
+    expect(p.box.maxX).toBeCloseTo(n.x - NODE_RADIUS - 1 - 2, 5);
+    // Bottom edge just above the segment; centre within 10 px of the
+    // node's row; no leader.
+    expect(p.box.maxY).toBeCloseTo(n.y - 2, 5);
+    const cy = (p.box.minY + p.box.maxY) / 2;
+    expect(Math.abs(cy - n.y)).toBeLessThanOrEqual(10 + 1e-6);
+    expect(p.leader).toBeUndefined();
+    expect(p.text).toBe("30*");
+    expect(p.weak).toBe(true);
+    // …the second label is the same-row collision → leader (asserted
+    // in the fallback suite).
   });
 
   it("the nearest incoming segment to each label is its own node's", () => {
     const t = weakLadder();
     const fig = treeFigure(t, FIG_OPTS);
-    // Every node with a visible parent owns a horizontal segment.
     const segs = fig.laid.nodes.filter((n) => n.parentX !== n.x);
     for (const p of fig.placed) {
       const n = fig.byId.get(p.id)!;
-      // The label's anchor: its pill's bottom centre, or the leader's
-      // endpoint at the node when it is drawn as a callout.
+      // Anchor: the pill's bottom centre (leader labels anchor at
+      // their line's endpoint on the node).
       const ax = p.leader?.x2 ?? (p.box.minX + p.box.maxX) / 2;
       const ay = p.leader?.y2 ?? p.box.maxY;
       const own = segDist(ax, ay, n.parentX, n.x, n.y);
       for (const m of segs) {
         if (m.id === n.id) continue;
-        const other = segDist(ax, ay, m.parentX, m.x, m.y);
+        // Boundary ties allowed: in a same-row chain the anchor can be
+        // equidistant from a segment ending where its own begins.
         expect(
-          own < other,
-          `label ${p.text} on node ${p.id}: own ${own.toFixed(1)} vs ` +
-            `segment into ${m.id} ${other.toFixed(1)}`,
+          own <= segDist(ax, ay, m.parentX, m.x, m.y) + 1e-9,
+          `label ${p.text} on node ${p.id} nearer a segment into ${m.id}`,
         ).toBe(true);
       }
     }
@@ -239,66 +282,80 @@ describe("supportLabels: on-segment placement", () => {
   });
 });
 
-describe("supportLabels: leader offset (20% stretch cap)", () => {
-  it("offsets the pill with a leader when stretching would distort >20%", () => {
+describe("supportLabels: nudge and leader fallback", () => {
+  /**
+   * Both internal nodes of ((A,B),(C,D)) moved onto the same row —
+   * a dense-cluster stand-in with real layout() geometry underneath.
+   */
+  function crowded(tweak: (l: Layout, p1: number, p2: number) => void): {
+    t: Tree;
+    l: Layout;
+    p1: number;
+    p2: number;
+  } {
+    const t = parse("((A:1,B:1):0.5,(C:1,D:1):0.5);");
+    const internals = t.nodes
+      .map((n, id) => ({ n, id }))
+      .filter(({ n }) => n.children.length === 2 && n.parent !== null);
+    expect(internals.length).toBe(2);
+    const [p1, p2] = internals.map(({ id }) => id);
+    const l = layout(t, OPTS);
+    tweak(l, p1, p2);
+    return { t, l, p1, p2 };
+  }
+  const withSupport = (t: Tree, ids: number[]): Tree => ({
+    ...t,
+    branches: t.branches.map((b, id) =>
+      ids.includes(id) ? { ...b, support: 0.9 } : b,
+    ),
+  });
+
+  it("a ≤6 px vertical nudge clears a label-vs-marker collision", () => {
+    // p2's marker box lands on p1's right-aligned pill zone; p1 must
+    // nudge a few px (not slide, not leader) and stay put.
+    const { t, l, p1, p2 } = crowded((lay, a, b) => {
+      const na = lay.nodes.find((n) => n.id === a)!;
+      const nb = lay.nodes.find((n) => n.id === b)!;
+      na.x = 60;
+      na.y = 20;
+      nb.x = 54; // marker box [50,58] reaches the pill's right end
+      nb.y = 20;
+    });
+    const nb = l.nodes.find((n) => n.id === p2)!;
+    const labels = supportLabels(withSupport(t, [p1]), l, SL_OPTS);
+    expect(labels).toHaveLength(1);
+    const p = labels[0];
+    expect(p.leader).toBeUndefined();
+    // Nudged up 2 px (0, -1, +1, -2 all still touch the marker box).
+    expect(p.box.maxY).toBeCloseTo(20 - 2 - 2, 5);
+    expect(p.box.maxX).toBeCloseTo(60 - NODE_RADIUS - 1 - 2, 5);
+    expect(hit(p.box, markerBox(nb.x, nb.y))).toBe(false);
+  });
+
+  it("same-row labels that a nudge cannot separate get a leader", () => {
+    // weakLadder's two internal nodes share a row: the later label's
+    // ±6 px nudge can never clear a same-height pill, so it earns the
+    // only kind of leader the convention still allows.
     const t = weakLadder();
-    // A 120 px panel leaves ~80 px of draw width; the cap is ~16 px
-    // while each pill needs ~42 — the stretch is refused and both
-    // labels become leader callouts.
-    const fig = treeFigure(t, { ...FIG_OPTS, panelWidth: 120 });
-    expect(fig.placed).toHaveLength(2);
-    for (const p of fig.placed) {
-      const n = fig.byId.get(p.id)!;
-      const fit = segFitPx(p.text, fig.smallFont, FIGURE_NODE_RADIUS);
-      // The segment stayed short (floor stretch only)…
-      expect(n.x - n.parentX).toBeLessThan(fit - 0.5);
-      // …the pill is offset (no longer in the just-above-the-segment
-      // band) but still hangs over its own node end…
-      expect(p.leader).toBeDefined();
-      expect(p.box.maxX).toBeLessThanOrEqual(n.x);
-      expect(p.box.maxY).toBeLessThan(n.y - fig.smallFont);
-      // …and the leader runs from the pill's bottom centre down to
-      // the node itself.
-      const leader = p.leader!;
-      expect(leader.x1).toBeCloseTo((p.box.minX + p.box.maxX) / 2, 5);
-      expect(leader.y1).toBeCloseTo(p.box.maxY, 5);
-      expect(leader.x2).toBeCloseTo(n.x, 5);
-      expect(leader.y2).toBeCloseTo(n.y, 5);
-      // In bounds, and clear of markers and names.
-      expect(p.box.minX).toBeGreaterThanOrEqual(fig.bounds.minX);
-      expect(p.box.maxX).toBeLessThanOrEqual(fig.bounds.maxX);
-      expect(p.box.minY).toBeGreaterThanOrEqual(fig.bounds.minY);
-      expect(p.box.maxY).toBeLessThanOrEqual(fig.bounds.maxY);
-      for (const m of fig.laid.nodes) {
-        expect(hit(p.box, markerBox(m.x, m.y)), `leader pill vs marker ${m.id}`).toBe(false);
-        if (m.leaf && m.label !== null) {
-          expect(
-            hit(p.box, nameBox(m.x, m.y, m.label, fig.fontSize)),
-            `leader pill vs leaf name ${m.label}`,
-          ).toBe(false);
-        }
-      }
-    }
-    // The two leader pills are disjoint from each other.
-    expect(hit(fig.placed[0].box, fig.placed[1].box)).toBe(false);
-    // Association stays explicit: each leader endpoint sits on its
-    // own segment (distance 0). In a same-row chain the node point is
-    // also its child's segment start — a boundary tie, not ambiguity,
-    // since the line lands on the node marker itself — hence ≤.
-    const segs = fig.laid.nodes.filter((n) => n.parentX !== n.x);
-    for (const p of fig.placed) {
-      const n = fig.byId.get(p.id)!;
-      const own = segDist(p.leader!.x2, p.leader!.y2, n.parentX, n.x, n.y);
-      for (const m of segs) {
-        if (m.id === n.id) continue;
-        expect(
-          own <=
-            segDist(p.leader!.x2, p.leader!.y2, m.parentX, m.x, m.y) +
-              1e-9,
-          `leader on node ${p.id} nearer a segment into ${m.id}`,
-        ).toBe(true);
-      }
-    }
+    const l = layout(t, OPTS);
+    const labels = supportLabels(t, l, SL_OPTS);
+    const [first, second] = labels;
+    expect(first.leader).toBeUndefined();
+    expect(second.leader).toBeDefined();
+    const n = l.nodes.find((x) => x.id === second.id)!;
+    const leader = second.leader!;
+    // From the pill's bottom edge down to the node itself.
+    expect(leader.x2).toBeCloseTo(n.x, 5);
+    expect(leader.y2).toBeCloseTo(n.y, 5);
+    expect(leader.y1).toBeCloseTo(second.box.maxY, 5);
+    expect(leader.x1).toBeGreaterThanOrEqual(second.box.minX - 1e-9);
+    expect(leader.x1).toBeLessThanOrEqual(second.box.maxX + 1e-9);
+    // The offset pill clears the first label and every marker.
+    expect(hit(first.box, second.box)).toBe(false);
+    for (const m of l.nodes)
+      expect(hit(second.box, markerBox(m.x, m.y))).toBe(false);
+    // And the leader is routed without crossing any branch.
+    expectLeaderClear(leader, drawnBranches(t, l));
   });
 });
 

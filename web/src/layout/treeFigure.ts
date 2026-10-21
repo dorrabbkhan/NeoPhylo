@@ -14,12 +14,7 @@ import type { Tree } from "../engine/generated/Tree";
 import { nodeName } from "../state/names";
 
 import { layout, type LaidOutNode, type Layout } from "./phylogram";
-import {
-  supportLabels,
-  segFitPx,
-  supportText,
-  type SupportLabel,
-} from "./supportLabels";
+import { supportLabels, type SupportLabel } from "./supportLabels";
 import { leafFontSize, labelRoomFor, MIN_FONT_PX } from "./treePanel";
 
 // Drawing geometry shared by both renderers (moved verbatim out of
@@ -110,46 +105,17 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
     panelWidth - labelRoom - FIGURE_PANEL_PAD * 2,
   );
 
-  // Each supported edge's label rides above the horizontal segment
-  // into its node (owner checkpoint: corner placement was ambiguous
-  // in dense regions). The segment must be long enough to hold the
-  // pill — supportText/pillWidth mirror supportLabels exactly — so
-  // the edge's drawn minimum is its own fit, never below the old
-  // 12 px stroke floor. A stretch that would add more than 20% of
-  // the drawing width is refused: the edge keeps the floor and
-  // supportLabels detects the short segment and draws the label
-  // offset with a leader line instead (spec §6.3 stays display-only).
-  const stretchCap = drawWidth * 0.2;
-  const fitPx = new Map<number, number>();
-  for (let id = 0; id < tree.branches.length; id += 1) {
-    const s = tree.branches[id].support;
-    if (
-      s !== null &&
-      tree.nodes[id].parent !== null &&
-      tree.nodes[id].children.length > 0
-    ) {
-      fitPx.set(
-        id,
-        Math.max(
-          FIGURE_MIN_SUPPORT_BRANCH_PX,
-          segFitPx(supportText(s), smallFont, FIGURE_NODE_RADIUS),
-        ),
-      );
-    }
-  }
-
+  // Supported edges get only the 12 px display-only stroke floor:
+  // their labels sit just above the incoming segment right-aligned
+  // to the node and may overhang left past the segment's start, so
+  // no fit-stretch is needed (owner refinement 21-10-26).
   const laid = layout(tree, {
     kind: opts.kind,
     clampNegative: opts.clampNegative,
     leafSpacing: opts.leafSpacing,
     width: drawWidth,
     visibleNodes: opts.visibleNodes,
-    minBranchPx: (id, drawnPx) => {
-      const want = fitPx.get(id) ?? FIGURE_MIN_SUPPORT_BRANCH_PX;
-      return want - drawnPx > stretchCap
-        ? FIGURE_MIN_SUPPORT_BRANCH_PX
-        : want;
-    },
+    minBranchPx: FIGURE_MIN_SUPPORT_BRANCH_PX,
   });
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
