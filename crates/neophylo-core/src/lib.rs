@@ -40,7 +40,10 @@ pub use exercise::{
 };
 pub use matrix::Matrix;
 pub use model::{RateModel, JTT};
-pub use newick::{parse_newick, write_newick};
+pub use newick::{
+    compatible_names, labels_need_quotes, parse_newick, write_newick, write_newick_compatible,
+    write_newick_with_support,
+};
 pub use phylip::{parse_phylip, write_phylip_matrix, NameMode};
 pub use protein_dist::{jtt_ml, jtt_pair_detail, kimura_from_p, pair_counts, PairDetail};
 pub use reroot::{reference_outgroup, reroot_on_outgroup, RerootResult};

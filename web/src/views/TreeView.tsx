@@ -1,5 +1,7 @@
 // SVG rendering of a laid-out tree (spec §6.1-6.3, plan Task 15). All
-// positioning comes from `layout()` in src/layout — this file only draws.
+// positioning comes from `treeFigure()` in src/layout — the same pure
+// function the SVG/PNG exports serialize, so an exported figure is
+// exactly this drawing (v1.2 checkpoint 15). This file only draws.
 //
 // Styling conventions (spec §6.3, §6.5 — meaning never relies on color alone):
 // - Negative branch lengths are dashed and carry the class "negative".
@@ -11,18 +13,23 @@
 // - Wrong clades get a dotted outline around the clade plus a "✕" marker.
 // - Leaf labels are SVG <text> children, so React escapes them and markup in
 //   a taxon name can never be parsed as HTML (Review Focus 2).
+// - Every node group and support label carries data-split — the canonical
+//   grouping key of the edge above the node (src/layout/splitKeys.ts) —
+//   so figures match the run's tally (checkpoint 15).
 
 import { useEffect, useRef, useState } from "react";
 
 import type { Tree } from "../engine/generated/Tree";
-import { layout, type LaidOutNode } from "../layout/phylogram";
-import { supportLabels } from "../layout/supportLabels";
+import type { LaidOutNode } from "../layout/phylogram";
+import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
 import {
-  leafFontSize,
-  leafSpacingFor,
-  labelRoomFor,
-  MIN_FONT_PX,
-} from "../layout/treePanel";
+  FIGURE_LABEL_OFFSET,
+  FIGURE_NODE_RADIUS,
+  FIGURE_PANEL_PAD,
+  FIGURE_WRONG_PAD,
+  treeFigure,
+} from "../layout/treeFigure";
+import { leafSpacingFor } from "../layout/treePanel";
 import { nodeName } from "../state/names";
 
 export interface TreeViewProps {
@@ -36,6 +43,17 @@ export interface TreeViewProps {
    * one value (passed by App) so their rows line up; when omitted, it is
    * derived from the measured panel height. */
   leafSpacing?: number;
+  /** Taxon labels in alignment order, for the data-split grouping keys
+   * (canonical unrooted sides exclude taxa[0]); defaults to the tree's
+   * arena leaf order, which is the input order for engine trees. */
+  splitTaxa?: string[];
+  /** data-split convention: rooted clusters (UPGMA tallies, reference
+   * trees) or unrooted splits (NJ tallies — also on a rerooted NJ
+   * drawing, whose groupings are unchanged). Default unrooted. */
+  splitRooted?: boolean;
+  /** Reports the measured drawing-panel width (px); App feeds it to the
+   * figure exports so they share this tree's exact geometry. */
+  onPanelSize?: (width: number) => void;
   onHoverLeaf?: (label: string | null) => void;
   /** Called with the leaf's label on click — predict_pair prompts use
    * two leaf picks as an answer (Task 21); unset otherwise. */
@@ -44,20 +62,6 @@ export interface TreeViewProps {
    * "Inferred tree", or the classification variant (v1.1 spec §5.3). */
   title: string;
 }
-
-// Drawing geometry. The panel is measured with a ResizeObserver; the
-// spacing/font/label-room math lives in src/layout/treePanel.ts.
-const PAD = 8;
-const LABEL_OFFSET = 4;
-const NODE_RADIUS = 3;
-const WRONG_PAD = 6;
-/** Display-only minimum drawn length for support-carrying internal
- * branches, so the weak (<50%) thin stroke stays visible on short
- * branches (checkpoint 11). */
-const MIN_SUPPORT_BRANCH_PX = 12;
-/** Fallback panel width before the first ResizeObserver callback (also
- * used under jsdom, where the observer is a no-op stub). */
-const DEFAULT_PANEL_WIDTH = 560;
 
 interface Size {
   width: number;
@@ -81,13 +85,6 @@ function usePanelSize(): [React.RefObject<HTMLDivElement | null>, Size] {
   return [ref, size];
 }
 
-interface Box {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-}
-
 export function TreeView({
   tree,
   layoutKind,
@@ -96,151 +93,49 @@ export function TreeView({
   clampNegative,
   visibleNodes,
   leafSpacing,
+  splitTaxa,
+  splitRooted = false,
+  onPanelSize,
   onHoverLeaf,
   onPickLeaf,
   title,
 }: TreeViewProps) {
   const [boxRef, box] = usePanelSize();
+  useEffect(() => {
+    onPanelSize?.(box.width);
+  }, [box.width, onPanelSize]);
 
   const leaves = tree.nodes.reduce(
     (n, node) => n + (node.children.length === 0 ? 1 : 0),
     0,
   );
   const spacing = leafSpacing ?? leafSpacingFor(box.height, leaves);
-  // Fixed minimum text size: only branch geometry scales (checkpoint
-  // 11), so leaf names, node names and support labels never draw below
-  // MIN_FONT_PX no matter the tree's scale.
-  const fontSize = Math.max(MIN_FONT_PX, leafFontSize(spacing));
-  const labelRoom = labelRoomFor(
-    tree.nodes.map((n) => n.label),
-    fontSize,
-  );
-  const panelWidth = box.width > 0 ? box.width : DEFAULT_PANEL_WIDTH;
-  const drawWidth = Math.max(80, panelWidth - labelRoom - PAD * 2);
 
-  const laid = layout(tree, {
+  // Layout, support-label placement and content bounds — shared with
+  // the SVG/PNG export path (src/layout/treeFigure.ts).
+  const fig = treeFigure(tree, {
     kind: layoutKind,
     clampNegative,
     leafSpacing: spacing,
-    width: drawWidth,
+    panelWidth: box.width,
     visibleNodes,
-    minBranchPx: MIN_SUPPORT_BRANCH_PX,
+    highlight,
+    wrong,
   });
-  const byId = new Map(laid.nodes.map((n) => [n.id, n]));
+  const { laid, byId, labelById, fontSize, smallFont, bounds } = fig;
+  const hideInternalNames = fig.hideInternalNames;
 
-  // Support labels are pills placed right of and above each labeled
-  // node; supportLabels resolves every collision up front (never onto
-  // a node marker, a leaf name or another pill). While they are drawn
-  // the u1/u2/… internal names hide — they are a step-through aid and
-  // would sit exactly where the pills go.
-  const smallFont = Math.max(MIN_FONT_PX, fontSize - 3);
-  const placed = supportLabels(tree, laid, {
-    fontSize: smallFont,
-    nameFontSize: fontSize,
-    nodeRadius: NODE_RADIUS,
-    labelOffset: LABEL_OFFSET,
-  });
-  const labelById = new Map(placed.map((p) => [p.id, p]));
-  const hideInternalNames = placed.length > 0;
+  // data-split keys: the canonical grouping of the edge above each
+  // node — the same key the tally serializes (src/layout/splitKeys.ts).
+  const keys = splitKeys(tree, splitTaxa ?? treeTaxaOrder(tree), splitRooted);
 
-  // Bounding box of a clade's laid-out nodes (plus the branch leading to it),
-  // used for the dotted "wrong clade" outline. Descendants hidden by
-  // visibleNodes are simply left out.
-  const cladeBox = (id: number): Box | null => {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    const stack = [id];
-    while (stack.length > 0) {
-      const nid = stack.pop()!;
-      const cur = byId.get(nid);
-      if (cur) {
-        minX = Math.min(minX, cur.parentX, cur.x);
-        maxX = Math.max(maxX, cur.x);
-        minY = Math.min(minY, cur.y);
-        maxY = Math.max(maxY, cur.y);
-      }
-      for (const child of tree.nodes[nid].children) stack.push(child);
-    }
-    return minX === Infinity ? null : { minX, maxX, minY, maxY };
-  };
-
-  // The viewBox fits the CONTENT, not the nominal layout width
-  // (checkpoint 12): union of every drawn box — node markers, leaf and
-  // internal names, "0" markers, support pills, wrong-clade rects —
-  // plus PAD, so no label can ever clip at any tree size or view.
-  const bounds = {
-    minX: Infinity,
-    maxX: -Infinity,
-    minY: Infinity,
-    maxY: -Infinity,
-  };
-  const grow = (b: Box) => {
-    bounds.minX = Math.min(bounds.minX, b.minX);
-    bounds.maxX = Math.max(bounds.maxX, b.maxX);
-    bounds.minY = Math.min(bounds.minY, b.minY);
-    bounds.maxY = Math.max(bounds.maxY, b.maxY);
-  };
-  // Marker radius + highlight ring + half the widest stroke, with slack.
-  const NODE_SLACK = NODE_RADIUS + 5;
-  for (const n of laid.nodes) {
-    grow({
-      minX: Math.min(n.x, n.parentX) - NODE_SLACK,
-      maxX: n.x + NODE_SLACK,
-      minY: n.y - NODE_SLACK,
-      maxY: n.y + NODE_SLACK,
-    });
-    // Text boxes: dominantBaseline="middle" puts glyphs roughly
-    // 1em above and 0.4em below the anchor — the estimate covers both.
-    if (n.leaf && n.label !== null) {
-      grow({
-        minX: n.x + LABEL_OFFSET + NODE_RADIUS,
-        maxX:
-          n.x + LABEL_OFFSET + NODE_RADIUS + n.label.length * fontSize * 0.62,
-        minY: n.y - fontSize - 2,
-        maxY: n.y + fontSize * 0.5,
-      });
-    } else if (highlight.has(n.id) && !hideInternalNames) {
-      const name = nodeName(tree, n.id);
-      grow({
-        minX: n.x + LABEL_OFFSET + NODE_RADIUS,
-        maxX: n.x + LABEL_OFFSET + NODE_RADIUS + name.length * fontSize * 0.62,
-        minY: n.y - fontSize - 2,
-        maxY: n.y + fontSize * 0.5,
-      });
-    }
-    const parent = tree.nodes[n.id].parent;
-    if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
-      const mid = (n.parentX + n.x) / 2;
-      const w = smallFont + 4;
-      grow({
-        minX: mid - w / 2,
-        maxX: mid + w / 2,
-        minY: n.y - 4 - smallFont - 2,
-        maxY: n.y - 2,
-      });
-    }
-  }
-  for (const p of placed) grow(p.box);
-  for (const id of wrong) {
-    const cb = cladeBox(id);
-    if (cb !== null) {
-      grow({
-        minX: cb.minX - WRONG_PAD - 3,
-        maxX: cb.maxX + WRONG_PAD + 3,
-        // The ✕ glyph's baseline sits near the rect's top edge, so give
-        // it a full font above the padded box.
-        minY: cb.minY - WRONG_PAD - fontSize - 3,
-        maxY: cb.maxY + WRONG_PAD + 3,
-      });
-    }
-  }
-
-  const width = bounds.maxX - bounds.minX + PAD * 2;
-  const height = bounds.maxY - bounds.minY + PAD * 2;
-  const tx = (x: number) => x - bounds.minX + PAD;
-  const ty = (y: number) => y - bounds.minY + PAD;
+  // The viewBox fits the CONTENT plus pad (checkpoint 12): nothing
+  // clips at any tree size or view — and no empty margin remains where
+  // a fixed label-room reservation used to sit (checkpoint 15).
+  const width = bounds.maxX - bounds.minX + FIGURE_PANEL_PAD * 2;
+  const height = bounds.maxY - bounds.minY + FIGURE_PANEL_PAD * 2;
+  const tx = (x: number) => x - bounds.minX + FIGURE_PANEL_PAD;
+  const ty = (y: number) => y - bounds.minY + FIGURE_PANEL_PAD;
 
   const branchClass = (n: LaidOutNode) =>
     n.negative ? "branch negative" : "branch";
@@ -275,6 +170,7 @@ export function TreeView({
               <g
                 key={n.id}
                 data-node={n.id}
+                data-split={keys.get(n.id)}
                 data-highlight={isHighlighted ? "true" : undefined}
                 data-weak={weak || undefined}
               >
@@ -304,7 +200,9 @@ export function TreeView({
                 <circle
                   cx={tx(n.x)}
                   cy={ty(n.y)}
-                  r={isHighlighted ? NODE_RADIUS + 1 : NODE_RADIUS}
+                  r={
+                    isHighlighted ? FIGURE_NODE_RADIUS + 1 : FIGURE_NODE_RADIUS
+                  }
                   fill="currentColor"
                 />
                 {hasVisibleParent && tree.branches[n.id].length === 0 && (
@@ -330,6 +228,7 @@ export function TreeView({
                     />
                     <text
                       className="support-label"
+                      data-split={keys.get(n.id)}
                       x={tx(placedLabel.textX)}
                       y={ty(placedLabel.textY)}
                       fontSize={smallFont}
@@ -343,7 +242,7 @@ export function TreeView({
                 )}
                 {n.leaf ? (
                   <text
-                    x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
+                    x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
                     y={ty(n.y)}
                     fontSize={fontSize}
                     fill="currentColor"
@@ -362,7 +261,7 @@ export function TreeView({
                   isHighlighted &&
                   !hideInternalNames && (
                     <text
-                      x={tx(n.x) + LABEL_OFFSET + NODE_RADIUS}
+                      x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
                       y={ty(n.y)}
                       fontSize={fontSize}
                       fill="currentColor"
@@ -376,12 +275,12 @@ export function TreeView({
             );
           })}
           {[...wrong].map((id) => {
-            const box = cladeBox(id);
+            const box = fig.cladeBox(id);
             if (!box) return null;
-            const x = tx(box.minX) - WRONG_PAD;
-            const y = ty(box.minY) - WRONG_PAD;
-            const w = box.maxX - box.minX + WRONG_PAD * 2;
-            const h = box.maxY - box.minY + WRONG_PAD * 2;
+            const x = tx(box.minX) - FIGURE_WRONG_PAD;
+            const y = ty(box.minY) - FIGURE_WRONG_PAD;
+            const w = box.maxX - box.minX + FIGURE_WRONG_PAD * 2;
+            const h = box.maxY - box.minY + FIGURE_WRONG_PAD * 2;
             return (
               <g key={`wrong-${id}`} className="wrong">
                 <rect

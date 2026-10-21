@@ -1,8 +1,11 @@
 // Export menu (plan Task 24, spec §6.6; PHYLIP matrix added in v1.1
-// Task 13, spec §5.6). Downloads the inferred tree as SVG, PNG or
-// Newick, the current distance matrix as neighbor-readable PHYLIP,
-// plus the equivalent R script for the current alignment, correction
-// and method. Tree items are disabled until a tree exists.
+// Task 13, spec §5.6; bootstrap exports in v1.2 Task 15, spec §6.8).
+// Downloads the displayed tree as SVG, PNG or Newick — the displayed
+// tree is what the user sees: support labels included, rooted on the
+// reference's outgroup when that view is on (the item names say which),
+// plus the current consensus view as "Consensus (Newick)", the
+// distance matrix as neighbor-readable PHYLIP, and the equivalent R
+// script (with a boot.phylo block once a run has finished).
 
 import { useState } from "react";
 
@@ -15,9 +18,11 @@ import type { Tree } from "../engine/generated/Tree";
 import { exportPng } from "../export/png";
 import { phylipMatrix } from "../export/phylip";
 import { exportR } from "../export/rscript";
-import { exportSvg } from "../export/svg";
+import { exportSvg, type ExportSvgOptions } from "../export/svg";
 
 export interface ExportMenuProps {
+  /** The tree the user sees: support labels and reference rooting
+   * already applied (v1.2 spec §6.8). */
   tree: Tree | null;
   alignment: Alignment | null;
   correction: DistModel;
@@ -25,6 +30,28 @@ export interface ExportMenuProps {
   clampNegative: boolean;
   /** The session's current leaf distance matrix (spec §5.6 export). */
   matrix: DistanceMatrix | null;
+  /** Which drawing `tree` is (v1.2 spec §6.7-6.8, checkpoint 15):
+   * the tree items name it — "rooted": the rerooted reference
+   * outgroup view ("Newick (rooted on wheat)"); "computed": the
+   * unrooted NJ tree the toggle falls back to ("Newick (as computed,
+   * unrooted)"); "plain": no toggle exists (UPGMA, no reference or
+   * mid-trace), so the items are unnamed ("Newick"). */
+  treeView: TreeViewState;
+  /** The tree of the current bootstrap view — the support tree on the
+   * "Your tree with support" tab, else the view's consensus tree —
+   * exported by "Consensus (Newick)" (v1.2 spec §6.8). */
+  consensusTree: Tree | null;
+  /** The layout inputs of the displayed figure (kind, leaf spacing,
+   * measured panel width, visible nodes, split-key taxa/convention).
+   * The SVG/PNG exports serialize the SAME figure the screen draws
+   * (checkpoint 15); omitted in tests, which then get the standalone
+   * defaults. */
+  figure?: Omit<ExportSvgOptions, "kind" | "clampNegative"> & {
+    kind?: "phylogram" | "cladogram";
+  };
+  /** Replicates and seed of the finished run, for the R script's
+   * bootstrap block; null when no run has finished. */
+  bootstrap: { replicates: number; seed: number } | null;
 }
 
 /** Trigger a browser download of `content` under `filename`. */
@@ -37,6 +64,26 @@ function download(filename: string, blob: Blob): void {
   URL.revokeObjectURL(url);
 }
 
+/** Build the two-column name-map CSV, quoting fields containing
+ * `"`, `,` or newlines. */
+function nameMapCsv(pairs: [string, string][]): string {
+  const esc = (s: string) =>
+    /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+  const rows = pairs.map(([a, b]) => `${esc(a)},${esc(b)}`);
+  return `original,exported\n${rows.join("\n")}\n`;
+}
+
+/** Newick label mode (checkpoint-15 fix): standard quoting, or
+ * tool-compatible names for ape/FigTree/iTOL. */
+type NameLabelMode = "exact" | "compatible";
+
+/** The drawing the tree items export, mirroring the tree column's
+ * current view (checkpoint 15). */
+export type TreeViewState =
+  | { kind: "rooted"; outgroup: string[] }
+  | { kind: "computed" }
+  | { kind: "plain" };
+
 export function ExportMenu({
   tree,
   alignment,
@@ -44,6 +91,10 @@ export function ExportMenu({
   method,
   clampNegative,
   matrix,
+  treeView,
+  consensusTree,
+  figure,
+  bootstrap,
 }: ExportMenuProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -51,9 +102,31 @@ export function ExportMenu({
     relaxed: boolean;
     saturated: boolean;
   } | null>(null);
+  // null = not yet chosen: the mode then defaults to Compatible when a
+  // name on either exportable tree would need quoting (those break
+  // ape::read.tree, FigTree and iTOL), else Exact.
+  const [chosenMode, setChosenMode] = useState<NameLabelMode | null>(null);
+  const needsQuotes =
+    (tree !== null && engine.labelsNeedQuotes(tree)) ||
+    (consensusTree !== null && engine.labelsNeedQuotes(consensusTree));
+  const nameMode: NameLabelMode =
+    chosenMode ?? (needsQuotes ? "compatible" : "exact");
+  // The renames a compatible export applies (leaf labels are shared
+  // between the displayed and consensus trees, so either works).
+  const namePairs =
+    nameMode === "compatible" && (tree ?? consensusTree) !== null
+      ? engine.compatibleNames((tree ?? consensusTree) as Tree)
+      : [];
 
+  // The figure options App measured on the displayed tree — the
+  // export draws the identical layout, only in document form
+  // (checkpoint 15). `kind` defaults to phylogram for standalone use.
   const svg = () =>
-    exportSvg(tree as Tree, { kind: "phylogram", clampNegative });
+    exportSvg(tree as Tree, {
+      ...figure,
+      kind: figure?.kind ?? "phylogram",
+      clampNegative,
+    });
 
   const onSvg = () =>
     download("neophylo-tree.svg", new Blob([svg()], { type: "image/svg+xml" }));
@@ -70,18 +143,43 @@ export function ExportMenu({
     }
   };
 
-  const onNewick = () =>
-    download(
-      "neophylo-tree.nwk",
-      new Blob([engine.writeNewick(tree as Tree)], { type: "text/plain" }),
-    );
+  // Both Newick exports honor the label mode (checkpoint-15 fix); a
+  // compatible write that renamed anything also downloads the
+  // original→exported map CSV.
+  const onNewickTree = (t: Tree, filename: string) => {
+    const text =
+      nameMode === "compatible"
+        ? engine.writeNewickCompatible(t, true)
+        : engine.writeNewickWithSupport(t);
+    download(filename, new Blob([text], { type: "text/plain" }));
+    const pairs = engine.compatibleNames(t);
+    if (nameMode === "compatible" && pairs.length > 0) {
+      download(
+        "neophylo-name-map.csv",
+        new Blob([nameMapCsv(pairs)], { type: "text/csv" }),
+      );
+    }
+  };
+
+  const onNewick = () => onNewickTree(tree as Tree, "neophylo-tree.nwk");
+
+  const onConsensus = () =>
+    onNewickTree(consensusTree as Tree, "neophylo-consensus.nwk");
 
   const onR = () =>
     download(
       "neophylo-analysis.R",
-      new Blob([exportR(alignment as Alignment, correction, method)], {
-        type: "text/plain",
-      }),
+      new Blob(
+        [
+          exportR(
+            alignment as Alignment,
+            correction,
+            method,
+            bootstrap === null ? undefined : bootstrap,
+          ),
+        ],
+        { type: "text/plain" },
+      ),
     );
 
   // spec §5.6: the matrix in neighbor input format. Auto picks Strict
@@ -96,22 +194,44 @@ export function ExportMenu({
     );
   };
 
+  // spec §6.8 + checkpoint 15: tree items follow the current display
+  // and say so in their names — the rerooted outgroup view, the
+  // unrooted computed view, or nothing when no toggle exists (UPGMA
+  // trees are rooted by the method, and there is no reference view).
+  const viewSuffix =
+    treeView.kind === "rooted"
+      ? `rooted on ${treeView.outgroup.join(", ")}`
+      : treeView.kind === "computed"
+        ? "as computed, unrooted"
+        : null;
+  const treeLabel = (base: string) =>
+    viewSuffix === null ? base : `${base} (${viewSuffix})`;
+
   return (
     <section className="export-menu" aria-label="Export">
       <h2>Export</h2>
       <div className="export-buttons">
         <button type="button" disabled={tree === null} onClick={onSvg}>
-          SVG
+          {treeLabel("SVG")}
         </button>
         <button
           type="button"
           disabled={tree === null || busy}
           onClick={() => void onPng()}
         >
-          {busy ? "PNG…" : "PNG"}
+          {busy ? "PNG…" : treeLabel("PNG")}
         </button>
         <button type="button" disabled={tree === null} onClick={onNewick}>
-          Newick
+          {treeLabel("Newick")}
+        </button>
+        <button
+          type="button"
+          disabled={consensusTree === null}
+          onClick={onConsensus}
+        >
+          {viewSuffix === null
+            ? "Consensus (Newick)"
+            : `Consensus (Newick, ${viewSuffix})`}
         </button>
         <button type="button" disabled={alignment === null} onClick={onR}>
           R script
@@ -124,6 +244,42 @@ export function ExportMenu({
           Distance matrix (PHYLIP)
         </button>
       </div>
+      <label className="newick-name-mode">
+        Newick names:{" "}
+        <select
+          value={nameMode}
+          onChange={(e) =>
+            setChosenMode(e.target.value as NameLabelMode)
+          }
+        >
+          <option value="exact">Exact (standard Newick, quoted)</option>
+          <option value="compatible">
+            Compatible (recommended for R, FigTree, iTOL)
+          </option>
+        </select>
+      </label>
+      {nameMode === "compatible" && namePairs.length > 0 && (
+        <div className="phylip-note" role="status">
+          <p>
+            {needsQuotes
+              ? "Compatible names are the default because some names would " +
+                "need quoting, which ape::read.tree turns into NA. "
+              : ""}
+            Renamed for compatibility (also saved to
+            neophylo-name-map.csv):
+          </p>
+          <ul>
+            {namePairs.slice(0, 6).map(([from, to]) => (
+              <li key={from}>
+                {from} → {to}
+              </li>
+            ))}
+            {namePairs.length > 6 && (
+              <li>…and {namePairs.length - 6} more</li>
+            )}
+          </ul>
+        </div>
+      )}
       {phylipNote !== null && (
         <div className="phylip-note" role="status">
           {phylipNote.relaxed && (

@@ -1033,6 +1033,14 @@ button:disabled {
   margin: 4px 0 0;
 }
 
+/* Newick label-mode select (fix/newick-compatible-names) */
+.newick-name-mode {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */
 
 .bootstrap-panel {
@@ -1191,9 +1199,31 @@ button:disabled {
 /* When the tree row is squeezed (long teaching notices), the flex
  * chain can starve the canvas to a zero box — the svg then exists but
  * is hidden. A floor keeps the drawing visible; the extra height
- * overflows into the notes below instead. */
+ * overflows into the notes below instead.
+ *
+ * The svg is taken out of flow here (checkpoint 15): its intrinsic
+ * aspect-ratio height (width ÷ viewBox ratio) counts as the canvas's
+ * min-content, which pushed the column's content past the row and let
+ * the focused reroot toggle scroll the drawing's top out of view.
+ * Absolutely positioned, the canvas sizes from flex alone and the
+ * viewBox — which already fits every label — scales the whole drawing
+ * into whatever height is available, so every leaf stays visible. The
+ * global rule stays in-flow because the replicate trees' canvas is
+ * sized BY that intrinsic height (no flex space there).
+ *
+ * The floor is 64 px, not more: its job is only to keep the canvas off
+ * zero (the starvation case above). Since the drawing scales to the
+ * canvas, a smaller floor just draws smaller — whereas a taller floor
+ * pushed the canvas's bottom past the column in a squeezed row
+ * (checkpoint 15 e2e: svg bottom out of the column in CI's font
+ * metrics), clipping the lowest leaves. */
 .consensus-tabs .tree-canvas {
-  min-height: 96px;
+  min-height: 64px;
+  position: relative;
+}
+.consensus-tabs .tree-canvas svg {
+  position: absolute;
+  inset: 0;
 }
 
 .consensus-dropped {

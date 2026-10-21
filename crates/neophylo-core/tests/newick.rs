@@ -1,5 +1,8 @@
 use neophylo_core::error::NeoError;
-use neophylo_core::newick::{parse_newick, write_newick};
+use neophylo_core::newick::{
+    compatible_names, labels_need_quotes, parse_newick, write_newick, write_newick_compatible,
+    write_newick_with_support,
+};
 use neophylo_core::tree::{NodeId, Tree};
 use proptest::prelude::*;
 
@@ -121,4 +124,189 @@ proptest! {
         let t2 = parse_newick(&s).unwrap_or_else(|e| panic!("parse of {s} failed: {e}"));
         prop_assert!(trees_equal(&t, &t2), "round-trip mismatch for {s}");
     }
+}
+
+/// The Review Focus 4 tree: quoted taxa plus support on both internal
+/// branches (the root carries none). Internal non-root ids follow the
+/// document order of their `(`.
+fn support_tree() -> Tree {
+    let mut t = parse_newick(
+        "(('Homo sapiens':0.1,'O''Brien':0.15):0.05,\
+         ('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04,\
+         'Triticum aestivum':0.4);",
+    )
+    .unwrap();
+    let internal: Vec<usize> = (0..t.nodes.len())
+        .filter(|&i| !t.nodes[i].children.is_empty() && t.nodes[i].parent.is_some())
+        .collect();
+    assert_eq!(internal.len(), 2);
+    t.branches[internal[0]].support = Some(0.87);
+    t.branches[internal[1]].support = Some(0.425);
+    t
+}
+
+#[test]
+fn write_support_labels() {
+    let t = support_tree();
+    assert_eq!(
+        write_newick_with_support(&t),
+        "(('Homo sapiens':0.1,'O''Brien':0.15)87:0.05,\
+('Rattus norvegicus':0.1,'Gallus gallus':0.3)43:0.04,\
+'Triticum aestivum':0.4);"
+    );
+}
+
+#[test]
+fn write_newick_ignores_support() {
+    // The plain writer is unchanged (v1.2 spec §6.8): support never
+    // appears, so existing exports and fixtures keep their bytes.
+    assert_eq!(
+        write_newick(&support_tree()),
+        "(('Homo sapiens':0.1,'O''Brien':0.15):0.05,\
+('Rattus norvegicus':0.1,'Gallus gallus':0.3):0.04,\
+'Triticum aestivum':0.4);"
+    );
+}
+
+#[test]
+fn support_labels_reparse() {
+    // Review Focus 4: labels and integer supports survive a round
+    // trip through our own parser (they come back as node labels).
+    let t = support_tree();
+    let t2 = parse_newick(&write_newick_with_support(&t)).unwrap();
+    assert_eq!(
+        t2.leaf_labels(),
+        [
+            "Homo sapiens",
+            "O'Brien",
+            "Rattus norvegicus",
+            "Gallus gallus",
+            "Triticum aestivum"
+        ]
+    );
+    let mut labels: Vec<&str> = t2
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(i, n)| !n.children.is_empty() && n.parent.is_some() && *i != t2.root.0 as usize)
+        .map(|(_, n)| n.label.as_deref().unwrap())
+        .collect();
+    labels.sort();
+    assert_eq!(labels, ["43", "87"]);
+}
+
+#[test]
+fn support_overrides_internal_label() {
+    // spec §6.8: the internal node label IS the integer percent, so
+    // ape/figtree read it as the bootstrap value. Nodes without
+    // support keep their existing label.
+    let mut t = parse_newick("((A:1,B:1)u1:0.5,(C:1,D:1)u2:0.5,E:1);").unwrap();
+    let internal: Vec<usize> = (0..t.nodes.len())
+        .filter(|&i| !t.nodes[i].children.is_empty() && t.nodes[i].parent.is_some())
+        .collect();
+    assert_eq!(internal.len(), 2);
+    t.branches[internal[0]].support = Some(0.5);
+    // A leaf carrying support (which the engine never produces) keeps
+    // its taxon name — support labels mark internal groupings only.
+    let leaf_e = t
+        .nodes
+        .iter()
+        .position(|n| n.label.as_deref() == Some("E"))
+        .unwrap();
+    t.branches[leaf_e].support = Some(0.5);
+    assert_eq!(
+        write_newick_with_support(&t),
+        "((A:1,B:1)50:0.5,(C:1,D:1)u2:0.5,E:1);"
+    );
+}
+
+// ---- Compatible names (fix/newick-compatible-names) ------------------
+// Owner finding: ape::read.tree keeps quotes in labels and coerces
+// 'O''Brien' to NA — exact standard Newick is correct but unreadable in
+// common tools. The compatible export maps every label to
+// [A-Za-z0-9._-], collapsing '_' runs and deduplicating with _2/_3.
+
+/// The owner's regression labels, with support on both internal
+/// branches (as in `support_tree`).
+fn quoted_tree() -> Tree {
+    let mut t = parse_newick(
+        "(('Homo sapiens':0.1,'O''Brien':0.15):0.05,\
+         ('a,b(c)':0.3,'<b>x</b>':0.2):0.04,'Ångström_1':0.4);",
+    )
+    .unwrap();
+    let internal: Vec<usize> = (0..t.nodes.len())
+        .filter(|&i| !t.nodes[i].children.is_empty() && t.nodes[i].parent.is_some())
+        .collect();
+    assert_eq!(internal.len(), 2);
+    t.branches[internal[0]].support = Some(0.87);
+    t.branches[internal[1]].support = Some(0.42);
+    t
+}
+
+#[test]
+fn compatible_write_maps_labels_and_keeps_support() {
+    let t = quoted_tree();
+    let s = write_newick_compatible(&t, true);
+    assert_eq!(
+        s,
+        "((Homo_sapiens:0.1,O_Brien:0.15)87:0.05,\
+(a_b_c_:0.3,_b_x_b_:0.2)42:0.04,_ngstr_m_1:0.4);"
+    );
+    // No quoting anywhere — that's the point of the mode.
+    assert!(!s.contains('\''));
+}
+
+#[test]
+fn compatible_names_lists_only_changes() {
+    let t = quoted_tree();
+    let pairs = compatible_names(&t);
+    let got: Vec<(&str, &str)> = pairs
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            ("Homo sapiens", "Homo_sapiens"),
+            ("O'Brien", "O_Brien"),
+            ("a,b(c)", "a_b_c_"),
+            ("<b>x</b>", "_b_x_b_"),
+            ("Ångström_1", "_ngstr_m_1"),
+        ]
+    );
+    // An already-safe tree maps nothing.
+    let safe = parse_newick("((A:1,B:2):0.5,C:3);").unwrap();
+    assert!(compatible_names(&safe).is_empty());
+}
+
+#[test]
+fn compatible_names_stay_unique() {
+    // 'a_b' is already safe and keeps its name, so 'a b' must take a
+    // suffix; later collisions count up in document order.
+    let t = parse_newick("('a b':1,'a_b':1,'a+b':1,'a  b':1);").unwrap();
+    assert_eq!(
+        write_newick_compatible(&t, false),
+        "(a_b_2:1,a_b:1,a_b_3:1,a_b_4:1);"
+    );
+}
+
+#[test]
+fn compatible_round_trip_and_quotes_flag() {
+    let t = quoted_tree();
+    let t2 = parse_newick(&write_newick_compatible(&t, true)).unwrap();
+    assert_eq!(
+        t2.leaf_labels(),
+        ["Homo_sapiens", "O_Brien", "a_b_c_", "_b_x_b_", "_ngstr_m_1"]
+    );
+
+    assert!(labels_need_quotes(&t));
+    let safe = parse_newick("((A:1,B:2):0.5,C:3);").unwrap();
+    assert!(!labels_need_quotes(&safe));
+    // 'Ångström_1' needs no quoting (the default stays Exact) but is
+    // still renamed by a compatible export.
+    let uni = parse_newick("('Ångström_1':1,B:2);").unwrap();
+    assert!(!labels_need_quotes(&uni));
+    let pairs = compatible_names(&uni);
+    assert_eq!(pairs.len(), 1);
+    assert_eq!(pairs[0].1, "_ngstr_m_1");
 }

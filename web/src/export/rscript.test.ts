@@ -90,3 +90,76 @@ describe("exportR protein (v1.1 spec §5.6)", () => {
     expect(() => exportR(PROT, "Jc69", "Nj")).toThrow();
   });
 });
+
+describe("exportR bootstrap (v1.2 spec §6.8, checkpoint 15)", () => {
+  it("resamples in an explicit loop that skips saturated replicates", () => {
+    const s = exportR(ALN, "Jc69", "Nj", { replicates: 100, seed: 1 });
+    // No boot.phylo — it aborts on the first FUN error and cannot
+    // express the engine's skipped-replicate rule.
+    expect(s).not.toContain("boot.phylo(tree");
+    expect(s).toContain("x <- aln");
+    expect(s).toContain("set.seed(1)");
+    expect(s).toContain("B <- 100");
+    expect(s).toContain("for (i in seq_len(B))");
+    expect(s).toContain("xx <- x[, sample.int(ncol(x), replace = TRUE)]");
+    // Same distance as the main analysis, then the non-finite check.
+    expect(s).toContain(
+      'distOf <- function(xx) ape::dist.dna(xx, model = "JC69", pairwise.deletion = TRUE)',
+    );
+    expect(s).toContain("any(!is.finite(m_i[lower.tri(m_i)]))");
+    // Saturated formulas' per-replicate warnings are suppressed; only
+    // the Skipped summary reports them.
+    expect(s).toContain(
+      "d_i <- tryCatch(suppressWarnings(distOf(xx)), error = function(e) NULL)",
+    );
+    expect(s).toContain("tr <- tryCatch(ape::nj(d_i)");
+    // Skipped accounting and support on the kept trees — NJ support is
+    // unrooted splits (spec §3.3), so rooted = FALSE is explicit.
+    expect(s).toContain('sprintf("Skipped (saturated): %d of %d');
+    expect(s).toContain("skipped / B > 0.1");
+    expect(s).toContain("kept == 0L");
+    expect(s).toContain(
+      "ape::prop.clades(tree, trees, rooted = FALSE) / kept",
+    );
+    expect(s).toContain(
+      "R's random draws differ from NeoPhylo's; support values vary by a few percent.",
+    );
+  });
+
+  it("UPGMA keeps phangorn::upgma inside the replicate loop", () => {
+    const s = exportR(ALN, "K80", "Upgma", { replicates: 250, seed: 7 });
+    expect(s).toContain("tr <- tryCatch(phangorn::upgma(d_i)");
+    expect(s).toContain("B <- 250");
+    expect(s).toContain("set.seed(7)");
+    expect(s).not.toContain("nj(d_i)");
+    // UPGMA support is rooted clusters (spec §3.3).
+    expect(s).toContain(
+      "ape::prop.clades(tree, trees, rooted = TRUE) / kept",
+    );
+  });
+
+  it("protein Kimura computes the distance inside distOf", () => {
+    const s = exportR(PROT, "Kimura", "Nj", { replicates: 100, seed: 1 });
+    expect(s).not.toContain("boot.phylo(tree");
+    expect(s).toContain("distOf <- function(xx)");
+    expect(s).toContain("ape::dist.aa(xx, pairwise.deletion = TRUE");
+    expect(s).toContain("as.dist(-log(1 - p - 0.2 * p^2))");
+    expect(s).toContain("B <- 100");
+    expect(s).toContain('x <- do.call(rbind, as.character(aln))');
+  });
+
+  it("protein p and JTT reuse the export's distance expressions", () => {
+    const p = exportR(PROT, "P", "Nj", { replicates: 20, seed: 1 });
+    expect(p).toContain(
+      "distOf <- function(xx) ape::dist.aa(xx, pairwise.deletion = TRUE, scaled = TRUE)",
+    );
+    const jtt = exportR(PROT, "Jtt", "Nj", { replicates: 20, seed: 1 });
+    expect(jtt).toContain("phangorn::dist.ml(phangorn::phyDat(xx,");
+    expect(jtt).toContain('model = "JTT"');
+  });
+
+  it("leaves the script unchanged when no bootstrap ran", () => {
+    expect(exportR(ALN, "Jc69", "Nj")).not.toContain("seq_len(B)");
+    expect(exportR(PROT, "Kimura", "Nj")).not.toContain("seq_len(B)");
+  });
+});

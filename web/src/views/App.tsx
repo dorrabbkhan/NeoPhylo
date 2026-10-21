@@ -26,11 +26,19 @@
 // resumes. Pick state lives in `answered` (at_step → picked labels) and
 // resets whenever a different exercise is loaded.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { REPO_URL } from "../config";
 import { bootstrapClient } from "../engine/bootstrapClient";
 import { engine, initEngine } from "../engine";
+import type { ConsensusKind } from "../engine/generated/ConsensusKind";
 import type { Result } from "../engine";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { ReplicateDetail } from "../engine/generated/ReplicateDetail";
@@ -82,6 +90,13 @@ import { nodeName } from "../state/names";
 
 const NO_HIGHLIGHT = new Set<number>();
 
+/** Bootstrap view → the consensus kind its tab draws (v1.2 spec §6.8). */
+const CONSENSUS_KIND: Record<"majority" | "extended" | "strict", ConsensusKind> = {
+  majority: "Majority",
+  extended: "Extended",
+  strict: "Strict",
+};
+
 export function App({ exercise }: { exercise?: Exercise }) {
   const [session, setSession] = useState<Session | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -114,6 +129,27 @@ export function App({ exercise }: { exercise?: Exercise }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // The inferred tree's column scrolls when the row is squeezed (its
+  // tabs block keeps a min height; the caption + toggle ride below).
+  const treeColRef = useRef<HTMLDivElement | null>(null);
+
+  // The displayed tree panel's measured width — the SVG/PNG exports
+  // lay out with it so the figure matches the screen exactly
+  // (checkpoint 15).
+  const [exportPanelW, setExportPanelW] = useState(0);
+
+  // Checkpoint 15: the reroot toggle sits at the column's bottom, so
+  // clicking it scrolls the column down to reveal it — clipping the
+  // drawing's top (and its caption) when the new view paints. Always
+  // land on the drawing's top after the view changes.
+  const rerootDisplay = session?.rerootDisplay ?? false;
+  useLayoutEffect(() => {
+    // scrollTop, not scrollTo: jsdom implements the property but not
+    // the method (unit tests render this tree).
+    const el = treeColRef.current;
+    if (el !== null) el.scrollTop = 0;
+  }, [rerootDisplay]);
 
   const dispatch = useCallback(
     (a: Action) => setSession((s) => (s === null ? s : reducer(s, a))),
@@ -544,6 +580,23 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const showReroot = reroot !== null && session.rerootDisplay;
   const drawnTree = showReroot ? reroot!.tree : drawnInferred;
 
+  // Exports follow the current display (v1.2 spec §6.8): the drawn
+  // tree — rooted like the reference when that view is on — and the
+  // bootstrap view's own tree for "Consensus (Newick)".
+  const boot = session.bootstrap;
+  const consensusViewTree =
+    boot.consensus === null
+      ? null
+      : boot.view === "support"
+        ? boot.support
+        : boot.consensus[CONSENSUS_KIND[boot.view]];
+  const exportBootstrap =
+    boot.status === "done" ? boot.settingsUsed : null;
+  // Taxon labels in alignment order — the canonical-side convention
+  // behind every drawn data-split key (checkpoint 15).
+  const splitTaxa =
+    session.alignment?.labels ?? session.matrix?.labels ?? undefined;
+
   // Shared leaf spacing for both trees: the row height minus the
   // caption, divided by the leaf count, clamped to 18–48 px.
   const sharedSpacing = leafSpacingFor(
@@ -693,12 +746,35 @@ export function App({ exercise }: { exercise?: Exercise }) {
             <ImportPanel session={session} dispatch={dispatch} />
           )}
           <ExportMenu
-            tree={inferred}
+            tree={drawnTree}
             alignment={session.alignment}
             correction={session.exercise.analysis.correction}
             method={session.exercise.analysis.method}
             clampNegative={session.clampNegative}
             matrix={session.matrix}
+            treeView={
+              showReroot
+                ? { kind: "rooted", outgroup: reroot!.outgroup }
+                : reroot !== null
+                  ? { kind: "computed" }
+                  : { kind: "plain" }
+            }
+            // The current bootstrap view's tree AS DRAWN — rerooted on
+            // the reference's outgroup while that view is on — so the
+            // export matches the item's name (checkpoint 15).
+            consensusTree={consensusViewTree === null ? null : drawnTree}
+            // The SAME layout inputs the on-screen figure uses, so the
+            // SVG/PNG serialize this exact drawing (checkpoint 15).
+            figure={{
+              kind: consensusTree === null ? "phylogram" : "cladogram",
+              leafSpacing: sharedSpacing,
+              panelWidth: exportPanelW,
+              visibleNodes:
+                drawnTree === inferred ? visibleNodes : undefined,
+              splitTaxa,
+              splitRooted: !isNj,
+            }}
+            bootstrap={exportBootstrap}
           />
         </aside>
         <section className="col-center">
@@ -748,12 +824,14 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 wrong={NO_HIGHLIGHT}
                 clampNegative={session.clampNegative}
                 leafSpacing={sharedSpacing}
+                splitTaxa={splitTaxa}
+                splitRooted
                 onHoverLeaf={onHoverLeaf}
                 onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
               />
             )}
             {inferred !== null && drawnTree !== null && (
-              <div className="tree-col">
+              <div className="tree-col" ref={treeColRef}>
                 {(() => {
                   // Consensus tabs (spec §6.4): at the final position
                   // the tree panel sits inside the tablist's tabpanel.
@@ -778,6 +856,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         drawnTree === inferred ? visibleNodes : undefined
                       }
                       leafSpacing={sharedSpacing}
+                      splitTaxa={splitTaxa}
+                      splitRooted={!isNj}
+                      onPanelSize={setExportPanelW}
                       onHoverLeaf={onHoverLeaf}
                       onPickLeaf={
                         gating !== null ? promptGate.onPickLeaf : undefined

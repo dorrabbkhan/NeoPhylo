@@ -7,7 +7,7 @@
 // distances within 1e-6 (R's write.tree prints limited digits).
 // Run from web/: `node scripts/r-parity.mjs` (check.sh, RPARITY=1).
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
@@ -68,8 +68,38 @@ function runR(script) {
     writeFileSync(file, script);
     return execFileSync("Rscript", [file], {
       encoding: "utf8",
+      // plot()/plotBS write Rplots.pdf — keep it in the temp dir, not
+      // the working tree.
+      cwd: dir,
       maxBuffer: 16 * 1024 * 1024,
     });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * runR variant that also returns stderr, so callers can assert on R
+ * warnings (they go to stderr, which execFileSync only attaches to the
+ * thrown error).
+ */
+function runRCapture(script) {
+  const dir = mkdtempSync(join(tmpdir(), "r-parity-"));
+  try {
+    const file = join(dir, "script.R");
+    writeFileSync(file, script);
+    const r = spawnSync("Rscript", [file], {
+      encoding: "utf8",
+      cwd: dir,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    if (r.error) throw r.error;
+    if (r.status !== 0) {
+      throw new Error(
+        `Rscript exited ${r.status}: ${(r.stderr || r.stdout).slice(0, 300)}`,
+      );
+    }
+    return { stdout: r.stdout, stderr: r.stderr ?? "" };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -329,6 +359,266 @@ for (const file of proteinRefs) {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  }
+}
+
+// --- v1.2 Task 15 + fix/newick-compatible-names: exports -------------
+// Review Focus 4 and the checkpoint-15 owner finding: a tree whose
+// labels need quoting ('Homo sapiens', O'Brien, 'a,b(c)', '<b>x</b>',
+// 'Ångström_1') plus branch support. The Exact write must re-parse
+// through our own parser with every original label and integer
+// support intact. The Compatible write goes through ape::read.tree:
+// tip.label must equal the mapped names exactly — no NA, no quote
+// characters — and node.label the integer supports. `warn = 2` makes
+// every R warning a failure.
+{
+  const tree = unwrap(
+    wasm.parse_newick(
+      "(('Homo sapiens':0.1,'O''Brien':0.15):0.05," +
+        "('a,b(c)':0.3,'<b>x</b>':0.2):0.04,'Ångström_1':0.4);",
+    ),
+    "parse_newick (names export)",
+  );
+  const internal = tree.nodes
+    .map((n, i) => ({ n, i }))
+    .filter(
+      ({ n, i }) =>
+        n.children.length > 0 && n.parent !== null && i !== tree.root,
+    );
+  tree.branches[internal[0].i].support = 0.87;
+  tree.branches[internal[1].i].support = 0.42;
+
+  // Exact write → our parser keeps the original labels.
+  const exact = unwrap(
+    wasm.write_newick_with_support(tree),
+    "write_newick_with_support",
+  );
+  const back = unwrap(wasm.parse_newick(exact), "re-parse (exact)");
+  const want = [
+    "Homo sapiens",
+    "O'Brien",
+    "a,b(c)",
+    "<b>x</b>",
+    "Ångström_1",
+  ];
+  const tips = back.nodes
+    .filter((n) => n.children.length === 0)
+    .map((n) => n.label);
+  if (JSON.stringify(tips) !== JSON.stringify(want)) {
+    fail(`exact Newick: tips ${JSON.stringify(tips)} != ${JSON.stringify(want)}`);
+  }
+
+  // Compatible write → mapped names, no quotes anywhere.
+  const compat = unwrap(
+    wasm.write_newick_compatible(tree, true),
+    "write_newick_compatible",
+  );
+  if (compat.includes("'")) {
+    fail(`compatible Newick still quotes: ${compat}`);
+  }
+  const mapped = [
+    "Homo_sapiens",
+    "O_Brien",
+    "a_b_c_",
+    "_b_x_b_",
+    "_ngstr_m_1",
+  ];
+
+  // ape's side: read.tree must see the mapped tip labels and the
+  // integer supports as node.label. options(warn = 2) fails the run on
+  // any R warning (e.g. the coercion NA the owner hit on 'O''Brien').
+  try {
+    const rOut = runR(
+      "options(warn = 2)\n" +
+        `t <- ape::read.tree(text = "${escapeR(compat)}")\n` +
+        `cat(jsonlite::toJSON(list(tip = t$tip.label,\n` +
+        `  node = unname(t$node.label)), auto_unbox = TRUE), "\\n")\n`,
+    );
+    const line = rOut
+      .trim()
+      .split("\n")
+      .find((l) => l.trim().startsWith('{"tip"'));
+    if (!line) {
+      fail(`compatible Newick: no JSON from read.tree: ${rOut.slice(0, 200)}`);
+    } else {
+      const { tip, node } = JSON.parse(line);
+      const nums = (node ?? [])
+        .filter((s) => s !== "" && s !== null)
+        .map(Number)
+        .sort((a, b) => a - b);
+      if (
+        JSON.stringify(tip) !== JSON.stringify(mapped) ||
+        JSON.stringify(nums) !== "[42,87]"
+      ) {
+        fail(
+          `compatible Newick: read.tree tip.label=${JSON.stringify(tip)}` +
+            ` node.label=${JSON.stringify(node)}` +
+            ` (expected tips ${JSON.stringify(mapped)}, supports 42,87)`,
+        );
+      } else {
+        checked += 1;
+        console.log(
+          "ok compatible Newick: read.tree tip.label exact, supports 42,87",
+        );
+      }
+    }
+  } catch (e) {
+    fail(
+      `compatible Newick: R run failed (a warning counts): ` +
+        `${e.message.slice(0, 300)}`,
+    );
+  }
+}
+
+// The exported script's bootstrap block must run (v1.2 Task 15).
+// Checkpoint 15 replaced ape::boot.phylo with the explicit resample
+// loop that skips saturated replicates — the block must still run end
+// to end on alignments whose replicates never saturate. jc12 JC69:
+// 0 failed of 1,000; p8_250 Kimura: 0 failed of 200.
+for (const [tag, input, correction] of [
+  ["jc12 JC69/NJ", "inputs/jc12.fasta", "Jc69"],
+  ["p8_250 Kimura/NJ", "inputs/protein/p8_250.fasta", "Kimura"],
+  ["p8_250 JTT/NJ", "inputs/protein/p8_250.fasta", "Jtt"],
+]) {
+  const fasta = readFileSync(join(fixturesDir, input), "utf8");
+  const alignment = unwrap(wasm.parse_fasta(fasta), `parse_fasta ${tag}`);
+  const script = exportR(alignment, correction, "Nj", {
+    replicates: 25,
+    seed: 1,
+  });
+  if (!script.includes("seq_len(B)") || script.includes("boot.phylo(tree")) {
+    fail(`${tag}: exported script has no bootstrap loop`);
+    continue;
+  }
+  try {
+    runR(script);
+    checked += 1;
+    console.log(`ok ${tag}: exported bootstrap script runs`);
+  } catch (e) {
+    fail(`${tag}: exported bootstrap script failed: ${e.message.slice(0, 300)}`);
+  }
+}
+
+// --- v1.2 checkpoint 15: saturated-replicate skips ------------------
+// The exported loop must run where boot.phylo crashed: p6_150 Kimura
+// produces non-finite replicate distances, so the script must complete
+// and report 'Skipped (saturated): S of B' with S > 0. At the owner's
+// B = 1000 checkpoint the run must emit no warnings (suppressWarnings
+// on distOf) and every grouping's node-label support must be within
+// 5 points of NeoPhylo's 1000-replicate values. A DNA JC69 case
+// completes too.
+{
+  const BOOT_B = 1000;
+  const fasta = readFileSync(
+    join(fixturesDir, "inputs/protein/p6_150.fasta"),
+    "utf8",
+  );
+  const alignment = unwrap(wasm.parse_fasta(fasta), "parse_fasta p6_150");
+  const script = exportR(alignment, "Kimura", "Nj", {
+    replicates: BOOT_B,
+    seed: 1,
+  });
+  try {
+    const { stdout, stderr } = runRCapture(script);
+    // Saturated formulas warn "NaNs produced" per replicate; the run's
+    // only notice must be the Skipped summary line on stdout.
+    if (/warning|NaN/i.test(stderr)) {
+      fail(
+        `p6_150 Kimura export: unexpected warnings on stderr: ` +
+          `${stderr.trim().split("\n").slice(0, 3).join(" | ")}`,
+      );
+    }
+    const m = /Skipped \(saturated\): (\d+) of (\d+)/.exec(stdout);
+    if (m === null) {
+      fail("p6_150 Kimura export: no 'Skipped (saturated)' line");
+    } else {
+      const skipped = Number(m[1]);
+      if (skipped <= 0) {
+        fail(`p6_150 Kimura export: skipped = ${skipped} (expected > 0)`);
+      }
+      // The second Newick line is the original tree with the
+      // prop.clades supports as node labels.
+      const nwk = stdout
+        .trim()
+        .split("\n")
+        .filter((l) => /^\(.*;\s*$/.test(l))
+        .map((l) => l.trim());
+      const rTree = unwrap(
+        wasm.parse_newick(nwk[nwk.length - 1]),
+        "parse_newick p6_150 boot tree",
+      );
+      const { map } = engineSupport(alignment, "Kimura", "Nj", 1, BOOT_B);
+      // Canonical key -> printed support on the R side.
+      const rPct = new Map();
+      rTree.nodes.forEach((n, id) => {
+        if (n.children.length === 0 || n.label === null) return;
+        if (!/^\d+$/.test(n.label)) return;
+        const under = new Set();
+        const stack = [id];
+        while (stack.length) {
+          const cur = rTree.nodes[stack.pop()];
+          if (cur.children.length === 0) {
+            if (cur.label !== null) under.add(cur.label);
+          } else {
+            for (const c of cur.children) stack.push(c);
+          }
+        }
+        const side = under.has(alignment.labels[0])
+          ? alignment.labels.filter((l) => !under.has(l))
+          : [...under];
+        rPct.set(side.slice().sort().join("|"), Number(n.label) / 100);
+      });
+      let worst = 0;
+      let ok = true;
+      for (const [key, frac] of map) {
+        const r = rPct.get(key);
+        if (r === undefined) {
+          fail(`p6_150 Kimura export: grouping ${key} unlabeled in R tree`);
+          ok = false;
+          continue;
+        }
+        const diff = Math.abs(frac - r);
+        worst = Math.max(worst, diff);
+        if (diff > 0.05) {
+          fail(
+            `p6_150 Kimura export: ${key} support ${Math.round(frac * 100)} ` +
+              `vs R ${Math.round(r * 100)} (>5 pp)`,
+          );
+          ok = false;
+        }
+      }
+      if (ok) {
+        checked += 1;
+        console.log(
+          `ok p6_150 Kimura export (B=${BOOT_B}): ${skipped} skipped, ` +
+            `no warnings, supports within ${(worst * 100).toFixed(1)} pp`,
+        );
+      }
+    }
+  } catch (e) {
+    fail(
+      `p6_150 Kimura export: script failed (saturated replicates must ` +
+        `be skipped, not fatal): ${e.message.slice(0, 300)}`,
+    );
+  }
+
+  // A DNA case on a non-saturating alignment completes and reports 0.
+  const jc = readFileSync(join(fixturesDir, "inputs/jc12.fasta"), "utf8");
+  const jcAln = unwrap(wasm.parse_fasta(jc), "parse_fasta jc12");
+  const jcScript = exportR(jcAln, "Jc69", "Nj", {
+    replicates: 50,
+    seed: 1,
+  });
+  try {
+    const out = runR(jcScript);
+    if (!/Skipped \(saturated\): \d+ of 50/.test(out)) {
+      fail("jc12 JC69 export: no 'Skipped (saturated)' line");
+    } else {
+      checked += 1;
+      console.log("ok jc12 JC69 export: bootstrap loop completes");
+    }
+  } catch (e) {
+    fail(`jc12 JC69 export: script failed: ${e.message.slice(0, 300)}`);
   }
 }
 

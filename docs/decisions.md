@@ -2155,6 +2155,83 @@ wedging the start queue.
   `assets/cp12-shots` (review attachments can't be uploaded via `gh`;
   they stay out of the PR diff so they never reach main on merge).
 
+## v1.2 Task 15: exports
+
+- **`write_newick_with_support` writes the integer percent in place of
+  a node's own label** — a Newick node carries one label, and spec
+  §6.8 names it "the" internal node label, so support wins (the
+  convention `ape::read.tree`'s `node.label`, FigTree and iTOL read).
+  Nodes without support keep their label; `write_newick` is
+  byte-for-byte unchanged.
+- **Tree exports follow the drawn tree, not the computed one.** `App`
+  passes `drawnTree` — support labels applied, rerooted on the
+  reference's outgroup when that view is on — and the menu items say
+  which ("SVG (rooted on wheat)"). "Consensus (Newick)" exports the
+  tree of `bootstrap.view` (the support tree on "Your tree with
+  support", else that view's consensus) so it already maps to the tab
+  Task 12's ConsensusTabs will draw.
+- **The R script's bootstrap block runs `boot.phylo` with the same
+  distance + method inside FUN** — protein included, where `x` is the
+  alignment as a character matrix and Kimura's `-log(1 - p - 0.2p²)`
+  sits inside the FUN (the protein block is skipped when the tree is
+  unbuildable). `trees = TRUE` + `phangorn::plotBS` (ape has no
+  `plotBS`); the script warns that R's draws differ and that B
+  replicates can take a while.
+- **The parity check runs the exported boot block on failure-safe
+  alignments** (jc12 JC69, p8_250 Kimura — 0 failed replicates at the
+  sampled counts), because `boot.phylo` aborts on the first FUN error
+  and cannot skip replicates the way the engine does.
+- **`ape::read.tree` cannot read an apostrophe label** (`''` reads as
+  NA, a bare `'` errors) — Review Focus 4's label round-trip is
+  asserted through our own parser; the R step checks only `Ntip` and
+  `node.label` = the supports, which is all the task asks of it.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/lib.rs` — re-export so the wasm binding
+    can call the new writer.
+  - `crates/neophylo-wasm/src/lib.rs`, `web/src/engine/index.ts` —
+    `write_newick_with_support` must cross wasm for the UI to use it;
+    adding the export is less invasive than changing `write_newick`'s
+    bytes for every existing caller.
+  - `web/src/views/App.tsx` — the displayed tree (`drawnTree`), the
+    rooted-on note, the current view's tree and the run's replicates
+    all originate in App's session/render state.
+  - `crates/neophylo-core/tests/newick.rs`,
+    `web/src/export/svg.test.ts`, `web/src/export/rscript.test.ts`,
+    `web/src/views/ExportMenu.test.tsx` — the task's tests (AGENTS.md
+    ships tests in the same PR).
+  - `docs/decisions.md` (this entry).
+
+## fix/newick-compatible-names (found at checkpoint 15)
+
+- **Owner finding:** `ape::read.tree` keeps the quote characters in a
+  quoted label and coerces `'O''Brien'` to NA (silently, with a
+  coercion warning). Exact standard Newick is correct but unreadable in
+  the tools students actually use.
+- **`write_newick_compatible(tree, support)`** maps every node label to
+  `[A-Za-z0-9._-]`: anything else becomes `_`, `_` runs collapse, and
+  collisions get `_2`, `_3`… in node order. Names already safe are
+  reserved first, so a mapped name can never steal one (the rename —
+  not the original — takes the suffix). No quotes are written; mapped
+  names are emitted bare because the map guarantees it.
+- **`compatible_names(tree)`** returns the `(original, exported)` pairs
+  that changed — it feeds the UI note and `neophylo-name-map.csv`, and
+  is empty when nothing would change.
+- **`labels_need_quotes(tree)`** is the default-mode signal: Exact when
+  no label would be quoted, Compatible otherwise. Quoting, not the
+  rename set, decides — `'Ångström_1'` needs no quotes (default stays
+  Exact) but is still renamed under Compatible.
+- **The mode is one select for both Newick exports** ("Consensus
+  (Newick)" follows the same mode) — per the task's "the same rules
+  apply to the consensus export."
+- **The R parity check runs `options(warn = 2)`** so ape's silent
+  coercion warning would abort the script; tip labels must equal the
+  mapped names exactly and `node.label` the integer supports.
+- Files touched: `crates/neophylo-core/src/{newick.rs,lib.rs}` +
+  `tests/newick.rs`, `crates/neophylo-wasm/src/lib.rs`,
+  `web/src/engine/index.ts`, `web/src/views/ExportMenu.tsx` +
+  `ExportMenu.test.tsx`, `web/src/index.css` (one select rule),
+  `web/scripts/r-parity.mjs`, `docs/decisions.md`.
+
 ## v1.2 Task 12: consensus tabs
 
 - **Tab metadata lives in `consensusTabs.ts`, not the component file.**
@@ -2275,3 +2352,101 @@ wedging the start queue.
   the wording stays exact even when the display reroot moves a UPGMA
   cluster off the drawn replicate tree — an outline then simply has
   nowhere to draw on that side.
+
+## v1.2 checkpoint 15 fixes: export item names and computed-view clipping
+
+- **The menu names the drawing, not just the rooting.** `ExportMenu`'s
+  `rootedOn: string[] | null` prop conflated "computed view" with "no
+  reroot view exists", so the items went silent exactly when the user
+  most needed to know they were exporting the unrooted tree. It is now
+  a `TreeViewState` union — `rooted` (outgroup labels), `computed`,
+  `plain` — so the item names cover all three display states, and the
+  Consensus item carries the same qualifier ("Consensus (Newick,
+  rooted on wheat)" / "… as computed, unrooted").
+- **"Consensus (Newick)" exports the drawn tree.** App now passes
+  `drawnTree` (the rerooted view's tree) instead of the stored
+  unrooted consensus whenever a consensus view exists, so the exported
+  file's rooting matches the item's name. The stored consensus is
+  unchanged — this is a display-following export, per §6.8's "the
+  current consensus view".
+- **Top-of-drawing clipped after toggling (the zebrafish bug).** Two
+  causes, both in the tree column: (1) the svg's intrinsic
+  aspect-ratio height counted as the canvas's min-content inside the
+  min-height:auto chain, inflating the column's scroll content past
+  the row, and (2) the toggle sits below that overflow, so clicking it
+  focused-scrolled the column and left the drawing's top clipped.
+  Fixes: `.consensus-tabs .tree-canvas svg` is `position: absolute`
+  (scoped — the replicate trees' canvas is sized by that intrinsic
+  height, so the global rule stays in-flow), and App resets
+  `.tree-col`'s `scrollTop` in a `useLayoutEffect` on `rerootDisplay`.
+  `scrollTop`, not `scrollTo`: jsdom implements the property but not
+  the method (all App tests render this tree).
+- **e2e asserts pixels, not just DOM.** `toBeVisible` ignores overflow
+  clipping, so the new spec checks `getBoundingClientRect` of all 8
+  leaf names inside the svg rect, the svg + caption inside the column,
+  and `scrollTop === 0` after toggling — plus the downloaded Newick's
+  top-level structure (wheat is a root child rooted, not computed).
+
+## v1.2 checkpoint 15 fixes (release blocker): figure exports and the R bootstrap
+
+- **One figure path for screen and export.** The SVG/PNG export ran its
+  own fixed-geometry layout (22 px spacing, 480 px draw width, a label
+  room reserved even where no label reached it), while the screen
+  derived the same quantities from the measured panel. The exported
+  tree was therefore a *different drawing*: pill collision resolution
+  placed support labels up to ~300 px from their nodes (read by the
+  owner as "labels on the wrong groupings"), short support branches
+  were all stretched to a 12 px floor (the "staircase"), and the
+  reserved label room showed as a large empty right area. Layout,
+  label placement and content bounds now live in
+  `web/src/layout/treeFigure.ts`; `TreeView` and `exportSvg` both
+  consume it. App feeds the export the same inputs the screen used
+  (shared leaf spacing, the measured `.tree-canvas` width via
+  `TreeView`'s `onPanelSize`, the view's `kind`, `visibleNodes`), so
+  the only export/screen differences are serialization and padding.
+- **`data-split` keys are computed in TS.** Every `g[data-node]` and
+  `.support-label` carries the canonical grouping key
+  (`web/src/layout/splitKeys.ts`): sorted labels of the canonical
+  side — the side not containing taxa[0] for unrooted (NJ) tallies,
+  the node's own leaf set for rooted-cluster (UPGMA) tallies — `|`-joined,
+  matching the form `BootstrapTally.counts` rows serialize to. The
+  canonicalization mirrors `bootstrap/split.rs` display-side; the
+  engine itself is unchanged. A rerooted NJ drawing keeps unrooted
+  keys (`splitRooted={!isNj}`) because rerooting changes only the
+  drawing; the reference tree draws its own clusters.
+- **The exported R bootstrap skips saturated replicates.** `boot.phylo`
+  aborts on the first FUN error, so a single saturated replicate
+  (p6_150 under Kimura) killed the exported run. The block is now an
+  explicit loop mirroring spec §3.3: `set.seed(<seed>)`, resample
+  columns with replacement, recompute the same distance (`distOf`),
+  skip the replicate when any off-diagonal value is non-finite (or the
+  distance/build call errors), then `ape::prop.clades(tree, kept)` over
+  the kept trees as node-label percents. It prints
+  `Skipped (saturated): S of B`, warns when `S/B > 10%` and stops with
+  a clear message when nothing succeeds. `ExportBootstrap` gained
+  `seed`; the support tree's Newick is printed last so the parity job
+  can read the values back.
+- **Checks that must fail on the pre-fix code.** Unit: `data-split` on
+  nodes/labels and content-fit bounds in `export/svg.test.ts`; the
+  loop/seed/prop.clades assertions in `export/rscript.test.ts` and
+  `ExportMenu.test.tsx`. e2e (`e2e/export-figure.spec.ts`): per-view
+  label grouping/value vs screen and tally, ≤30 px label distance,
+  ≤1% branch-length match, PNG = fitted SVG × 2, and a Newick
+  per-grouping support guard in both views. R parity
+  (`scripts/r-parity.mjs`): p6_150 Kimura must complete with
+  `Skipped > 0` and supports within 10 pp for groupings ≥ 50.
+
+### Support-label proximity (part of the same checkpoint)
+
+- **Pills may sit over the incoming branch.** The old rule "labels
+  never hang left of nodes" existed only because the fixed viewBox
+  could not extend past x=0 (a left pill clipped on the owner
+  screenshot). With content-fit bounds that cannot happen, so
+  `supportLabels` now tries, in order: right-above, right-below, then
+  the mirrored spots over the node end of the incoming branch — where
+  FigTree/iTOL put support values — and finally a 1 px scan of every
+  pill-centre position whose anchor stays within 30 px of the node.
+  Only if the whole 30 px disc is blocked does the legacy vertical
+  climb run. This is what keeps every cytochrome-c label within ~25 px
+  of its node in both views (previously 110 px in the rooted view's
+  dense cluster — the "staircase" that read as wrong groupings).

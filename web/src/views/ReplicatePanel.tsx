@@ -369,6 +369,8 @@ export function ReplicatePanel({
                       wrong={repWrong}
                       clampNegative={clampNegative}
                       leafSpacing={leafSpacing}
+                      splitTaxa={taxa}
+                      splitRooted={method === "Upgma"}
                     />
                   )}
                   <TreeView
@@ -379,6 +381,8 @@ export function ReplicatePanel({
                     wrong={origMatch.nodes}
                     clampNegative={clampNegative}
                     leafSpacing={leafSpacing}
+                    splitTaxa={taxa}
+                    splitRooted={method === "Upgma"}
                   />
                 </div>
               </>

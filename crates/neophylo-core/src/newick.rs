@@ -12,6 +12,14 @@
 //! document (left-to-right) order and internal nodes are numbered in the
 //! order their `(` is read (top-down, left-to-right). The parsed tree is
 //! `rooted = true` when the root has exactly 2 children.
+//!
+//! A second writing mode emits "compatible" names for tools that
+//! mishandle quoting (`ape::read.tree` keeps the quote characters and
+//! coerces `'O''Brien'` to NA): every character outside
+//! `[A-Za-z0-9._-]` becomes `_`, runs collapse, collisions get `_2`,
+//! `_3`… and no quotes are written (checkpoint-15 owner finding).
+
+use std::collections::HashSet;
 
 use crate::error::NeoError;
 use crate::tree::{NodeId, Tree};
@@ -48,6 +56,112 @@ pub fn parse_newick(text: &str) -> Result<Tree, NeoError> {
 /// Serialize `tree` as Newick. Iterative, so degenerate or cyclic inputs
 /// cannot overflow the stack; unreachable or repeated nodes are skipped.
 pub fn write_newick(tree: &Tree) -> String {
+    write(tree, false)
+}
+
+/// Serialize `tree` as Newick with bootstrap support written as
+/// internal node labels (v1.2 spec §6.8): a node whose branch carries
+/// `Math.round(100·s)` as its label, the convention
+/// `ape::read.tree`'s `node.label`, FigTree and iTOL read. The label
+/// replaces any the node already had — a node can carry only one — and
+/// `parse_newick` re-reads the values as ordinary internal labels.
+pub fn write_newick_with_support(tree: &Tree) -> String {
+    write(tree, true)
+}
+
+/// Serialize `tree` with tool-compatible names (no quotes): labels are
+/// mapped per `compatible_names`. `support` selects integer-percent
+/// internal labels exactly as `write_newick_with_support`.
+pub fn write_newick_compatible(tree: &Tree, support: bool) -> String {
+    write_mapped(tree, support, Some(&compat_label_map(tree)))
+}
+
+/// The `(original, exported)` renames a compatible write applies, in
+/// node order (leaves are numbered in document order). Empty when every
+/// label is already tool-safe.
+pub fn compatible_names(tree: &Tree) -> Vec<(String, String)> {
+    compat_label_map(tree)
+        .iter()
+        .enumerate()
+        .filter_map(|(i, name)| {
+            let name = name.as_ref()?;
+            let orig = tree.nodes[i].label.as_deref()?;
+            (orig != name).then(|| (orig.to_string(), name.clone()))
+        })
+        .collect()
+}
+
+/// True when a verbatim write would single-quote at least one label —
+/// the condition under which compatible names become the better export
+/// default, since quoted labels break ape/FigTree/iTOL.
+pub fn labels_need_quotes(tree: &Tree) -> bool {
+    tree.nodes
+        .iter()
+        .any(|n| n.label.as_deref().is_some_and(needs_quote))
+}
+
+/// Characters an unquoted compatible name may contain.
+fn is_compat_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')
+}
+
+/// Map a label to a tool-safe name: unsafe characters become `_`,
+/// runs of `_` collapse to one, and the result is never empty.
+fn sanitize_label(label: &str) -> String {
+    let mut s = String::with_capacity(label.len());
+    let mut pending_us = false;
+    for c in label.chars() {
+        if is_compat_char(c) {
+            s.push(c);
+            pending_us = false;
+        } else if !pending_us {
+            s.push('_');
+            pending_us = true;
+        }
+    }
+    if s.is_empty() {
+        s.push('_');
+    }
+    s
+}
+
+/// The label every node gets in a compatible write: safe labels pass
+/// through; unsafe ones are sanitized and made unique with `_2`,
+/// `_3`… against each other and against names that were already safe
+/// (which are reserved first so they keep their names).
+fn compat_label_map(tree: &Tree) -> Vec<Option<String>> {
+    let mut out: Vec<Option<String>> = vec![None; tree.nodes.len()];
+    let mut used: HashSet<String> = tree
+        .nodes
+        .iter()
+        .filter_map(|n| n.label.as_ref())
+        .filter(|l| !l.is_empty() && l.chars().all(is_compat_char))
+        .cloned()
+        .collect();
+    for (i, node) in tree.nodes.iter().enumerate() {
+        let Some(label) = &node.label else { continue };
+        if !label.is_empty() && label.chars().all(is_compat_char) {
+            out[i] = Some(label.clone());
+            continue;
+        }
+        let base = sanitize_label(label);
+        let mut name = base.clone();
+        let mut k = 2u32;
+        while used.contains(&name) {
+            name = format!("{base}_{k}");
+            k += 1;
+        }
+        used.insert(name.clone());
+        out[i] = Some(name);
+    }
+    out
+}
+
+fn write(tree: &Tree, support: bool) -> String {
+    write_mapped(tree, support, None)
+}
+
+fn write_mapped(tree: &Tree, support: bool, names: Option<&[Option<String>]>) -> String {
     let mut out = String::new();
     let n = tree.nodes.len();
     if n == 0 || tree.root.0 as usize >= n {
@@ -73,7 +187,7 @@ pub fn write_newick(tree: &Tree) -> String {
                 emit_open(tree, c, &mut out);
             }
         } else {
-            emit_close(tree, NodeId(u as u32), &mut out);
+            emit_close(tree, NodeId(u as u32), support, names, &mut out);
         }
     }
     out.push(';');
@@ -87,14 +201,44 @@ fn emit_open(tree: &Tree, id: NodeId, out: &mut String) {
     }
 }
 
-/// Emit `)`, then the label, then `:length` (never on the root).
-fn emit_close(tree: &Tree, id: NodeId, out: &mut String) {
+/// Emit `)`, then the label, then `:length` (never on the root). With
+/// `support` a branch fraction wins over the node's own label and is
+/// written bare as an integer percent clamped to 0–100 (NaN-safe).
+/// `names`, when given, replaces every emitted label with the mapped
+/// compatible name, written bare — the map guarantees it needs none.
+fn emit_close(
+    tree: &Tree,
+    id: NodeId,
+    support: bool,
+    names: Option<&[Option<String>]>,
+    out: &mut String,
+) {
     let node = &tree.nodes[id.0 as usize];
     if !node.children.is_empty() {
         out.push(')');
     }
-    if let Some(label) = &node.label {
-        write_label(label, out);
+    // Internal nodes only: support labels mark groupings, and a leaf
+    // must never lose its taxon name to a stray branch fraction.
+    let s = (support && !node.children.is_empty())
+        .then(|| tree.branches[id.0 as usize].support)
+        .flatten();
+    match s {
+        Some(s) => {
+            let pct = (s * 100.0).round().clamp(0.0, 100.0) as u64;
+            out.push_str(&pct.to_string());
+        }
+        None => match names {
+            Some(ns) => {
+                if let Some(Some(name)) = ns.get(id.0 as usize) {
+                    out.push_str(name);
+                }
+            }
+            None => {
+                if let Some(label) = &node.label {
+                    write_label(label, out);
+                }
+            }
+        },
     }
     if id != tree.root {
         if let Some(len) = tree.branch_length(id) {
@@ -104,14 +248,20 @@ fn emit_close(tree: &Tree, id: NodeId, out: &mut String) {
     }
 }
 
-/// Write `label` bare, or single-quoted with `'` doubled when it contains
-/// whitespace, a delimiter, `<`, `>` or is empty. `<`/`>` are quoted so
+/// True when `label` must be single-quoted in standard Newick:
+/// whitespace, a delimiter, `<`, `>` or empty. `<`/`>` are quoted so
 /// markup-looking labels stay visibly literal (Review Focus 2).
-fn write_label(label: &str, out: &mut String) {
-    let bare = !label.is_empty()
-        && !label
+fn needs_quote(label: &str) -> bool {
+    label.is_empty()
+        || label
             .chars()
-            .any(|c| c.is_whitespace() || is_delim(c) || c == '<' || c == '>');
+            .any(|c| c.is_whitespace() || is_delim(c) || c == '<' || c == '>')
+}
+
+/// Write `label` bare, or single-quoted with `'` doubled when
+/// `needs_quote` says so.
+fn write_label(label: &str, out: &mut String) {
+    let bare = !needs_quote(label);
     if bare {
         out.push_str(label);
         return;
