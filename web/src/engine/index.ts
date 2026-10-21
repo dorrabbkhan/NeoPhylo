@@ -7,11 +7,13 @@ import init, {
   bootstrap_batch,
   build_tree,
   compare,
+  compatible_names,
   consensus,
   consensus_dropped,
   detect_alphabet,
   distances,
   jtt_pair_detail,
+  labels_need_quotes,
   load_exercise,
   merge_tallies,
   parse_fasta,
@@ -24,6 +26,7 @@ import init, {
   support_on_tree,
   with_alphabet,
   write_newick,
+  write_newick_compatible,
   write_newick_with_support,
   write_phylip_matrix,
 } from "./pkg/neophylo_wasm.js";
@@ -87,6 +90,43 @@ export const engine = {
     const r: Result<string> = write_newick_with_support(t);
     if (!r.ok) {
       throw new Error(`write_newick_with_support failed: ${r.error.kind}`);
+    }
+    return r.value;
+  },
+  /**
+   * Serialize a `Tree` to Newick with tool-compatible names — chars
+   * outside `[A-Za-z0-9._-]` become `_` (runs collapsed), collisions
+   * get `_2`/`_3`, no quotes (fix/newick-compatible-names: quoted
+   * labels break ape::read.tree, FigTree and iTOL). `support` selects
+   * integer-% internal labels.
+   */
+  writeNewickCompatible(t: Tree, support: boolean): string {
+    const r: Result<string> = write_newick_compatible(t, support);
+    if (!r.ok) {
+      throw new Error(`write_newick_compatible failed: ${r.error.kind}`);
+    }
+    return r.value;
+  },
+  /**
+   * The (original, exported) renames a compatible Newick write
+   * applies — empty when every label is already tool-safe. Feeds the
+   * export's name-map CSV and note.
+   */
+  compatibleNames(t: Tree): [string, string][] {
+    const r: Result<[string, string][]> = compatible_names(t);
+    if (!r.ok) {
+      throw new Error(`compatible_names failed: ${r.error.kind}`);
+    }
+    return r.value;
+  },
+  /**
+   * True when a verbatim write would quote at least one label — the
+   * export's default-name-mode signal.
+   */
+  labelsNeedQuotes(t: Tree): boolean {
+    const r: Result<boolean> = labels_need_quotes(t);
+    if (!r.ok) {
+      throw new Error(`labels_need_quotes failed: ${r.error.kind}`);
     }
     return r.value;
   },

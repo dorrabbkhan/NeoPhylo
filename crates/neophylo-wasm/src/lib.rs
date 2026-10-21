@@ -116,6 +116,30 @@ pub fn write_newick_with_support(tree: JsValue) -> JsValue {
     to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::write_newick_with_support(&t)))
 }
 
+/// Serialize a `Tree` to Newick with tool-compatible names — every
+/// character outside `[A-Za-z0-9._-]` becomes `_` (runs collapsed),
+/// collisions get `_2`/`_3`, no quotes (checkpoint-15 fix:
+/// ape/FigTree/iTOL mishandle quoted labels). `support` selects
+/// integer-percent internal labels.
+#[wasm_bindgen]
+pub fn write_newick_compatible(tree: JsValue, support: bool) -> JsValue {
+    to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::write_newick_compatible(&t, support)))
+}
+
+/// The `(original, exported)` renames a compatible Newick write
+/// applies, in node order; empty when every label is already safe.
+#[wasm_bindgen]
+pub fn compatible_names(tree: JsValue) -> JsValue {
+    to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::compatible_names(&t)))
+}
+
+/// True when a verbatim Newick write would quote at least one label —
+/// the signal that switches the export's default name mode.
+#[wasm_bindgen]
+pub fn labels_need_quotes(tree: JsValue) -> JsValue {
+    to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::labels_need_quotes(&t)))
+}
+
 /// Compute pairwise distances under `model` (spec §4.3).
 #[wasm_bindgen]
 pub fn distances(aln: JsValue, model: JsValue) -> JsValue {

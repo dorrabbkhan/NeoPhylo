@@ -52,6 +52,19 @@ function download(filename: string, blob: Blob): void {
   URL.revokeObjectURL(url);
 }
 
+/** Build the two-column name-map CSV, quoting fields containing
+ * `"`, `,` or newlines. */
+function nameMapCsv(pairs: [string, string][]): string {
+  const esc = (s: string) =>
+    /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+  const rows = pairs.map(([a, b]) => `${esc(a)},${esc(b)}`);
+  return `original,exported\n${rows.join("\n")}\n`;
+}
+
+/** Newick label mode (checkpoint-15 fix): standard quoting, or
+ * tool-compatible names for ape/FigTree/iTOL. */
+type NameLabelMode = "exact" | "compatible";
+
 export function ExportMenu({
   tree,
   alignment,
@@ -69,6 +82,21 @@ export function ExportMenu({
     relaxed: boolean;
     saturated: boolean;
   } | null>(null);
+  // null = not yet chosen: the mode then defaults to Compatible when a
+  // name on either exportable tree would need quoting (those break
+  // ape::read.tree, FigTree and iTOL), else Exact.
+  const [chosenMode, setChosenMode] = useState<NameLabelMode | null>(null);
+  const needsQuotes =
+    (tree !== null && engine.labelsNeedQuotes(tree)) ||
+    (consensusTree !== null && engine.labelsNeedQuotes(consensusTree));
+  const nameMode: NameLabelMode =
+    chosenMode ?? (needsQuotes ? "compatible" : "exact");
+  // The renames a compatible export applies (leaf labels are shared
+  // between the displayed and consensus trees, so either works).
+  const namePairs =
+    nameMode === "compatible" && (tree ?? consensusTree) !== null
+      ? engine.compatibleNames((tree ?? consensusTree) as Tree)
+      : [];
 
   const svg = () =>
     exportSvg(tree as Tree, { kind: "phylogram", clampNegative });
@@ -88,21 +116,28 @@ export function ExportMenu({
     }
   };
 
-  const onNewick = () =>
-    download(
-      "neophylo-tree.nwk",
-      new Blob([engine.writeNewickWithSupport(tree as Tree)], {
-        type: "text/plain",
-      }),
-    );
+  // Both Newick exports honor the label mode (checkpoint-15 fix); a
+  // compatible write that renamed anything also downloads the
+  // original→exported map CSV.
+  const onNewickTree = (t: Tree, filename: string) => {
+    const text =
+      nameMode === "compatible"
+        ? engine.writeNewickCompatible(t, true)
+        : engine.writeNewickWithSupport(t);
+    download(filename, new Blob([text], { type: "text/plain" }));
+    const pairs = engine.compatibleNames(t);
+    if (nameMode === "compatible" && pairs.length > 0) {
+      download(
+        "neophylo-name-map.csv",
+        new Blob([nameMapCsv(pairs)], { type: "text/csv" }),
+      );
+    }
+  };
+
+  const onNewick = () => onNewickTree(tree as Tree, "neophylo-tree.nwk");
 
   const onConsensus = () =>
-    download(
-      "neophylo-consensus.nwk",
-      new Blob([engine.writeNewickWithSupport(consensusTree as Tree)], {
-        type: "text/plain",
-      }),
-    );
+    onNewickTree(consensusTree as Tree, "neophylo-consensus.nwk");
 
   const onR = () =>
     download(
@@ -172,6 +207,42 @@ export function ExportMenu({
           Distance matrix (PHYLIP)
         </button>
       </div>
+      <label className="newick-name-mode">
+        Newick names:{" "}
+        <select
+          value={nameMode}
+          onChange={(e) =>
+            setChosenMode(e.target.value as NameLabelMode)
+          }
+        >
+          <option value="exact">Exact (standard Newick, quoted)</option>
+          <option value="compatible">
+            Compatible (recommended for R, FigTree, iTOL)
+          </option>
+        </select>
+      </label>
+      {nameMode === "compatible" && namePairs.length > 0 && (
+        <div className="phylip-note" role="status">
+          <p>
+            {needsQuotes
+              ? "Compatible names are the default because some names would " +
+                "need quoting, which ape::read.tree turns into NA. "
+              : ""}
+            Renamed for compatibility (also saved to
+            neophylo-name-map.csv):
+          </p>
+          <ul>
+            {namePairs.slice(0, 6).map(([from, to]) => (
+              <li key={from}>
+                {from} → {to}
+              </li>
+            ))}
+            {namePairs.length > 6 && (
+              <li>…and {namePairs.length - 6} more</li>
+            )}
+          </ul>
+        </div>
+      )}
       {phylipNote !== null && (
         <div className="phylip-note" role="status">
           {phylipNote.relaxed && (

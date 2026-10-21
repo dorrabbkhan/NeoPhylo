@@ -2201,3 +2201,34 @@ wedging the start queue.
     ships tests in the same PR).
   - `docs/decisions.md` (this entry).
 
+## fix/newick-compatible-names (found at checkpoint 15)
+
+- **Owner finding:** `ape::read.tree` keeps the quote characters in a
+  quoted label and coerces `'O''Brien'` to NA (silently, with a
+  coercion warning). Exact standard Newick is correct but unreadable in
+  the tools students actually use.
+- **`write_newick_compatible(tree, support)`** maps every node label to
+  `[A-Za-z0-9._-]`: anything else becomes `_`, `_` runs collapse, and
+  collisions get `_2`, `_3`… in node order. Names already safe are
+  reserved first, so a mapped name can never steal one (the rename —
+  not the original — takes the suffix). No quotes are written; mapped
+  names are emitted bare because the map guarantees it.
+- **`compatible_names(tree)`** returns the `(original, exported)` pairs
+  that changed — it feeds the UI note and `neophylo-name-map.csv`, and
+  is empty when nothing would change.
+- **`labels_need_quotes(tree)`** is the default-mode signal: Exact when
+  no label would be quoted, Compatible otherwise. Quoting, not the
+  rename set, decides — `'Ångström_1'` needs no quotes (default stays
+  Exact) but is still renamed under Compatible.
+- **The mode is one select for both Newick exports** ("Consensus
+  (Newick)" follows the same mode) — per the task's "the same rules
+  apply to the consensus export."
+- **The R parity check runs `options(warn = 2)`** so ape's silent
+  coercion warning would abort the script; tip labels must equal the
+  mapped names exactly and `node.label` the integer supports.
+- Files touched: `crates/neophylo-core/src/{newick.rs,lib.rs}` +
+  `tests/newick.rs`, `crates/neophylo-wasm/src/lib.rs`,
+  `web/src/engine/index.ts`, `web/src/views/ExportMenu.tsx` +
+  `ExportMenu.test.tsx`, `web/src/index.css` (one select rule),
+  `web/scripts/r-parity.mjs`, `docs/decisions.md`.
+
