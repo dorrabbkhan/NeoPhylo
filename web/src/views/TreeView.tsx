@@ -61,8 +61,13 @@ export interface TreeViewProps {
   /** Called with the edge's canonical split key when an internal
    * branch is clicked — predict_branch prompts (v1.2 spec §7.1). A
    * wide invisible hit line is drawn over each internal edge while
-   * this is set; terminal (leaf) edges stay unpickable. */
+   * this is set. */
   onPickBranch?: (splitKey: string) => void;
+  /** Called (no argument) when a terminal edge is clicked —
+   * predict_branch prompts use it to explain that a leaf's branch
+   * can't be the answer (v1.2 spec §7.1). Draws a hit line over each
+   * terminal edge while set. */
+  onPickTerminal?: () => void;
   /** Panel caption and the svg's accessible name. "True tree" /
    * "Inferred tree", or the classification variant (v1.1 spec §5.3). */
   title: string;
@@ -104,6 +109,7 @@ export function TreeView({
   onHoverLeaf,
   onPickLeaf,
   onPickBranch,
+  onPickTerminal,
   title,
 }: TreeViewProps) {
   const [boxRef, box] = usePanelSize();
@@ -200,6 +206,16 @@ export function TreeView({
                     x2={tx(n.x)}
                     y2={ty(n.y)}
                     onClick={() => onPickBranch(keys.get(n.id) ?? "")}
+                  />
+                )}
+                {hasVisibleParent && n.leaf && onPickTerminal !== undefined && (
+                  <line
+                    className="branch-hit"
+                    x1={tx(n.parentX)}
+                    y1={ty(n.y)}
+                    x2={tx(n.x)}
+                    y2={ty(n.y)}
+                    onClick={() => onPickTerminal()}
                   />
                 )}
                 {children.length > 0 && (

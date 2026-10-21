@@ -38,12 +38,19 @@ test("bootstrap-basics: branch pick gates Run; the verdict names (E, F, G, H)", 
     await page.locator(`${INFERRED} .support-label`).count(),
   ).toBe(0);
 
-  // Terminal edges are unpickable; internal edges carry hit lines. The
-  // hit line is a zero-height <line> — invisible per Playwright's
+  // Every edge carries a hit line — but a terminal click isn't an
+  // answer: it explains itself and Run stays gated. Hit lines are
+  // zero-height <line> elements — invisible per Playwright's
   // actionability check in Chromium/WebKit — so clicks are dispatched
   // directly rather than through click()'s visibility gate.
   const svg = page.locator(INFERRED);
-  expect(await svg.locator('g[data-split="E"] .branch-hit').count()).toBe(0);
+  const leafHit = svg.locator('g[data-split="E"] .branch-hit');
+  expect(await leafHit.count()).toBe(1);
+  await leafHit.dispatchEvent("click");
+  await expect(
+    page.getByText("Pick a branch that joins two or more taxa."),
+  ).toBeVisible();
+  await expect(run).toBeDisabled();
   expect(await svg.locator('g[data-split="C|D"] .branch-hit').count()).toBe(1);
 
   // A wrong pick answers the prompt but does not hide the truth: the
@@ -91,14 +98,60 @@ test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 
   const run = page.getByRole("button", { name: /Run bootstrap/ });
   await expect(run).toBeEnabled();
   await run.click();
-  await expect(
-    page.locator('g[data-split="E|F|G|H"] .support-label'),
-  ).not.toHaveText("57", { timeout: 60_000 });
-  const text = await page
-    .locator('g[data-split="E|F|G|H"] .support-label')
-    .textContent();
-  expect(
-    Number(text),
-    "premise: support on (E,F,G,H) rises ≥ 20 points at length 3000",
-  ).toBeGreaterThanOrEqual(77);
+  await expect(async () => {
+    const v = await page
+      .locator('g[data-split="E|F|G|H"] .support-label')
+      .textContent();
+    expect(
+      Number(v),
+      "premise: support on (E,F,G,H) rises ≥ 20 points at length 3000",
+    ).toBeGreaterThanOrEqual(77);
+  }).toPass({ timeout: 60_000 });
+});
+
+test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own seed", async ({
+  page,
+}) => {
+  test.setTimeout(180_000); // three real bootstrap runs + a lesson switch
+  const WEAK = 'g[data-split="E|F|G|H"] .support-label';
+  const panel = page.locator(".bootstrap-panel");
+
+  // Arrive from a lesson where the student changed the bootstrap seed:
+  // the exercise's own block must take over on load (Task 10 fix).
+  await page.goto("/?lesson=nj-basics");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await panel.getByLabel("Seed").fill("7");
+  await page.getByRole("button", { name: "Lessons" }).click();
+  await page
+    .getByRole("menuitemradio", { name: /Bootstrap: how sure is the tree/ })
+    .click();
+  await waitForApp(page);
+  await stepToEnd(page);
+  await expect(panel.getByLabel("Seed")).toHaveValue("96");
+
+  // First run at the lesson's seed: 57 on the designed grouping.
+  const svg = page.locator(INFERRED);
+  await svg
+    .locator('g[data-split="E|F|G|H"] .branch-hit')
+    .dispatchEvent("click");
+  const run = page.getByRole("button", { name: /Run bootstrap/ });
+  await run.click();
+  const label = svg.locator(WEAK);
+  await expect(label).toHaveText("57", { timeout: 60_000 });
+
+  // A different bootstrap seed resamples differently — the estimate
+  // moves (the lesson's seed-variance note).
+  await panel.getByLabel("Seed").fill("97");
+  await run.click();
+  await expect(async () => {
+    const v = await label.textContent();
+    expect(v).not.toBeNull();
+    expect(Number(v)).not.toBe(57);
+  }).toPass({ timeout: 60_000 });
+
+  // The same seed reproduces the same value — the tally is seeded.
+  await panel.getByLabel("Seed").fill("96");
+  await run.click();
+  await expect(label).toHaveText("57", { timeout: 60_000 });
 });

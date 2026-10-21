@@ -2538,3 +2538,13 @@ wedging the start queue.
   closing note are spoiler-safe: math lines render in math mode before
   the run, so none names the designed branch; only the post-verdict
   reveal does.
+- Task-14 follow-up (owner notes): terminal edges draw hit lines too —
+  a leaf-edge click is not an answer but explains itself via
+  `onPickTerminal` → "Pick a branch that joins two or more taxa." This
+  changes the earlier "terminal branches are unpickable" design; the
+  hint is separate from the answer state so Run stays gated. The lesson
+  gained a seed-variance note (different bootstrap seed → ±few points;
+  1,000 replicates steadies) and the closing note warns against
+  overinterpreting small differences. The final-step figure screenshot
+  ships in docs/media/ (rule 10 names media the exception) for the
+  PR's owner-review figure.

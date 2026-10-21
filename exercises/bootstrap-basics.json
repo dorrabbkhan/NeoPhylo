@@ -33,13 +33,19 @@
     {
       "at_step": 7,
       "type": "note",
+      "concept": "Support is an estimate, too. Re-run with a different bootstrap Seed and watch the labels move by a few points — about ±5 near 50% at 100 replicates. Then raise Replicates to 1,000 and run again: the numbers steady to roughly ±1.6.",
+      "math": "Resampling error shrinks like 1/√B: near 50% support it is about ±5 points at 100 replicates and ±1.6 at 1,000."
+    },
+    {
+      "at_step": 7,
+      "type": "note",
       "concept": "Now try more data. Raise Length to 3,000 — ten times as many columns — and run again. Watch what happens to that grouping's support.",
       "math": "Signal scales with sites: the same tree under 10× the columns puts ~10× the expected substitutions on every branch, short ones included."
     },
     {
       "at_step": 7,
       "type": "note",
-      "concept": "Read the numbers carefully: when a grouping shows 87, it means 87 of 100 resampled datasets rebuilt that grouping — not that the grouping has an 87% chance of being true. The bootstrap measures consistency under resampling, not the probability of being right.",
+      "concept": "Read the numbers carefully: when a grouping shows 87, it means 87 of 100 resampled datasets rebuilt that grouping — not that the grouping has an 87% chance of being true. The bootstrap measures consistency under resampling, not the probability of being right — so don't overinterpret differences of a few points either.",
       "math": null
     }
   ]

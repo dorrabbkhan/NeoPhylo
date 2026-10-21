@@ -26,10 +26,11 @@ export interface PromptCardProps {
    * pair (the card then renders like a note). */
   answer: [string, string] | null;
   /** predict_branch state (v1.2 §7.1): the clicked internal branch's
-   * split key, and — once a run lands — the verdict against the
-   * weakest grouping. */
+   * split key, whether the student last clicked a terminal edge, and —
+   * once a run lands — the verdict against the weakest grouping. */
   branch?: {
     picked: string | null;
+    terminalPicked?: boolean;
     verdict: {
       correct: boolean;
       weakest: string[];
@@ -111,10 +112,15 @@ export function PromptCard({
           Pick a cell in the matrix, or two leaves in a tree.
         </p>
       )}
-      {isBranch && !branchPicked && (
+      {isBranch && !branchPicked && !branch?.terminalPicked && (
         <p className="prompt-hint">
           Click an internal branch of the inferred tree — terminal branches
           don't count.
+        </p>
+      )}
+      {isBranch && !branchPicked && branch?.terminalPicked === true && (
+        <p className="prompt-hint">
+          Pick a branch that joins two or more taxa.
         </p>
       )}
       {isBranch && branchPicked && verdict === null && (

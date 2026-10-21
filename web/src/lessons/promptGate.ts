@@ -46,9 +46,16 @@ export interface PromptGate {
   /** The clicked internal branch's split key for the prompt at step
    * `at`, if answered. */
   pickedBranch: (at: number) => string | null;
+  /** True when the student clicked a terminal edge while a
+   * predict_branch prompt is open — the card explains leaf branches
+   * can't be the answer (v1.2 spec §7.1). */
+  terminalPick: boolean;
   /** Record an internal-branch click (split key) as the answer to the
    * shown predict_branch prompt. */
   onPickBranch: (splitKey: string) => void;
+  /** Record a terminal-edge click against the shown predict_branch
+   * prompt — not an answer, just the "joins two or more taxa" hint. */
+  onPickTerminal: () => void;
   /** First leaf of an in-progress two-leaf pick (for highlighting). */
   leafPick: string | null;
   /** Answer a predict prompt with matrix cell (i, j); ignores diagonal. */
@@ -87,6 +94,7 @@ export function usePromptGate({
   const [branchAnswered, setBranchAnswered] = useState<
     ReadonlyMap<number, string>
   >(new Map());
+  const [terminalPick, setTerminalPick] = useState(false);
   const [leafPick, setLeafPick] = useState<string | null>(null);
 
   // A new exercise (new prompts array) forgets all answers; a position
@@ -97,10 +105,12 @@ export function usePromptGate({
     setLastPrompts(promptList);
     setAnswered(new Map());
     setBranchAnswered(new Map());
+    setTerminalPick(false);
     setLeafPick(null);
   }
   if (position !== lastPosition) {
     setLastPosition(position);
+    setTerminalPick(false);
     setLeafPick(null);
   }
 
@@ -125,6 +135,13 @@ export function usePromptGate({
   const onPickBranch = (splitKey: string) => {
     if (branchGating === null) return;
     setBranchAnswered((m) => new Map(m).set(branchGating.at_step, splitKey));
+    setTerminalPick(false);
+  };
+  // A leaf edge is never the answer: flag the miss so the card can
+  // explain, but leave the prompt unanswered (Run stays gated).
+  const onPickTerminal = () => {
+    if (branchGating === null) return;
+    setTerminalPick(true);
   };
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
@@ -163,7 +180,9 @@ export function usePromptGate({
     picked: (at) => answered.get(at) ?? null,
     branchGating,
     pickedBranch: (at) => branchAnswered.get(at) ?? null,
+    terminalPick,
     onPickBranch,
+    onPickTerminal,
     leafPick,
     onPickCell,
     onPickLeaf,

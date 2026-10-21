@@ -237,4 +237,22 @@ describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {
     ).toBeTruthy();
     expect(screen.getByText(/Short internal branches/)).toBeTruthy();
   });
+
+  it("a terminal-edge click explains leaf branches can't be the answer", () => {
+    render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{ picked: null, terminalPicked: true, verdict: null }}
+      />,
+    );
+    expect(
+      screen.getByText("Pick a branch that joins two or more taxa."),
+    ).toBeTruthy();
+    // The generic hint is replaced, and the prompt stays unanswered.
+    expect(screen.queryByText(/Click an internal branch/)).toBeNull();
+    expect(screen.queryByText(/Not quite/)).toBeNull();
+  });
 });

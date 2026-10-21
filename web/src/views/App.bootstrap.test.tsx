@@ -759,10 +759,16 @@ describe("predict_branch gating and verdict (v1.2 Task 14)", () => {
     expect(screen.getByText(/Click an internal branch/)).toBeTruthy();
 
     const svg = inferredSvg();
-    // A terminal edge has no pick target at all (leaf D's group carries
-    // its own split key "D").
-    const leafGroup = svg.querySelector('g[data-split="D"]');
-    expect(leafGroup?.querySelector(".branch-hit")).toBeNull();
+    // Clicking a terminal edge explains it isn't an answer — the prompt
+    // stays open and Run stays gated (leaf D's group carries the split
+    // key "D").
+    const leafHit = svg.querySelector('g[data-split="D"] .branch-hit');
+    expect(leafHit).not.toBeNull();
+    fireEvent.click(leafHit!);
+    expect(
+      screen.getByText("Pick a branch that joins two or more taxa."),
+    ).toBeTruthy();
+    expect((run as HTMLButtonElement).disabled).toBe(true);
     // Clicking the (D,E) internal branch answers the prompt.
     const hit = svg.querySelector('g[data-split="D|E"] .branch-hit');
     expect(hit).not.toBeNull();

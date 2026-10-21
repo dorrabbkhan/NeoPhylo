@@ -840,6 +840,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                     p.type === "predict_branch"
                       ? {
                           picked: promptGate.pickedBranch(p.at_step),
+                          terminalPicked: promptGate.terminalPick,
                           verdict:
                             weakestBranch !== null &&
                             promptGate.pickedBranch(p.at_step) !== null
@@ -929,6 +930,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         promptGate.branchGating !== null &&
                         consensusTree === null
                           ? promptGate.onPickBranch
+                          : undefined
+                      }
+                      onPickTerminal={
+                        promptGate.branchGating !== null &&
+                        consensusTree === null
+                          ? promptGate.onPickTerminal
                           : undefined
                       }
                     />
