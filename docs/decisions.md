@@ -2824,3 +2824,13 @@ wedging the start queue.
 `web/e2e/bootstrap.spec.ts` (offline SW controller wait),
 `web/e2e/bootstrap-lesson.spec.ts` (lesson-switch h1 wait),
 `docs/decisions.md` (this entry).
+
+## v1.3 Task 1: skills map, spec and plan, snapshot-baseline rule
+
+- The v1.3 spec and plan were landed on main before this task ran, so
+  the "Create: the spec and this plan" Files entry needed no work.
+- Files outside the Files block: the plan's Files block lists
+  `CODEOWNERS`; the repo's file is `.github/CODEOWNERS` (no root-level
+  CODEOWNERS exists or was created). The
+  `/web/e2e/__screenshots__/ @dorrabbkhan` line was added there.
+  `docs/decisions.md` carries this entry.
