@@ -9,6 +9,8 @@ if [ -f web/package.json ]; then
   ( cd web
     [ -d node_modules ] || npm ci
     npm run lint
+    # Token discipline (v1.3 spec §3.4): literals outside tokens.ts fail.
+    node scripts/check-token-discipline.mjs
     npm test
     npm run build )
 fi

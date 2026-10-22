@@ -1,48 +1,20 @@
+@import "./design/tokens.css";
+
+/* Theme tokens live in generated design/tokens.css (from
+ * design/tokens.ts via the Vite plugin — spec §3.1). Bare :root gets
+ * light; prefers-color-scheme still applies dark until Task 6 wires
+ * data-theme. Only the non-token document defaults stay here. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --fg: #241f2e; /* foreground for SVG lines and text (trees, heatmap) */
-  --bg: #fff;
-  --border: #e5e4e7;
-  --panel: #fafaf9;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  /* Text on --accent-bg or --bg must reach 4.5:1 (axe, spec §6.5);
-     --accent itself is too light for text. */
-  --accent-text: #6d28d9;
-  --danger: #b3261e;
-
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --heading: system-ui, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 15px/145% var(--sans);
+  font-family: var(--font-ui);
+  font-size: var(--size-legacy-15);
+  line-height: 145%;
   color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --fg: #e5e7eb;
-    --bg: #16171d;
-    --panel: #1c1d24;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --accent-text: #c084fc;
-    --danger: #f28b82;
-  }
 }
 
 * {
@@ -60,18 +32,18 @@ body {
 
 h1,
 h2 {
-  font-family: var(--heading);
+  font-family: var(--font-ui);
   font-weight: 500;
-  color: var(--text-h);
+  color: var(--color-text-h);
 }
 
 h1 {
-  font-size: 20px;
+  font-size: var(--size-lg);
   margin: 0;
 }
 
 h2 {
-  font-size: 14px;
+  font-size: var(--size-sm);
   margin: 12px 0 6px;
 }
 
@@ -100,7 +72,7 @@ p {
 
 .app-header {
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -111,7 +83,7 @@ p {
  * the checked option is filled with the accent color. */
 .mode-switch {
   display: flex;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -121,17 +93,17 @@ p {
   padding: 4px 14px;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
 .mode-switch button + button {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--color-border);
 }
 
 .mode-switch button[aria-checked="true"] {
-  background: var(--accent-bg);
-  color: var(--accent-text);
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
   font-weight: 600;
 }
 
@@ -146,19 +118,19 @@ p {
 
 .lessons-menu > button {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: var(--fg);
+  color: var(--color-text);
   padding: 4px 10px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
   cursor: pointer;
 }
 
 .lessons-menu > button:hover,
 .lessons-menu > button:focus-visible,
 .lessons-menu > button[aria-expanded="true"] {
-  border-color: var(--accent-border);
+  border-color: var(--color-accent-border);
 }
 
 .lessons-menu-list {
@@ -169,10 +141,10 @@ p {
   min-width: 300px;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--bg);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -181,9 +153,9 @@ p {
   text-align: left;
   padding: 8px 12px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
   background: transparent;
-  color: var(--text);
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
@@ -193,17 +165,17 @@ p {
 
 .lessons-menu-list [role="menuitemradio"]:hover,
 .lessons-menu-list [role="menuitemradio"]:focus-visible {
-  background: var(--accent-bg);
+  background: var(--color-accent-bg);
   outline: none;
 }
 
 .lessons-menu-list [role="menuitemradio"][aria-checked="true"] {
-  background: var(--accent-bg);
+  background: var(--color-accent-bg);
 }
 
 .lessons-menu-title {
   display: block;
-  color: var(--fg);
+  color: var(--color-text);
   font-weight: 600;
 }
 
@@ -212,20 +184,20 @@ p {
   .lessons-menu-title::after {
   content: " — current";
   font-weight: 400;
-  color: var(--accent-text);
+  color: var(--color-accent-contrast);
 }
 
 .lessons-menu-summary {
   display: block;
-  font-size: 12px;
-  color: var(--text);
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
 }
 
 .no-true-tree {
   align-self: center;
   justify-self: center;
   padding: 16px;
-  color: var(--text);
+  color: var(--color-text-muted);
   text-align: center;
 }
 
@@ -238,13 +210,13 @@ p {
 
 .col-controls {
   padding: 8px 14px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--color-border);
   overflow-y: auto;
 }
 
 .col-explain {
   padding: 8px 14px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--color-border);
   overflow-y: auto;
 }
 
@@ -317,15 +289,15 @@ p {
 
 
 .unrooted-note {
-  color: var(--fg);
-  font-size: 13px;
+  color: var(--color-text);
+  font-size: var(--size-legacy-13);
   margin: 6px 0 0;
 }
 
 .tree-panel figcaption {
-  color: var(--fg);
+  color: var(--color-text);
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--size-sm);
   margin-bottom: 4px;
 }
 
@@ -343,7 +315,7 @@ p {
  * canvas scrolls when the drawing is larger (owner review). */
 .tree-canvas svg {
   display: block;
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 /* predict_branch (v1.2 spec §7.1): while a branch prompt is open, a wide
@@ -367,21 +339,21 @@ p {
 /* The heatmap draws at its natural width-driven size so text never
  * renders under 12 px (round 3) — the column scrolls when it doesn't
  * fit. currentColor inside it (cell outlines, axis labels) follows
- * --fg like the trees. */
+ * --color-text like the trees. */
 .col-center > svg {
   display: block;
   width: 100%;
   max-width: 560px;
   height: auto;
   margin: 12px auto 0;
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .app-footer {
   display: flex;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
   padding: 8px 16px;
 }
 
@@ -391,8 +363,8 @@ p {
 
 .app-footer .repo-link {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--fg);
+  font-size: var(--size-xs);
+  color: var(--color-text);
   opacity: 0.7;
   white-space: nowrap;
 }
@@ -413,38 +385,38 @@ p {
 }
 
 .stepper-status {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-13);
   white-space: nowrap;
 }
 
 .stepper-rf {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-13);
+  color: var(--color-accent-contrast);
   white-space: nowrap;
 }
 
 .stepper-note {
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
 }
 
 .error {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--danger);
+  border: 1px solid var(--color-danger);
   border-radius: 6px;
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 /* Header toast (spec §6.4): shown when a shared link can't be opened. */
 .toast {
   padding: 6px 10px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--color-accent-border);
   border-radius: 6px;
-  background: var(--accent-bg);
-  color: var(--fg);
-  font-size: 14px;
+  background: var(--color-accent-bg);
+  color: var(--color-text);
+  font-size: var(--size-sm);
 }
 
 /* Error-boundary fallback (spec §6.4): replaces the whole app. */
@@ -452,14 +424,14 @@ p {
   max-width: 480px;
   margin: 64px auto;
   padding: 24px;
-  border: 1px solid var(--danger);
+  border: 1px solid var(--color-danger);
   border-radius: 8px;
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .error-boundary h1 {
   margin: 0 0 8px;
-  font-size: 20px;
+  font-size: var(--size-lg);
 }
 
 /* Teaching notices (spec §6.3) look like panels, not errors: accent
@@ -467,10 +439,10 @@ p {
 .notice {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--color-accent-border);
   border-radius: 6px;
-  background: var(--accent-bg);
-  color: var(--fg);
+  background: var(--color-accent-bg);
+  color: var(--color-text);
 }
 
 .notice h2 {
@@ -482,8 +454,8 @@ p {
 }
 
 .notice .notice-pairs {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-13);
 }
 .notice .notice-progress {
   font-style: italic;
@@ -498,7 +470,7 @@ p {
 .saturation-chart {
   display: block;
   max-width: 300px;
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 /* ---- Controls ---- */
@@ -509,7 +481,7 @@ p {
   justify-content: space-between;
   gap: 8px;
   margin: 6px 0;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
 }
 
 .controls .field.seed {
@@ -533,9 +505,9 @@ p {
 .stepper input,
 button {
   font: inherit;
-  color: var(--text-h);
-  background: var(--panel);
-  border: 1px solid var(--border);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 3px 6px;
 }
@@ -555,8 +527,8 @@ button:disabled {
 }
 
 .matrix-toggle[aria-checked="true"] {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
 }
 
 /* ---- Explanation panel (spec §6.2) ---- */
@@ -572,18 +544,18 @@ button:disabled {
 }
 
 .mode-toggle button[aria-pressed="true"] {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
 }
 
-/* Explanations use the same --fg token as the trees at ≥15px. */
+/* Explanations use the same --color-text token as the trees. */
 .explain-body {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .explain-body p {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: var(--size-legacy-15);
 }
 
 /* Each formula is its own block on its own line; long formulas scroll
@@ -593,30 +565,30 @@ button:disabled {
   overflow-x: auto;
   white-space: nowrap;
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: var(--size-legacy-15);
 }
 
 .katex {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 /* The precision note sits below the formulas in smaller, still
- * --fg-colored text. */
+ * --color-text-colored text. */
 .math-note {
-  font-size: 12px;
-  color: var(--fg);
+  font-size: var(--size-xs);
+  color: var(--color-text);
   opacity: 0.8;
 }
 
 /* ---- SVG details ---- */
 
 .zero-len {
-  fill: var(--text);
+  fill: var(--color-text-muted);
 }
 
 .wrong rect,
 .wrong text {
-  color: var(--danger);
+  color: var(--color-wrong-clade);
 }
 
 /* ---- Sandbox import (spec §3.1, §6.2) ---- */
@@ -639,11 +611,11 @@ button:disabled {
 
 .import-text textarea {
   font: inherit;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-h);
-  background: var(--panel);
-  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 6px;
   resize: vertical;
@@ -660,13 +632,13 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
 }
 
 .import-hint {
   margin: 0;
-  font-size: 12px;
-  color: var(--fg);
+  font-size: var(--size-xs);
+  color: var(--color-text);
   opacity: 0.8;
 }
 
@@ -678,22 +650,22 @@ button:disabled {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--color-accent-border);
   border-radius: 6px;
-  background: var(--accent-bg);
-  color: var(--fg);
-  font-size: 14px;
+  background: var(--color-accent-bg);
+  color: var(--color-text);
+  font-size: var(--size-sm);
 }
 
 /* The one-line model-switch notice after an alphabet override. */
 .alphabet-notice {
   margin: 0;
   padding: 6px 10px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--color-accent-border);
   border-radius: 6px;
-  background: var(--accent-bg);
-  color: var(--fg);
-  font-size: 14px;
+  background: var(--color-accent-bg);
+  color: var(--color-text);
+  font-size: var(--size-sm);
 }
 
 .phylip-names {
@@ -705,8 +677,8 @@ button:disabled {
 }
 
 .phylip-names button[aria-checked="true"] {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
 }
 
 /* ---- Guided-lesson prompts (spec §6.2, Task 21) ---- */
@@ -725,10 +697,10 @@ button:disabled {
  * text, never color alone (§6.5). */
 .prompt-card {
   padding: 8px 10px;
-  border: 1px solid var(--accent-border);
+  border: 1px solid var(--color-accent-border);
   border-radius: 6px;
-  background: var(--accent-bg);
-  color: var(--fg);
+  background: var(--color-accent-bg);
+  color: var(--color-text);
 }
 
 .prompt-card p {
@@ -744,21 +716,21 @@ button:disabled {
 }
 
 .prompt-verdict.correct {
-  color: var(--ok, #1a7f37);
+  color: var(--color-success);
 }
 
 .prompt-verdict.wrong {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .prompt-hint {
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
   opacity: 0.85;
 }
 
 .prompt-math {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-13);
 }
 
 /* "Show a vs b" on an answered card: a plain control, secondary to the
@@ -782,8 +754,8 @@ button:disabled {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--fg);
-  font-size: 13px;
+  color: var(--color-text);
+  font-size: var(--size-legacy-13);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -793,7 +765,7 @@ button:disabled {
 .pair-panel-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -801,11 +773,11 @@ button:disabled {
 }
 
 .pair-panel {
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-md);
   max-width: min(560px, 92vw);
   max-height: 88vh;
   overflow-y: auto;
@@ -821,13 +793,13 @@ button:disabled {
 
 .pair-panel-head h2 {
   margin: 0 0 8px;
-  font-size: 17px;
-  color: var(--text-h);
+  font-size: var(--size-legacy-17);
+  color: var(--color-text-h);
 }
 
 .pair-panel-head .pair-names {
   font-weight: 400;
-  color: var(--text);
+  color: var(--color-text-muted);
 }
 
 /* The in-panel Concept/Math toggle is the same component (and styling)
@@ -844,13 +816,13 @@ button:disabled {
 }
 
 .pair-panel .close {
-  font-size: 20px;
+  font-size: var(--size-lg);
   line-height: 1;
   padding: 2px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--panel);
-  color: var(--fg);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -862,16 +834,16 @@ button:disabled {
  * never carried by color alone (the marker cells and dimming do that
  * work). */
 .pair-seqs {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-13);
   line-height: 1.5;
   display: flex;
   gap: 10px;
   margin-bottom: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 6px 8px;
-  background: var(--panel);
+  background: var(--color-surface);
 }
 
 .pair-seq-legend {
@@ -887,7 +859,7 @@ button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
+  color: var(--color-text-muted);
 }
 
 .pair-seq-strip {
@@ -913,15 +885,15 @@ button:disabled {
 }
 
 .pair-col .pair-pos {
-  font-size: 9px;
+  font-size: var(--size-legacy-9);
   line-height: 20px;
-  color: var(--text);
+  color: var(--color-text-muted);
   text-align: left;
   white-space: nowrap;
 }
 
 .pair-col .pair-marker {
-  color: var(--danger);
+  color: var(--color-danger);
   font-weight: 700;
 }
 
@@ -930,28 +902,28 @@ button:disabled {
 }
 
 .pair-seqs .aa-hydro {
-  background: rgba(0, 114, 178, 0.22);
-  color: #241f2e;
+  background: var(--color-aa-hydro);
+  color: var(--color-aa-text);
 }
 
 .pair-seqs .aa-polar {
-  background: rgba(0, 158, 115, 0.22);
-  color: #241f2e;
+  background: var(--color-aa-polar);
+  color: var(--color-aa-text);
 }
 
 .pair-seqs .aa-pos {
-  background: rgba(213, 94, 0, 0.22);
-  color: #241f2e;
+  background: var(--color-aa-pos);
+  color: var(--color-aa-text);
 }
 
 .pair-seqs .aa-neg {
-  background: rgba(204, 121, 167, 0.32);
-  color: #241f2e;
+  background: var(--color-aa-neg);
+  color: var(--color-aa-text);
 }
 
 .pair-seqs .aa-special {
-  background: rgba(240, 228, 66, 0.45);
-  color: #241f2e;
+  background: var(--color-aa-special);
+  color: var(--color-aa-text);
 }
 
 .pair-numbers {
@@ -959,9 +931,9 @@ button:disabled {
   gap: 18px;
   margin: 0 0 10px;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--panel);
+  background: var(--color-surface);
 }
 
 .pair-numbers div {
@@ -970,15 +942,15 @@ button:disabled {
 }
 
 .pair-numbers dt {
-  font-size: 12px;
-  color: var(--text);
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
 }
 
 .pair-numbers dd {
   margin: 0;
-  font-family: var(--mono);
-  font-size: 15px;
-  color: var(--text-h);
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-15);
+  color: var(--color-text-h);
 }
 
 .likelihood-curve {
@@ -986,36 +958,36 @@ button:disabled {
   width: 100%;
   max-width: 340px;
   margin-bottom: 10px;
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .likelihood-curve .axis {
-  stroke: var(--border);
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 
 .likelihood-curve .curve {
-  stroke: var(--accent-text);
+  stroke: var(--color-accent-contrast);
   stroke-width: 1.8;
 }
 
 .likelihood-curve .peak-line {
-  stroke: var(--accent-text);
+  stroke: var(--color-accent-contrast);
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 
 .likelihood-curve .peak-marker {
-  fill: var(--accent-text);
+  fill: var(--color-accent-contrast);
 }
 
 .likelihood-curve .axis-label {
-  font-size: 9px;
-  fill: var(--text);
+  font-size: var(--size-legacy-9);
+  fill: var(--color-text-muted);
 }
 
 .likelihood-curve .below-range-mark {
-  fill: var(--text);
+  fill: var(--color-text-muted);
   opacity: 0.6;
 }
 
@@ -1035,17 +1007,17 @@ button:disabled {
 
 .phylip-help-open {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: var(--fg);
+  color: var(--color-text);
   padding: 4px 10px;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
   cursor: pointer;
 }
 
 .phylip-help-open:hover,
 .phylip-help-open:focus-visible {
-  border-color: var(--accent-border);
+  border-color: var(--color-accent-border);
 }
 
 .phylip-help .phylip-help-map {
@@ -1058,15 +1030,15 @@ button:disabled {
 }
 
 .phylip-help code {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
 }
 
 /* Export menu notes (v1.1 spec §3.2/§5.6): Relaxed-name fallback and
  * the -1.000000 saturated-cell convention. */
 .phylip-note {
   margin-top: 8px;
-  font-size: 13px;
-  color: var(--text);
+  font-size: var(--size-legacy-13);
+  color: var(--color-text-muted);
 }
 
 .phylip-note p {
@@ -1077,21 +1049,21 @@ button:disabled {
 .newick-name-mode {
   display: block;
   margin-top: 8px;
-  font-size: 13px;
-  color: var(--text);
+  font-size: var(--size-legacy-13);
+  color: var(--color-text-muted);
 }
 
 /* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */
 
 .bootstrap-panel {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
   margin-top: 10px;
   padding-top: 6px;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
 }
 
 .bootstrap-panel h2 {
-  font-size: 15px;
+  font-size: var(--size-legacy-15);
   margin: 0 0 6px;
 }
 
@@ -1100,11 +1072,11 @@ button:disabled {
 }
 
 .bootstrap-panel .grouping-count {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .bootstrap-panel .bootstrap-explain {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .bootstrap-panel .math-line {
@@ -1117,7 +1089,7 @@ button:disabled {
 }
 
 .bootstrap-panel .bootstrap-progress-text {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .bootstrap-panel .bootstrap-status {
@@ -1125,20 +1097,20 @@ button:disabled {
 }
 
 .bootstrap-panel .bootstrap-results-label {
-  color: var(--fg);
-  font-size: 12px;
+  color: var(--color-text);
+  font-size: var(--size-xs);
 }
 
 .bootstrap-panel .bootstrap-skipped {
-  color: var(--fg);
+  color: var(--color-text);
 }
 
 .bootstrap-panel .bootstrap-warning {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .bootstrap-panel .bootstrap-error strong {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .bootstrap-panel .bootstrap-actions {
@@ -1152,7 +1124,7 @@ button:disabled {
 .reroot-toggle {
   display: block;
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--size-legacy-13);
 }
 
 /* Weak support: the branch's thinner stroke is drawn in TreeView and
@@ -1166,8 +1138,8 @@ button:disabled {
  * connector elbows (checkpoint 11): a page-background fill with a hair
  * border in both themes. */
 .support-pill {
-  fill: var(--bg);
-  stroke: var(--border);
+  fill: var(--color-bg);
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 
@@ -1175,7 +1147,7 @@ button:disabled {
  * reads as a branch (the svg.ts export inlines the same geometry and
  * stroke). */
 .support-leader {
-  stroke: var(--border);
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 
@@ -1200,7 +1172,7 @@ button:disabled {
   flex-shrink: 0;
   gap: 2px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .consensus-tabs [role="tab"] {
@@ -1213,13 +1185,13 @@ button:disabled {
   border-radius: 4px 4px 0 0;
   background: none;
   padding: 3px 10px;
-  font-size: 13px;
-  color: var(--fg);
+  font-size: var(--size-legacy-13);
+  color: var(--color-text);
   cursor: pointer;
 }
 
 .consensus-tabs [role="tab"][aria-selected="true"] {
-  border-color: var(--border);
+  border-color: var(--color-border);
   /* Keep the selected tab's underline visible — selection is shape +
    * weight, never color alone. */
   font-weight: 600;
@@ -1240,8 +1212,8 @@ button:disabled {
 }
 
 .consensus-dropped {
-  color: var(--fg);
-  font-size: 13px;
+  color: var(--color-text);
+  font-size: var(--size-legacy-13);
   margin: 6px 0 0;
 }
 
@@ -1250,7 +1222,7 @@ button:disabled {
 .replicate-panel-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1258,11 +1230,11 @@ button:disabled {
 }
 
 .replicate-panel {
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-md);
   max-width: min(880px, 94vw);
   max-height: 88vh;
   overflow-y: auto;
@@ -1278,8 +1250,8 @@ button:disabled {
 
 .replicate-panel-head h2 {
   margin: 0 0 8px;
-  font-size: 17px;
-  color: var(--text-h);
+  font-size: var(--size-legacy-17);
+  color: var(--color-text-h);
 }
 
 .replicate-panel-head .replicate-nav {
@@ -1289,13 +1261,13 @@ button:disabled {
 }
 
 .replicate-panel .close {
-  font-size: 20px;
+  font-size: var(--size-lg);
   line-height: 1;
   padding: 2px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--panel);
-  color: var(--fg);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -1309,13 +1281,13 @@ button:disabled {
   gap: 1px;
   max-height: 120px;
   overflow-y: auto;
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--size-legacy-11);
   line-height: 1.4;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 4px;
-  background: var(--panel);
+  background: var(--color-surface);
   margin: 6px 0;
 }
 
@@ -1323,7 +1295,7 @@ button:disabled {
   min-width: 16px;
   text-align: center;
   border-radius: 2px;
-  background: var(--bg);
+  background: var(--color-bg);
 }
 
 .rep-col[data-weight="0"] {

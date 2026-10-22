@@ -2868,3 +2868,40 @@ wedging the start queue.
   state types instead of `Session[...]`, same types). Keeping the
   union in `session.ts` would push the composer past the task's
   150-line cap. `docs/decisions.md` carries this entry.
+
+## v1.3 Task 3: design tokens with the current look
+
+- `color` holds the 15 §3.2 tokens per theme — light keeps the current
+  light palette, dark the current prefers-color-scheme one (no visual
+  change). Three values had no §3.2 slot and are emitted by
+  `cssVariables` as derived vars so no pixel moves: `--color-text-h`
+  (the third text level, ex `--text-h`), `--color-accent-bg` /
+  `--color-accent-border` (rgba tints derived from `accent` at the old
+  alphas 0.10/0.15 and 0.50) and the unthemed `--color-scrim` /
+  `--color-aa-*` Okabe-Ito tints / `--color-aa-text` pair-panel palette.
+  `--color-wrong-clade` replaces `--danger` on the `.wrong` annotation
+  (same value today). Unused semantic tokens (`support-weak`,
+  `highlight`, `focus`) take the closest current-look value until
+  Task 6 designs the real themes.
+- Font sizes are unchanged: the stylesheet's off-scale 9/11/13/15/17
+  px live in `legacySize` (emitted as `--size-legacy-*`), which exists
+  by owner decision (option 1 on PR #65) so Task 3 is a pure refactor
+  — Task 6 removes `legacySize` and moves every use onto `size`, with
+  the owner approving the baseline changes there. 12/14/20 px rules
+  use `--size-xs/sm/lg` directly, and `--font-mono` keeps `Consolas`
+  from the old `--mono` stack. All colors, geometry, spacing and radii
+  are unchanged — spacing/radius literals stay for Tasks 9–11 to
+  normalize (the §3.4 test enforces colors + font sizes).
+- `export/svg.ts` inks with the `exportInk` token (#1a1a1a — the same
+  value as the old literal, held outside `ColorTokens`) and the pill
+  uses `color.light.bg`/`border` at their identical values; ink stays
+  #1a1a1a until Task 15 applies the §7.3 print palette. Exported font
+  stack stays as-is; Task 4/15 wire `font.ui` + embedding.
+- The generated `tokens.css` keeps the pre-token behavior: bare `:root`
+  is light, `prefers-color-scheme: dark` still applies dark until
+  Task 6 sets `data-theme` (the plugin emits
+  `:root:not([data-theme])` inside the media query plus the two
+  `data-theme` blocks §3.1 names).
+- Files outside the Files block: `web/.gitignore` gained a
+  `src/design/tokens.css` entry — the generated file must never be
+  committed (spec §3.1). `docs/decisions.md` carries this entry.
