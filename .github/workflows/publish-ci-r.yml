@@ -1,0 +1,53 @@
+# Publishes docker/ci-r to GHCR as ghcr.io/<owner>/neophylo-ci-r.
+# Runs monthly (fresh base image + apt security fixes), whenever the
+# image definition changes on main, and on demand. ci.yml's
+# r-and-fixtures job pins the moving `1` tag — for a breaking toolchain
+# change bump the tag in both files; `latest` and the immutable
+# `sha-<commit>` tags are pushed for reference/debugging.
+
+name: Publish CI R image
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'   # 1st of the month, 04:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - 'docker/ci-r/**'
+      - '.github/workflows/publish-ci-r.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Image name (GHCR requires lowercase)
+        run: >-
+          echo "IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}'
+          | tr '[:upper:]' '[:lower:]')/neophylo-ci-r" >> "$GITHUB_ENV"
+      - name: Login to GHCR
+        run: >-
+          echo "${{ secrets.GITHUB_TOKEN }}"
+          | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build image
+        run: >-
+          docker build --pull
+          -t "$IMAGE:1" -t "$IMAGE:latest" -t "$IMAGE:sha-${GITHUB_SHA::7}"
+          docker/ci-r
+      - name: Smoke test
+        run: |
+          docker run --rm "$IMAGE:1" Rscript -e \
+            'library(ape); library(phangorn); library(jsonlite); cat(as.character(packageVersion("ape")), as.character(packageVersion("phangorn")), "\n")'
+          docker run --rm "$IMAGE:1" sh -c \
+            'for b in neighbor protdist consense dnadist; do /usr/lib/phylip/bin/$b --help </dev/null >/dev/null 2>&1 || true; done; ls /usr/lib/phylip/bin/neighbor /usr/lib/phylip/bin/protdist /usr/lib/phylip/bin/consense /usr/lib/phylip/bin/dnadist'
+      - name: Push image
+        run: |
+          docker push "$IMAGE:1"
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:sha-${GITHUB_SHA::7}"

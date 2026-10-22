@@ -2659,3 +2659,103 @@ wedging the start queue.
   (rebuilt by `scripts/build-wasm.sh` — required, vitest runs the
   compiled artifact), and `after: null` added to `Prompt` literals in
   three existing test files (generated type now requires the field).
+
+## ci/speed: faster local and PR feedback without weaker main/release gates
+
+- **Measured first.** Last five completed PR runs (`gh run view --json
+  jobs`, seconds of job wall time): R/fixtures 195–289 (setup-R
+  39–61 s + R-package deps 96–157 s inside it), e2e webkit 94–416
+  (one 256 s browser-install outlier), e2e chromium 103–273, e2e
+  firefox 93–137, web 62–69, wasm 52–68, deploy 44–54, fuzz-build
+  39–56, rust 31–53, licenses 24–37, fixture-guard 3–6. Critical path
+  was R/fixtures-or-webkit → deploy: ~5–8 min to mergeable. Locally
+  the default `./scripts/check.sh` cost ~170 s warm (wasm 129 s,
+  web 27 s, rust 12 s, fixture-guard ~0 s; e2e/R/fuzz opt-in, idle).
+- **PR fast path.** A `changes` job (dorny/paths-filter@de90cc6f,
+  v3.0.2) path-filters the heavy jobs; a skipped job reports a passing
+  conclusion so required checks stay green. PR e2e is Chromium only,
+  sharded `--shard=n/2` across two runners, `E2E_PERF=0` skips @perf.
+  Docs-only changes (`docs/**`, `*.md`, `CITATION.cff`, `LICENSE`)
+  match no heavy-job filter, so a docs PR costs fixture-guard + rust
+  (~1 min) — the <2 min target.
+- **Full matrix is untouched where it matters.** `full` = every non-PR
+  event (main push, `v*.*.*` tag, new nightly cron `0 3 * * *`,
+  workflow_dispatch on any branch — the manual "run the full matrix
+  on this PR's branch" path). All three browsers ×2 shards run @perf
+  in-shard, R parity and the fuzz build run, and `deploy`'s `needs`
+  now includes `fuzz-build` and `licenses` in addition to the previous
+  jobs, so a production deploy cannot land unless the full matrix
+  passed for that tagged commit. Concurrency cancels superseded
+  PR/branch runs but never main or tags.
+- **R stack is a pinned image.** `docker/ci-r/Dockerfile`
+  (ubuntu:24.04 + Debian `phylip` → /usr/lib/phylip/bin +
+  `remotes::install_version` pins ape 5.8-1 / phangorn 2.12.1 /
+  jsonlite 1.9.1 — the versions in the committed fixtures'
+  `generator` field — verified by `stopifnot` inside the image
+  build). `publish-ci-r.yml` rebuilds it monthly and on Dockerfile
+  changes, pushing moving `:1` + `latest` and immutable `sha-<commit>`
+  tags; `r-and-fixtures` uses `ghcr.io/dorrabbkhan/neophylo-ci-r:1` —
+  removes the ~100–160 s R/PHYLIP setup. Bump the `:1` tag in both
+  files for a breaking toolchain change.
+- **Local tiers.** `./scripts/check.sh quick` runs fmt + clippy
+  always, `cargo nextest`/`cargo test` only when
+  `crates/|Cargo.toml|Cargo.lock` changed, `vitest --changed
+  <merge-base>` only when `web/` changed, and rebuilds the wasm pkg
+  only when its inputs changed (content-hash cache in
+  `web/src/engine/pkg/.source-hash`, ignored via `pkg/`'s existing
+  gitignore). The default check is unchanged (still the full local
+  gate minus e2e). Measured: quick 1.6 s on a cache hit, 121 s worst
+  case (crates changed → wasm rebuild); both inside the <2 min target.
+- **Rust speed.** `[profile.dev.package."*"] opt-level = 3` +
+  `[profile.test] opt-level = 2` in Cargo.toml (the engine is numeric;
+  unoptimized deps dominated test wall time). cargo-nextest measured
+  1.70 s → 0.61 s warm (PROPTEST_CASES=64; 256 cases → 0.99 s): small
+  in absolute terms but ~free — CI installs the pinned prebuilt
+  binary (get.nexte.st/0.9.149, sha256-pinned, cached like wasm-pack)
+  and `rust.sh` falls back to `cargo test` where nextest is absent;
+  a `cargo test --doc` step keeps doctests covered (nextest skips
+  them). `PROPTEST_CASES` defaults to 64 locally, 256 when `CI=true`
+  (proptest's own default; explicit so it is auditable). mold
+  measured 46.5 s → 43.0 s on a cold `cargo test --no-run` — ~7 %,
+  less than the apt-install cost — not adopted.
+- **Wasm pkg cached in CI** keyed `hashFiles('crates/**','Cargo.lock',
+  'scripts/build-wasm.sh')`; on a hit `WASM_PKG_HIT=true` makes
+  wasm.sh skip only the rebuild — parity tests, generated-types diff
+  and the bundle-size check still run against the restored pkg.
+- **Agent loop.** `scripts/neophylo-loop.sh {watch|await|status}`
+  backgrounds `gh pr checks --watch` so the review pass overlaps CI;
+  only the final summary blocks on `await`. `neophylo-task`'s skill
+  lists the required screenshot evidence for view/layout/export
+  changes (PR comments, never committed).
+- **Deviations from the task's literal filter table.** `wasm` also
+  runs when the `fixtures` filter matches (r-and-fixtures downloads
+  its artifact); `licenses` is gated like `web` since `web` needs its
+  notices artifact; `rust` is unconditional (stable ~40 s required
+  check); the `fixtures`/`webapp` filters also cover `scripts/**` and
+  `.github/workflows/ci.yml` so script and workflow changes still
+  exercise the jobs that run them. These are supersets — nothing the
+  task required to run is skipped.
+- **Required branch-protection check names** (skipped conclusions
+  pass on PRs where the fast path applies): `changes`,
+  `fixture-guard`, `rust`, `wasm`, `fuzz-build`, `licenses`, `web`,
+  `e2e (chromium, 1)`, `e2e (chromium, 2)`, `r-and-fixtures`,
+  `deploy`. On main/tags the e2e matrix expands to
+  `e2e (<browser>, <shard>)` for firefox/webkit as well — the old
+  `e2e (<browser>)` check names no longer exist, so protection
+  entries must be renamed.
+- **Targets vs measured.** Typical code PR <10 min: projected ~3–4
+  min (e2e shards ~2 min after wasm+web, then deploy). Docs PR
+  <2 min: yes (~1 min). quick <2 min: 1.6 s hit / 121 s worst-case
+  engine rebuild. Default check <8 min: yes (~3 min warm).
+  Post-merge actuals come from this PR's own run and the first
+  nightly.
+
+### Files (ci/speed)
+
+`.github/workflows/ci.yml`, `.github/workflows/publish-ci-r.yml`
+(new), `docker/ci-r/Dockerfile` (new), `scripts/check.sh`,
+`scripts/ci/quick.sh` (new), `scripts/ci/rust.sh`,
+`scripts/ci/wasm.sh`, `scripts/ci/e2e.sh`,
+`scripts/neophylo-loop.sh` (new), `Cargo.toml`, `AGENTS.md`,
+`.devin/skills/neophylo-task/SKILL.md`, `docs/decisions.md` (this
+entry).

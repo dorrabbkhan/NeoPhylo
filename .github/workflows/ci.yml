@@ -1,6 +1,15 @@
 # CI — the GitHub-side twin of scripts/check.sh. Every job delegates to a
 # scripts/ci/*.sh step so local and CI runs are identical; the YAML only
 # installs the toolchain each script assumes.
+#
+# Feedback tiers (ci/speed): PRs take a fast path — the `changes` job
+# path-filters heavy jobs (a skipped required check counts as passing),
+# e2e runs Chromium only, sharded in two, without @perf. Every non-PR
+# event — main pushes, v*.*.* tags, the nightly cron, and a manual
+# workflow_dispatch on any branch ("run the full matrix on this PR's
+# branch") — sets `full`, so every job runs: all three browsers, @perf,
+# R parity and the fuzz build. Branch pushes outside main don't trigger
+# at all; a PR's checks cover them.
 
 name: CI
 
@@ -9,16 +18,78 @@ on:
     branches: [main]
     tags: ['v*.*.*']
   pull_request:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'   # nightly full matrix
+  workflow_dispatch:       # dispatch on any branch to run the full matrix
 
 permissions:
   contents: read
 
 concurrency:
+  # Superseded PR/branch runs are cancelled; main and tag runs never are —
+  # a release gate that cancels would let a stale run's deploy land.
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: >-
+    ${{
+      github.ref != 'refs/heads/main' &&
+      !startsWith(github.ref, 'refs/tags/')
+    }}
 
 jobs:
+  # Path gate. `full` short-circuits every filter on non-PR events so the
+  # complete matrix always runs there; on PRs the filters decide which
+  # heavy jobs run at all (skipped jobs report a passing conclusion).
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.full.outputs.full }}
+      webapp: ${{ steps.filter.outputs.webapp }}
+      fixtures: ${{ steps.filter.outputs.fixtures }}
+      fuzz: ${{ steps.filter.outputs.fuzz }}
+      e2e-browsers: ${{ steps.e2e.outputs.browsers }}
+    steps:
+      - name: Full-matrix flag
+        id: full
+        run: echo "full=${{ github.event_name != 'pull_request' }}" >> "$GITHUB_OUTPUT"
+      - name: Changed paths (PRs only)
+        id: filter
+        if: steps.full.outputs.full != 'true'
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          # webapp gates wasm/web/licenses/e2e. wasm also runs when
+          # `fixtures` matches because r-and-fixtures needs its artifact.
+          filters: |
+            webapp:
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'web/**'
+              - 'scripts/**'
+              - 'about.toml'
+              - 'about.hbs'
+              - '.github/workflows/ci.yml'
+            fixtures:
+              - 'fixtures/**'
+              - 'crates/**'
+              - 'web/src/export/**'
+              - 'scripts/ci/r-parity.sh'
+              - 'scripts/ci/fixture-guard.sh'
+              - 'scripts/compare/**'
+              - 'docker/ci-r/**'
+              - '.github/workflows/ci.yml'
+            fuzz:
+              - 'crates/**'
+      - name: E2E browser matrix
+        id: e2e
+        run: |
+          if [ "${{ steps.full.outputs.full }}" = "true" ]; then
+            browsers='["chromium","firefox","webkit"]'
+          else
+            browsers='["chromium"]'
+          fi
+          echo "browsers=$browsers" >> "$GITHUB_OUTPUT"
+
   # PR-only: existing fixtures may not change in the same commit as code.
   fixture-guard:
     if: github.event_name == 'pull_request'
@@ -33,6 +104,8 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: scripts/ci/fixture-guard.sh
 
+  # Always runs — it is cheap (~40 s) and stays a stable required check
+  # even on docs-only PRs.
   rust:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -43,10 +116,28 @@ jobs:
         # wasm32-unknown-unknown.
         run: rustup show
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Cache cargo-nextest
+        id: cargo-nextest
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-nextest
+          key: ${{ runner.os }}-cargo-nextest-0.9.149
+      - name: Install cargo-nextest v0.9.149
+        if: steps.cargo-nextest.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSLo nextest.tar.gz https://get.nexte.st/0.9.149/linux
+          echo "32d1d8c0567b7a80bee2bad8bb09125c846da96bc009b2de11ec08557290c770  nextest.tar.gz" | sha256sum -c -
+          tar xzf nextest.tar.gz cargo-nextest
+          install -D -m 0755 cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
       - name: fmt + clippy + tests
         run: scripts/ci/rust.sh
 
   wasm:
+    needs: changes
+    if: >-
+      needs.changes.outputs.webapp == 'true' ||
+      needs.changes.outputs.fixtures == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -67,7 +158,22 @@ jobs:
           echo "c09f971ecaed9a2efc80fdcea7a00ef6b53c7fadc8c57d1f61b53a6aa66b668a  wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz" | sha256sum -c -
           tar xzf wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz
           install -D -m 0755 wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack "$HOME/.cargo/bin/wasm-pack"
+      - name: Cache built wasm package
+        # Reused when crates/** + Cargo.lock + the build script are
+        # unchanged; wasm.sh then skips the rebuild but still runs the
+        # parity tests, generated-types diff and bundle-size check.
+        id: wasm-pkg
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            web/src/engine/pkg
+            web/src/engine/generated
+          key: >-
+            ${{ runner.os }}-wasm-pkg-${{
+              hashFiles('crates/**', 'Cargo.lock', 'scripts/build-wasm.sh') }}
       - name: wasm parity tests + build + generated-types diff + bundle size
+        env:
+          WASM_PKG_HIT: ${{ steps.wasm-pkg.outputs.cache-hit }}
         run: scripts/ci/wasm.sh
       - name: Upload wasm package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,6 +189,10 @@ jobs:
   # this job compiles every target on each push/PR to catch API drift (e.g.
   # exercise schema v2) that the nightly run would otherwise report late.
   fuzz-build:
+    needs: changes
+    if: >-
+      needs.changes.outputs.fuzz == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -108,6 +218,10 @@ jobs:
   # licenses.html without installing cargo-about there. The npm side of
   # the same gate runs inside `vite build` (web/scripts/licenses.ts).
   licenses:
+    needs: changes
+    if: >-
+      needs.changes.outputs.webapp == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -134,7 +248,10 @@ jobs:
           retention-days: 1
 
   web:
-    needs: [wasm, licenses]
+    needs: [changes, wasm, licenses]
+    if: >-
+      needs.changes.outputs.webapp == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -168,14 +285,21 @@ jobs:
           path: web/dist
           retention-days: 1
 
+  # PR fast path: Chromium only, two shards, no @perf — a fraction of
+  # the old e2e wall time. Full events shard all three browsers in two
+  # and run @perf inside each shard (E2E_PERF defaults to 1).
   e2e:
-    needs: web
+    needs: [changes, web]
+    if: >-
+      needs.changes.outputs.webapp == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: ${{ fromJSON(needs.changes.outputs.e2e-browsers) }}
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download wasm package
@@ -205,15 +329,18 @@ jobs:
       - name: Install ${{ matrix.browser }}
         working-directory: web
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: E2E (${{ matrix.browser }})
+      - name: E2E (${{ matrix.browser }} shard ${{ matrix.shard }}/2)
         env:
           E2E: "1"
-        run: scripts/ci/e2e.sh --project=${{ matrix.browser }} --reporter=list,html
+          E2E_PERF: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+        run: >-
+          scripts/ci/e2e.sh --project=${{ matrix.browser }}
+          --shard=${{ matrix.shard }}/2 --reporter=list,html
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
           path: |
             web/playwright-report/
             web/test-results/
@@ -221,25 +348,18 @@ jobs:
 
   # Rebuilds the reference fixtures and fails on any drift — a version or
   # locale difference must be judged by a human; CI never commits fixtures.
+  # Runs in the pinned R + PHYLIP image from docker/ci-r (published by
+  # publish-ci-r.yml) instead of reinstalling the stack every run.
   r-and-fixtures:
-    needs: wasm
+    needs: [changes, wasm]
+    if: >-
+      needs.changes.outputs.fixtures == 'true' ||
+      needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    container: ghcr.io/dorrabbkhan/neophylo-ci-r:1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
-        with:
-          use-public-rspm: true
-      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
-        with:
-          packages: |
-            ape
-            phangorn
-            jsonlite
-      - name: Install PHYLIP
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y phylip
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -265,14 +385,19 @@ jobs:
   # used). Pushes to main deploy a free `main` alias (staging); production
   # deploys only on v*.*.* tags or a manual run from main — Netlify charges
   # credits per production deploy, so it is never triggered by a plain push.
+  # Release safety: `needs` includes the full-matrix jobs (e2e runs all
+  # browsers + @perf on tags, plus r-and-fixtures and fuzz-build), so a
+  # production deploy cannot land unless the full matrix passed for that
+  # tagged commit.
   deploy:
     # fixture-guard only runs on pull_request (its own `if`), so its result
     # is "skipped" on push. A plain `needs` list would then skip this job;
     # always() + !failure()/!cancelled() keeps the gate on every job that
     # actually ran while tolerating fixture-guard's intentional skip.
-    needs: [rust, wasm, web, e2e, r-and-fixtures, fixture-guard]
+    needs: [changes, rust, wasm, web, e2e, r-and-fixtures, fixture-guard, fuzz-build, licenses]
     if: >-
       always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.webapp == 'true' || needs.changes.outputs.full == 'true') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository))

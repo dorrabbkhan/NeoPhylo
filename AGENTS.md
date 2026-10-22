@@ -6,7 +6,8 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 
 ## Commands
 
-- **Everything: `./scripts/check.sh` — must pass before every commit.** Add `E2E=1` once Playwright exists and `RPARITY=1` once R export exists.
+- **`./scripts/check.sh quick` — the iteration gate.** fmt + clippy always; tests only for changed areas (Rust if `crates/` changed, `vitest --changed` if `web/` changed); the wasm pkg rebuilds only when `crates/**` or `Cargo.lock` changed (hash-cached in `web/src/engine/pkg/.source-hash`). No e2e, R parity or fuzz.
+- **`./scripts/check.sh` — the full local gate (minus e2e); run it once before every push.** Add `E2E=1` once Playwright exists and `RPARITY=1` once R export exists — e2e itself is left to CI.
 - Rust tests: `cargo test --workspace`
 - Lint: `cargo fmt --check && cargo clippy --workspace -- -D warnings`
 - Wasm tests: `wasm-pack test --node crates/neophylo-wasm`
@@ -33,9 +34,10 @@ NeoPhylo is a browser-based teaching tool for distance-based phylogenetics. It h
 ## Workflow
 
 - One task per branch. Name the branch `m<milestone>/<short-task>`, e.g. `m1/nj-trace`.
-- Run `./scripts/check.sh` locally and make it pass before pushing. Do not disable, skip or loosen tests to make it pass.
+- Iterate with `./scripts/check.sh quick`; run the full `./scripts/check.sh` once before pushing. Do not disable, skip or loosen tests to make it pass.
 - Push the task branch and open a PR with `gh pr create`; the PR body is the Final summary.
-- The PR is done when all GitHub checks are green (`gh pr checks --watch`). Never merge; the human merges.
+- Start the review immediately after `gh pr create` — it runs in parallel with CI, not after it (`scripts/neophylo-loop.sh watch` backgrounds the check watch; `scripts/neophylo-loop.sh await` blocks for green only before the final summary).
+- The PR is done when all GitHub checks are green (`scripts/neophylo-loop.sh await`). Never merge; the human merges.
 - Final summary: the spec sections implemented, the tests added, and anything ambiguous you resolved, so the reviewer can check it.
 - Record any deviation from the task's Files block, interfaces or spec in `docs/decisions.md`
   (one entry per task) in the same PR.
