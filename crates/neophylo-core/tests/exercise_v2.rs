@@ -6,7 +6,7 @@ use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::DistModel;
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::{
-    load_exercise, ExerciseBootstrap, ExerciseData, PromptType, Reference, ReferenceKind,
+    load_exercise, ExerciseBootstrap, ExerciseData, NoteAfter, PromptType, Reference, ReferenceKind,
 };
 use neophylo_core::seq::parse_fasta;
 use neophylo_core::sim::SimModel;
@@ -468,6 +468,56 @@ fn predict_branch_requires_the_bootstrap_anchor() {
     match load_exercise(&missing).unwrap_err() {
         NeoError::InvalidExercise { field, .. } => assert_eq!(field, "prompts.0.at"),
         other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+}
+
+#[test]
+fn note_after_loads_and_defaults_to_none() {
+    // bootstrap-basics round 3: a bootstrap-stage note can carry an
+    // `after` trigger; absent means "show with the step" as before.
+    for after in ["first_run", "continue_or_second_run", "longer_run"] {
+        let json = PREDICT_BRANCH_EXERCISE.replace(
+            r#""concept": "Click the internal branch you expect to be weakest." }"#,
+            &format!(
+                r#""concept": "Click the internal branch you expect to be weakest." }},
+    {{ "at_step": 4, "type": "note", "after": "{after}", "concept": "A note." }}"#
+            ),
+        );
+        let ex = load_exercise(&json).unwrap();
+        assert_eq!(ex.prompts.len(), 2);
+        assert_eq!(
+            ex.prompts[1].after,
+            Some(match after {
+                "first_run" => NoteAfter::FirstRun,
+                "continue_or_second_run" => NoteAfter::ContinueOrSecondRun,
+                _ => NoteAfter::LongerRun,
+            }),
+            "after {after}"
+        );
+    }
+    // Absent `after` stays None.
+    let ex = load_exercise(PREDICT_BRANCH_EXERCISE).unwrap();
+    assert_eq!(ex.prompts[0].after, None);
+}
+
+#[test]
+fn note_after_rejects_unknown_values() {
+    // Invalid `after` values report prompts.{i}.after — on a note at
+    // index 1 the field is "prompts.1.after".
+    for bad in ["second_run", "first-run", "done", ""] {
+        let json = PREDICT_BRANCH_EXERCISE.replace(
+            r#""concept": "Click the internal branch you expect to be weakest." }"#,
+            &format!(
+                r#""concept": "Click the internal branch you expect to be weakest." }},
+    {{ "at_step": 4, "type": "note", "after": "{bad}", "concept": "A note." }}"#
+            ),
+        );
+        match load_exercise(&json).unwrap_err() {
+            NeoError::InvalidExercise { field, .. } => {
+                assert_eq!(field, "prompts.1.after", "after {bad}")
+            }
+            other => panic!("expected InvalidExercise, got {other:?}"),
+        }
     }
 }
 

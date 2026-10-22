@@ -14,6 +14,16 @@ export const LEAF_SPACING_MIN = 18;
 export const LEAF_SPACING_MAX = 48;
 const DEFAULT_SPACING = 24;
 
+/** Fixed spacing the on-screen trees draw at (bootstrap-basics round
+ * 3): panels size to the tree's natural height — about 28 px per leaf
+ * — so every leaf of trees up to 40 fits without the panel scrolling;
+ * larger trees scroll inside their canvas. Text stays ≥ 12 px (from
+ * #59) — never scaled to fit. */
+export const LEAF_SPACING_NATURAL = 28;
+/** Inner-scroll cutoff: trees taller than this many leaves scroll
+ * inside their panel rather than pushing the row taller. */
+export const LEAF_SCROLL_CUTOFF = 40;
+
 /** Text never draws below 12 px: the font sizes below are already ≥12,
  * but every text element in TreeView clamps to this so branch-scale
  * changes can never shrink text (checkpoint 11). */

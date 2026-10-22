@@ -55,6 +55,7 @@ describe("exercises/schema.json", () => {
     "bad-length.json",
     "bad-kappa.json",
     "bad-prompt.json",
+    "bad-after.json",
     "bad-missing.json",
     "odd-valid.json",
   ])("schema and load_exercise agree on %s", (file) => {

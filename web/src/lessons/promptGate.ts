@@ -20,9 +20,16 @@
 
 import { useState } from "react";
 
+import type { NoteAfter } from "../engine/generated/NoteAfter";
 import type { Prompt } from "../engine/generated/Prompt";
 import type { StepMatrix } from "../views/stepMatrix";
-import { gatingPrompt, leafClusterIndex, promptsAt } from "./prompts";
+import {
+  afterSatisfied,
+  CONTINUE_ADVANCES,
+  gatingPrompt,
+  leafClusterIndex,
+  promptsAt,
+} from "./prompts";
 
 /** Shared empty prompt list — the loading-session default (identity
  * must be stable across renders, see the module docstring). */
@@ -71,6 +78,11 @@ export interface PromptGate {
    * prediction once, on the first completed run after answering").
    * A second call for the same prompt keeps the first verdict. */
   recordBranchVerdict: (at: number, v: BranchVerdict) => void;
+  /** A Continue handler for a sequenced note (bootstrap-basics round
+   * 3) whose click unlocks the next stage, or null when the note has
+   * no pending Continue — already clicked, or its successor is already
+   * unlocked by a run. */
+  continueFor: (p: Prompt) => (() => void) | null;
   /** First leaf of an in-progress two-leaf pick (for highlighting). */
   leafPick: string | null;
   /** Answer a predict prompt with matrix cell (i, j); ignores diagonal. */
@@ -85,6 +97,8 @@ export function usePromptGate({
   lessonMode,
   sm,
   leafSets,
+  runs = 0,
+  longRun = false,
 }: {
   /** The exercise's prompt list; identity changes mark a new exercise.
    * Undefined while the session is still loading. */
@@ -97,6 +111,13 @@ export function usePromptGate({
   sm: StepMatrix | null;
   /** Leaf labels under each node id (resolves leaf picks to clusters). */
   leafSets: ReadonlyMap<number, ReadonlySet<string>>;
+  /** Completed bootstrap runs under the current data
+   * (session.bootstrap.completedRuns) — the `first_run` /
+   * `continue_or_second_run` note triggers (round 3). */
+  runs?: number;
+  /** A completed run at Length ≥ LONGER_RUN_SITES happened — the
+   * `longer_run` trigger (round 3). */
+  longRun?: boolean;
 }): PromptGate {
   // Stable default: never `[]` inline — see the module docstring.
   const promptList = prompts ?? NO_PROMPTS;
@@ -116,6 +137,16 @@ export function usePromptGate({
   const [branchVerdicts, setBranchVerdicts] = useState<
     ReadonlyMap<number, BranchVerdict>
   >(new Map());
+  // Round 3 sequencing: `continued` records Continue clicks per note
+  // stage, `unlocked` the `after` stages already satisfied — sticky,
+  // so a later data change that resets the run count never hides a
+  // note the student has seen ("once shown it stays").
+  const [continued, setContinued] = useState<ReadonlySet<NoteAfter>>(
+    new Set(),
+  );
+  const [unlocked, setUnlocked] = useState<ReadonlySet<NoteAfter>>(
+    new Set(),
+  );
 
   // A new exercise (new prompts array) forgets all answers; a position
   // change abandons a half-finished leaf pick.
@@ -128,6 +159,8 @@ export function usePromptGate({
     setTerminalPick(false);
     setLeafPick(null);
     setBranchVerdicts(new Map());
+    setContinued(new Set());
+    setUnlocked(new Set());
   }
   if (position !== lastPosition) {
     setLastPosition(position);
@@ -135,7 +168,24 @@ export function usePromptGate({
     setLeafPick(null);
   }
 
-  const shown = lessonMode ? promptsAt(promptList, position) : [];
+  // Newly satisfied `after` stages join `unlocked` — the
+  // adjust-during-render pattern converges because the union stops
+  // growing at three stages.
+  const fresh = new Set(unlocked);
+  for (const after of [
+    "first_run",
+    "continue_or_second_run",
+    "longer_run",
+  ] as const) {
+    if (afterSatisfied(after, runs, longRun, continued)) fresh.add(after);
+  }
+  if (fresh.size !== unlocked.size) setUnlocked(fresh);
+
+  const shown = lessonMode
+    ? promptsAt(promptList, position).filter(
+        (p) => p.after === null || fresh.has(p.after),
+      )
+    : [];
   // Gating needs a pending pair: NJ's three-way final join has none, so
   // a predict_pair prompt placed there displays like a note.
   const answerable = sm !== null && sm.active !== null && sm.chosen !== null;
@@ -169,6 +219,18 @@ export function usePromptGate({
   // adjust-during-render pattern this hook already uses) converges.
   const recordBranchVerdict = (at: number, v: BranchVerdict) => {
     setBranchVerdicts((m) => (m.has(at) ? m : new Map(m).set(at, v)));
+  };
+  // A sequenced note offers Continue while its stage is unclicked and
+  // its successor isn't already unlocked by the run history — the
+  // button is never a dead end.
+  const continueFor = (p: Prompt): (() => void) | null => {
+    if (p.after === null) return null;
+    const next = CONTINUE_ADVANCES[p.after];
+    if (next === undefined || continued.has(p.after) || fresh.has(next)) {
+      return null;
+    }
+    const stage = p.after;
+    return () => setContinued((s) => new Set(s).add(stage));
   };
   const recordPick = (at: number, pair: [string, string]) => {
     setAnswered((m) => new Map(m).set(at, pair));
@@ -205,6 +267,7 @@ export function usePromptGate({
     gated: gating !== null,
     answerPair,
     picked: (at) => answered.get(at) ?? null,
+    continueFor,
     branchGating,
     pickedBranch: (at) => branchAnswered.get(at) ?? null,
     terminalPick,
