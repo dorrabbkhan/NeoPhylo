@@ -11,7 +11,7 @@ on:
   schedule:
     - cron: '0 4 1 * *'   # 1st of the month, 04:00 UTC
   push:
-    branches: [main]
+    branches: [main, ci/speed]   # ci/speed: bootstrap the image for its PR
     paths:
       - 'docker/ci-r/**'
       - '.github/workflows/publish-ci-r.yml'
