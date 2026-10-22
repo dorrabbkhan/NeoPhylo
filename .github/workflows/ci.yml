@@ -342,6 +342,10 @@ jobs:
         env:
           E2E: "1"
           E2E_PERF: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+          # The container runs as root but GitHub mounts HOME=/github/home
+          # owned by the image's pwuser — Firefox exits immediately on a
+          # $HOME it doesn't own (Playwright's own banner prescribes this).
+          HOME: /root
         run: >-
           scripts/ci/e2e.sh --project=${{ matrix.browser }}
           --shard=${{ matrix.shard }}/2 --reporter=list,html
