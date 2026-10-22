@@ -246,9 +246,17 @@ test("after one online load, a bootstrap run works offline", async ({
   test.skip(browserName !== "chromium");
   await page.goto(`${PREVIEW_URL}/`);
   await waitForApp(page);
+  // Active alone is not enough: autoUpdate's clients.claim() must have
+  // run before a reload is intercepted by the SW, otherwise the offline
+  // navigation goes to the network and dies (ERR_INTERNET_DISCONNECTED).
   await page.waitForFunction(async () => {
     const reg = await navigator.serviceWorker.getRegistration();
-    return reg !== undefined && reg !== null && reg.active !== null;
+    return (
+      reg !== undefined &&
+      reg !== null &&
+      reg.active !== null &&
+      navigator.serviceWorker.controller !== null
+    );
   });
 
   await context.setOffline(true);

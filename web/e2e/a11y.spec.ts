@@ -190,11 +190,18 @@ test("a loaded lesson still works offline", async ({
   await waitForApp(page);
 
   // The service worker's install only finishes once the precache (app
-  // shell, wasm, exercises/*.json) is populated; an active worker means
-  // the app is genuinely offline-capable, not merely registered.
+  // shell, wasm, exercises/*.json) is populated, and autoUpdate's
+  // clients.claim() must have run before a reload is intercepted — an
+  // active-but-not-controlling worker leaves the navigation to the
+  // (offline) network, so wait for controller, not just active.
   await page.waitForFunction(async () => {
     const reg = await navigator.serviceWorker.getRegistration();
-    return reg !== undefined && reg !== null && reg.active !== null;
+    return (
+      reg !== undefined &&
+      reg !== null &&
+      reg.active !== null &&
+      navigator.serviceWorker.controller !== null
+    );
   });
 
   await context.setOffline(true);
