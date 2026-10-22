@@ -2883,15 +2883,19 @@ wedging the start queue.
   (same value today). Unused semantic tokens (`support-weak`,
   `highlight`, `focus`) take the closest current-look value until
   Task 6 designs the real themes.
-- Font sizes had to move to the §3.2 scale (12/14/16/20/24/32, min 12):
-  the stylesheet used 9/11/13/15/17 px off-scale values, so pixels DO
-  change there (nearest scale value, ties up): 9→12, 11→12, 13→14,
-  15→16, 17→16; 12/14/20 were already on-scale. All colors, geometry,
-  spacing and radii are unchanged — spacing/radius literals stay for
-  Tasks 9–11 to normalize (the §3.4 test enforces colors + font sizes).
-- `export/svg.ts` now inks with `color.light.text` (#241f2e, the
-  on-screen `--fg`) instead of a separate #1a1a1a, and the pill uses
-  `color.light.bg`/`border` — the §7.3 print palette. Exported font
+- Font sizes are unchanged: the stylesheet's off-scale 9/11/13/15/17
+  px live in `legacySize` (emitted as `--size-legacy-*`), which exists
+  by owner decision (option 1 on PR #65) so Task 3 is a pure refactor
+  — Task 6 removes `legacySize` and moves every use onto `size`, with
+  the owner approving the baseline changes there. 12/14/20 px rules
+  use `--size-xs/sm/lg` directly, and `--font-mono` keeps `Consolas`
+  from the old `--mono` stack. All colors, geometry, spacing and radii
+  are unchanged — spacing/radius literals stay for Tasks 9–11 to
+  normalize (the §3.4 test enforces colors + font sizes).
+- `export/svg.ts` inks with the `exportInk` token (#1a1a1a — the same
+  value as the old literal, held outside `ColorTokens`) and the pill
+  uses `color.light.bg`/`border` at their identical values; ink stays
+  #1a1a1a until Task 15 applies the §7.3 print palette. Exported font
   stack stays as-is; Task 4/15 wire `font.ui` + embedding.
 - The generated `tokens.css` keeps the pre-token behavior: bare `:root`
   is light, `prefers-color-scheme: dark` still applies dark until

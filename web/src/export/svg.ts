@@ -17,7 +17,7 @@ import {
 } from "../layout/treeFigure";
 import { makeTextMeasurer } from "../measureText";
 import { labelRoomFor, leafFontSize } from "../layout/treePanel";
-import { color } from "../design/tokens";
+import { color, exportInk } from "../design/tokens";
 
 export interface ExportSvgOptions {
   kind: "phylogram" | "cladogram";
@@ -39,10 +39,11 @@ export interface ExportSvgOptions {
 
 const FONT_FAMILY =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-// Print palette = light-theme tokens, whatever the screen shows
-// (v1.3 spec §7.3): ink is the light text color, and the support pill
-// keeps the same "page fill + hairline border" as --bg/--border.
-const INK = color.light.text;
+// Ink stays the pre-token #1a1a1a via the exportInk token — moving to
+// the §7.3 print palette is Task 15's scope (owner decision on PR
+// #65). The support pill keeps the "page fill + hairline border" of
+// the light --bg/--border, unchanged from the literals.
+const INK = exportInk;
 const PILL_FILL = color.light.bg;
 const PILL_STROKE = color.light.border;
 

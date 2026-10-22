@@ -83,6 +83,19 @@ export const color: Record<ThemeName, ColorTokens> = {
 /** Type scale in px (§3.2); 12 is the minimum anywhere. */
 export const size = { xs: 12, sm: 14, md: 16, lg: 20, xl: 24, xxl: 32 } as const;
 
+// Temporary off-scale sizes (owner decision, option 1 on PR #65): the
+// pre-token stylesheet used 9/11/13/15/17 px and Task 3 must not move
+// a single pixel, so those values live here as --size-legacy-* vars.
+// Task 6 removes this object and moves every use onto `size`, where
+// the owner approves the baseline changes.
+export const legacySize = {
+  px9: 9,
+  px11: 11,
+  px13: 13,
+  px15: 15,
+  px17: 17,
+} as const;
+
 /** Spacing scale in px (§3.2). */
 export const space = [4, 8, 12, 16, 24, 32, 48] as const;
 
@@ -93,7 +106,7 @@ export const radius = { sm: 4, md: 8, lg: 12 } as const;
  * system fonts as before). */
 export const font = {
   ui: '"Inter", system-ui, sans-serif',
-  mono: '"JetBrains Mono", ui-monospace, monospace',
+  mono: '"JetBrains Mono", ui-monospace, Consolas, monospace',
 };
 
 /** Elevation shadows (§3.2) — the two the stylesheet already used. */
@@ -119,6 +132,12 @@ const ACCENT_BORDER_ALPHA = 0.5;
 
 // Dialog scrim behind .pair-panel/.replicate-panel — unthemed today.
 const SCRIM = "rgba(0, 0, 0, 0.35)";
+
+// The standalone SVG export's ink — kept at the pre-token #1a1a1a so
+// Task 3's export is byte-identical (owner decision on PR #65). It is
+// deliberately NOT a ColorTokens key: recoloring exports to the §7.3
+// print palette is Task 15's scope.
+export const exportInk = "#1a1a1a";
 
 // Okabe-Ito property tints behind the pair panel's aligned sequences:
 // light tints with one fixed dark text color in BOTH themes —
@@ -165,6 +184,9 @@ export function cssVariables(theme: ThemeName): Record<`--${string}`, string> {
   vars["--font-mono"] = font.mono;
   for (const [key, v] of Object.entries(size)) {
     vars[`--size-${key}`] = `${v}px`;
+  }
+  for (const [key, v] of Object.entries(legacySize)) {
+    vars[`--size-legacy-${key.slice(2)}`] = `${v}px`;
   }
   for (const n of space) {
     vars[`--space-${n}`] = `${n}px`;

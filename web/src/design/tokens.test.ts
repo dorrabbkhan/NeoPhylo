@@ -9,7 +9,15 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { color, cssVariables, font, radius, size, space } from "./tokens";
+import {
+  color,
+  cssVariables,
+  font,
+  legacySize,
+  radius,
+  size,
+  space,
+} from "./tokens";
 import type { ThemeName } from "./tokens";
 
 const THEMES: ThemeName[] = ["light", "dark"];
@@ -40,6 +48,15 @@ describe("design tokens", () => {
     }
     expect(vars["--font-ui"]).toBe(font.ui);
     expect(vars["--font-mono"]).toBe(font.mono);
+  });
+
+  it("emits every legacy size as --size-legacy-<px> (removed in Task 6)", () => {
+    for (const theme of THEMES) {
+      const vars = cssVariables(theme);
+      for (const [key, v] of Object.entries(legacySize)) {
+        expect(vars[`--size-legacy-${key.slice(2)}`]).toBe(`${v}px`);
+      }
+    }
   });
 
   it("every type-scale value is ≥ 12 px (spec §3.2 minimum)", () => {
