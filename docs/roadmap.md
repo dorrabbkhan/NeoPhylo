@@ -1,8 +1,7 @@
 # NeoPhylo roadmap
 
-**Status:** v1.0, v1.1 (protein support, PHYLIP I/O) and v1.2 (bootstrap, consensus,
-reference rooting) released. Last revised 2026-10-19 after a review of current course practice:
-MEGA-based labs dominate, and tree-interpretation research matters for intro courses.
+**Status:** v1.0, v1.1 (protein support, PHYLIP I/O) and **v1.2 (bootstrap, consensus, reference
+rooting)** released or releasing; **next: v1.3** (design system and polish). Last revised 2026-10-21.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -26,20 +25,34 @@ validation discipline: an independent oracle, property tests and fuzzing.
 
 ## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.5)
 
-### v1.2 Bootstrap, consensus and reference rooting (L) · *released*
-- Bootstrap (`seqboot` workflow) with visible resampling; support on the original tree; strict,
-  majority and extended-majority consensus; background worker with progress and cancel.
-- Inferred NJ trees drawn rooted like the reference (found at the v1.1 checkpoint, cytochrome-c lesson).
-- Lesson: `bootstrap-basics` ("How sure are we?").
+### v1.2 Bootstrap, consensus and reference rooting (L) · *done*
+- Bootstrap with visible resampling, support on the original tree, strict/majority/extended consensus,
+  background worker with progress and cancel, "Watch one replicate", NJ trees drawn rooted like the
+  reference, `bootstrap-basics` lesson with sequenced notes.
+- Validated: `consense` exact, `prop.clades` exact, `boot.phylo` within sampling noise.
+- Exports: Newick with support (Compatible/Exact names), consensus Newick, SVG/PNG from the screen layout,
+  R scripts mirroring the bootstrap.
+- Lessons learned for later versions: check exported figures against the screen; test on fonts other than
+  CI's; never let panels squeeze trees; keep the reviewer's comparison on the computed tree.
 
-### v1.3 Design system and polish (M)
-- Design tokens, type scale, component library, consistent light and dark themes.
-- **Narrow-window and tablet layout** (content currently clips instead of reflowing; found at the v1.1
-  checkpoints).
-- First-run onboarding; empty and loading states; presenter font sizes.
-- **Saturation fixes show progress feedback** when one click doesn't fully resolve saturation (found at
-  the v1.1 release checkpoint).
-- Lazy-load KaTeX; bundle and performance pass.
+### v1.3 Design system and polish (M–L)
+- **Design system:** tokens, type scale, spacing, component library, consistent light and dark themes,
+  presenter font sizes.
+- **Bundled font:** one OFL-licensed font for all tree text, on screen and **embedded in exported SVGs**,
+  so label placement is identical on every machine and in every viewer; re-layout on
+  `document.fonts.ready`; listed in THIRD_PARTY_NOTICES and the Licenses page. Resolves the v1.2 known
+  limitation about SVG fonts.
+- **Responsive layout:** narrow windows and tablets reflow instead of clipping (a v1.1/v1.2 known
+  limitation); trees always keep their natural height.
+- **State refactor:** split `web/src/state/session.ts` (~1,000 lines) into focused modules (lesson,
+  analysis, bootstrap, URL) before more state arrives; no behavior change, guarded by the existing tests and
+  the old-link corpora.
+- **Lesson UX:** saturation fixes show progress feedback ("Still saturated at length 100: 2 pairs remain");
+  first-run onboarding; empty and loading states.
+- **Performance:** lazy-load KaTeX; bundle-size pass.
+- **Visual QA built in:** a standard screenshot set (cytochrome-c rooted/computed, weak-support data,
+  4-taxon tree, replicate panel, bootstrap-basics final step, narrow width) generated in CI and attached
+  to every UI PR.
 
 ### v1.4 Instructor kit, PHYLIP lab packs and MEGA companion (L)
 - **Exercise editor in the UI:** draw or paste a true tree, set the model, seed and length, add prompts,
@@ -193,5 +206,5 @@ results; notebook export (Jupyter/R Markdown).
 | After v2.0 | *BAMBED* paper with classroom data; conference demos (evolution or biochem education meetings) |
 | Before v3.0 | Letters of intent from 3 departments, or don't build the paid tier |
 
-Overall horizon: v2.0 (powerhouse) in roughly 10–14 months of steady part-time work; v3.3 in roughly
+Overall horizon (from 2026-10-21): v2.0 (powerhouse) in roughly 9–13 months of steady part-time work; v3.3 in roughly
 24 months. **Re-plan after every pilot:** real classroom feedback outranks this list.
