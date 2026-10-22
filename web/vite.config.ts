@@ -8,6 +8,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
 
 import { writeLicensesPage } from "./scripts/licenses.ts";
+import { tokensCssPlugin } from "./src/design/tokensCssPlugin.ts";
 
 // Lesson files live in the repo-level exercises/ directory (spec §7),
 // outside Vite's root. loadLesson fetches `/exercises/<id>.json`, so this
@@ -94,6 +95,9 @@ export default defineConfig({
     react(),
     exercisesPlugin(),
     licensesPlugin(),
+    // Generated src/design/tokens.css from the TS tokens (spec §3.1) —
+    // regenerated at dev-server start and build start.
+    tokensCssPlugin(),
     // Offline after first load (spec §2.1): precache the app shell, the
     // wasm engine asset and the copied exercises/*.json — the defaults
     // exclude .wasm and .json. navigateFallback (index.html) is the

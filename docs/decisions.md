@@ -2868,3 +2868,36 @@ wedging the start queue.
   state types instead of `Session[...]`, same types). Keeping the
   union in `session.ts` would push the composer past the task's
   150-line cap. `docs/decisions.md` carries this entry.
+
+## v1.3 Task 3: design tokens with the current look
+
+- `color` holds the 15 §3.2 tokens per theme — light keeps the current
+  light palette, dark the current prefers-color-scheme one (no visual
+  change). Three values had no §3.2 slot and are emitted by
+  `cssVariables` as derived vars so no pixel moves: `--color-text-h`
+  (the third text level, ex `--text-h`), `--color-accent-bg` /
+  `--color-accent-border` (rgba tints derived from `accent` at the old
+  alphas 0.10/0.15 and 0.50) and the unthemed `--color-scrim` /
+  `--color-aa-*` Okabe-Ito tints / `--color-aa-text` pair-panel palette.
+  `--color-wrong-clade` replaces `--danger` on the `.wrong` annotation
+  (same value today). Unused semantic tokens (`support-weak`,
+  `highlight`, `focus`) take the closest current-look value until
+  Task 6 designs the real themes.
+- Font sizes had to move to the §3.2 scale (12/14/16/20/24/32, min 12):
+  the stylesheet used 9/11/13/15/17 px off-scale values, so pixels DO
+  change there (nearest scale value, ties up): 9→12, 11→12, 13→14,
+  15→16, 17→16; 12/14/20 were already on-scale. All colors, geometry,
+  spacing and radii are unchanged — spacing/radius literals stay for
+  Tasks 9–11 to normalize (the §3.4 test enforces colors + font sizes).
+- `export/svg.ts` now inks with `color.light.text` (#241f2e, the
+  on-screen `--fg`) instead of a separate #1a1a1a, and the pill uses
+  `color.light.bg`/`border` — the §7.3 print palette. Exported font
+  stack stays as-is; Task 4/15 wire `font.ui` + embedding.
+- The generated `tokens.css` keeps the pre-token behavior: bare `:root`
+  is light, `prefers-color-scheme: dark` still applies dark until
+  Task 6 sets `data-theme` (the plugin emits
+  `:root:not([data-theme])` inside the media query plus the two
+  `data-theme` blocks §3.1 names).
+- Files outside the Files block: `web/.gitignore` gained a
+  `src/design/tokens.css` entry — the generated file must never be
+  committed (spec §3.1). `docs/decisions.md` carries this entry.
