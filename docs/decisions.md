@@ -2791,6 +2791,24 @@ wedging the start queue.
   not trigger CI runs, so bump PRs need a close/reopen (or an empty
   commit) before their checks run — noted in the PR body the script
   writes. No `visual` job exists yet; nothing to convert there.
+- **Findings from the first in-container full-matrix run.** (a) Firefox
+  exited instantly: the container runs as root while GitHub mounts
+  `HOME=/github/home` owned by the image's `pwuser`, and Firefox refuses
+  a root launch on a foreign-owned `$HOME` — fixed with `HOME: /root` on
+  the e2e step (Chromium/WebKit don't check). (b) The offline reload
+  flake resurfaced differently: a raced navigation now *hangs* the full
+  ~28 s nav timeout inside `toPass`, consuming the whole retry budget in
+  one attempt — fixed with `page.reload({ timeout: 8_000 })` so raced
+  attempts fail fast and retries actually cycle (a11y + bootstrap
+  specs). Re-run `39822909530` is green on all six shards.
+- **e2e timings, runner vs container.** PR shards (chromium, no @perf):
+  1m09s/1m10s before → 1m18s/1m23s after; the ~1–2 GB image pull roughly
+  offsets the dropped `install --with-deps`, and removes the 9-min apt
+  outlier class entirely. Full matrix (all 3 browsers + @perf), run
+  39822909530: chromium 2m19s/1m22s, firefox 1m45s/1m44s, webkit
+  1m49s/1m34s; r-and-fixtures 1m01s on the digest-pinned image. Net win
+  is determinism (no apt, browsers keyed to the exact playwright
+  version) more than wall-clock on PRs.
 
 ### Files (ci/speed)
 
