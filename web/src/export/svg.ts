@@ -17,6 +17,7 @@ import {
 } from "../layout/treeFigure";
 import { makeTextMeasurer } from "../measureText";
 import { labelRoomFor, leafFontSize } from "../layout/treePanel";
+import { color } from "../design/tokens";
 
 export interface ExportSvgOptions {
   kind: "phylogram" | "cladogram";
@@ -38,11 +39,12 @@ export interface ExportSvgOptions {
 
 const FONT_FAMILY =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-const INK = "#1a1a1a";
-// The support pill keeps labels readable over branch lines — the same
-// "page fill + hairline border" as the app's --bg/--border (light theme).
-const PILL_FILL = "#ffffff";
-const PILL_STROKE = "#e5e4e7";
+// Print palette = light-theme tokens, whatever the screen shows
+// (v1.3 spec §7.3): ink is the light text color, and the support pill
+// keeps the same "page fill + hairline border" as --bg/--border.
+const INK = color.light.text;
+const PILL_FILL = color.light.bg;
+const PILL_STROKE = color.light.border;
 
 // Standalone-document geometry: no panel exists to measure, so when
 // the caller does not pass the on-screen values a readable default is
