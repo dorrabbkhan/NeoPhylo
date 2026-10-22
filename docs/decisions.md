@@ -2743,12 +2743,28 @@ wedging the start queue.
   `e2e (<browser>, <shard>)` for firefox/webkit as well — the old
   `e2e (<browser>)` check names no longer exist, so protection
   entries must be renamed.
-- **Targets vs measured.** Typical code PR <10 min: projected ~3–4
-  min (e2e shards ~2 min after wasm+web, then deploy). Docs PR
-  <2 min: yes (~1 min). quick <2 min: 1.6 s hit / 121 s worst-case
-  engine rebuild. Default check <8 min: yes (~3 min warm).
-  Post-merge actuals come from this PR's own run and the first
-  nightly.
+- **Targets vs measured.** Typical code PR <10 min: this PR's own
+  run took ~13 min end to end, but it is the worst case — Cargo.toml
+  changed, so rust-cache missed (rust 3m49s) and one e2e shard's
+  `install --with-deps` apt run stalled ~9 min on a slow mirror
+  (the other shard's whole job was 1m21s). Steady-state actuals per
+  job: changes 4 s, fixture-guard 7 s, licenses 29 s, r-and-fixtures
+  **58 s** (vs 195–289 s baseline — the R/PHYLIP image removes the
+  per-run setup), wasm 2m7s on a pkg cache hit, web 1m8s, e2e shard
+  1m21s, deploy 46 s, fuzz-build skipped (no crates/**). Docs PR
+  <2 min: yes (~1 min: changes + fixture-guard + rust only). quick
+  <2 min: 1.6 s hit / 121 s worst-case engine rebuild. Default check
+  <8 min: 53 s warm. Known cost not yet cached: `playwright install
+  --with-deps` re-runs apt per e2e job (normally ~1 min, observed
+  9 min outlier) — a candidate follow-up.
+- **Bug found by the new shard layout.** The two Chromium offline
+  specs raced `clients.claim()`: `reg.active !== null` does not
+  imply `controller`, so `setOffline` + `reload` could hit the real
+  network (ERR_INTERNET_DISCONNECTED). Both specs now wait for
+  `navigator.serviceWorker.controller !== null`. `r-and-fixtures`
+  also needed `git config --global --add safe.directory
+  "$GITHUB_WORKSPACE"` — checkout's safe.directory lives in a
+  temporary HOME that does not persist to container run steps.
 
 ### Files (ci/speed)
 
@@ -2757,5 +2773,6 @@ wedging the start queue.
 `scripts/ci/quick.sh` (new), `scripts/ci/rust.sh`,
 `scripts/ci/wasm.sh`, `scripts/ci/e2e.sh`,
 `scripts/neophylo-loop.sh` (new), `Cargo.toml`, `AGENTS.md`,
-`.devin/skills/neophylo-task/SKILL.md`, `docs/decisions.md` (this
-entry).
+`.devin/skills/neophylo-task/SKILL.md`, `web/e2e/a11y.spec.ts`,
+`web/e2e/bootstrap.spec.ts` (offline SW controller wait),
+`docs/decisions.md` (this entry).
