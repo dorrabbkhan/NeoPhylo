@@ -248,28 +248,41 @@ p {
   overflow-y: auto;
 }
 
-/* The tree row takes ~45% of the column height and the matrix row ~55%,
- * so both fill the column with no large empty gap between them. Row 1
- * is reserved for the (usually absent) error message. */
+/* Rows are content-driven (bootstrap-basics round 3): plain block
+ * flow, NOT grid — grid's auto tracks split the column's leftover
+ * height evenly instead of sizing to content, which clipped the tree
+ * column's caption and toggle over the heatmap. The prompt strip
+ * scrolls instead of shrinking the trees, tree panels take their
+ * drawing's natural height (~28 px per leaf) so no leaf is ever cut
+ * off, and the heatmap keeps its natural size — the column itself
+ * scrolls when the stack is taller than the viewport. */
 .col-center {
-  display: grid;
-  grid-template-rows: auto minmax(0, 45fr) minmax(0, 55fr);
-  gap: 12px;
+  display: block;
   padding: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-width: 0;
 }
 
-/* Row 1 stacks the error alert and the §6.3 teaching notices. */
+.col-center > * + * {
+  margin-top: 12px;
+}
+
+/* The error alert and the §6.3 teaching notices. */
 .col-center > .notices {
-  grid-row: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+/* The prompt cards scroll inside a capped strip rather than
+ * squeezing the tree row (round 3). */
+.col-center > .prompts {
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
 .trees {
-  grid-row: 2;
   display: grid;
   /* minmax(0,1fr), not 1fr: the svg's intrinsic pixel width is a
    * min-content floor under auto minima — it feeds back through the
@@ -291,23 +304,17 @@ p {
 }
 
 /* The inferred tree's grid cell: tree plus the final-step unrooted
- * caption stacked underneath (checkpoint 12). */
+ * caption stacked underneath (checkpoint 12). Plain block, not a
+ * column flex — the vertical chain carries no grow now (round 3),
+ * and a block box's height is unambiguously its content: a scroll
+ * container or 0%-basis flex item in this chain contributed ~0 to the
+ * .trees auto row, so the row sized to the OTHER panel and this
+ * column's caption and toggle clipped or painted over the heatmap.
+ * Overflow lives on .col-center. */
 .tree-col {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
   min-width: 0;
-  /* A squeezed row can make the consensus-tabs block taller than the
-   * column (its floor keeps the tree visible); scroll rather than clip
-   * so the tree's bottom edge, the dropped line and the notes all stay
-   * reachable instead of painting over the heatmap row. */
-  overflow-y: auto;
 }
 
-.tree-col .tree-panel {
-  flex: 1;
-  min-height: 0;
-}
 
 .unrooted-note {
   color: var(--fg);
@@ -323,10 +330,11 @@ p {
 }
 
 /* The measured box: TreeView observes it and derives leaf spacing and
- * label room from its size. */
+ * label room from its size. Panels grow to the drawing's natural
+ * height; only a tree with more than 40 leaves (~1,180 px at 28
+ * px/leaf plus padding) scrolls inside the canvas (round 3). */
 .tree-canvas {
-  flex: 1;
-  min-height: 0;
+  max-height: 1180px;
   overflow: auto;
 }
 
@@ -356,17 +364,16 @@ p {
   outline: none;
 }
 
-/* The heatmap keeps its square aspect inside the lower row; currentColor
- * inside it (cell outlines, axis labels) follows --fg like the trees. */
+/* The heatmap draws at its natural width-driven size so text never
+ * renders under 12 px (round 3) — the column scrolls when it doesn't
+ * fit. currentColor inside it (cell outlines, axis labels) follows
+ * --fg like the trees. */
 .col-center > svg {
-  grid-row: 3;
+  display: block;
   width: 100%;
   max-width: 560px;
   height: auto;
-  max-height: 100%;
-  min-height: 0;
-  justify-self: center;
-  align-self: start;
+  margin: 12px auto 0;
   color: var(--fg);
 }
 
@@ -708,7 +715,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+  /* A flex child inside the grid row keeps the row from stretching
+   * past the cards; the row cap and scrollbar live on
+   * .col-center > .prompts above. */
 }
 
 /* Prompt cards echo the teaching-notice panel: accent border and
@@ -755,6 +764,13 @@ button:disabled {
 /* "Show a vs b" on an answered card: a plain control, secondary to the
  * verdict and reveal text (checkpoint 12). */
 .prompt-show-pair {
+  display: block;
+  margin-top: 4px;
+}
+
+/* "Continue" on a sequenced note (bootstrap-basics round 3): a plain
+ * control that unlocks the next note's trigger. */
+.prompt-continue {
   display: block;
   margin-top: 4px;
 }
@@ -1165,23 +1181,21 @@ button:disabled {
 
 /* ---- Consensus tabs (v1.2 §6.4) ---- */
 
-/* The tabs + panel fill the tree column so the TreeView inside the
- * tabpanel keeps its measured box. No min-height:0 — the block must
- * not shrink below its content (a squeezed row would otherwise starve
- * the canvas to a zero box and the svg would render hidden); .tree-col
- * scrolls the overflow instead (see its rule above). */
+/* Plain block — see .tree-col: the whole height chain is
+ * content-sized now, and block boxes report their content height to
+ * the .trees row without the flex max-content quirks that clipped
+ * this block's caption and toggle. */
 .consensus-tabs {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  min-width: 0;
 }
 
-/* One row that scrolls sideways rather than wrapping: a wrapped
- * tablist ate enough of the squeezed tree row to starve the canvas to
- * zero height (e2e: the svg rendered but got a 0-size box). */
+/* The strip wraps so all four tabs keep their full labels (round 3);
+ * the horizontal scroll stays as the narrow-column fallback — the
+ * earlier starvation bug it worked around can't recur now that panels
+ * size to their drawing instead of the row. */
 .consensus-tabs [role="tablist"] {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   overflow-x: auto;
   flex-shrink: 0;
   gap: 2px;
@@ -1216,48 +1230,13 @@ button:disabled {
   cursor: default;
 }
 
-.consensus-tabpanel {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
 
-.consensus-tabpanel .tree-panel {
-  flex: 1;
-  /* Overrides .tree-panel's global min-height:0 — see .consensus-tabs. */
-  min-height: auto;
-}
-
-/* When the tree row is squeezed (long teaching notices), the flex
- * chain can starve the canvas to a zero box — the svg then exists but
- * is hidden. A floor keeps the drawing visible; the extra height
- * overflows into the notes below instead.
- *
- * The svg is taken out of flow here (checkpoint 15): its intrinsic
- * aspect-ratio height (width ÷ viewBox ratio) counts as the canvas's
- * min-content, which pushed the column's content past the row and let
- * the focused reroot toggle scroll the drawing's top out of view.
- * Absolutely positioned, the canvas sizes from flex alone and the
- * viewBox — which already fits every label — scales the whole drawing
- * into whatever height is available, so every leaf stays visible. The
- * global rule stays in-flow because the replicate trees' canvas is
- * sized BY that intrinsic height (no flex space there).
- *
- * The floor is 64 px, not more: its job is only to keep the canvas off
- * zero (the starvation case above). Since the drawing scales to the
- * canvas, a smaller floor just draws smaller — whereas a taller floor
- * pushed the canvas's bottom past the column in a squeezed row
- * (checkpoint 15 e2e: svg bottom out of the column in CI's font
- * metrics), clipping the lowest leaves. */
+/* The svg stays in flow here too (round 3): the canvas — and through
+ * it the whole column — sizes from the drawing's natural height, so
+ * every leaf is reachable. The >40-leaf scroll comes from
+ * .tree-canvas's max-height above. */
 .consensus-tabs .tree-canvas {
-  min-height: 64px;
-  position: relative;
   overflow: auto;
-}
-.consensus-tabs .tree-canvas svg {
-  position: absolute;
-  top: 0;
-  left: 0;
 }
 
 .consensus-dropped {

@@ -45,6 +45,7 @@ import type { ReplicateDetail } from "../engine/generated/ReplicateDetail";
 import { errorMessage } from "../explain/errors";
 import { loadLesson } from "../lessons/loader";
 import { usePromptGate } from "../lessons/promptGate";
+import { LONGER_RUN_SITES } from "../lessons/prompts";
 import type { Action, Session } from "../state/session";
 import {
   exerciseSim,
@@ -75,7 +76,6 @@ import { PhylipHelp } from "./PhylipHelp";
 import { ReplicatePanel } from "./ReplicatePanel";
 import { PromptCard } from "./PromptCard";
 import {
-  leafCount,
   leafIdByLabel,
   leafLabelSets,
   stepEmphasis,
@@ -85,7 +85,7 @@ import { stepMatrix, traceLength } from "./stepMatrix";
 import type { StepMatrix } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
 import { splitKeys } from "../layout/splitKeys";
-import { leafSpacingFor, TREE_CAPTION_H } from "../layout/treePanel";
+import { LEAF_SPACING_NATURAL } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
 
@@ -116,20 +116,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
     index: number;
     result: Result<ReplicateDetail>;
   } | null>(null);
-
-  // Height of the side-by-side tree row, measured once for both panels
-  // so they share one leafSpacing and their rows line up (§6.1). The
-  // callback ref attaches the observer when .trees mounts — a mount-time
-  // effect would run while the loading placeholder is rendered instead.
-  const [treesHeight, setTreesHeight] = useState(0);
-  const treesRef = useCallback((el: HTMLDivElement | null) => {
-    if (el === null || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver((entries) => {
-      setTreesHeight(entries[0].contentRect.height);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   // The inferred tree's column scrolls when the row is squeezed (its
   // tabs block keeps a min height; the caption + toggle ride below).
@@ -415,6 +401,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
     lessonMode: session?.source === "lesson",
     sm,
     leafSets: inferSets,
+    // Round-3 note sequencing: the triggers read the run history.
+    runs: session?.bootstrap.completedRuns ?? 0,
+    longRun:
+      (session?.bootstrap.maxRunSites ?? 0) >= LONGER_RUN_SITES,
   });
 
   // Pair panel (v1.1 spec §5.2): in protein mode with no predict
@@ -534,7 +524,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // have no trace (Global Constraints) but still build an unrooted
   // tree that §6.7 roots on the reference's outgroup for display.
   const isNj = session.exercise.analysis.method === "Nj";
-  const nLeaf = inferred ? leafCount(inferred) : 0;
 
   // The stepper's final position (spec §6.2-6.3): a result without a
   // trace (>50 taxa) is always "final". The panel and support labels
@@ -629,12 +618,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
     return weakest === null ? null : { weakest, byKey };
   })();
 
-  // Shared leaf spacing for both trees: the row height minus the
-  // caption, divided by the leaf count, clamped to 18–48 px.
-  const sharedSpacing = leafSpacingFor(
-    treesHeight - TREE_CAPTION_H,
-    Math.max(nLeaf, referenceTree !== null ? leafCount(referenceTree) : 0),
-  );
+  // Shared leaf spacing for both trees (round 3): fixed at the
+  // natural 28 px/leaf — panels grow to the tree's height instead of
+  // fitting the drawing to the row, so no leaf is ever cut off and
+  // text never scales.
+  const sharedSpacing = LEAF_SPACING_NATURAL;
 
   // Unpack the prompt gate (src/lessons/promptGate.ts): gating hides the
   // correct pair from the heatmap and the tree highlights.
@@ -877,11 +865,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
                       : undefined
                   }
                   onShowPair={setPair}
+                  onContinue={
+                    p.type === "note"
+                      ? (promptGate.continueFor(p) ?? undefined)
+                      : undefined
+                  }
                 />
               ))}
             </div>
           )}
-          <div className="trees" ref={treesRef}>
+          <div className="trees">
             {referenceTree === null && (
               <p className="no-true-tree">
                 No true tree — import a Newick tree to compare

@@ -9,11 +9,47 @@
 // Task 23's nj-basics prompts (at_step 1 and 3 on a 6-taxon NJ) ask
 // about joins 1 and 3, both real pair joins.
 
+import type { NoteAfter } from "../engine/generated/NoteAfter";
 import type { Prompt } from "../engine/generated/Prompt";
 
 /** The prompts attached to stepper position `k` (join number k+1). */
 export function promptsAt(prompts: Prompt[], position: number): Prompt[] {
   return prompts.filter((p) => p.at_step - 1 === position);
+}
+
+/** A completed run reaches the `longer_run` trigger at this many
+ * sites — the bootstrap-basics round 3 sequence asks the student to
+ * raise Length to 3,000 (10× the lesson's 300). */
+export const LONGER_RUN_SITES = 3000;
+
+/** The stage a Continue button unlocks (bootstrap-basics round 3):
+ * the seed-wobble note's Continue substitutes for a second run, the
+ * length note's for a run on the longer alignment. `longer_run` has
+ * no successor — it is the closing note. */
+export const CONTINUE_ADVANCES: Partial<Record<NoteAfter, NoteAfter>> = {
+  first_run: "continue_or_second_run",
+  continue_or_second_run: "longer_run",
+};
+
+/** Whether a note's `after` trigger is satisfied by the run history
+ * plus the Continue clicks so far (round 3): `first_run` needs one
+ * completed run; `continue_or_second_run` a second run or the wobble
+ * note's Continue; `longer_run` a run on the longer alignment or the
+ * length note's Continue. */
+export function afterSatisfied(
+  after: NoteAfter,
+  runs: number,
+  longRun: boolean,
+  continued: ReadonlySet<NoteAfter>,
+): boolean {
+  switch (after) {
+    case "first_run":
+      return runs >= 1;
+    case "continue_or_second_run":
+      return runs >= 2 || continued.has("first_run");
+    case "longer_run":
+      return longRun || continued.has("continue_or_second_run");
+  }
 }
 
 /** The predict_pair prompt gating `position`, or null when none of the

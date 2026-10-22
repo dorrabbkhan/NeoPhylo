@@ -33,18 +33,21 @@
     {
       "at_step": 7,
       "type": "note",
+      "after": "first_run",
       "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. With 1,000 replicates instead of 100, they settle down. So don't read much into small differences like 52 versus 57.",
       "math": null
     },
     {
       "at_step": 7,
       "type": "note",
+      "after": "continue_or_second_run",
       "concept": "Now try more data. Raise Length to 3,000 — ten times as many columns — and run again. Watch what happens to that grouping's support.",
       "math": "Signal scales with sites: the same tree under 10× the columns puts ~10× the expected substitutions on every branch, short ones included."
     },
     {
       "at_step": 7,
       "type": "note",
+      "after": "longer_run",
       "concept": "Read the numbers carefully. When a grouping shows 87, it means 87 of 100 resampled datasets rebuilt it, not that it has an 87% chance of being true. Support measures how consistently the data points to a grouping. Low support means this dataset says little about that grouping, not that the grouping is wrong: here the weak grouping was real, and a longer alignment raised its support. Small differences between seeds or runs are noise; don't overinterpret them.",
       "math": null
     }

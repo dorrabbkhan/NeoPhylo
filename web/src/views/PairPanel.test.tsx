@@ -392,6 +392,7 @@ describe("PairPanel wiring in App", () => {
           math: null,
           reveal: null,
           reveal_pair: null,
+          after: null,
         },
       ],
     };

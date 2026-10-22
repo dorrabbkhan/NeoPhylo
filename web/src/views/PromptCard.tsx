@@ -40,6 +40,10 @@ export interface PromptCardProps {
   /** Opens the pair-detail dialog for the prompt's `reveal_pair`
    * (checkpoint 12); the card only shows the button when this is set. */
   onShowPair?: (pair: [string, string]) => void;
+  /** Sequenced notes only (bootstrap-basics round 3): the note offers
+   * "Continue" to unlock the next stage; unset means no button — the
+   * stage was already continued or its successor unlocked by a run. */
+  onContinue?: () => void;
 }
 
 /** Pair equality ignores order — a join is a set of two clusters. */
@@ -53,6 +57,7 @@ export function PromptCard({
   answer,
   branch,
   onShowPair,
+  onContinue,
 }: PromptCardProps) {
   const predicting =
     prompt.type === "predict_pair" && picked === null && answer !== null;
@@ -128,6 +133,15 @@ export function PromptCard({
       )}
       {mode === "math" && prompt.math !== null && (
         <p className="prompt-math">{prompt.math}</p>
+      )}
+      {onContinue !== undefined && (
+        <button
+          type="button"
+          className="prompt-continue"
+          onClick={onContinue}
+        >
+          Continue
+        </button>
       )}
     </div>
   );

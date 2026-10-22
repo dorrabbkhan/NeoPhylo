@@ -681,6 +681,7 @@ const PREDICT_BRANCH_PROMPT = {
   math: null,
   reveal: "The weakest grouping sits on the shortest internal branch.",
   reveal_pair: null,
+  after: null,
 } as const;
 
 /** The exercise with a predict_branch prompt attached. */

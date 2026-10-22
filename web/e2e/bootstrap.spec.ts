@@ -957,7 +957,12 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
   expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
   expect(clip.leaves).toBe(8);
   expect(clip.leavesInSvg).toBe(true);
-  expect(clip.scrolled, JSON.stringify(clip)).toBe(true);
+  // Round-4 sizing: a ≤40-leaf drawing fits the canvas outright, so
+  // reaching the bottom is required only when it can actually scroll.
+  expect(
+    !clip.scrollable || clip.scrolled,
+    JSON.stringify(clip),
+  ).toBe(true);
   expect(clip.lastLeafVisible, JSON.stringify(clip)).toBe(true);
 
   // Rooted view — the same check after toggling back.
@@ -968,7 +973,12 @@ test("cytochrome-c: export items name the drawing, all leaves visible in both vi
   expect(clip.captionInCol, JSON.stringify(clip)).toBe(true);
   expect(clip.leaves).toBe(8);
   expect(clip.leavesInSvg).toBe(true);
-  expect(clip.scrolled, JSON.stringify(clip)).toBe(true);
+  // Round-4 sizing: a ≤40-leaf drawing fits the canvas outright, so
+  // reaching the bottom is required only when it can actually scroll.
+  expect(
+    !clip.scrollable || clip.scrolled,
+    JSON.stringify(clip),
+  ).toBe(true);
   expect(clip.lastLeafVisible, JSON.stringify(clip)).toBe(true);
 });
 

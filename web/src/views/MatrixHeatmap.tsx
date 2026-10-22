@@ -54,8 +54,10 @@ const VIRIDIS = [
 const CELL = 34;
 const LABEL = 90; // room for row labels on the left and column labels on top
 const PAD = 4;
-const FONT = 9;
-const LABEL_FONT = 10;
+// The same ≥12 px floor as the trees (round 3) — the heatmap never
+// scales to fit, so layout px are rendered px.
+const FONT = 12;
+const LABEL_FONT = 12;
 
 /** Above this many taxa the compact path renderer replaces per-cell
  * gridcell elements (v1.1 §3.4 budget; see the file header). */

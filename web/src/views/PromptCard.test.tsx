@@ -16,6 +16,7 @@ const PREDICT: Prompt = {
   math: "Find the minimum Q(i,j).",
   reveal: null,
   reveal_pair: null,
+  after: null,
 };
 
 const NOTE: Prompt = {
@@ -25,6 +26,7 @@ const NOTE: Prompt = {
   math: null,
   reveal: null,
   reveal_pair: null,
+  after: null,
 };
 
 afterEach(cleanup);
@@ -161,6 +163,7 @@ const BRANCH: Prompt = {
   math: "support = count ÷ successful replicates",
   reveal: "Short internal branches leave the fewest informative sites.",
   reveal_pair: null,
+  after: null,
 };
 
 describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {

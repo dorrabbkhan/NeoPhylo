@@ -147,6 +147,11 @@
             "minItems": 2,
             "maxItems": 2,
             "description": "Optional pair of taxon labels: the answered prompt card shows a \"Show a vs b\" button opening the pair-detail panel, and the next step's explanation keeps a \"Revisit\" link. Both labels must be alignment taxon names — checked by the engine at load, not by this schema."
+          },
+          "after": {
+            "type": "string",
+            "enum": ["first_run", "continue_or_second_run", "longer_run"],
+            "description": "bootstrap-basics round 3: optional sequencing trigger on a bootstrap-stage note. The note stays hidden until its trigger — \"first_run\": the first completed bootstrap run; \"continue_or_second_run\": a second completed run or a Continue on the first_run note; \"longer_run\": a completed run on a longer alignment (Length >= 3,000) or a Continue on the continue_or_second_run note. Once shown it stays."
           }
         },
         "allOf": [{ "$ref": "#/$defs/promptAnchor" }]

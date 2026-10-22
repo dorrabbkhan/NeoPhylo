@@ -128,6 +128,29 @@ pub enum PromptType {
     PredictBranch,
 }
 
+/// When a bootstrap-stage note becomes visible (bootstrap-basics
+/// round 3): a sequenced note stays hidden until its trigger — the
+/// first completed run, a second run or a Continue on the previous
+/// note, or a completed run on a longer alignment — and never
+/// disappears once shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(
+    rename_all = "snake_case",
+    export,
+    export_to = "../../../web/src/engine/generated/"
+)]
+pub enum NoteAfter {
+    /// After the first completed bootstrap run.
+    FirstRun,
+    /// After a second completed run, or a Continue on the `first_run`
+    /// note.
+    ContinueOrSecondRun,
+    /// After a completed run on a longer alignment, or a Continue on
+    /// the `continue_or_second_run` note.
+    LongerRun,
+}
+
 /// A step-triggered teaching prompt (spec §7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
@@ -153,6 +176,12 @@ pub struct Prompt {
     /// labels must be alignment taxon names — checked at load.
     #[serde(default)]
     pub reveal_pair: Option<[String; 2]>,
+    /// Optional sequencing trigger on a bootstrap-stage note
+    /// (bootstrap-basics round 3): the note stays hidden until the
+    /// trigger — a completed run, a second run or a Continue — and
+    /// never disappears once shown. `None` shows with the step.
+    #[serde(default)]
+    pub after: Option<NoteAfter>,
 }
 
 /// Parse and validate an exercise file. `schema_version` must be 1 or 2;
@@ -457,6 +486,18 @@ fn prompts(fs: &[PromptFile], labels: &[String], method: Method) -> Result<Vec<P
                 }
             }
         }
+        let after = match p.after.as_deref() {
+            None => None,
+            Some("first_run") => Some(NoteAfter::FirstRun),
+            Some("continue_or_second_run") => Some(NoteAfter::ContinueOrSecondRun),
+            Some("longer_run") => Some(NoteAfter::LongerRun),
+            Some(other) => {
+                return Err(bad(
+                    &format!("prompts.{i}.after"),
+                    &format!("unknown after trigger '{other}'"),
+                ))
+            }
+        };
         prompts.push(Prompt {
             at_step,
             r#type,
@@ -464,6 +505,7 @@ fn prompts(fs: &[PromptFile], labels: &[String], method: Method) -> Result<Vec<P
             math: p.math.clone(),
             reveal: p.reveal.clone(),
             reveal_pair: p.reveal_pair.clone(),
+            after,
         });
     }
     Ok(prompts)
@@ -610,4 +652,9 @@ struct PromptFile {
     reveal: Option<String>,
     #[serde(default)]
     reveal_pair: Option<[String; 2]>,
+    /// Optional sequencing trigger on a bootstrap-stage note
+    /// (bootstrap-basics round 3); validated against `NoteAfter`'s
+    /// values above.
+    #[serde(default)]
+    after: Option<String>,
 }

@@ -136,6 +136,13 @@ export interface BootstrapState {
   view: BootstrapView;
   replicateIndex: number | null;
   settingsUsed: { replicates: number; seed: number } | null;
+  /** Completed (status "done") runs since the last data change —
+   * sequenced lesson notes key off it (bootstrap-basics round 3).
+   * Cleared with the results by `clearBootstrap`. */
+  completedRuns: number;
+  /** Sites of the longest alignment a completed run was made on;
+   * `null` before any run. Drives the "longer run" note trigger. */
+  maxRunSites: number | null;
   jobId: number | null;
   cancelJobId: number | null;
   autorun: boolean;
@@ -161,6 +168,8 @@ export function defaultBootstrap(): BootstrapState {
     view: "support",
     replicateIndex: null,
     settingsUsed: null,
+    completedRuns: 0,
+    maxRunSites: null,
     jobId: null,
     cancelJobId: null,
     autorun: false,
@@ -924,6 +933,9 @@ export function reducer(s: Session, a: Action): Session {
       const b = s.bootstrap;
       if (!jobCurrent(b, a.jobId)) return s;
       const r = a.result;
+      // The run's alignment is the session's: a data change would
+      // have cancelled this job before it could finish.
+      const sites = s.alignment?.seqs[0]?.length ?? 0;
       return {
         ...s,
         bootstrap: {
@@ -938,6 +950,8 @@ export function reducer(s: Session, a: Action): Session {
           support: r.support,
           consensus: r.consensus,
           dropped: r.dropped,
+          completedRuns: b.completedRuns + 1,
+          maxRunSites: Math.max(b.maxRunSites ?? 0, sites),
           error: null,
         },
       };
