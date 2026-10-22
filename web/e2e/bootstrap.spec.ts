@@ -260,14 +260,17 @@ test("after one online load, a bootstrap run works offline", async ({
   });
 
   await context.setOffline(true);
-  // Same Playwright/Chromium offline-emulation race as the a11y spec:
-  // the reload can reach the real network (ERR_INTERNET_DISCONNECTED)
-  // before the SW's fetch interception is wired, so retry it — the
-  // offline-run assertion below is unaffected.
+  // Playwright's offline emulation can still lose the race against
+  // Chromium wiring the SW's fetch interception for navigations — and
+  // when it does, the reload hangs the full navigation timeout (~28 s)
+  // before ERR_INTERNET_DISCONNECTED, so one attempt eats the whole retry
+  // budget. A short per-reload timeout makes a raced attempt fail fast so
+  // toPass can retry until the SW serves the navigation — the offline-run
+  // assertion below is unaffected.
   await expect(async () => {
-    await page.reload();
+    await page.reload({ timeout: 8_000 });
     await waitForApp(page);
-  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
+  }).toPass({ timeout: 45_000, intervals: [500, 1_000, 2_000] });
 
   const fasta = dnaFasta(8, 300, 0.25, 9);
   const res = await page.evaluate(async (f) => {
