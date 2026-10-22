@@ -2834,3 +2834,37 @@ wedging the start queue.
   CODEOWNERS exists or was created). The
   `/web/e2e/__screenshots__/ @dorrabbkhan` line was added there.
   `docs/decisions.md` carries this entry.
+
+## v1.3 Task 2: split session.ts into state modules
+
+- `session.ts` keeps its public API identical: all 22 baseline names
+  (`Session`, `BootstrapView`, `MIN_REPLICATES`, `MAX_REPLICATES`,
+  `AUTO_RUN_MS`, `BootstrapStatus`, `BootstrapState`,
+  `defaultBootstrap`, `clearBootstrap`, `exerciseSim`, `Action`,
+  `CORRECTIONS`, `DIST_LABEL`, `SimModelName`, `SIM_MODEL_NAMES`,
+  `SIM_LABEL`, `simModelName`, `reconcileModels`, `recompute`,
+  `reducer`, `initialSession`, `hasImportedData`) remain importable
+  from `./session`, mostly via re-exports. `defaultBootstrap` is now a
+  re-export alias of `bootstrapInitial()`, the `xxxInitial()` the task
+  interface requires.
+- `Session` is still flat: it extends `LessonState`, `AnalysisState`
+  and `UiState` plus `bootstrap: BootstrapState`, so `s.exercise`,
+  `s.step`, `s.mode`, `s.bootstrap` keep working; no caller import
+  changed.
+- Each module exports `xxxState`, `xxxInitial()` and
+  `xxxReducer(slice, action, ctx)`; `ctx` is the pre-action `Session`
+  (read-only) — `bootstrapReducer` uses it for the finished run's
+  alignment site count. Actions that write across slices
+  (`load`/`setSim`/`setAnalysis`/`setAlphabet`/`importAlignment`/
+  `importTree`/`setBranchScale`/`enterSandbox`/`exitSandbox`) cannot be
+  expressed as a slice reducer, so they live as Session-level `apply*`
+  helpers in `lesson.ts` (they all rewrite the exercise or the
+  imported data, then `clearBootstrap` + `recompute`); `reducer`
+  dispatches to them or to `compose`, which merges the slice reducers
+  and returns the session itself when no slice changed (no-op
+  dispatches keep their identity, as before).
+- Files outside the Files block: `web/src/state/actions.ts` (new)
+  holds the `Action` union verbatim (its members reference the slice
+  state types instead of `Session[...]`, same types). Keeping the
+  union in `session.ts` would push the composer past the task's
+  150-line cap. `docs/decisions.md` carries this entry.
