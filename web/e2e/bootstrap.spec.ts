@@ -246,14 +246,31 @@ test("after one online load, a bootstrap run works offline", async ({
   test.skip(browserName !== "chromium");
   await page.goto(`${PREVIEW_URL}/`);
   await waitForApp(page);
+  // Active alone is not enough: autoUpdate's clients.claim() must have
+  // run before a reload is intercepted by the SW, otherwise the offline
+  // navigation goes to the network and dies (ERR_INTERNET_DISCONNECTED).
   await page.waitForFunction(async () => {
     const reg = await navigator.serviceWorker.getRegistration();
-    return reg !== undefined && reg !== null && reg.active !== null;
+    return (
+      reg !== undefined &&
+      reg !== null &&
+      reg.active !== null &&
+      navigator.serviceWorker.controller !== null
+    );
   });
 
   await context.setOffline(true);
-  await page.reload();
-  await waitForApp(page);
+  // Playwright's offline emulation can still lose the race against
+  // Chromium wiring the SW's fetch interception for navigations — and
+  // when it does, the reload hangs the full navigation timeout (~28 s)
+  // before ERR_INTERNET_DISCONNECTED, so one attempt eats the whole retry
+  // budget. A short per-reload timeout makes a raced attempt fail fast so
+  // toPass can retry until the SW serves the navigation — the offline-run
+  // assertion below is unaffected.
+  await expect(async () => {
+    await page.reload({ timeout: 8_000 });
+    await waitForApp(page);
+  }).toPass({ timeout: 45_000, intervals: [500, 1_000, 2_000] });
 
   const fasta = dnaFasta(8, 300, 0.25, 9);
   const res = await page.evaluate(async (f) => {

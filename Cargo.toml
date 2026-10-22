@@ -6,3 +6,13 @@ members = ["crates/neophylo-core", "crates/neophylo-wasm"]
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-only"
+
+# CI-speed task: the engine is numeric, so unoptimized deps dominate test
+# wall time — compile dependencies (and our own crates when built as dev
+# deps of the test harness) at opt-level 3 even in dev, and test binaries
+# at opt-level 2 (proptest/property tests run real distance + tree math).
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.test]
+opt-level = 2

@@ -10,8 +10,15 @@ if [ -d crates/neophylo-wasm/tests ]; then
 fi
 
 if [ -x scripts/build-wasm.sh ]; then
-  step "wasm: build + generated types up to date"
-  scripts/build-wasm.sh
+  # WASM_PKG_HIT=true (set by CI when its crates/**+Cargo.lock-keyed cache
+  # restored pkg/) skips the rebuild. The generated-types diff still runs:
+  # it also verifies the restored files match the committed ones.
+  if [ "${WASM_PKG_HIT:-}" = "true" ]; then
+    step "wasm: pkg cache hit — skipping rebuild"
+  else
+    step "wasm: build + generated types up to date"
+    scripts/build-wasm.sh
+  fi
   git diff --exit-code web/src/engine/generated
 fi
 

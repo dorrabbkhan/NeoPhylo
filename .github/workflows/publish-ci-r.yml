@@ -1,0 +1,89 @@
+# Publishes docker/ci-r to GHCR as ghcr.io/<owner>/neophylo-ci-r.
+# Runs monthly (fresh base image + apt security fixes), whenever the
+# image definition changes on main, and on demand. ci.yml's
+# r-and-fixtures job pins the image by digest — the bump job below opens
+# a PR updating that pin after every successful push, so image changes
+# land through CI + review like any other change. For a breaking
+# toolchain change bump the `:1` tag in both files; `latest` and the
+# immutable `sha-<commit>` tags are pushed for reference/debugging.
+
+name: Publish CI R image
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'   # 1st of the month, 04:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - 'docker/ci-r/**'
+      - '.github/workflows/publish-ci-r.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write   # bump job opens the ci.yml digest PR
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      image: ${{ steps.digest.outputs.image }}
+      digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Image name (GHCR requires lowercase)
+        run: >-
+          echo "IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}'
+          | tr '[:upper:]' '[:lower:]')/neophylo-ci-r" >> "$GITHUB_ENV"
+      - name: Login to GHCR
+        run: >-
+          echo "${{ secrets.GITHUB_TOKEN }}"
+          | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build image
+        run: >-
+          docker build --pull
+          -t "$IMAGE:1" -t "$IMAGE:latest" -t "$IMAGE:sha-${GITHUB_SHA::7}"
+          docker/ci-r
+      - name: Smoke test
+        run: |
+          docker run --rm "$IMAGE:1" Rscript -e \
+            'library(ape); library(phangorn); library(jsonlite); cat(as.character(packageVersion("ape")), as.character(packageVersion("phangorn")), "\n")'
+          docker run --rm "$IMAGE:1" sh -c \
+            'for b in neighbor protdist consense dnadist; do /usr/lib/phylip/bin/$b --help </dev/null >/dev/null 2>&1 || true; done; ls /usr/lib/phylip/bin/neighbor /usr/lib/phylip/bin/protdist /usr/lib/phylip/bin/consense /usr/lib/phylip/bin/dnadist'
+      - name: Push image
+        run: |
+          docker push "$IMAGE:1"
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:sha-${GITHUB_SHA::7}"
+      - name: Pushed index digest
+        id: digest
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:1" 2>/dev/null | awk '/^Digest:/{print $2; exit}')"
+          [ -n "$digest" ] || { echo "could not resolve digest for $IMAGE:1" >&2; exit 1; }
+          {
+            echo "image=$IMAGE"
+            echo "digest=$digest"
+          } >> "$GITHUB_OUTPUT"
+          echo "pushed $IMAGE:1@$digest"
+
+  # ci.yml pins r-and-fixtures by digest; a fresh image needs the pin
+  # updated through a normal reviewed PR (GITHUB_TOKEN PRs don't auto-run
+  # checks — close/reopen the bump PR to trigger CI).
+  bump:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Update pin in ci.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          scripts/ci/bump-image-pin.sh r-and-fixtures
+          'ghcr\.io/[^/@[:space:]]*/neophylo-ci-r:[0-9]+@sha256:[0-9a-f]+'
+          '${{ needs.publish.outputs.image }}:1@${{ needs.publish.outputs.digest }}'
