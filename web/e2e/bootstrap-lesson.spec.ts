@@ -128,6 +128,13 @@ test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own see
   await page
     .getByRole("menuitemradio", { name: /Bootstrap: how sure is the tree/ })
     .click();
+  // waitForApp can return while the previous lesson's stepper is still
+  // mounted (k === max → stepToEnd is a no-op) — wait for the new
+  // lesson's heading before stepping so the Seed input is the new
+  // exercise's own, not the old panel mid-transition.
+  await expect(page.locator("h1")).toHaveText(
+    /Bootstrap: how sure is the tree/,
+  );
   await waitForApp(page);
   await stepToEnd(page);
   await expect(panel.getByLabel("Seed")).toHaveValue("39");

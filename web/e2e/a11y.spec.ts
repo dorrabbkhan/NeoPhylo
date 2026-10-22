@@ -205,8 +205,17 @@ test("a loaded lesson still works offline", async ({
   });
 
   await context.setOffline(true);
-  await page.reload();
-  await waitForApp(page);
+  // Playwright's offline emulation can still lose the race against
+  // Chromium wiring the SW's fetch interception for navigations —
+  // occasionally the reload hits the real network and dies with
+  // ERR_INTERNET_DISCONNECTED even though the controller is set. Once
+  // interception is live it serves every reload, so retrying the
+  // reload does not weaken the assertion: the app must still load
+  // and step fully offline.
+  await expect(async () => {
+    await page.reload();
+    await waitForApp(page);
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
   await expect(page.locator("h1")).toHaveText("How Neighbor-Joining works");
   await stepToEnd(page);
   await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
