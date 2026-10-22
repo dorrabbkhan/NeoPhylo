@@ -297,6 +297,14 @@ jobs:
       needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    container:
+      # Browsers, their system libraries, and Node 24 are baked into the
+      # image — no per-run playwright install or apt. The tag must equal
+      # the locked @playwright/test version (browser builds are keyed to
+      # it); scripts/ci/check-playwright-image.sh enforces that and the
+      # digest pin. bump-ci-image.yml opens the version/digest bump PR.
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
+      options: --ipc=host # Chromium's shared-memory requirement
     strategy:
       fail-fast: false
       matrix:
@@ -304,33 +312,32 @@ jobs:
         shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Trust workspace for git
+        # Same container-ownership issue as r-and-fixtures: the container
+        # runs as root while the mounted checkout is owned by the host uid.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Download wasm package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: wasm-pkg
           path: web/src/engine
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Install web dependencies
-        # Playwright + the dev/preview servers need node_modules; test
-        # selection itself stays in scripts/ci/e2e.sh.
-        working-directory: web
-        run: npm ci
-      - name: Playwright version
-        id: playwright-version
-        working-directory: web
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
+      - name: Playwright image pin check
+        # Fails fast if the image version drifted from @playwright/test or
+        # either container image lost its digest pin.
+        run: scripts/ci/check-playwright-image.sh
+      - name: Cache npm
+        # setup-node's npm cache, kept now that the image provides Node.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
-      - name: Install ${{ matrix.browser }}
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-e2e-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-e2e-
+      - name: Install web dependencies
+        # Playwright + the dev/preview servers need node_modules; test
+        # selection itself stays in scripts/ci/e2e.sh. Browsers come from
+        # PLAYWRIGHT_BROWSERS_PATH=/ms-playwright baked into the image.
         working-directory: web
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: npm ci
       - name: E2E (${{ matrix.browser }} shard ${{ matrix.shard }}/2)
         env:
           E2E: "1"
@@ -359,7 +366,10 @@ jobs:
       needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/dorrabbkhan/neophylo-ci-r:1
+    # Digest-pinned: publish-ci-r.yml opens a bump PR on every rebuild so a
+    # re-pushed :1 tag can only land through CI + review. Bump the tag here
+    # and in the publish workflow together on a breaking toolchain change.
+    container: ghcr.io/dorrabbkhan/neophylo-ci-r:1@sha256:f7618b634c17764f793cb7eeca87688033e6e5d81ca887cfd8b69153e8ff3a78
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

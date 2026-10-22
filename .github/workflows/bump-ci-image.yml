@@ -1,0 +1,74 @@
+# Keeps ci.yml's pinned Playwright container image in step with the locked
+# @playwright/test version (browser builds in the image are keyed to it —
+# scripts/ci/check-playwright-image.sh fails CI on a mismatch).
+#
+# Three entry points:
+#   - pull_request_target on package-lock changes: when Dependabot bumps
+#     @playwright/test, the pin check turns its PR red; this pushes the
+#     matching image bump onto the Dependabot branch itself so the single
+#     PR carries both halves. Restricted to dependabot + same-repo heads —
+#     no PR code is ever executed.
+#   - weekly + workflow_dispatch on main: catches manual lockfile bumps and
+#     opens a standalone bump PR.
+# The R/PHYLIP image pin is bumped by publish-ci-r.yml after each rebuild.
+
+name: Bump Playwright CI image
+
+on:
+  pull_request_target:
+    paths:
+      - 'web/package-lock.json'
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch to patch in place (default: open a PR from main)'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      (github.actor == 'dependabot[bot]' &&
+       github.event.pull_request.head.repo.fork == false)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: >-
+            ${{
+              inputs.ref ||
+              (github.event_name == 'pull_request_target' &&
+               github.event.pull_request.head.ref) ||
+              github.ref_name
+            }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Resolve image ref for locked @playwright/test
+        id: img
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver="$(node -p "require('./web/package-lock.json').packages['node_modules/@playwright/test'].version")"
+          ref="mcr.microsoft.com/playwright:v${ver}-noble"
+          digest="$(docker buildx imagetools inspect "$ref" 2>/dev/null | awk '/^Digest:/{print $2; exit}')"
+          [ -n "$digest" ] || { echo "no manifest for $ref" >&2; exit 1; }
+          echo "ref=$ref@$digest" >> "$GITHUB_OUTPUT"
+          echo "resolved $ref@$digest"
+      - name: Update pin in ci.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD: >-
+            ${{ github.event_name == 'pull_request_target' &&
+                github.event.pull_request.head.ref || inputs.ref }}
+        run: >-
+          scripts/ci/bump-image-pin.sh playwright
+          'mcr\.microsoft\.com/playwright:v[0-9]+\.[0-9]+\.[0-9]+-noble@sha256:[0-9a-f]+'
+          '${{ steps.img.outputs.ref }}'

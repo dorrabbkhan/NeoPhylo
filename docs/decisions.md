@@ -2765,14 +2765,44 @@ wedging the start queue.
   also needed `git config --global --add safe.directory
   "$GITHUB_WORKSPACE"` — checkout's safe.directory lives in a
   temporary HOME that does not persist to container run steps.
+- **Container pinning + e2e in the Playwright image** (follow-up on
+  this PR). Both job containers are pinned `tag@sha256:`:
+  `neophylo-ci-r:1@sha256:f7618b63…` and
+  `playwright:v1.64.1-noble@sha256:7852dc5a…` (the noble image ships
+  Node 24, matching `.nvmrc`, plus all three browsers and their system
+  libraries — `install --with-deps`, the browser cache and setup-node
+  all drop out of the e2e job; `~/.npm` replaces setup-node's cache).
+  `--ipc=host` is Chromium's shared-memory requirement.
+  `scripts/ci/check-playwright-image.sh` fails the e2e job if the image
+  tag version differs from locked `@playwright/test` (browser builds in
+  the image are keyed to it) or if either container ref loses its
+  digest pin, and also fails if `.nvmrc`'s major stops matching the
+  image Node. Dependabot **cannot** bump `container:` refs inside
+  workflow files (dependabot-core#5819, still open — it only tracks
+  Dockerfiles), so both pins are maintained by workflow PRs via `gh`
+  (chosen over peter-evans/create-pull-request: no new action
+  dependency, `gh` is preinstalled): `publish-ci-r.yml` opens a digest
+  bump PR after each image publish; `bump-ci-image.yml` resolves the
+  matching `v<locked-version>-noble` digest weekly/dispatch, and on
+  `pull_request_target` for Dependabot lockfile bumps it pushes the
+  image bump onto the Dependabot branch itself so one PR carries both
+  halves (restricted to `dependabot[bot]` + non-fork heads; no PR code
+  executes — only the lockfile is read). GITHUB_TOKEN PRs/pushes do
+  not trigger CI runs, so bump PRs need a close/reopen (or an empty
+  commit) before their checks run — noted in the PR body the script
+  writes. No `visual` job exists yet; nothing to convert there.
 
 ### Files (ci/speed)
 
 `.github/workflows/ci.yml`, `.github/workflows/publish-ci-r.yml`
-(new), `docker/ci-r/Dockerfile` (new), `scripts/check.sh`,
+(new), `.github/workflows/bump-ci-image.yml` (new),
+`docker/ci-r/Dockerfile` (new), `scripts/check.sh`,
 `scripts/ci/quick.sh` (new), `scripts/ci/rust.sh`,
 `scripts/ci/wasm.sh`, `scripts/ci/e2e.sh`,
+`scripts/ci/check-playwright-image.sh` (new),
+`scripts/ci/bump-image-pin.sh` (new),
 `scripts/neophylo-loop.sh` (new), `Cargo.toml`, `AGENTS.md`,
 `.devin/skills/neophylo-task/SKILL.md`, `web/e2e/a11y.spec.ts`,
 `web/e2e/bootstrap.spec.ts` (offline SW controller wait),
+`web/e2e/bootstrap-lesson.spec.ts` (lesson-switch h1 wait),
 `docs/decisions.md` (this entry).
