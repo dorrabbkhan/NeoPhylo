@@ -8,12 +8,17 @@
 # `publish = false` and skipped via [private] — this list covers the
 # dependencies we *redistribute*, and anything added must stay permissive.
 
+# OFL-1.1 is the bundled fonts' license (web/public/fonts, v1.3 spec
+# §4.4); no Rust crate uses it, but the accepted lists in this file and
+# web/scripts/licenses.ts are kept identical.
+
 accepted = [
     "MIT",
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
+    "OFL-1.1",
     "Unicode-3.0",
     "Zlib",
 ]

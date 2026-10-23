@@ -2,8 +2,13 @@
 // avoidance must use MEASURED sizes, not em estimates — a wider or
 // missing font must not move a pill onto a name).
 //
-// A single hidden <text> element, parked inside a host element so it
-// inherits the same CSS font context as the text being placed, is
+// v1.3 (spec §4.2): the default measurement family is the bundled
+// `font.ui` token — the probe no longer relies on inheriting the app's
+// font context, so it measures the same Inter faces the tree draws.
+// Names outside the bundled subsets still fall back per glyph and are
+// measured as actually rendered (Review Focus 1).
+//
+// A single hidden <text> element, parked inside a host element, is
 // measured with getComputedTextLength() (advance width) and getBBox()
 // (real glyph top/bottom relative to the anchor — the same box the
 // overlap e2e's own getBBox assertions compare against). Canvas
@@ -13,6 +18,8 @@
 // Returns null where measurement is impossible (jsdom, pre-mount);
 // callers fall back to the em estimates in that case, which is also
 // what every unit test sees.
+
+import { font } from "./design/tokens";
 
 export interface TextExtents {
   /** Advance width in px — the drawn text's horizontal extent. */
@@ -33,15 +40,16 @@ export type TextMeasurer = (
  * A measurer whose probe inherits fonts like the text being placed.
  * `host` is re-resolved on every call so a remounted container is
  * followed; when it yields no element the probe lives on <body>.
- * `fontFamily` forces the probe's family (used by the SVG export,
- * whose standalone document declares its own font stack instead of
- * inheriting the app's). `baseline` defaults to "middle" — the tree's
- * text convention; the "0" zero-length marker draws on the default
- * alphabetic baseline and asks for it explicitly.
+ * `fontFamily` forces the probe's family — the default is the bundled
+ * `font.ui` stack so on-screen measurements always name Inter (the SVG
+ * export passes its standalone document's own stack instead).
+ * `baseline` defaults to "middle" — the tree's text convention; the
+ * "0" zero-length marker draws on the default alphabetic baseline and
+ * asks for it explicitly.
  */
 export function makeTextMeasurer(
   host?: () => Element | null,
-  fontFamily?: string,
+  fontFamily: string = font.ui,
 ): TextMeasurer {
   let svg: SVGSVGElement | null = null;
   let probe: SVGTextElement | null = null;

@@ -104,10 +104,22 @@ export default defineConfig({
     // plugin default, so lesson URLs also resolve offline.
     VitePWA({
       registerType: "autoUpdate",
+      // Registration is the inline <script> in index.html instead of the
+      // generated registerSW.js: that snippet waits for window 'load',
+      // which delays the whole install/precache by the page's full
+      // subresource fetch time. Registering at parse time starts the
+      // install earlier so the SW controls the page sooner.
+      injectRegister: false,
       workbox: {
         // `**/*.js` also covers the emitted bootstrap worker chunk, so
-        // bootstrap runs work offline (v1.2 spec §5).
-        globPatterns: ["**/*.{js,css,html,svg,wasm,json}"],
+        // bootstrap runs work offline (v1.2 spec §5); `fonts/*.woff2`
+        // precaches the bundled fonts (v1.3 spec §4.2). The narrower
+        // font glob also keeps the emitted KaTeX woff2 assets out of the
+        // install-time precache — every extra precached file delays
+        // activation, and KaTeX faces were never precached before.
+        globPatterns: ["**/*.{js,css,html,svg,wasm,json}", "fonts/*.woff2"],
+        // One less request on the SW's install path.
+        inlineWorkboxRuntime: true,
         // The wasm engine (~300 KB today) plus everything else stays
         // well under this; the default 2 MiB cap would silently drop a
         // growing wasm.

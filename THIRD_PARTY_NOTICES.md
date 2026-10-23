@@ -57,3 +57,30 @@ https://creativecommons.org/licenses/by/4.0/
 Source: The UniProt Consortium, UniProt: the Universal Protein
 Knowledgebase, https://www.uniprot.org (retrieved 2026-10-18).
 Changes: sequences were aligned (gaps added); residues are unmodified.
+
+## Inter — bundled font subsets
+
+`web/public/fonts/inter-*.woff2` are subsets of the Inter font family,
+produced from the upstream Inter 4.1 release by
+`scripts/fonts/subset.sh` (see `web/public/fonts/README.md` for the
+source URLs and hashes). Inter is licensed under the SIL Open Font
+License, Version 1.1 (OFL-1.1); the license text ships in
+`web/public/fonts/README.md` and upstream at
+https://github.com/rsms/inter (`LICENSE.txt` in the release archive).
+
+> Copyright (c) 2016 The Inter Project Authors
+> (https://github.com/rsms/inter)
+
+## JetBrains Mono — bundled font subsets
+
+`web/public/fonts/jetbrains-mono-*.woff2` are subsets of the JetBrains
+Mono font family, produced from the upstream JetBrains Mono 2.304
+release by `scripts/fonts/subset.sh` (see `web/public/fonts/README.md`
+for the source URLs and hashes). JetBrains Mono is licensed under the
+SIL Open Font License, Version 1.1 (OFL-1.1); the license text ships in
+`web/public/fonts/README.md` and upstream at
+https://github.com/JetBrains/JetBrainsMono (`OFL.txt` in the release
+archive).
+
+> Copyright 2020 The JetBrains Mono Project Authors
+> (https://github.com/JetBrains/JetBrainsMono)

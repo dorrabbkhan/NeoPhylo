@@ -16,6 +16,27 @@ export async function waitForApp(page: Page): Promise<void> {
   await expect(page.locator(".app")).toBeVisible();
 }
 
+/** Wait until an ACTIVATED service worker exists (precache complete).
+ * `serviceWorker.ready` resolves only once a registration's worker is
+ * active, and activation only follows a completed install — i.e. the
+ * precache is fully populated. The generated sw.js does not call
+ * clients.claim(), so this page is NOT controlled on first load; that
+ * is fine, because a navigation selects the active registration, so
+ * the next navigation (the offline reload in the specs) is already
+ * intercepted by the worker — the tests keep their "after ONE online
+ * load" premise.
+ *
+ * This must be a real awaited evaluate, not
+ * `waitForFunction(async () => …)`: Playwright polls the predicate's
+ * return value and a Promise is truthy, so an async predicate resolves
+ * on the first poll and never waits — the offline cut then races SW
+ * activation (the CI ERR_INTERNET_DISCONNECTED flake). */
+export async function waitForServiceWorkerReady(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+}
+
 /** Current stepper position and max, parsed from "step k of N". */
 export async function readStep(
   page: Page,

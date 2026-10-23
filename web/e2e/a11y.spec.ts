@@ -14,7 +14,13 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 
-import { minQCell, readStep, stepToEnd, waitForApp } from "./helpers";
+import {
+  minQCell,
+  readStep,
+  stepToEnd,
+  waitForApp,
+  waitForServiceWorkerReady,
+} from "./helpers";
 
 const LESSONS = ["nj-basics", "upgma-fails", "saturation"] as const;
 const PREVIEW_URL = "http://localhost:4174";
@@ -190,19 +196,16 @@ test("a loaded lesson still works offline", async ({
   await waitForApp(page);
 
   // The service worker's install only finishes once the precache (app
-  // shell, wasm, exercises/*.json) is populated, and autoUpdate's
-  // clients.claim() must have run before a reload is intercepted — an
-  // active-but-not-controlling worker leaves the navigation to the
-  // (offline) network, so wait for controller, not just active.
-  await page.waitForFunction(async () => {
-    const reg = await navigator.serviceWorker.getRegistration();
-    return (
-      reg !== undefined &&
-      reg !== null &&
-      reg.active !== null &&
-      navigator.serviceWorker.controller !== null
-    );
-  });
+  // shell, wasm, exercises/*.json) is populated; wait until an
+  // ACTIVATED worker exists before cutting the network. The page
+  // itself is not controlled on this first load (sw.js has no
+  // clients.claim()), but the next navigation — the offline reload
+  // below — is intercepted by the active registration, so one online
+  // load is enough. This must not be waitForFunction(async () => …):
+  // a Promise is truthy, so an async predicate resolves on the first
+  // poll and the offline cut races activation (the CI
+  // ERR_INTERNET_DISCONNECTED flake).
+  await waitForServiceWorkerReady(page);
 
   await context.setOffline(true);
   // Playwright's offline emulation can still lose the race against

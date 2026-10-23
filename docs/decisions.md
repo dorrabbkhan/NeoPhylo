@@ -2905,3 +2905,93 @@ wedging the start queue.
 - Files outside the Files block: `web/.gitignore` gained a
   `src/design/tokens.css` entry — the generated file must never be
   committed (spec §3.1). `docs/decisions.md` carries this entry.
+
+## v1.3 Task 4: bundled Inter and JetBrains Mono
+
+- `scripts/fonts/subset.sh` adds `--no-hinting` to the `pyftsubset`
+  flags and subsets the upstream hinted TTF statics (Inter
+  `extras/ttf/`, JetBrains Mono `fonts/ttf/`), not the OTF/CFF builds:
+  hinted subsets exceed the spec §4.1 200 KB budget, and Inter's OTF
+  statics subset ~20% larger once hinting is dropped. Final bundle:
+  16 woff2 files, 189,320 bytes — the 200 KB budget is unchanged.
+- The TreeView render gate (spec §4.2): the `<svg>` is withheld until
+  `whenFontsReady()` settles, up to the 3 s budget. A timeout lays out
+  on fallback metrics, and `onFontsLateLoad` fires a single re-render
+  (`bumpFontsTick`) so the uncached measurer re-reads the real Inter
+  metrics — the one permitted late re-layout.
+- `makeTextMeasurer`'s default probe family is now the `font.ui`
+  token (was: inherit the host context) so measurements name the
+  bundled Inter faces the tree draws; the SVG export still passes its
+  standalone document's own stack.
+- Files outside the Files block: `web/src/design/tokens.ts` — the
+  Interfaces section requires `tokens.font.mono` =
+  `"JetBrains Mono", ui-monospace, monospace`, and the token lives
+  here (the `Consolas` entry was dropped). `about.toml` — plausibly
+  "the license aggregation config" the Files block names, recorded for
+  completeness: `OFL-1.1` added to `accepted` so the cargo-about gate
+  covers the font license. `web/scripts/licenses.ts` — the license
+  aggregation script, whose `ACCEPTED_LICENSES` must mirror
+  about.toml's `accepted`; `OFL-1.1` added for the same reason.
+  `docs/decisions.md` carries this entry.
+- Fix round 1, offline e2e regression (root cause): the specs' readiness
+  check is `waitForFunction(async () => …)` — Playwright resolves an
+  async predicate on its first settled promise, so the wait is a no-op
+  and the test cuts the network at ~200 ms after nav. That race was
+  always thin; this branch's `**/*.woff2` precache glob added ~36 files
+  to the SW install (the 16 bundled fonts plus ~20 KaTeX woff2 assets
+  that were never precached before), pushing activation to ~250–275 ms
+  (base: ~180 ms). `setOffline` landed mid-install, the precache fetch
+  died, the worker went redundant, and every offline navigation then
+  missed the SW — `net::ERR_INTERNET_DISCONNECTED`. What looked like a
+  second installing worker was the same install job retrying (and
+  dying) while offline. Fix (app/build side, tests untouched): narrow
+  the glob to `fonts/*.woff2` — spec §4.2 precaches the bundled font
+  files, KaTeX assets stay out — register the SW at index.html parse
+  time instead of window `load` (`injectRegister: false` + an inline
+  `<script>` in `web/index.html`), and `inlineWorkboxRuntime: true` to
+  drop a round trip. Activation now lands ~150 ms, ahead of the test's
+  ~200 ms deadline with margin similar to or better than main's.
+- Fix round 1 also added `fontsStatus()` to `web/src/design/fontsReady.ts`
+  (synchronous gate snapshot) so a TreeView mounted after fonts settled
+  renders its `<svg>` on the first render instead of a blank frame.
+- Fix round 1, files outside the Files block: `web/index.html` — hosts
+  the inline parse-time `serviceWorker.register` (replaces the plugin's
+  generated load-gated registerSW.js); `web/public/_headers` — dropped
+  the now-dead `/registerSW.js` and `/workbox-*.js` rules (the workbox
+  runtime is inlined into sw.js).
+- Fix round 2, offline e2e flake (root cause): the readiness wait in
+  `a11y.spec.ts` and `bootstrap.spec.ts` was
+  `waitForFunction(async () => …)` — an async predicate returns a
+  Promise object, which is truthy, so Playwright's poll resolved on the
+  first tick and the wait never waited; `setOffline(true)` then raced SW
+  activation (job 120184590212's `ERR_INTERNET_DISCONNECTED`, still
+  flaky 1/3 on 406f3a1). Fix (test side, stricter — no sleeps, retries,
+  timeouts or skips added, assertions unchanged): new shared
+  `waitForServiceWorkerControl(page)` in `web/e2e/helpers.ts` awaits
+  `navigator.serviceWorker.ready` in `page.evaluate` — an active worker
+  implies install+precache completed — then, because the generated
+  sw.js never calls `clients.claim()` (so a first load is never
+  controlled), reloads once while still online so the page is genuinely
+  controlled before the network is cut. Verified: both tests pass
+  `--repeat-each=10` on chromium against this branch's preview, pass
+  once each on merge base e3acf22 with the new wait (the old failure
+  was the test-side race, not an app regression), and fonts.spec.ts
+  passes on all three engines.
+- Fix round 2, files outside the Files block: `web/e2e/helpers.ts` —
+  new `waitForServiceWorkerControl` helper; `web/e2e/a11y.spec.ts` and
+  `web/e2e/bootstrap.spec.ts` — the offline tests now call it (the only
+  `waitForFunction(async` sites in web/e2e; a grep found no others).
+- Fix round 3 (owner decision, option 1): the extra still-online reload
+  in `waitForServiceWorkerControl` added a second online load, breaking
+  the tests' "after ONE online load" premise. Dropped it: the helper is
+  renamed `waitForServiceWorkerReady(page)` and now only awaits
+  `navigator.serviceWorker.ready` (an active worker implies the
+  precache-completing install finished). The page itself is never
+  controlled on first load — the generated sw.js has no
+  `clients.claim()` — but a navigation selects the active registration,
+  so the offline reload in each spec is already intercepted by the
+  worker and the one-load premise is preserved. Call sites and comments
+  in `a11y.spec.ts` and `bootstrap.spec.ts` updated to match;
+  assertions unchanged. Verified: both offline tests pass
+  `--repeat-each=10 --retries=0` on chromium against this branch's
+  preview build (20/20).

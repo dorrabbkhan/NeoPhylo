@@ -17,8 +17,13 @@
 //   grouping key of the edge above the node (src/layout/splitKeys.ts) —
 //   so figures match the run's tally (checkpoint 15).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
+import {
+  fontsStatus,
+  onFontsLateLoad,
+  whenFontsReady,
+} from "../design/fontsReady";
 import type { Tree } from "../engine/generated/Tree";
 import type { LaidOutNode } from "../layout/phylogram";
 import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
@@ -183,9 +188,38 @@ export function TreeView({
     onPanelSize?.(box.width);
   }, [box.width, onPanelSize]);
 
+  // Fonts-ready gate (v1.3 spec §4.2): the figure isn't laid out until
+  // the bundled faces resolve, up to the 3 s budget — measured metrics
+  // come from the real fonts, not a fallback. A timeout proceeds on
+  // fallback metrics, and a late arrival bumps fontsTick for the single
+  // permitted re-layout. Where document.fonts is missing (jsdom) the
+  // gate is open from the start.
+  const fontsSupported =
+    typeof document !== "undefined" && document.fonts !== undefined;
+  const [fontsSettled, setFontsSettled] = useState(
+    !fontsSupported || fontsStatus() !== "pending",
+  );
+  const [, bumpFontsTick] = useReducer((t: number) => t + 1, 0);
+  useEffect(() => {
+    if (!fontsSupported) return;
+    let live = true;
+    void whenFontsReady().then(() => {
+      if (live) setFontsSettled(true);
+    });
+    const off = onFontsLateLoad(() => {
+      if (live) bumpFontsTick();
+    });
+    return () => {
+      live = false;
+      off();
+    };
+  }, [fontsSupported]);
+
   // Measured glyph widths for label collision and content bounds
-  // (owner fix): the probe lives on <body>, where it inherits the same
-  // font the tree's <text> resolves (no tree-scoped font rules exist).
+  // (owner fix): the probe parks on <body> measuring in the bundled
+  // font.ui stack — the same faces the tree's <text> resolves. A late
+  // font arrival re-renders (bumpFontsTick) and the measurer re-reads
+  // the real Inter metrics — measurements are never cached.
   const measure = useMemo(() => makeTextMeasurer(), []);
 
   const leaves = tree.nodes.reduce(
@@ -235,203 +269,205 @@ export function TreeView({
     <figure className="tree-panel">
       <figcaption>{title}</figcaption>
       <div className="tree-canvas" ref={boxRef} tabIndex={0}>
-        <svg
-          role="img"
-          aria-label={title}
-          viewBox={`0 0 ${width} ${height}`}
-          width={width}
-          height={height}
-        >
-          {laid.nodes.map((n) => {
-            const children = tree.nodes[n.id].children.filter((c) =>
-              byId.has(c),
-            );
-            const parent = tree.nodes[n.id].parent;
-            const hasVisibleParent = parent !== null && byId.has(parent);
-            const isHighlighted = highlight.has(n.id);
-            const strokeWidth = isHighlighted ? 3 : 1.5;
-            // Bootstrap support (v1.2 spec §6.3): the edge above a node
-            // carries a 0-1 fraction, drawn as Math.round(100·s) in a
-            // pill left of the node. Weak (<50%) gets a thinner stroke
-            // plus a marker glyph — never color alone (§6.5).
-            const support = hasVisibleParent
-              ? tree.branches[n.id].support
-              : null;
-            const weak = support !== null && support < 0.5;
-            const edgeWidth = weak ? Math.min(1, strokeWidth) : strokeWidth;
-            const placedLabel = labelById.get(n.id);
-            return (
-              <g
-                key={n.id}
-                data-node={n.id}
-                data-split={keys.get(n.id)}
-                data-highlight={isHighlighted ? "true" : undefined}
-                data-weak={weak || undefined}
-              >
-                {hasVisibleParent && (
-                  <line
-                    className={branchClass(n)}
-                    x1={tx(n.parentX)}
-                    y1={ty(n.y)}
-                    x2={tx(n.x)}
-                    y2={ty(n.y)}
-                    stroke="currentColor"
-                    strokeWidth={edgeWidth}
-                    strokeDasharray={n.negative ? "4 3" : undefined}
-                  />
-                )}
-                {hasVisibleParent && !n.leaf && onPickBranch !== undefined && (
-                  <BranchHit
-                    x1={tx(n.parentX)}
-                    y1={ty(n.y)}
-                    x2={tx(n.x)}
-                    y2={ty(n.y)}
-                    splitKey={keys.get(n.id) ?? ""}
-                    onPick={onPickBranch}
-                  />
-                )}
-                {hasVisibleParent && n.leaf && onPickTerminal !== undefined && (
-                  <line
-                    className="branch-hit"
-                    x1={tx(n.parentX)}
-                    y1={ty(n.y)}
-                    x2={tx(n.x)}
-                    y2={ty(n.y)}
-                    onClick={() => onPickTerminal()}
-                  />
-                )}
-                {children.length > 0 && (
-                  <line
-                    className="connector"
-                    x1={tx(n.x)}
-                    y1={ty(byId.get(children[0])!.y)}
-                    x2={tx(n.x)}
-                    y2={ty(byId.get(children[children.length - 1])!.y)}
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                  />
-                )}
-                <circle
-                  cx={tx(n.x)}
-                  cy={ty(n.y)}
-                  r={
-                    isHighlighted ? FIGURE_NODE_RADIUS + 1 : FIGURE_NODE_RADIUS
-                  }
-                  fill="currentColor"
-                />
-                {hasVisibleParent && tree.branches[n.id].length === 0 && (
-                  <text
-                    className="zero-len"
-                    x={(tx(n.parentX) + tx(n.x)) / 2}
-                    y={ty(n.y) - 4}
-                    fontSize={smallFont}
-                    textAnchor="middle"
-                  >
-                    0
-                  </text>
-                )}
-                {placedLabel !== undefined && (
-                  <g className="support">
-                    {placedLabel.leader !== undefined && (
-                      <line
-                        className="support-leader"
-                        x1={tx(placedLabel.leader.x1)}
-                        y1={ty(placedLabel.leader.y1)}
-                        x2={tx(placedLabel.leader.x2)}
-                        y2={ty(placedLabel.leader.y2)}
-                        stroke="currentColor"
-                        strokeWidth={1}
-                        strokeDasharray="3 2"
-                      />
-                    )}
-                    <rect
-                      className="support-pill"
-                      x={tx(placedLabel.box.minX)}
-                      y={ty(placedLabel.box.minY)}
-                      width={placedLabel.box.maxX - placedLabel.box.minX}
-                      height={placedLabel.box.maxY - placedLabel.box.minY}
-                      rx={(placedLabel.box.maxY - placedLabel.box.minY) / 2}
+        {fontsSettled && (
+          <svg
+            role="img"
+            aria-label={title}
+            viewBox={`0 0 ${width} ${height}`}
+            width={width}
+            height={height}
+          >
+            {laid.nodes.map((n) => {
+              const children = tree.nodes[n.id].children.filter((c) =>
+                byId.has(c),
+              );
+              const parent = tree.nodes[n.id].parent;
+              const hasVisibleParent = parent !== null && byId.has(parent);
+              const isHighlighted = highlight.has(n.id);
+              const strokeWidth = isHighlighted ? 3 : 1.5;
+              // Bootstrap support (v1.2 spec §6.3): the edge above a node
+              // carries a 0-1 fraction, drawn as Math.round(100·s) in a
+              // pill left of the node. Weak (<50%) gets a thinner stroke
+              // plus a marker glyph — never color alone (§6.5).
+              const support = hasVisibleParent
+                ? tree.branches[n.id].support
+                : null;
+              const weak = support !== null && support < 0.5;
+              const edgeWidth = weak ? Math.min(1, strokeWidth) : strokeWidth;
+              const placedLabel = labelById.get(n.id);
+              return (
+                <g
+                  key={n.id}
+                  data-node={n.id}
+                  data-split={keys.get(n.id)}
+                  data-highlight={isHighlighted ? "true" : undefined}
+                  data-weak={weak || undefined}
+                >
+                  {hasVisibleParent && (
+                    <line
+                      className={branchClass(n)}
+                      x1={tx(n.parentX)}
+                      y1={ty(n.y)}
+                      x2={tx(n.x)}
+                      y2={ty(n.y)}
+                      stroke="currentColor"
+                      strokeWidth={edgeWidth}
+                      strokeDasharray={n.negative ? "4 3" : undefined}
                     />
+                  )}
+                  {hasVisibleParent && !n.leaf && onPickBranch !== undefined && (
+                    <BranchHit
+                      x1={tx(n.parentX)}
+                      y1={ty(n.y)}
+                      x2={tx(n.x)}
+                      y2={ty(n.y)}
+                      splitKey={keys.get(n.id) ?? ""}
+                      onPick={onPickBranch}
+                    />
+                  )}
+                  {hasVisibleParent && n.leaf && onPickTerminal !== undefined && (
+                    <line
+                      className="branch-hit"
+                      x1={tx(n.parentX)}
+                      y1={ty(n.y)}
+                      x2={tx(n.x)}
+                      y2={ty(n.y)}
+                      onClick={() => onPickTerminal()}
+                    />
+                  )}
+                  {children.length > 0 && (
+                    <line
+                      className="connector"
+                      x1={tx(n.x)}
+                      y1={ty(byId.get(children[0])!.y)}
+                      x2={tx(n.x)}
+                      y2={ty(byId.get(children[children.length - 1])!.y)}
+                      stroke="currentColor"
+                      strokeWidth={strokeWidth}
+                    />
+                  )}
+                  <circle
+                    cx={tx(n.x)}
+                    cy={ty(n.y)}
+                    r={
+                      isHighlighted ? FIGURE_NODE_RADIUS + 1 : FIGURE_NODE_RADIUS
+                    }
+                    fill="currentColor"
+                  />
+                  {hasVisibleParent && tree.branches[n.id].length === 0 && (
                     <text
-                      className="support-label"
-                      data-split={keys.get(n.id)}
-                      x={tx(placedLabel.textX)}
-                      y={ty(placedLabel.textY)}
+                      className="zero-len"
+                      x={(tx(n.parentX) + tx(n.x)) / 2}
+                      y={ty(n.y) - 4}
                       fontSize={smallFont}
                       textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="currentColor"
                     >
-                      {placedLabel.text}
+                      0
                     </text>
-                  </g>
-                )}
-                {n.leaf ? (
-                  <text
-                    x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
-                    y={ty(n.y)}
-                    fontSize={fontSize}
-                    fill="currentColor"
-                    dominantBaseline="middle"
-                    onMouseEnter={() => onHoverLeaf?.(n.label)}
-                    onMouseLeave={() => onHoverLeaf?.(null)}
-                    onClick={
-                      onPickLeaf === undefined || n.label === null
-                        ? undefined
-                        : () => onPickLeaf(n.label as string)
-                    }
-                  >
-                    {n.label}
-                  </text>
-                ) : (
-                  isHighlighted &&
-                  !hideInternalNames && (
+                  )}
+                  {placedLabel !== undefined && (
+                    <g className="support">
+                      {placedLabel.leader !== undefined && (
+                        <line
+                          className="support-leader"
+                          x1={tx(placedLabel.leader.x1)}
+                          y1={ty(placedLabel.leader.y1)}
+                          x2={tx(placedLabel.leader.x2)}
+                          y2={ty(placedLabel.leader.y2)}
+                          stroke="currentColor"
+                          strokeWidth={1}
+                          strokeDasharray="3 2"
+                        />
+                      )}
+                      <rect
+                        className="support-pill"
+                        x={tx(placedLabel.box.minX)}
+                        y={ty(placedLabel.box.minY)}
+                        width={placedLabel.box.maxX - placedLabel.box.minX}
+                        height={placedLabel.box.maxY - placedLabel.box.minY}
+                        rx={(placedLabel.box.maxY - placedLabel.box.minY) / 2}
+                      />
+                      <text
+                        className="support-label"
+                        data-split={keys.get(n.id)}
+                        x={tx(placedLabel.textX)}
+                        y={ty(placedLabel.textY)}
+                        fontSize={smallFont}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="currentColor"
+                      >
+                        {placedLabel.text}
+                      </text>
+                    </g>
+                  )}
+                  {n.leaf ? (
                     <text
                       x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
                       y={ty(n.y)}
                       fontSize={fontSize}
                       fill="currentColor"
                       dominantBaseline="middle"
+                      onMouseEnter={() => onHoverLeaf?.(n.label)}
+                      onMouseLeave={() => onHoverLeaf?.(null)}
+                      onClick={
+                        onPickLeaf === undefined || n.label === null
+                          ? undefined
+                          : () => onPickLeaf(n.label as string)
+                      }
                     >
-                      {nodeName(tree, n.id)}
+                      {n.label}
                     </text>
-                  )
-                )}
-              </g>
-            );
-          })}
-          {[...wrong].map((id) => {
-            const box = fig.cladeBox(id);
-            if (!box) return null;
-            const x = tx(box.minX) - FIGURE_WRONG_PAD;
-            const y = ty(box.minY) - FIGURE_WRONG_PAD;
-            const w = box.maxX - box.minX + FIGURE_WRONG_PAD * 2;
-            const h = box.maxY - box.minY + FIGURE_WRONG_PAD * 2;
-            return (
-              <g key={`wrong-${id}`} className="wrong">
-                <rect
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={h}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  strokeDasharray="1 3"
-                  strokeLinecap="round"
-                />
-                <text
-                  x={x + 2}
-                  y={y + fontSize - 2}
-                  fontSize={fontSize}
-                  fill="currentColor"
-                >
-                  ✕
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  ) : (
+                    isHighlighted &&
+                    !hideInternalNames && (
+                      <text
+                        x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
+                        y={ty(n.y)}
+                        fontSize={fontSize}
+                        fill="currentColor"
+                        dominantBaseline="middle"
+                      >
+                        {nodeName(tree, n.id)}
+                      </text>
+                    )
+                  )}
+                </g>
+              );
+            })}
+            {[...wrong].map((id) => {
+              const box = fig.cladeBox(id);
+              if (!box) return null;
+              const x = tx(box.minX) - FIGURE_WRONG_PAD;
+              const y = ty(box.minY) - FIGURE_WRONG_PAD;
+              const w = box.maxX - box.minX + FIGURE_WRONG_PAD * 2;
+              const h = box.maxY - box.minY + FIGURE_WRONG_PAD * 2;
+              return (
+                <g key={`wrong-${id}`} className="wrong">
+                  <rect
+                    x={x}
+                    y={y}
+                    width={w}
+                    height={h}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    strokeDasharray="1 3"
+                    strokeLinecap="round"
+                  />
+                  <text
+                    x={x + 2}
+                    y={y + fontSize - 2}
+                    fontSize={fontSize}
+                    fill="currentColor"
+                  >
+                    ✕
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
       </div>
     </figure>
   );

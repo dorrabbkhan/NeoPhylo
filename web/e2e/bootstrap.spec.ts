@@ -11,7 +11,7 @@ import { readFile } from "node:fs/promises";
 
 import { test, expect } from "@playwright/test";
 
-import { stepToEnd, waitForApp } from "./helpers";
+import { stepToEnd, waitForApp, waitForServiceWorkerReady } from "./helpers";
 
 const PREVIEW_URL = "http://localhost:4174";
 
@@ -246,18 +246,16 @@ test("after one online load, a bootstrap run works offline", async ({
   test.skip(browserName !== "chromium");
   await page.goto(`${PREVIEW_URL}/`);
   await waitForApp(page);
-  // Active alone is not enough: autoUpdate's clients.claim() must have
-  // run before a reload is intercepted by the SW, otherwise the offline
-  // navigation goes to the network and dies (ERR_INTERNET_DISCONNECTED).
-  await page.waitForFunction(async () => {
-    const reg = await navigator.serviceWorker.getRegistration();
-    return (
-      reg !== undefined &&
-      reg !== null &&
-      reg.active !== null &&
-      navigator.serviceWorker.controller !== null
-    );
-  });
+  // Wait until an ACTIVATED worker exists (precache complete),
+  // otherwise the offline navigation goes to the network and dies
+  // (ERR_INTERNET_DISCONNECTED). The page itself is not controlled on
+  // this first load — sw.js has no clients.claim() — but a navigation
+  // selects the active registration, so the offline reload below is
+  // already intercepted by the worker: one online load is enough. This
+  // must not be waitForFunction(async () => …): a Promise is truthy,
+  // so an async predicate resolves on the first poll and never waits —
+  // that no-op wait is what raced activation in CI.
+  await waitForServiceWorkerReady(page);
 
   await context.setOffline(true);
   // Playwright's offline emulation can still lose the race against
