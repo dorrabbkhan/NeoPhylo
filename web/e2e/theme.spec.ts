@@ -138,16 +138,17 @@ test("switching theme mid-run keeps the bootstrap going and the pair panel open"
   await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
   const panel = page.getByRole("dialog");
   await expect(panel).toBeVisible();
-  // The modal scrim covers the header, so the toggle can't take a real
-  // pointer click while the dialog is open; dispatchEvent drives the
-  // same React onClick → the same setTheme action a click would send.
-  await toggle(page).dispatchEvent("click");
+  // Task 10: the toggle is raised above the scrim so theme switching
+  // stays a real pointer path while a dialog is open (Review Focus 4).
+  await toggle(page).click();
   expect(await dataTheme(page)).toBe("dark");
   await expect(panel).toBeVisible();
   // The dialog stayed open through the switch — that assertion is done.
   // Close it so the stepper and the confirm gate's Start are clickable,
-  // then return to the final position where the run's panel lives.
-  await page.keyboard.press("Escape");
+  // then return to the final position where the run's panel lives. The
+  // real toggle click moved focus to the header, so the dialog's own ×
+  // is the real path out.
+  await panel.getByRole("button", { name: "Close pair details" }).click();
   await expect(panel).toHaveCount(0);
   await page.locator('[aria-label="Step"]').fill(String(max));
   const done = page.getByText(/Run complete: /);
@@ -195,9 +196,8 @@ test("axe is clean on the open pair panel in both themes", async ({
     "pair panel (light theme)",
     '[role="dialog"]',
   );
-  // The scrim covers the header toggle — dispatchEvent drives the same
-  // React onClick as in the mid-run test above.
-  await toggle(page).dispatchEvent("click");
+  // Task 10: the toggle stays a real click target above the scrim.
+  await toggle(page).click();
   expect(await dataTheme(page)).toBe("dark");
   await expectNoSeriousViolations(
     page,

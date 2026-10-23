@@ -47,6 +47,24 @@ describe("uiReducer setTheme", () => {
     expect(next.mode).toBe(base.mode);
   });
 
+  it("opens and closes the settings drawer", () => {
+    // v1.3 Task 10 (spec §6.4): the drawer's flag lives in the UI
+    // slice; setDrawer toggles it without touching the other fields.
+    const open = uiReducer(
+      base,
+      { type: "setDrawer", open: true },
+      {} as never,
+    );
+    expect(open.drawerOpen).toBe(true);
+    expect(open.mode).toBe(base.mode);
+    const closed = uiReducer(
+      open,
+      { type: "setDrawer", open: false },
+      {} as never,
+    );
+    expect(closed.drawerOpen).toBe(false);
+  });
+
   it("uiSlice carries the full UI fields", () => {
     const slice = uiSlice({
       ...base,

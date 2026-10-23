@@ -26,6 +26,8 @@ export type Action =
   | { type: "step"; to: number }
   | { type: "setMode"; mode: UiState["mode"] }
   | { type: "setTheme"; theme: UiState["theme"] }
+  // v1.3 Task 10 (spec §6.4): the Settings drawer's open flag.
+  | { type: "setDrawer"; open: boolean }
   | { type: "toggleClamp" }
   | { type: "setMatrixView"; view: AnalysisState["matrixView"] }
   | { type: "setBranchScale"; scale: number }

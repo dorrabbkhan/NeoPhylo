@@ -18,12 +18,13 @@
 //
 // A pair with no comparable sites (engine error InsufficientOverlap)
 // renders the no-overlap message inside the open dialog — the panel
-// never fails (Review Focus 5). It is a `role="dialog"`: focus moves in
-// on open, Tab is trapped, Esc closes and focus returns to the element
-// that opened it (§6.5).
+// never fails (Review Focus 5). It renders inside Sheet (v1.3 §6.2):
+// a centered dialog above 1024 px, a full-screen sheet below it —
+// focus moves in on open, Tab is trapped, Esc closes and focus
+// returns to the element that opened it (§6.5).
 
-import { useEffect, useMemo, useRef } from "react";
-import type { Dispatch, KeyboardEvent } from "react";
+import { useMemo } from "react";
+import type { Dispatch } from "react";
 
 import katex from "katex";
 import "katex/dist/katex.min.css";
@@ -38,6 +39,7 @@ import type { Action, Session } from "../state/session";
 
 import { LikelihoodCurve } from "./LikelihoodCurve";
 import { ModeToggle } from "./ModeToggle";
+import { Sheet } from "./Sheet";
 
 export interface PairPanelProps {
   /** The protein alignment the pair was picked from. */
@@ -88,9 +90,6 @@ function KaTeXLine({ source }: { source: string }) {
   return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-const FOCUSABLE =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
 export function PairPanel({
   aln,
   detail,
@@ -98,51 +97,6 @@ export function PairPanel({
   dispatch,
   onClose,
 }: PairPanelProps) {
-  const panelRef = useRef<HTMLElement>(null);
-  const restoreRef = useRef<Element | null>(null);
-
-  // Focus management (spec §6.5): on open, remember the focused element
-  // (the matrix cell) and move focus into the dialog; on close, put it
-  // back — the cell is gone only if the data changed, which is guarded.
-  useEffect(() => {
-    restoreRef.current = document.activeElement;
-    const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? panel)?.focus();
-    return () => {
-      const el = restoreRef.current;
-      if (el instanceof HTMLElement || el instanceof SVGElement) {
-        if (el.isConnected) el.focus();
-      }
-    };
-  }, []);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      onClose();
-      return;
-    }
-    if (e.key !== "Tab") return;
-    const panel = panelRef.current;
-    if (panel === null) return;
-    const els = Array.from(
-      panel.querySelectorAll<HTMLElement>(FOCUSABLE),
-    ).filter((el) => !el.hasAttribute("disabled"));
-    if (els.length === 0) {
-      e.preventDefault();
-      return;
-    }
-    const idx = els.indexOf(document.activeElement as HTMLElement);
-    if (e.shiftKey && (idx <= 0 || document.activeElement === panel)) {
-      e.preventDefault();
-      els[els.length - 1].focus();
-    } else if (!e.shiftKey && idx === els.length - 1) {
-      e.preventDefault();
-      els[0].focus();
-    }
-  };
-
   const d = detail.ok ? detail.value : null;
   const labels =
     d !== null
@@ -157,16 +111,11 @@ export function PairPanel({
   const seqB = d !== null ? String.fromCharCode(...aln.seqs[d.b]) : "";
 
   return (
-    <div className="pair-panel-backdrop">
-      <section
-        className="pair-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pair-panel-title"
-        ref={panelRef}
-        tabIndex={-1}
-        onKeyDown={onKeyDown}
-      >
+    <Sheet
+      className="pair-panel"
+      labelledBy="pair-panel-title"
+      onClose={onClose}
+    >
         <header className="pair-panel-head">
           <h2 id="pair-panel-title">
             How was this distance computed?{" "}
@@ -276,7 +225,6 @@ export function PairPanel({
               : `${errorMessage(detail.error).title} ${errorMessage(detail.error).body}`}
           </p>
         )}
-      </section>
-    </div>
+    </Sheet>
   );
 }

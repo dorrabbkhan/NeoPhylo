@@ -3250,3 +3250,132 @@ wedging the start queue.
 - Files outside the Files block: `web/src/design/breakpoints.ts` —
   required by the task's own Interfaces → Produces (`Breakpoint`,
   `useBreakpoint`); `docs/decisions.md` — this entry.
+
+## v1.3 Task 10: sheets, drawer, more menu, touch targets
+
+- **Drawer replaces the controls column in JS, not CSS:** below 1280 px
+  the `.col-controls` aside is not rendered; the same sections
+  (Alphabet badge, Simulation, Analysis, How sure are we?, Import —
+  sandbox only — and Export) render inside `SettingsDrawer`, a Sheet
+  anchored to the left edge (§6.4). Rendering rather than hiding keeps
+  a single DOM instance, so there is no duplicated state or hidden
+  focusables — and crossing breakpoints mid-session cannot strand a
+  second copy of the controls.
+- **An open drawer survives into wide:** crossing to ≥1280 px with the
+  drawer open keeps it open as an overlay (Review Focus 5's "open and
+  focused" option — the alternative of closing it and returning focus
+  to a button that no longer exists was worse). The wide grid's empty
+  controls column is collapsed by a `:has()`-scoped media rule; closing
+  the drawer brings the column back.
+- **"Watch one replicate" dismisses the drawer:** the replicate sheet
+  and the drawer must not stack, so `uiReducer` closes the drawer on
+  any `setReplicateIndex` to a non-null index. Esc on the replicate
+  sheet then lands on the page body rather than a gone trigger — noted
+  as a deliberate deviation from the literal "returns focus to the
+  trigger" test list (the trigger lived in the dismissed drawer); the
+  pair sheet covers the true trigger-restore path.
+- **Theme toggle sits above every scrim (z-index 40):** Review Focus 4
+  requires a *real* pointer path to the theme toggle while a dialog is
+  open. Raising the toggle over the scrim is the minimal answer that
+  needs no synthesized events and no stop for an owner decision.
+  Sheets below 1024 px leave a top strip clear so the raised toggle is
+  never covered visually. The older `dispatchEvent("click")` theme
+  tests were converted to real clicks; where a real click moves focus
+  to the header, dialogs are closed via their own × button rather than
+  Esc.
+- **Sheet's initial focus skips disabled controls:** the replicate
+  view's "Previous" button is disabled at index 0; focusing it is a
+  no-op that left focus on `<body>` and made Esc silently dead. The
+  shared Sheet now picks the first *enabled* focusable — this also
+  fixes the pre-existing Esc-dead spot on main.
+- **"Help" destination:** no in-app help page exists (§6.3), so the
+  More menu's Help item links to the project README — the published
+  documentation — as an `href`, same as Licenses and Source code.
+  "Coming from PHYLIP?" is the only action item; it opens the existing
+  help sheet and returns focus to the More button on close.
+- **Skip link moves focus explicitly:** fragment navigation scrolls to
+  `#main-content` but leaves `document.activeElement` on the link, so
+  the click handler focuses the main element (it carries
+  `tabindex="-1"`).
+- **No sheet entrance animation:** a 120 ms opacity-in on `.sheet-backdrop`
+  sections made WebKit's axe run report color-contrast violations on the
+  open pair panel (mid-animation opacity is factored into the ratio).
+  Transitions on buttons/menus remain, and the reduced-motion rule
+  zeroes both transitions and animations.
+- **Coarse-pointer geometry:** buttons/links get `min-width/height:
+  40px` under `(pointer: coarse)`; matrix cells reach 40 px by scaling
+  the svg's `min-width` to the 40 px floor (`.matrix-wrap` scrolls when
+  it outgrows the column); predict_branch hits get a hidden ≥40×40 pad
+  rect that only displays under coarse pointers — the visual line stays
+  12 px for fine pointers. jsdom's unit tests are pinned to a 1280 px
+  viewport in `src/test/setup.ts` so the wide layout (controls column)
+  is what existing component tests see.
+- **Baselines regenerated (owner gate):** the pinned Playwright image
+  was run twice — second run zero diffs. Changed scenes (all below
+  1280 px; every 1920×1080 baseline byte-identical):
+  bootstrap-basics-final (1024×768, 768×1024, both themes),
+  cytc-computed (1024×768, 768×1024, both), cytc-rooted (1024×768,
+  768×1024, both), export-svg-roundtrip (1024×768, both), four-taxa
+  (1024×768, 768×1024, both), replicate-panel (1024×768, 768×1024,
+  both), weak-support (1024×768, 768×1024, both).
+- Files outside the Files block: `web/src/views/App.tsx` — the drawer
+  renders at the app root, the skip-link target lives on `<main>`, and
+  the controls sections are shared between the aside and the drawer;
+  `web/src/state/actions.ts` — the `setDrawer` action variant (the
+  Action union lives there, not in ui.ts); `web/src/views/MatrixHeatmap.tsx`
+  — the `.matrix-wrap` scroller and `--matrix-min` floor for coarse
+  cells; `web/src/views/TreeView.tsx` — the predict_branch hit-pad
+  rects; `web/e2e/layout.spec.ts` — Task 9's medium-column assertion is
+  replaced by the §6.4 drawer check, and the header button count now
+  follows the breakpoint; `web/e2e/theme.spec.ts` — real clicks per the
+  plan's Review Focus 4 note; `web/e2e/visualScenes.ts` — the
+  `inSettings` helper that drives controls through the drawer below
+  1280; `web/src/test/setup.ts` — the pinned unit-test viewport;
+  `web/src/views/Wordmark.test.tsx` — Header gained `breakpoint` and
+  `drawerOpen` props; `web/e2e/__screenshots__/` — the regenerated
+  baselines above; `docs/decisions.md` — this entry.
+
+### Fix round 1 (PR #74 review): toggle slot, drawer fit, matrix text floor
+
+- **The theme toggle parks in the sheet's reserved strip below 1024
+  px:** while a content sheet is open, `.theme-toggle` becomes
+  `position: fixed; top: 10px; right: 16px` (its header spot was not
+  stable — the wrapped header's second row dropped it onto the sheet
+  title). The strip is the sheet's existing `padding-top: 52px`, so the
+  toggle keeps its real-pointer path (z-40 over the scrim, under the
+  drawer scrim's z-50) without touching sheet content. At ≥1024 the
+  centered dialogs can't reach the header row, so the toggle is left
+  in place there — the new e2e asserts the no-intersection box check
+  at 768/1024/1920 for the pair panel, the replicate panel and PHYLIP
+  help, in both themes.
+- **The Newick-names select is clamped to its container**
+  (`max-width: 100%`): its longest option is wider than the 320 px
+  drawer — and than the 230 px controls column at wide, the same
+  latent overflow. A new e2e asserts no drawer descendant crosses the
+  drawer edges (elements inside an inner horizontal scroller exempt)
+  plus `scrollWidth ≤ clientWidth` at 768 and 1024.
+- **`.matrix-wrap` got a definite width below 1024 px:** as a column
+  flex item with auto side margins it shrink-wrapped to the svg's
+  300 px replaced fallback, scaling cell text to ~9.7 px. Now
+  `width: 100%` (still capped at 560 and centered) — the same size the
+  block layout gave it on main — and the svg carries `min-width:
+  var(--matrix-w)` (its natural px width) with the wrap's
+  `overflow-x: auto` unconditional: below the natural width the wrap
+  scrolls and text never renders under the 12 px floor. Upper size
+  unchanged (scales up to 560 exactly like main).
+- **WebKit 1/64 px layout quantization:** WebKit renders a fractional-
+  width svg a hair under its viewBox scale — a 40 px predict_branch
+  hit pad reported 39.999 px (the §6.5 ≥40×40 test, WebKit only; PR
+  e2e runs Chromium/Firefox so CI never saw it). `hitPad`'s floor is
+  now 40.05 px (invisible rect, still ≥40×40 spec) and `--matrix-min`
+  is `Math.ceil`ed, absorbing the quantization everywhere.
+- Files outside the Files block (this round): `web/src/views/TreeView.tsx`
+  (hit-pad floor), `web/src/views/MatrixHeatmap.tsx` (`--matrix-w`,
+  rounded `--matrix-min`).
+- **Baselines regenerated (owner gate):** pinned Playwright image, run
+  twice, second run zero diffs. Changed: every 768×1024 scene in both
+  themes except replicate-panel light, which stayed within tolerance —
+  bootstrap-basics-final, cytc-computed, cytc-rooted, four-taxa,
+  weak-support (both themes) and replicate-panel dark. The matrix now
+  fills 560 px again and the toggle sits in the sheet's reserved strip.
+  Every 1024×768 and 1920×1080 baseline is byte-identical.

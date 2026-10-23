@@ -21,6 +21,10 @@
 // Header controls (plan addendum, PR #70): at all four viewports and
 // in both themes every header control — including the "Dark mode"
 // toggle — is fully inside the viewport and takes a real click.
+//
+// Task 10: below 1280 the controls column is replaced by the Settings
+// drawer (a header button, §6.4), and at medium the explanation still
+// sits below the center (spec §6.1).
 
 import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
@@ -160,37 +164,29 @@ async function expectStepperPinned(page: Page): Promise<void> {
   expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width + 0.5);
 }
 
-/** Two columns (§6.1 medium per PR #73 option B): the controls column
- * visible beside the center — its left edge left of the center's — and
- * the explanation below the center content in the same column track
- * (its top at or below the bottom of the tree row). The "Run
- * bootstrap" control — and on bootstrap-basics the Length field, the
- * sim control the owner's option-B rationale names — must sit inside
- * the viewport with no page scroll at all (cytochrome-c embeds real
- * sequences, so its Simulation section has no Length field). Runs
- * before the leaf check, which legitimately scrolls the page. */
-async function expectMediumColumns(page: Page, lesson: string) {
+/** Medium (§6.1 + Task 10's §6.4 drawer): a single column — the center
+ * content over the explanation — and the controls live in the Settings
+ * drawer opened from the header button. The drawer's controls — "Run
+ * bootstrap", and on bootstrap-basics the Length field the owner's
+ * option-B rationale names — must sit inside the viewport while the
+ * drawer is open. Runs before the leaf check, which legitimately
+ * scrolls the page. */
+async function expectMediumLayout(page: Page, lesson: string) {
   const vp = page.viewportSize();
   expect(vp, "viewport size is known").not.toBeNull();
-  const controls = page.locator(".col-controls");
   const center = page.locator(".col-center");
   const explain = page.locator(".col-explain");
   const trees = page.locator(".trees");
-  await expect(controls).toBeVisible();
   await expect(center).toBeVisible();
   await expect(explain).toBeVisible();
-  const controlsBox = await controls.boundingBox();
+  // The controls column is gone from the flow — it's the drawer.
+  await expect(page.locator(".col-controls")).toHaveCount(0);
   const centerBox = await center.boundingBox();
   const explainBox = await explain.boundingBox();
   const treesBox = await trees.boundingBox();
-  expect(controlsBox, "the controls column has a bounding box").not.toBeNull();
   expect(centerBox, "the center column has a bounding box").not.toBeNull();
   expect(explainBox, "the explanation box has a bounding box").not.toBeNull();
   expect(treesBox, "the tree row has a bounding box").not.toBeNull();
-  expect(
-    controlsBox!.x,
-    "the controls column sits left of the center",
-  ).toBeLessThan(centerBox!.x);
   expect(
     explainBox!.y,
     "the explanation starts at or below the bottom of the trees",
@@ -198,27 +194,21 @@ async function expectMediumColumns(page: Page, lesson: string) {
 
   // Back to the initial, unscrolled position — answering the gating
   // prompt during stepToEnd auto-scrolls the matrix cell into view.
-  // "Inside the viewport" at scroll 0 means the controls are reachable
-  // without scrolling the page: they sit beside the trees, not below.
   await page.evaluate(() => {
     window.scrollTo(0, 0);
     document.querySelector(".app-grid")?.scrollTo(0, 0);
   });
-  const scroll = await page.evaluate(() => ({
-    win: window.scrollY,
-    grid: document.querySelector(".app-grid")?.scrollTop ?? -1,
-  }));
-  expect(scroll.win, "the window is at the top").toBe(0);
-  expect(scroll.grid, "the grid scroller is at the top").toBe(0);
-  // The named controls of the option-B rationale, where each exists:
+  // The drawer's controls, inside the viewport while it is open:
   // cytochrome-c embeds real sequences (its Simulation section has no
   // Length field), so it asserts "Run bootstrap"; bootstrap-basics is
-  // simulated, so it asserts the Length field the owner named — both
-  // inside the viewport at scroll 0, beside the trees.
+  // simulated, so it asserts the Length field the owner named.
+  await page.getByRole("button", { name: "Settings" }).click();
+  const dlg = page.getByRole("dialog", { name: "Settings" });
+  await expect(dlg).toBeVisible();
   const targets =
     lesson === "bootstrap-basics"
-      ? [page.getByLabel("Length")]
-      : [page.getByRole("button", { name: /Run bootstrap/ })];
+      ? [dlg.getByLabel("Length")]
+      : [dlg.getByRole("button", { name: /Run bootstrap/ })];
   for (const target of targets) {
     const box = await target.boundingBox();
     expect(box, "the control has a bounding box").not.toBeNull();
@@ -233,6 +223,8 @@ async function expectMediumColumns(page: Page, lesson: string) {
       "the control is inside the bottom edge",
     ).toBeLessThanOrEqual(vp!.height + 0.5);
   }
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
 }
 
 /** One column (§6.1 narrow/compact): the true tree's panel ends above
@@ -274,7 +266,7 @@ for (const lesson of LESSONS) {
       // Medium geometry runs first — its "no scroll" premise must hold
       // before the leaf check scrolls the page to reveal leaves.
       if (vp.bp === "medium") {
-        await expectMediumColumns(page, lesson);
+        await expectMediumLayout(page, lesson);
       }
       await expectAllLeavesVisible(page, 8);
       await expectStepperPinned(page);
@@ -351,6 +343,47 @@ test("rotating 768×1024 → 1024×768 mid-lesson keeps the step and the predict
   await expectNoSidewaysScroll(page);
 });
 
+// The heatmap draws at its natural size so rendered cell/label text
+// never drops below the 12 px floor (Global Constraints); the
+// .matrix-wrap scroller takes over when the drawing can't fit. The
+// rendered size is the computed font-size scaled by the svg's screen
+// transform — the wrap's width:100% scales the whole drawing, so a
+// wrap narrower than the drawing's natural width shrinks the text.
+const MATRIX_TEXT_VIEWPORTS = [
+  { w: 768, h: 1024 },
+  { w: 1024, h: 768 },
+  { w: 1920, h: 1080 },
+] as const;
+
+for (const lesson of ["cytochrome-c", "nj-basics"] as const) {
+  for (const vp of MATRIX_TEXT_VIEWPORTS) {
+    test(`${lesson} matrix text renders at ≥ 12 px at ${vp.w}x${vp.h}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.w, height: vp.h });
+      await page.goto(`/?lesson=${lesson}`);
+      await waitForApp(page);
+      const min = await page.evaluate(() => {
+        const svg = document.querySelector<SVGSVGElement>(
+          ".matrix-wrap > svg",
+        );
+        const scale = svg?.getScreenCTM()?.a;
+        if (!svg || !scale) return null;
+        return Math.min(
+          ...[...svg.querySelectorAll("text")].map(
+            (t) => parseFloat(getComputedStyle(t).fontSize) * scale,
+          ),
+        );
+      });
+      expect(min, "the matrix svg has text").not.toBeNull();
+      expect(
+        min!,
+        "every matrix <text> renders at ≥ 12 px",
+      ).toBeGreaterThanOrEqual(12);
+    });
+  }
+}
+
 for (const vp of VIEWPORTS) {
   for (const theme of ["light", "dark"] as const) {
     test(`header controls stay inside the viewport at ${vp.w}x${vp.h} (${theme})`, async ({
@@ -371,10 +404,12 @@ for (const vp of VIEWPORTS) {
 
       const controls = page.locator(".app-header button");
       const count = await controls.count();
-      // Wordmark, title and toast are not controls; the buttons are the
-      // mode switch pair, the Lessons menu, "Coming from PHYLIP?" and
-      // the "Dark mode" theme toggle.
-      expect(count, "the header has its five buttons").toBe(5);
+      // Wordmark, title and toast are not controls. At wide the
+      // buttons are the mode switch pair, the Lessons menu, "Coming
+      // from PHYLIP?" and the "Dark mode" toggle. Below 1280 the
+      // Settings button joins; below 1024 "Coming from PHYLIP?" moves
+      // into the More menu — six buttons either way (Task 10).
+      expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 5 : 6);
       await expect(
         page.getByRole("button", { name: "Dark mode" }),
       ).toBeVisible();

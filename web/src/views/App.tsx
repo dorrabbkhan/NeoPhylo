@@ -77,6 +77,7 @@ import { PairPanel } from "./PairPanel";
 import { PhylipHelp } from "./PhylipHelp";
 import { ReplicatePanel } from "./ReplicatePanel";
 import { PromptCard } from "./PromptCard";
+import { SettingsDrawer } from "./SettingsDrawer";
 import {
   leafIdByLabel,
   leafLabelSets,
@@ -533,6 +534,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
     return <div className="app-loading">Loading…</div>;
   }
 
+
   const n = trace !== null ? traceLength(trace) : 0;
   // NJ-ness comes from the requested method, not the trace — >50 taxa
   // have no trace (Global Constraints) but still build an unrooted
@@ -711,6 +713,71 @@ export function App({ exercise }: { exercise?: Exercise }) {
     (session.alignment?.labels.length ?? 0) > 50 ||
     (session.matrix?.labels.length ?? 0) > 50;
 
+  const controlsSections = (
+    <>
+      <AlphabetBadge
+        alphabet={session.alphabet}
+        source={session.source}
+        alignmentOrigin={session.alignmentOrigin}
+        dispatch={dispatch}
+      />
+      <Controls
+        sim={exerciseSim(session.exercise)}
+        alphabet={session.alphabet}
+        analysis={session.exercise.analysis}
+        locked={session.source === "sandbox" ? [] : session.exercise.locked}
+        matrixView={session.matrixView}
+        qAvailable={isNj && trace !== null}
+        qGated={gating !== null}
+        alignmentOrigin={session.alignmentOrigin}
+        dispatch={dispatch}
+        bootstrapPanel={
+          atFinal && inferred !== null ? (
+            <BootstrapPanel
+              session={session}
+              dispatch={dispatch}
+              runGated={promptGate.branchGating !== null}
+            />
+          ) : undefined
+        }
+      />
+      {session.source === "sandbox" && (
+        <ImportPanel session={session} dispatch={dispatch} />
+      )}
+      <ExportMenu
+        tree={drawnTree}
+        alignment={session.alignment}
+        correction={session.exercise.analysis.correction}
+        method={session.exercise.analysis.method}
+        clampNegative={session.clampNegative}
+        matrix={session.matrix}
+        treeView={
+          showReroot
+            ? { kind: "rooted", outgroup: reroot!.outgroup }
+            : reroot !== null
+              ? { kind: "computed" }
+              : { kind: "plain" }
+        }
+        // The current bootstrap view's tree AS DRAWN — rerooted on
+        // the reference's outgroup while that view is on — so the
+        // export matches the item's name (checkpoint 15).
+        consensusTree={consensusViewTree === null ? null : drawnTree}
+        // The SAME layout inputs the on-screen figure uses, so the
+        // SVG/PNG serialize this exact drawing (checkpoint 15).
+        figure={{
+          kind: consensusTree === null ? "phylogram" : "cladogram",
+          leafSpacing: sharedSpacing,
+          panelWidth: exportPanelW,
+          visibleNodes:
+            drawnTree === inferred ? visibleNodes : undefined,
+          splitTaxa,
+          splitRooted: !isNj,
+        }}
+        bootstrap={exportBootstrap}
+      />
+    </>
+  );
+
   return (
     <div className="app" data-breakpoint={breakpoint}>
       <Header
@@ -725,70 +792,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
         onOpenPhylipHelp={() => setPhylipHelp(true)}
         theme={session.theme}
         dispatch={dispatch}
+        breakpoint={breakpoint}
+        drawerOpen={session.drawerOpen}
       />
-      <main className="app-grid">
-        <aside className="col-controls" aria-label="Controls">
-          <AlphabetBadge
-            alphabet={session.alphabet}
-            source={session.source}
-            alignmentOrigin={session.alignmentOrigin}
-            dispatch={dispatch}
-          />
-          <Controls
-            sim={exerciseSim(session.exercise)}
-            alphabet={session.alphabet}
-            analysis={session.exercise.analysis}
-            locked={session.source === "sandbox" ? [] : session.exercise.locked}
-            matrixView={session.matrixView}
-            qAvailable={isNj && trace !== null}
-            qGated={gating !== null}
-            alignmentOrigin={session.alignmentOrigin}
-            dispatch={dispatch}
-            bootstrapPanel={
-              atFinal && inferred !== null ? (
-                <BootstrapPanel
-                  session={session}
-                  dispatch={dispatch}
-                  runGated={promptGate.branchGating !== null}
-                />
-              ) : undefined
-            }
-          />
-          {session.source === "sandbox" && (
-            <ImportPanel session={session} dispatch={dispatch} />
-          )}
-          <ExportMenu
-            tree={drawnTree}
-            alignment={session.alignment}
-            correction={session.exercise.analysis.correction}
-            method={session.exercise.analysis.method}
-            clampNegative={session.clampNegative}
-            matrix={session.matrix}
-            treeView={
-              showReroot
-                ? { kind: "rooted", outgroup: reroot!.outgroup }
-                : reroot !== null
-                  ? { kind: "computed" }
-                  : { kind: "plain" }
-            }
-            // The current bootstrap view's tree AS DRAWN — rerooted on
-            // the reference's outgroup while that view is on — so the
-            // export matches the item's name (checkpoint 15).
-            consensusTree={consensusViewTree === null ? null : drawnTree}
-            // The SAME layout inputs the on-screen figure uses, so the
-            // SVG/PNG serialize this exact drawing (checkpoint 15).
-            figure={{
-              kind: consensusTree === null ? "phylogram" : "cladogram",
-              leafSpacing: sharedSpacing,
-              panelWidth: exportPanelW,
-              visibleNodes:
-                drawnTree === inferred ? visibleNodes : undefined,
-              splitTaxa,
-              splitRooted: !isNj,
-            }}
-            bootstrap={exportBootstrap}
-          />
-        </aside>
+      <main className="app-grid" id="main-content" tabIndex={-1}>
+        {/* The controls column renders only at the wide breakpoint;
+            below it the same sections live in the Settings drawer
+            opened from the header (v1.3 spec §6.1, §6.4). */}
+        {breakpoint === "wide" && (
+          <aside className="col-controls" aria-label="Controls">
+            {controlsSections}
+          </aside>
+        )}
         <section className="col-center">
           <div className="notices">
             {banner !== null && (
@@ -1058,6 +1073,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
           Licenses
         </a>
       </footer>
+      {session.drawerOpen && (
+        <SettingsDrawer
+          onClose={() => dispatch({ type: "setDrawer", open: false })}
+        >
+          {controlsSections}
+        </SettingsDrawer>
+      )}
       {phylipHelp && <PhylipHelp onClose={() => setPhylipHelp(false)} />}
       {pairDetail !== null && session.alignment !== null && (
         <PairPanel

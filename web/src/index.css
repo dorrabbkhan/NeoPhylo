@@ -90,6 +90,17 @@ p {
   min-width: 0;
 }
 
+/* Below the wide breakpoint the header tightens its gap (the Settings
+ * button joins the row — Task 10); 16 px → 8 px keeps the six
+ * controls on one row at 1024 where the wider gap overflowed by
+ * ~2 px, and the wrap rule below still applies when it truly can't
+ * fit. */
+@media (width < 1280px) {
+  .app-header {
+    gap: var(--space-8);
+  }
+}
+
 /* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
  * icon at its left. flex-shrink: 0 — the wordmark never compresses to
  * make room; below the wide breakpoint it collapses to the icon
@@ -277,6 +288,17 @@ p {
   overflow: hidden;
 }
 
+/* Task 10 (§6.4): at wide with the Settings drawer open (a rotation
+ * crossing), the aside isn't rendered — collapse its column rather
+ * than leaving an empty 230 px gutter. Scoped to wide so the narrower
+ * media queries keep their own templates. */
+@media (width >= 1280px) {
+  .app-grid:not(:has(> .col-controls)) {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-areas: "center explain";
+  }
+}
+
 .col-controls {
   grid-area: controls;
   padding: 8px 14px;
@@ -390,59 +412,79 @@ p {
   color: var(--color-text);
 }
 
-/* predict_branch (v1.2 spec §7.1): while a branch prompt is open, a wide
- * invisible hit line sits on each internal edge — generous target for
- * the click, invisible against the real branch stroke. */
+/* predict_branch (v1.2 spec §7.1): while a branch prompt is open, a
+ * wide invisible hit target sits on each edge — a generous stroke
+ * along the branch plus, under (pointer: coarse) only, a ≥40×40 pad
+ * rect grown around it (§6.5; a short edge's line can't reach both
+ * dimensions on its own). */
 .tree-canvas .branch-hit {
+  cursor: pointer;
+}
+
+.tree-canvas .branch-hit > line {
   stroke: transparent;
   stroke-width: 12;
-  cursor: pointer;
+}
+
+.tree-canvas .branch-hit-pad {
+  display: none;
+  fill: transparent;
+  stroke: none;
 }
 
 /* predict_branch (v1.2 §7.1): a keyboard-focused pickable branch shows
  * a dashed overlay along its edge. */
 .tree-canvas .branch-hit:focus-visible {
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-dasharray: 3 3;
   outline: none;
 }
 
+.tree-canvas .branch-hit:focus-visible > line {
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-dasharray: 3 3;
+}
+
 /* The heatmap draws at its natural width-driven size so text never
- * renders under 12 px (round 3) — the column scrolls when it doesn't
- * fit. currentColor inside it (cell outlines, axis labels) follows
- * --color-text like the trees. */
-.col-center > svg {
+ * renders under 12 px (round 3) — the wrap scrolls when it doesn't
+ * fit, including when the coarse-pointer cell floor (--matrix-min,
+ * §6.5) makes the svg wider than the column. currentColor inside it
+ * (cell outlines, axis labels) follows --color-text like the trees. */
+.matrix-wrap {
+  max-width: 560px;
+  margin: 12px auto 0;
+  overflow-x: auto;
+}
+
+.matrix-wrap > svg {
   display: block;
   width: 100%;
-  max-width: 560px;
+  /* The drawing's natural pixel width (viewBox units are px): never
+   * scale below it, or the authored 12 px text shrinks with it — the
+   * wrap scrolls instead (round 3, Global Constraints). */
+  min-width: var(--matrix-w);
   height: auto;
-  margin: 12px auto 0;
   color: var(--color-text);
 }
 
-/* ---- Medium (1024–1279 px): controls · center, explanation below ----
- * Owner decision on PR #73 (option B): until Task 10's settings drawer
- * exists, the medium breakpoint keeps the wide arrangement minus the
- * third column — the controls column on the left and the center on the
- * right in its wide internal order (notices, prompts, trees, matrix),
- * with the explanation below the center content inside the center's
- * column track, not in a column of its own. The .app-grid row is the
- * page's one vertical scroller (the per-column scrollers stay a
- * wide-only feature); nothing on the page scrolls sideways
- * (overflow-x: clip — over-wide figures still scroll inside their own
- * .tree-canvas). */
+/* ---- Medium (1024–1279 px): center, explanation below (§6.1) ----
+ * Task 10's settings drawer takes the controls (§6.4): the column
+ * isn't rendered below the wide breakpoint, so medium is a single
+ * column — the center in its wide internal order (notices, prompts,
+ * trees side by side, matrix) with the explanation below it in the
+ * same track. The .app-grid row is the page's one vertical scroller
+ * (the per-column scrollers stay a wide-only feature); nothing on the
+ * page scrolls sideways (overflow-x: clip — over-wide figures still
+ * scroll inside their own .tree-canvas). */
 @media (1024px <= width < 1280px) {
   .app-grid {
-    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "controls center"
-      "controls explain";
+      "center"
+      "explain";
     overflow-y: auto;
     overflow-x: clip;
   }
 
-  .col-controls,
   .col-center,
   .col-explain {
     overflow-x: visible;
@@ -458,21 +500,21 @@ p {
 }
 
 /* ---- Below the medium breakpoint: single column (spec §6.1–§6.2) ----
- * Narrow and compact share this arrangement until Task 10's settings
- * drawer exists: the center content leads — trees (true over inferred,
- * full width each) over the matrix over the prompts — then the
- * explanation, then the controls column last. The .app-grid row
- * becomes the page's one vertical scroller; the per-column scrollers
- * and side borders drop, and nothing on the page scrolls sideways
- * (overflow-x: clip — over-wide figures still scroll inside their own
- * .tree-canvas). */
+ * Narrow and compact share this arrangement: the center content leads
+ * — trees (true over inferred, full width each) over the matrix over
+ * the prompts — then the explanation. The controls live in the
+ * Task-10 settings drawer (§6.4), and the footer's Licenses and
+ * Source code links move into the header's More menu (§6.3). The
+ * .app-grid row is the page's one vertical scroller; the per-column
+ * scrollers and side borders drop, and nothing on the page scrolls
+ * sideways (overflow-x: clip — over-wide figures still scroll inside
+ * their own .tree-canvas). */
 @media (width < 1024px) {
   .app-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "center"
-      "explain"
-      "controls";
+      "explain";
     overflow-y: auto;
     overflow-x: clip;
   }
@@ -494,8 +536,13 @@ p {
     order: 0;
   }
 
-  .col-center > svg {
+  .col-center > .matrix-wrap {
     order: 1;
+    /* In the column flex the auto side margins would shrink-wrap to
+     * the svg's 300 px replaced fallback, scaling its text under the
+     * 12 px floor — a definite width fills the column (capped at 560,
+     * centered by the auto margins) like the block layout above. */
+    width: 100%;
   }
 
   .col-center > .prompts {
@@ -506,12 +553,16 @@ p {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .col-controls,
   .col-explain {
     overflow-y: visible;
     border-left: 0;
     border-right: 0;
     border-top: 1px solid var(--color-border);
+  }
+
+  /* Licenses and Source code move into the header's More menu (§6.3). */
+  .app-footer .repo-link {
+    display: none;
   }
 }
 
@@ -938,9 +989,15 @@ button:disabled {
   cursor: pointer;
 }
 
-/* ---- Pair panel: "How was this distance computed?" (v1.1 spec §5.2, Task 11) ---- */
+/* ---- Shared overlay sheet (v1.3 Task 10, spec §6.2) ----
+ * One scrim + centered section for every modal (pair panel, replicate
+ * panel, PHYLIP help) and for the Settings drawer. Below 1024 px the
+ * content dialogs become full-screen sheets; the drawer keeps its
+ * left-anchored overlay at every width (§6.4). The sheet leaves a
+ * strip of top padding for the theme toggle, which stays a real
+ * click target above the scrim (Review Focus 4). */
 
-.pair-panel-backdrop {
+.sheet-backdrop {
   position: fixed;
   inset: 0;
   background: var(--color-scrim);
@@ -949,6 +1006,58 @@ button:disabled {
   justify-content: center;
   z-index: 10;
 }
+
+/* The drawer is a full modal: its scrim covers the raised theme
+ * toggle too (only the content sheets leave it reachable, for the
+ * Review Focus 4 real-input theme switch). */
+.sheet-backdrop:has(> .settings-drawer) {
+  z-index: 50;
+}
+
+@media (width < 1024px) {
+  .sheet-backdrop > section:not(.settings-drawer) {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    padding-top: 52px;
+  }
+}
+
+/* The Settings drawer (§6.4): a left-side overlay holding the controls
+ * column's sections — Simulation, Analysis, How sure are we?, Import
+ * and Export. Fixed to the left edge at every width it can open at
+ * (below 1280); the scrim centers nothing, the section anchors itself. */
+.settings-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(320px, 92vw);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-right: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  padding: 14px 18px;
+  overflow-y: auto;
+}
+
+.settings-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-drawer-head h2 {
+  margin: 0 0 8px;
+  font-size: var(--size-lg);
+  color: var(--color-text-h);
+}
+
+/* ---- Pair panel: "How was this distance computed?" (v1.1 spec §5.2, Task 11) ---- */
 
 .pair-panel {
   background: var(--color-bg);
@@ -1183,8 +1292,13 @@ button:disabled {
 
 /* Theme toggle (v1.3 spec §3.3, §6.3): matches the header's secondary
  * buttons; pressed (dark on) shows the accent fill like the checked
- * mode-switch option. */
+ * mode-switch option. Raised above the content sheets' scrim (z-index
+ * over .sheet-backdrop's 10) so switching theme stays a real pointer
+ * path while a dialog is open — Review Focus 4's real-input test.
+ * (The drawer's scrim is z-index 50 and covers it — a full modal.) */
 .theme-toggle {
+  position: relative;
+  z-index: 40;
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1205,6 +1319,23 @@ button:disabled {
   border-color: var(--color-accent-border);
   color: var(--color-accent-contrast);
   font-weight: 600;
+}
+
+/* Below 1024 a content sheet covers the whole viewport, and its
+ * padding-top: 52px (above) reserves a strip for this toggle. The
+ * toggle's own header spot is NOT stable — the header wraps to a
+ * second row under it, dropping the button onto the sheet's title —
+ * so while a content sheet is open it parks in a fixed top-right slot
+ * inside the reserved strip: still a real click target (z-index 40
+ * over the scrim's 10, under the drawer scrim's 50), never over sheet
+ * content. */
+@media (width < 1024px) {
+  .app:has(> .sheet-backdrop > section:not(.settings-drawer))
+    .theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 16px;
+  }
 }
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
@@ -1255,6 +1386,13 @@ button:disabled {
   margin-top: 8px;
   font-size: var(--size-sm);
   color: var(--color-text-muted);
+}
+
+/* The longest option ("Compatible (recommended for R, FigTree, iTOL)")
+ * is wider than the Settings drawer / controls column — clamp the
+ * select to its container so it never crosses the edge. */
+.newick-name-mode select {
+  max-width: 100%;
 }
 
 /* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */
@@ -1423,16 +1561,6 @@ button:disabled {
 
 /* ---- "Watch one replicate" dialog (v1.2 §6.5) ---- */
 
-.replicate-panel-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-scrim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
 .replicate-panel {
   background: var(--color-bg);
   color: var(--color-text);
@@ -1522,4 +1650,144 @@ button:disabled {
 .replicate-trees .tree-panel {
   flex: 1;
   min-width: 0;
+}
+
+/* ---- Task 10: skip link, Settings button, More menu, touch, motion ----
+ * (v1.3 spec §6.3–§6.5, §6.10) */
+
+/* "Skip to content" (§6.10): the page's first focusable element —
+ * parked above the viewport, slid in only while focused. */
+.skip-link {
+  position: absolute;
+  top: -64px;
+  left: 8px;
+  z-index: 60;
+  padding: 8px 12px;
+  border: 1px solid var(--color-accent-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--size-sm);
+}
+
+.skip-link:focus-visible {
+  top: 8px;
+}
+
+/* The Settings button and the More button match the header's other
+ * secondary controls (the theme toggle / PHYLIP-help look). */
+.drawer-toggle,
+.more-menu > button {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.drawer-toggle:hover,
+.drawer-toggle:focus-visible,
+.more-menu > button:hover,
+.more-menu > button:focus-visible {
+  border-color: var(--color-accent-border);
+}
+
+.more-menu {
+  position: relative;
+}
+
+/* The More menu list drops below its button, right-aligned like the
+ * Lessons menu's list — same row styling, menuitem roles. */
+.more-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.more-menu-list [role="menuitem"] {
+  font: inherit;
+  text-align: left;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.more-menu-list [role="menuitem"]:last-child {
+  border-bottom: 0;
+}
+
+.more-menu-list [role="menuitem"]:hover,
+.more-menu-list [role="menuitem"]:focus-visible {
+  background: var(--color-accent-bg);
+  outline: none;
+}
+
+/* Touch targets (§6.5): under a coarse pointer every interactive
+ * target is at least 40×40 — buttons and links by min-size, matrix
+ * cells by the svg's --matrix-min width (the wrap scrolls), branch
+ * hits by their grown pad rect. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="switch"],
+  [role="tab"],
+  [role="menuitem"] {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .more-menu-list [role="menuitem"],
+  .app-footer .repo-link {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .matrix-wrap {
+    overflow-x: auto;
+  }
+
+  .matrix-wrap > svg {
+    min-width: var(--matrix-min);
+  }
+
+  .tree-canvas .branch-hit-pad {
+    display: block;
+  }
+}
+
+/* Subtle affordance the reduced-motion rule below zeroes out (§6.10):
+ * a quick hover tint on controls. (No entrance animation on the
+ * sheets — WebKit's axe runs read mid-animation opacity as a
+ * color-contrast failure.) */
+button,
+[role="menuitem"] {
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+/* prefers-reduced-motion (§6.10): transitions and animations off;
+ * play mode still steps — it is interval-driven, not animated. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
 }

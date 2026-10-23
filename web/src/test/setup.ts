@@ -25,3 +25,15 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+
+// jsdom has no matchMedia either, so useBreakpoint falls back to
+// innerWidth — its default 1024 px is the medium breakpoint, where the
+// Task-10 Settings drawer replaces the controls column and existing
+// tests would lose their controls. Pin the unit-test viewport at the
+// wide edge (1280): tests exercising smaller breakpoints set
+// innerWidth and dispatch `resize` themselves.
+Object.defineProperty(window, "innerWidth", {
+  configurable: true,
+  writable: true,
+  value: 1280,
+});

@@ -20,7 +20,7 @@
 // for NJ, the rooted cluster difference for UPGMA — which is what the
 // engine reports as `rf_to_original`.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { KeyboardEvent } from "react";
 
 import { engine } from "../engine";
@@ -31,6 +31,7 @@ import type { Tree } from "../engine/generated/Tree";
 import { errorMessage } from "../explain/errors";
 
 import { leafLabelSets, sameSet } from "./stepEmphasis";
+import { Sheet } from "./Sheet";
 import { TreeView } from "./TreeView";
 
 export interface ReplicatePanelProps {
@@ -58,8 +59,6 @@ export interface ReplicatePanelProps {
 }
 
 const EMPTY = new Set<number>();
-const FOCUSABLE =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /** Internal node ids whose clade is one of `groupings`, and how many
  * groupings matched — for rooted (UPGMA) trees a node matches the
@@ -158,34 +157,11 @@ export function ReplicatePanel({
   onNavigate,
   onClose,
 }: ReplicatePanelProps) {
-  const panelRef = useRef<HTMLElement>(null);
-  const restoreRef = useRef<Element | null>(null);
-
-  // Focus management (same convention as PairPanel, spec §6.5): focus
-  // moves into the dialog on open and returns to the opener on close.
-  useEffect(() => {
-    restoreRef.current = document.activeElement;
-    const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? panel)?.focus();
-    return () => {
-      const el = restoreRef.current;
-      if (el instanceof HTMLElement || el instanceof SVGElement) {
-        if (el.isConnected) el.focus();
-      }
-    };
-  }, []);
-
   const k = index + 1;
   const navigate = (to: number) =>
     onNavigate(Math.max(0, Math.min(total - 1, to)));
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      onClose();
-      return;
-    }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       navigate(index - 1);
@@ -195,24 +171,6 @@ export function ReplicatePanel({
       e.preventDefault();
       navigate(index + 1);
       return;
-    }
-    if (e.key !== "Tab") return;
-    const panel = panelRef.current;
-    if (panel === null) return;
-    const els = Array.from(
-      panel.querySelectorAll<HTMLElement>(FOCUSABLE),
-    ).filter((el) => !el.hasAttribute("disabled"));
-    if (els.length === 0) {
-      e.preventDefault();
-      return;
-    }
-    const idx = els.indexOf(document.activeElement as HTMLElement);
-    if (e.shiftKey && (idx <= 0 || document.activeElement === panel)) {
-      e.preventDefault();
-      els[els.length - 1].focus();
-    } else if (!e.shiftKey && idx === els.length - 1) {
-      e.preventDefault();
-      els[0].focus();
     }
   };
 
@@ -270,16 +228,12 @@ export function ReplicatePanel({
   );
 
   return (
-    <div className="replicate-panel-backdrop">
-      <section
-        className="replicate-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="replicate-panel-title"
-        ref={panelRef}
-        tabIndex={-1}
-        onKeyDown={onKeyDown}
-      >
+    <Sheet
+      className="replicate-panel"
+      labelledBy="replicate-panel-title"
+      onClose={onClose}
+      onKeyDown={onKeyDown}
+    >
         <header className="replicate-panel-head">
           <h2 id="replicate-panel-title">
             Replicate {k} of {total}
@@ -392,7 +346,6 @@ export function ReplicatePanel({
             )}
           </>
         )}
-      </section>
-    </div>
+    </Sheet>
   );
 }

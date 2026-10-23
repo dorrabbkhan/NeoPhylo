@@ -41,6 +41,8 @@ describe("Header", () => {
         onOpenPhylipHelp={() => {}}
         theme="light"
         dispatch={() => {}}
+        breakpoint="wide"
+        drawerOpen={false}
       />,
     );
     expect(screen.getByText("NeoPhylo")).toBeTruthy();

@@ -8,7 +8,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { stepToEnd, waitForApp } from "./helpers";
@@ -49,13 +49,40 @@ export async function settleFrame(page: Page): Promise<void> {
   });
 }
 
+/** Run `fn` against the controls: the wide layout's column directly,
+ * or — below 1280 px (Task 10, spec §6.4) — the Settings drawer the
+ * header button opens, closed again afterwards so the scene's frame
+ * stays clean. */
+async function inSettings<T>(
+  page: Page,
+  fn: (scope: Locator) => Promise<T>,
+): Promise<T> {
+  const gear = page.getByRole("button", { name: "Settings" });
+  if (!(await gear.isVisible())) {
+    return await fn(page.locator(".col-controls"));
+  }
+  await gear.click();
+  const dlg = page.getByRole("dialog", { name: "Settings" });
+  await expect(dlg).toBeVisible();
+  try {
+    return await fn(dlg);
+  } finally {
+    await page.keyboard.press("Escape");
+    await expect(dlg).toHaveCount(0);
+  }
+}
+
 /** Switch to Sandbox and import FASTA by paste, then step to the end. */
 async function sandboxImport(page: Page, fasta: string): Promise<void> {
   await page.goto("/");
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
-  await page.locator(".import-panel textarea").fill(fasta);
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await inSettings(page, async (scope) => {
+    await scope.locator(".import-panel textarea").fill(fasta);
+    await scope
+      .getByRole("button", { name: "Import", exact: true })
+      .click();
+  });
   await stepToEnd(page);
 }
 
@@ -63,26 +90,28 @@ async function sandboxImport(page: Page, fasta: string): Promise<void> {
  * seeded defaults — including the estimate→confirm path when a run is
  * over the auto-run budget. */
 async function runBootstrap(page: Page): Promise<void> {
-  const run = page.getByRole("button", { name: /Run bootstrap/ });
-  await expect(run).toBeEnabled();
-  await run.click();
-  const done = page.getByText(/Run complete: /);
-  const start = page.getByRole("button", { name: "Start" });
-  const doneWait = done
-    .waitFor({ timeout: 90_000 })
-    .then(() => "done" as const);
-  const startWait = start
-    .waitFor({ timeout: 90_000 })
-    .then(() => "confirm" as const);
-  // The loser still rejects on its timeout; swallow that so it can't
-  // surface as an unhandled rejection after the race has settled.
-  doneWait.catch(() => {});
-  startWait.catch(() => {});
-  const winner = await Promise.race([doneWait, startWait]);
-  if (winner === "confirm") {
-    await start.click();
-    await expect(done).toBeVisible({ timeout: 90_000 });
-  }
+  await inSettings(page, async (scope) => {
+    const run = scope.getByRole("button", { name: /Run bootstrap/ });
+    await expect(run).toBeEnabled();
+    await run.click();
+    const done = scope.getByText(/Run complete: /);
+    const start = scope.getByRole("button", { name: "Start" });
+    const doneWait = done
+      .waitFor({ timeout: 90_000 })
+      .then(() => "done" as const);
+    const startWait = start
+      .waitFor({ timeout: 90_000 })
+      .then(() => "confirm" as const);
+    // The loser still rejects on its timeout; swallow that so it can't
+    // surface as an unhandled rejection after the race has settled.
+    doneWait.catch(() => {});
+    startWait.catch(() => {});
+    const winner = await Promise.race([doneWait, startWait]);
+    if (winner === "confirm") {
+      await start.click();
+      await expect(done).toBeVisible({ timeout: 90_000 });
+    }
+  });
 }
 
 /** cytochrome-c at the final step after the seeded 100-replicate run. */
@@ -132,7 +161,11 @@ export const SCENES: {
     name: "four-taxa",
     setup: async (page) => {
       await sandboxImport(page, FOUR_TAXA);
-      await expect(page.getByText(/1 grouping to test/)).toBeVisible();
+      await inSettings(page, async (scope) => {
+        await expect(
+          scope.getByText(/1 grouping to test/),
+        ).toBeVisible();
+      });
       await settleFrame(page);
     },
   },
@@ -140,9 +173,22 @@ export const SCENES: {
     name: "replicate-panel",
     setup: async (page) => {
       await cytcAfterRun(page);
-      await page
-        .getByRole("button", { name: /Watch one replicate/ })
-        .click();
+      const gear = page.getByRole("button", { name: "Settings" });
+      if (await gear.isVisible()) {
+        await gear.click();
+        const dlg = page.getByRole("dialog", { name: "Settings" });
+        await expect(dlg).toBeVisible();
+        await dlg
+          .getByRole("button", { name: /Watch one replicate/ })
+          .click();
+        // Opening the panel dismisses the drawer behind it, leaving
+        // the one modal on screen for the frame.
+        await expect(dlg).toHaveCount(0);
+      } else {
+        await page
+          .getByRole("button", { name: /Watch one replicate/ })
+          .click();
+      }
       await expect(
         page.getByRole("dialog").locator(".rep-diff"),
       ).toBeVisible();
@@ -191,10 +237,15 @@ export const SCENES: {
       await cytcAfterRun(page);
       const [dl] = await Promise.all([
         page.waitForEvent("download"),
-        page
-          .locator(".export-menu")
-          .getByRole("button", { name: "SVG (rooted on wheat)", exact: true })
-          .click(),
+        inSettings(page, async (scope) =>
+          scope
+            .locator(".export-menu")
+            .getByRole("button", {
+              name: "SVG (rooted on wheat)",
+              exact: true,
+            })
+            .click(),
+        ),
       ]);
       const stream = await dl.createReadStream();
       const chunks: Buffer[] = [];
