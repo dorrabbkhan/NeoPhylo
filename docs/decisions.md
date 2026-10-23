@@ -3218,3 +3218,30 @@ wedging the start queue.
   `web/scripts/brand.test.ts`, `web/src/views/Wordmark.test.tsx`,
   `web/e2e/brand.spec.ts` (the task's tests — the Files block named no
   test files); `docs/decisions.md` — this entry.
+
+## v1.3 Task 9: responsive layout
+
+- **Medium breakpoint without the drawer (conductor note):** spec §6.1's
+  medium and narrow arrangements put the controls in the Task 10 settings
+  drawer, which does not exist yet. Until it lands, below the wide
+  breakpoint (< 1280 px) everything stacks in a single column in §6.1's
+  order — notices, trees (true over inferred, full width each), matrix,
+  prompts, explanation, controls last — and `.app-grid` becomes the one
+  vertical scroller (`overflow-x: clip`). Task 10 replaces the trailing
+  controls column with the drawer.
+- **200 %-zoom test:** the plan's `document.body.style.zoom = "2"`
+  emulation does not re-evaluate viewport media queries in the pinned
+  Chromium (verified: innerWidth and `(width >= 1280px)` stay put while
+  scrollWidth doubles). The test instead uses a 640×400 viewport at
+  `deviceScaleFactor: 2` — what a 1280×800 window at 200 % zoom actually
+  presents to the page — so the compact layout is exercised for real.
+- **Prompt order:** §6.1 lists "matrix, prompts" in the single column;
+  the DOM order (prompts first) is kept at ≥ 1280 px "as today" and CSS
+  `order` moves the prompt strip below the matrix below that.
+- **Stepper.tsx and TreeView.tsx needed no changes:** the stepper is
+  pinned by the `.app` grid row (safe-area padding + wrapping went into
+  `.app-footer`/`.stepper` in index.css), and tree panels already scroll
+  horizontally inside `.tree-canvas` for over-wide figures (§6.2).
+- Files outside the Files block: `web/src/design/breakpoints.ts` —
+  required by the task's own Interfaces → Produces (`Breakpoint`,
+  `useBreakpoint`); `docs/decisions.md` — this entry.
