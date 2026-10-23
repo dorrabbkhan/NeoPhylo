@@ -203,9 +203,9 @@ describe("supportLabels: on-segment placement", () => {
     expect(p.box.minX).toBeLessThan(n.parentX);
     // Right-aligned: right edge clears the marker by the gap.
     expect(p.box.maxX).toBeCloseTo(n.x - NODE_RADIUS - 1 - 2, 5);
-    // Bottom edge just above the segment; centre within 10 px of the
-    // node's row; no leader.
-    expect(p.box.maxY).toBeCloseTo(n.y - 2, 5);
+    // Bottom edge just above the segment — 1.75 px of air keeps the
+    // centre strictly inside the 10 px bound (BOUND_INSET); no leader.
+    expect(p.box.maxY).toBeCloseTo(n.y - 1.75, 5);
     const cy = (p.box.minY + p.box.maxY) / 2;
     expect(Math.abs(cy - n.y)).toBeLessThanOrEqual(10 + 1e-6);
     expect(p.leader).toBeUndefined();
@@ -326,8 +326,9 @@ describe("supportLabels: nudge and leader fallback", () => {
     expect(labels).toHaveLength(1);
     const p = labels[0];
     expect(p.leader).toBeUndefined();
-    // Nudged up 2 px (0, -1, +1, -2 all still touch the marker box).
-    expect(p.box.maxY).toBeCloseTo(20 - 2 - 2, 5);
+    // Nudged up 3 px (the six earlier candidates all still touch the
+    // marker box; the base raise is now 1.75 under BOUND_INSET).
+    expect(p.box.maxY).toBeCloseTo(20 - 1.75 - 3, 5);
     expect(p.box.maxX).toBeCloseTo(60 - NODE_RADIUS - 1 - 2, 5);
     expect(hit(p.box, markerBox(nb.x, nb.y))).toBe(false);
   });
