@@ -3052,3 +3052,45 @@ wedging the start queue.
   lists `web/scripts/r-parity.mjs`, where the parity logic actually
   lives — before this, a change to the parity script could skip the
   r-and-fixtures job entirely, and this PR's first CI run did skip it.
+## Firefox support-label regression (from v1.3 Task 4) and Firefox on rendering PRs
+
+- Owner-requested fix, one PR, two parts (not a plan task). Branch
+  `fix/firefox-support-label`.
+- Root cause: the on-segment convention seats a support pill with its
+  centre exactly ON the 10 px acceptance bound — at the app's
+  `smallFont` (12 px → 16 px pill) `raise0 = min(GAP, 10 − pillH/2) = 2`,
+  centre −10.0. The e2e check measures the drawn rect with `getBBox`
+  and allows ~1e-6 of slop. Chromium's `getBBox` returns the rect's
+  float64 geometry verbatim; Firefox's is float32-precise (Gecko stores
+  SVG geometry as `float`), so the same attribute
+  `y="110.4166669845581"` reads back `110.41666412353516` and the centre
+  offset computes as 10.0000029 > 10 + 1e-6. Whether a boundary pill
+  passed in Firefox was luck — before Task 4's bundled-font metrics,
+  every pill's float32 rounding happened to fall inside the bound; the
+  new y values round node 10's pill the other way. Evidence (seeded
+  cytochrome-c run, rooted view): Chromium `dy = 10` (attribute and
+  `getBBox` agree exactly); Firefox `dy = 10.0000029`.
+- Fix (`web/src/layout/supportLabels.ts`): placements keep the pill
+  centre strictly inside the ±10 px bound by `BOUND_INSET = 0.25` px —
+  `raise0` becomes `min(GAP, DROP_PAD − BOUND_INSET − pillH/2)` (1.75 px
+  at 12 px type, a sub-pixel move) and the extended downward nudge stops
+  at centre +9.75 instead of +10.0. No test, tolerance, fixture or
+  baseline changed; `supportLabels.test.ts` expectations updated for
+  the new base raise. 0.25 px is ~2500× the worst float32 rounding at
+  these viewBox magnitudes, and invisible in the drawing.
+- Evidence: the failing spec passes `--repeat-each=3` in Firefox in the
+  pinned image; the full e2e suite passes in Chromium (45), Firefox
+  (43) and WebKit (43) in the pinned image; the `visual` project passes
+  42/42 with ZERO baseline changes in the pinned image. Before/after
+  screenshots of the seeded cytochrome-c inferred tree in Firefox and
+  Chromium are a PR comment — all leaves visible, no clipped or
+  overlapping labels.
+- CI change: a `render` paths-filter output in `ci.yml` matches
+  `web/src/{views,layout,export,design}/**`, `web/src/measureText.ts`,
+  `web/public/fonts/**`, `web/e2e/**` and the workflow itself; on PRs
+  the e2e browser matrix becomes `["chromium","firefox"]` when it
+  matches. Non-PR events keep all three browsers. Cost: +2 e2e shards
+  (~+35–60 s wall) only on rendering PRs — the regression this fixes
+  shipped through Chromium-only PR e2e on #66 and #67.
+- Files outside a plan Files block (owner-requested fix): this entry
+  plus `docs/decisions.md` itself.
