@@ -49,6 +49,7 @@ jobs:
       webapp: ${{ steps.filter.outputs.webapp }}
       fixtures: ${{ steps.filter.outputs.fixtures }}
       fuzz: ${{ steps.filter.outputs.fuzz }}
+      visual: ${{ steps.filter.outputs.visual }}
       e2e-browsers: ${{ steps.e2e.outputs.browsers }}
     steps:
       - name: Full-matrix flag
@@ -82,6 +83,12 @@ jobs:
               - '.github/workflows/ci.yml'
             fuzz:
               - 'crates/**'
+            # spec §8.3: the visual snapshot job runs on PRs touching
+            # web/** (plus the workflow itself and its runner script).
+            visual:
+              - 'web/**'
+              - 'scripts/ci/visual.sh'
+              - '.github/workflows/ci.yml'
       - name: E2E browser matrix
         id: e2e
         run: |
@@ -359,6 +366,116 @@ jobs:
             web/test-results/
           retention-days: 7
 
+  # Visual snapshot matrix (v1.3 Task 5, spec §8.3): the `visual`
+  # Playwright project — Chromium only, every scene × viewport × theme
+  # against the owner-approved baselines in web/e2e/__screenshots__/.
+  # On failure the actual/diff images upload as an artifact and a PR
+  # comment links them; baseline changes themselves need owner approval.
+  visual:
+    needs: [changes, wasm]
+    if: >-
+      needs.changes.outputs.visual == 'true' ||
+      needs.changes.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read          # lists the run's artifacts for the diff link
+      contents: read
+      pull-requests: write   # posts the diff-images comment on failure
+    container:
+      # Same pinned image as the e2e job — baselines are only stable if
+      # the renderer is (check-playwright-image.sh enforces the pin).
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
+      options: --ipc=host # Chromium's shared-memory requirement
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Download wasm package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wasm-pkg
+          path: web/src/engine
+      - name: Playwright image pin check
+        run: scripts/ci/check-playwright-image.sh
+      - name: Cache npm
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-e2e-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-e2e-
+      - name: Install web dependencies
+        # Browsers come from PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+        # baked into the image.
+        working-directory: web
+        run: npm ci
+      - name: Visual snapshots
+        env:
+          HOME: /root
+        run: scripts/ci/visual.sh
+      - name: Upload diff images
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-diffs
+          path: web/test-results/
+          retention-days: 7
+      - name: Link the diff artifact on the PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const marker = "<!-- neophylo-visual-diffs -->";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let link = `${runUrl}#artifacts`;
+            try {
+              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              const diff = artifacts.data.artifacts.find(
+                (a) => a.name === "visual-diffs",
+              );
+              if (diff) {
+                link = `${runUrl}/artifacts/${diff.id}`;
+              }
+            } catch {
+              // The comment still posts with the run-page fallback link.
+            }
+            const body =
+              `${marker}\nThe \`visual\` job found snapshot diffs. ` +
+              `Download the **visual-diffs** artifact for the actual and ` +
+              `diff images: ${link}\n\n` +
+              `If the change is intended, regenerate the baselines ` +
+              `(\`npx playwright test e2e/visual.spec.ts ` +
+              `--update-snapshots --project=visual\`) — baseline changes ` +
+              `need owner approval.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (c) => c.user.login === "github-actions[bot]" && c.body?.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
   # Rebuilds the reference fixtures and fails on any drift — a version or
   # locale difference must be judged by a human; CI never commits fixtures.
   # Runs in the pinned R + PHYLIP image from docker/ci-r (published by
@@ -416,7 +533,7 @@ jobs:
     # is "skipped" on push. A plain `needs` list would then skip this job;
     # always() + !failure()/!cancelled() keeps the gate on every job that
     # actually ran while tolerating fixture-guard's intentional skip.
-    needs: [changes, rust, wasm, web, e2e, r-and-fixtures, fixture-guard, fuzz-build, licenses]
+    needs: [changes, rust, wasm, web, e2e, visual, r-and-fixtures, fixture-guard, fuzz-build, licenses]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.changes.outputs.webapp == 'true' || needs.changes.outputs.full == 'true') &&

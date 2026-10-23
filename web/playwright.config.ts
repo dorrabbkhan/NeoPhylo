@@ -16,9 +16,35 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    {
+      name: "chromium",
+      testIgnore: /visual\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      testIgnore: /visual\.spec\.ts/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      testIgnore: /visual\.spec\.ts/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      // Visual snapshot matrix (v1.3 Task 5, spec §8.3): Chromium only,
+      // animations disabled per-assertion. Baselines live in
+      // e2e/__screenshots__/ (owner-approved via CODEOWNERS), one file
+      // per scene × viewport × theme.
+      name: "visual",
+      testMatch: /visual\.spec\.ts/,
+      snapshotPathTemplate:
+        "{testDir}/__screenshots__/{arg}-{platform}{ext}",
+      use: {
+        ...devices["Desktop Chrome"],
+        serviceWorkers: "block",
+      },
+    },
   ],
   webServer: [
     {
