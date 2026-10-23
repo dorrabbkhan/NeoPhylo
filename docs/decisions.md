@@ -3171,4 +3171,7 @@ wedging the start queue.
 - The Playwright preview script ran from `/tmp` inside the pinned CI
   image (same pattern as Task 5/6 baseline renders); its outputs are PR
   comment images, not commits, per the task.
+- Owner chose Option C ("Node link") on PR #71;
+  `web/public/brand/icon.svg` is a byte-for-byte copy of
+  `options/option-c.svg` and the unchosen option files were deleted.
 - Files outside the Files block: `docs/decisions.md` — this entry.
