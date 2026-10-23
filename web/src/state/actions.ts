@@ -25,6 +25,7 @@ export type Action =
   | { type: "importTree"; tree: Tree }
   | { type: "step"; to: number }
   | { type: "setMode"; mode: UiState["mode"] }
+  | { type: "setTheme"; theme: UiState["theme"] }
   | { type: "toggleClamp" }
   | { type: "setMatrixView"; view: AnalysisState["matrixView"] }
   | { type: "setBranchScale"; scale: number }

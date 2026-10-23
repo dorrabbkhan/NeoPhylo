@@ -61,6 +61,7 @@ import {
   type LinkKind,
 } from "../state/urlRestore";
 
+import { applyTheme } from "../design/theme";
 import { AlphabetBadge } from "./AlphabetBadge";
 import { BootstrapPanel } from "./BootstrapPanel";
 import { ConsensusTabs } from "./ConsensusTabs";
@@ -68,8 +69,8 @@ import { consensusKind, viewLabel } from "./consensusTabs";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
+import { Header } from "./Header";
 import { ImportPanel } from "./ImportPanel";
-import { LessonsMenu } from "./LessonsMenu";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
 import { PhylipHelp } from "./PhylipHelp";
@@ -183,6 +184,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
     if (session === null) return;
     history.replaceState(null, "", encode(sessionUrlState(session, link)));
   }, [session, link]);
+
+  // Theme (v1.3 spec §3.3): <html data-theme> follows the session's
+  // theme and the choice is stored device-locally — the index.html
+  // inline script has already set the pre-paint value, so this only
+  // rewrites the DOM when the session value differs.
+  const theme = session?.theme;
+  useEffect(() => {
+    if (theme !== undefined) applyTheme(theme);
+  }, [theme]);
 
   // Bootstrap job driver (v1.2 Task 11, spec §5). The session records
   // intent — `estimating` with no bound jobId is a start request,
@@ -699,45 +709,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>{session.exercise.title}</h1>
-        {toast !== null && (
-          <p role="status" className="toast">
-            {toast}
-          </p>
-        )}
-        <div className="mode-switch" role="radiogroup" aria-label="Mode">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={session.source === "lesson"}
-            onClick={() => onSelectMode("lesson")}
-          >
-            Lesson
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={session.source === "sandbox"}
-            onClick={() => onSelectMode("sandbox")}
-          >
-            Sandbox
-          </button>
-        </div>
-        <LessonsMenu
-          currentId={
-            link.kind === "lesson" ? session.exercise.id : null
-          }
-          onPick={(id) => void onPickLesson(id)}
-        />
-        <button
-          type="button"
-          className="phylip-help-open"
-          onClick={() => setPhylipHelp(true)}
-        >
-          Coming from PHYLIP?
-        </button>
-      </header>
+      <Header
+        title={session.exercise.title}
+        toast={toast}
+        source={session.source}
+        onSelectMode={onSelectMode}
+        currentLessonId={
+          link.kind === "lesson" ? session.exercise.id : null
+        }
+        onPickLesson={(id) => void onPickLesson(id)}
+        onOpenPhylipHelp={() => setPhylipHelp(true)}
+        theme={session.theme}
+        dispatch={dispatch}
+      />
       <main className="app-grid">
         <aside className="col-controls" aria-label="Controls">
           <AlphabetBadge

@@ -1,6 +1,10 @@
-// The UI slice of Session (v1.3 spec §7.1). Holds only `mode` for
-// now; v1.3 Tasks 6, 10, 11 and 12 extend it with theme, presenter,
-// drawer and tour state.
+// The UI slice of Session (v1.3 spec §7.1): the Concept/Math mode plus
+// the viewer prefs — theme, presenter, drawer and tour step. The theme
+// is device-local (neophylo.theme, light by default; design/theme.ts);
+// presenter/drawer/tour wiring lands in Tasks 10, 11 and 12.
+
+import { readThemePref } from "../design/theme";
+import type { ThemeName } from "../design/tokens";
 
 import type { Action } from "./actions";
 import type { Session } from "./session";
@@ -8,15 +12,35 @@ import type { Session } from "./session";
 /** The Session slice owned by `uiReducer`. */
 export interface UiState {
   mode: "concept" | "math";
+  /** Light-first theme on <html data-theme> (spec §3.3). */
+  theme: ThemeName;
+  /** Presenter mode flag; the scaling lands in Task 11 (spec §6.6). */
+  presenter: boolean;
+  /** Settings drawer open flag; the drawer lands in Task 10 (§6.4). */
+  drawerOpen: boolean;
+  /** First-visit tour position; the tour lands in Task 12 (§6.7). */
+  tourStep: number | null;
 }
 
 export function uiInitial(): UiState {
-  return { mode: "concept" };
+  return {
+    mode: "concept",
+    theme: readThemePref(),
+    presenter: false,
+    drawerOpen: false,
+    tourStep: null,
+  };
 }
 
 /** The UI fields of a session — the input `uiReducer` sees. */
 export function uiSlice(s: Session): UiState {
-  return { mode: s.mode };
+  return {
+    mode: s.mode,
+    theme: s.theme,
+    presenter: s.presenter,
+    drawerOpen: s.drawerOpen,
+    tourStep: s.tourStep,
+  };
 }
 
 /** UI-slice reducer: handles the actions that only touch UI state and
@@ -26,5 +50,6 @@ export function uiSlice(s: Session): UiState {
 export function uiReducer(slice: UiState, a: Action, ctx: Session): UiState {
   void ctx; // the UI slice reads no other slices
   if (a.type === "setMode") return { ...slice, mode: a.mode };
+  if (a.type === "setTheme") return { ...slice, theme: a.theme };
   return slice;
 }

@@ -1,14 +1,14 @@
 @import "./design/tokens.css";
 
 /* Theme tokens live in generated design/tokens.css (from
- * design/tokens.ts via the Vite plugin — spec §3.1). Bare :root gets
- * light; prefers-color-scheme still applies dark until Task 6 wires
- * data-theme. Only the non-token document defaults stay here. */
+ * design/tokens.ts via the Vite plugin — spec §3.1). Light is the
+ * default regardless of the OS setting; the index.html inline script
+ * sets data-theme before first paint and the header toggle flips it
+ * (§3.3). Only the non-token document defaults stay here. */
 :root {
   font-family: var(--font-ui);
-  font-size: var(--size-legacy-15);
+  font-size: var(--size-md);
   line-height: 145%;
-  color-scheme: light dark;
   color: var(--color-text-muted);
   background: var(--color-bg);
   font-synthesis: none;
@@ -123,7 +123,7 @@ p {
   color: var(--color-text);
   padding: 4px 10px;
   font: inherit;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   cursor: pointer;
 }
 
@@ -290,7 +290,7 @@ p {
 
 .unrooted-note {
   color: var(--color-text);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   margin: 6px 0 0;
 }
 
@@ -386,19 +386,19 @@ p {
 
 .stepper-status {
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   white-space: nowrap;
 }
 
 .stepper-rf {
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   color: var(--color-accent-contrast);
   white-space: nowrap;
 }
 
 .stepper-note {
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 .error {
@@ -455,7 +455,7 @@ p {
 
 .notice .notice-pairs {
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 .notice .notice-progress {
   font-style: italic;
@@ -481,7 +481,7 @@ p {
   justify-content: space-between;
   gap: 8px;
   margin: 6px 0;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 .controls .field.seed {
@@ -555,7 +555,7 @@ button:disabled {
 
 .explain-body p {
   margin: 0 0 8px;
-  font-size: var(--size-legacy-15);
+  font-size: var(--size-md);
 }
 
 /* Each formula is its own block on its own line; long formulas scroll
@@ -565,7 +565,7 @@ button:disabled {
   overflow-x: auto;
   white-space: nowrap;
   margin: 0 0 8px;
-  font-size: var(--size-legacy-15);
+  font-size: var(--size-md);
 }
 
 .katex {
@@ -632,7 +632,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 .import-hint {
@@ -724,13 +724,13 @@ button:disabled {
 }
 
 .prompt-hint {
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   opacity: 0.85;
 }
 
 .prompt-math {
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 /* "Show a vs b" on an answered card: a plain control, secondary to the
@@ -755,7 +755,7 @@ button:disabled {
   border: 0;
   background: none;
   color: var(--color-text);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -793,7 +793,7 @@ button:disabled {
 
 .pair-panel-head h2 {
   margin: 0 0 8px;
-  font-size: var(--size-legacy-17);
+  font-size: var(--size-lg);
   color: var(--color-text-h);
 }
 
@@ -829,13 +829,13 @@ button:disabled {
 /* The aligned sequences: a grid of fixed-width columns, one per site —
  * position number, top residue, marker cell, bottom residue (checkpoint
  * 11; blank text cells used to collapse and misalign the markers).
- * Property classes use light Okabe-Ito tints behind dark text —
- * colorblind-safe and contrast-safe in both color schemes; meaning is
- * never carried by color alone (the marker cells and dimming do that
- * work). */
+ * Property classes use translucent Okabe-Ito tints behind the theme's
+ * text color — colorblind-safe, and every composited pair holds ≥ 4.5:1
+ * in both themes (design/contrast.test.ts); meaning is never carried by
+ * color alone (the marker cells and dimming do that work). */
 .pair-seqs {
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   line-height: 1.5;
   display: flex;
   gap: 10px;
@@ -885,7 +885,7 @@ button:disabled {
 }
 
 .pair-col .pair-pos {
-  font-size: var(--size-legacy-9);
+  font-size: var(--size-xs);
   line-height: 20px;
   color: var(--color-text-muted);
   text-align: left;
@@ -949,7 +949,7 @@ button:disabled {
 .pair-numbers dd {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-15);
+  font-size: var(--size-md);
   color: var(--color-text-h);
 }
 
@@ -982,7 +982,7 @@ button:disabled {
 }
 
 .likelihood-curve .axis-label {
-  font-size: var(--size-legacy-9);
+  font-size: var(--size-xs);
   fill: var(--color-text-muted);
 }
 
@@ -1003,6 +1003,32 @@ button:disabled {
   margin: 8px 0;
 }
 
+/* Theme toggle (v1.3 spec §3.3, §6.3): matches the header's secondary
+ * buttons; pressed (dark on) shows the accent fill like the checked
+ * mode-switch option. */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  border-color: var(--color-accent-border);
+}
+
+.theme-toggle[aria-pressed="true"] {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+}
+
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
 .phylip-help-open {
@@ -1011,7 +1037,7 @@ button:disabled {
   border-radius: 6px;
   color: var(--color-text);
   padding: 4px 10px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   cursor: pointer;
 }
 
@@ -1037,7 +1063,7 @@ button:disabled {
  * the -1.000000 saturated-cell convention. */
 .phylip-note {
   margin-top: 8px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   color: var(--color-text-muted);
 }
 
@@ -1049,7 +1075,7 @@ button:disabled {
 .newick-name-mode {
   display: block;
   margin-top: 8px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   color: var(--color-text-muted);
 }
 
@@ -1059,11 +1085,11 @@ button:disabled {
   border-top: 1px solid var(--color-border);
   margin-top: 10px;
   padding-top: 6px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 .bootstrap-panel h2 {
-  font-size: var(--size-legacy-15);
+  font-size: var(--size-md);
   margin: 0 0 6px;
 }
 
@@ -1124,7 +1150,7 @@ button:disabled {
 .reroot-toggle {
   display: block;
   margin-top: 4px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
 }
 
 /* Weak support: the branch's thinner stroke is drawn in TreeView and
@@ -1185,7 +1211,7 @@ button:disabled {
   border-radius: 4px 4px 0 0;
   background: none;
   padding: 3px 10px;
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   color: var(--color-text);
   cursor: pointer;
 }
@@ -1213,7 +1239,7 @@ button:disabled {
 
 .consensus-dropped {
   color: var(--color-text);
-  font-size: var(--size-legacy-13);
+  font-size: var(--size-sm);
   margin: 6px 0 0;
 }
 
@@ -1250,7 +1276,7 @@ button:disabled {
 
 .replicate-panel-head h2 {
   margin: 0 0 8px;
-  font-size: var(--size-legacy-17);
+  font-size: var(--size-lg);
   color: var(--color-text-h);
 }
 
@@ -1282,7 +1308,7 @@ button:disabled {
   max-height: 120px;
   overflow-y: auto;
   font-family: var(--font-mono);
-  font-size: var(--size-legacy-11);
+  font-size: var(--size-xs);
   line-height: 1.4;
   border: 1px solid var(--color-border);
   border-radius: 6px;

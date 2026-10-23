@@ -38,9 +38,22 @@ test.beforeEach(async ({ context }) => {
 for (const scene of SCENES) {
   for (const vp of VIEWPORTS) {
     for (const theme of THEMES) {
-      test(`${scene.name} ${vp.w}x${vp.h} ${theme}`, async ({ page }) => {
+      test(`${scene.name} ${vp.w}x${vp.h} ${theme}`, async ({
+        page,
+        context,
+      }) => {
         test.setTimeout(240_000); // scenes run a real bootstrap
         await page.setViewportSize({ width: vp.w, height: vp.h });
+        // Task 6: the app reads the device-local neophylo.theme pref —
+        // prefers-color-scheme no longer picks the palette (spec §3.3
+        // default-light). Set both so the emulated OS matches the pref.
+        await context.addInitScript((t) => {
+          try {
+            window.localStorage.setItem("neophylo.theme", t);
+          } catch {
+            // storage can be blocked; the app tolerates it
+          }
+        }, theme);
         await page.emulateMedia({ colorScheme: theme });
         await scene.setup(page);
         await expect(page).toHaveScreenshot(
