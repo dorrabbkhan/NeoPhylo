@@ -3334,3 +3334,48 @@ wedging the start queue.
   `web/src/views/Wordmark.test.tsx` — Header gained `breakpoint` and
   `drawerOpen` props; `web/e2e/__screenshots__/` — the regenerated
   baselines above; `docs/decisions.md` — this entry.
+
+### Fix round 1 (PR #74 review): toggle slot, drawer fit, matrix text floor
+
+- **The theme toggle parks in the sheet's reserved strip below 1024
+  px:** while a content sheet is open, `.theme-toggle` becomes
+  `position: fixed; top: 10px; right: 16px` (its header spot was not
+  stable — the wrapped header's second row dropped it onto the sheet
+  title). The strip is the sheet's existing `padding-top: 52px`, so the
+  toggle keeps its real-pointer path (z-40 over the scrim, under the
+  drawer scrim's z-50) without touching sheet content. At ≥1024 the
+  centered dialogs can't reach the header row, so the toggle is left
+  in place there — the new e2e asserts the no-intersection box check
+  at 768/1024/1920 for the pair panel, the replicate panel and PHYLIP
+  help, in both themes.
+- **The Newick-names select is clamped to its container**
+  (`max-width: 100%`): its longest option is wider than the 320 px
+  drawer — and than the 230 px controls column at wide, the same
+  latent overflow. A new e2e asserts no drawer descendant crosses the
+  drawer edges (elements inside an inner horizontal scroller exempt)
+  plus `scrollWidth ≤ clientWidth` at 768 and 1024.
+- **`.matrix-wrap` got a definite width below 1024 px:** as a column
+  flex item with auto side margins it shrink-wrapped to the svg's
+  300 px replaced fallback, scaling cell text to ~9.7 px. Now
+  `width: 100%` (still capped at 560 and centered) — the same size the
+  block layout gave it on main — and the svg carries `min-width:
+  var(--matrix-w)` (its natural px width) with the wrap's
+  `overflow-x: auto` unconditional: below the natural width the wrap
+  scrolls and text never renders under the 12 px floor. Upper size
+  unchanged (scales up to 560 exactly like main).
+- **WebKit 1/64 px layout quantization:** WebKit renders a fractional-
+  width svg a hair under its viewBox scale — a 40 px predict_branch
+  hit pad reported 39.999 px (the §6.5 ≥40×40 test, WebKit only; PR
+  e2e runs Chromium/Firefox so CI never saw it). `hitPad`'s floor is
+  now 40.05 px (invisible rect, still ≥40×40 spec) and `--matrix-min`
+  is `Math.ceil`ed, absorbing the quantization everywhere.
+- Files outside the Files block (this round): `web/src/views/TreeView.tsx`
+  (hit-pad floor), `web/src/views/MatrixHeatmap.tsx` (`--matrix-w`,
+  rounded `--matrix-min`).
+- **Baselines regenerated (owner gate):** pinned Playwright image, run
+  twice, second run zero diffs. Changed: every 768×1024 scene in both
+  themes except replicate-panel light, which stayed within tolerance —
+  bootstrap-basics-final, cytc-computed, cytc-rooted, four-taxa,
+  weak-support (both themes) and replicate-panel dark. The matrix now
+  fills 560 px again and the toggle sits in the sheet's reserved strip.
+  Every 1024×768 and 1920×1080 baseline is byte-identical.

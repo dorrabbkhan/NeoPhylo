@@ -233,14 +233,18 @@ export function MatrixHeatmap({
   };
 
   return (
-    // The wrap scrolls horizontally when the coarse-pointer cell floor
-    // (--matrix-min: enough width for 40 px cells, spec §6.5) outgrows
-    // the column — the matrix never shrinks below its touch target.
+    // The wrap scrolls horizontally when the drawing can't fit: the
+    // svg's own natural width (--matrix-w: the 12 px text floor — the
+    // drawing never scales under it) and, under coarse pointers, the
+    // 40 px cell floor (--matrix-min, spec §6.5).
     <div
       className="matrix-wrap"
       style={
         {
-          "--matrix-min": `${(width * 40) / CELL}px`,
+          "--matrix-w": `${width}px`,
+          // Rounded up: WebKit quantizes layout to 1/64 px — a
+          // fractional floor could shrink a 40 px cell under 40 (§6.5).
+          "--matrix-min": `${Math.ceil((width * 40) / CELL)}px`,
         } as CSSProperties
       }
     >

@@ -452,11 +452,16 @@ p {
 .matrix-wrap {
   max-width: 560px;
   margin: 12px auto 0;
+  overflow-x: auto;
 }
 
 .matrix-wrap > svg {
   display: block;
   width: 100%;
+  /* The drawing's natural pixel width (viewBox units are px): never
+   * scale below it, or the authored 12 px text shrinks with it — the
+   * wrap scrolls instead (round 3, Global Constraints). */
+  min-width: var(--matrix-w);
   height: auto;
   color: var(--color-text);
 }
@@ -533,6 +538,11 @@ p {
 
   .col-center > .matrix-wrap {
     order: 1;
+    /* In the column flex the auto side margins would shrink-wrap to
+     * the svg's 300 px replaced fallback, scaling its text under the
+     * 12 px floor — a definite width fills the column (capped at 560,
+     * centered by the auto margins) like the block layout above. */
+    width: 100%;
   }
 
   .col-center > .prompts {
@@ -1311,6 +1321,23 @@ button:disabled {
   font-weight: 600;
 }
 
+/* Below 1024 a content sheet covers the whole viewport, and its
+ * padding-top: 52px (above) reserves a strip for this toggle. The
+ * toggle's own header spot is NOT stable — the header wraps to a
+ * second row under it, dropping the button onto the sheet's title —
+ * so while a content sheet is open it parks in a fixed top-right slot
+ * inside the reserved strip: still a real click target (z-index 40
+ * over the scrim's 10, under the drawer scrim's 50), never over sheet
+ * content. */
+@media (width < 1024px) {
+  .app:has(> .sheet-backdrop > section:not(.settings-drawer))
+    .theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 16px;
+  }
+}
+
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
 .phylip-help-open {
@@ -1359,6 +1386,13 @@ button:disabled {
   margin-top: 8px;
   font-size: var(--size-sm);
   color: var(--color-text-muted);
+}
+
+/* The longest option ("Compatible (recommended for R, FigTree, iTOL)")
+ * is wider than the Settings drawer / controls column — clamp the
+ * select to its container so it never crosses the edge. */
+.newick-name-mode select {
+  max-width: 100%;
 }
 
 /* ---- "How sure are we?" bootstrap panel (v1.2 §6.2, §6.6) ---- */

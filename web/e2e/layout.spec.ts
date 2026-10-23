@@ -343,6 +343,47 @@ test("rotating 768×1024 → 1024×768 mid-lesson keeps the step and the predict
   await expectNoSidewaysScroll(page);
 });
 
+// The heatmap draws at its natural size so rendered cell/label text
+// never drops below the 12 px floor (Global Constraints); the
+// .matrix-wrap scroller takes over when the drawing can't fit. The
+// rendered size is the computed font-size scaled by the svg's screen
+// transform — the wrap's width:100% scales the whole drawing, so a
+// wrap narrower than the drawing's natural width shrinks the text.
+const MATRIX_TEXT_VIEWPORTS = [
+  { w: 768, h: 1024 },
+  { w: 1024, h: 768 },
+  { w: 1920, h: 1080 },
+] as const;
+
+for (const lesson of ["cytochrome-c", "nj-basics"] as const) {
+  for (const vp of MATRIX_TEXT_VIEWPORTS) {
+    test(`${lesson} matrix text renders at ≥ 12 px at ${vp.w}x${vp.h}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.w, height: vp.h });
+      await page.goto(`/?lesson=${lesson}`);
+      await waitForApp(page);
+      const min = await page.evaluate(() => {
+        const svg = document.querySelector<SVGSVGElement>(
+          ".matrix-wrap > svg",
+        );
+        const scale = svg?.getScreenCTM()?.a;
+        if (!svg || !scale) return null;
+        return Math.min(
+          ...[...svg.querySelectorAll("text")].map(
+            (t) => parseFloat(getComputedStyle(t).fontSize) * scale,
+          ),
+        );
+      });
+      expect(min, "the matrix svg has text").not.toBeNull();
+      expect(
+        min!,
+        "every matrix <text> renders at ≥ 12 px",
+      ).toBeGreaterThanOrEqual(12);
+    });
+  }
+}
+
 for (const vp of VIEWPORTS) {
   for (const theme of ["light", "dark"] as const) {
     test(`header controls stay inside the viewport at ${vp.w}x${vp.h} (${theme})`, async ({

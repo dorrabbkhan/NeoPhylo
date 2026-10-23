@@ -44,6 +44,201 @@ async function expectFocusInside(locator: Locator) {
   expect(inside, "focus is inside the overlay").toBe(true);
 }
 
+/** True when the two boxes overlap by a positive area. */
+function intersects(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+/** Review Focus 4 keeps the header's theme toggle a real click target
+ * above a content sheet's scrim — but it must sit where no sheet
+ * content is: its box may not intersect the sheet's header or any
+ * text/button inside it. */
+async function expectToggleClearOfSheet(page: Page, dialog: Locator) {
+  const tb = await themeToggle(page).boundingBox();
+  expect(tb, "the theme toggle has a bounding box").not.toBeNull();
+  const header = dialog.locator("header").first();
+  await expect(header).toBeVisible();
+  const hb = await header.boundingBox();
+  expect(hb, "the sheet header has a bounding box").not.toBeNull();
+  expect(
+    intersects(tb!, hb!),
+    "the theme toggle must not overlap the sheet header",
+  ).toBe(false);
+  const kids = header.locator("*");
+  for (let i = 0; i < (await kids.count()); i++) {
+    const kb = await kids.nth(i).boundingBox();
+    if (kb === null) continue;
+    expect(
+      intersects(tb!, kb),
+      `the theme toggle must not overlap sheet header element ${i}`,
+    ).toBe(false);
+  }
+}
+
+/** Open the pair panel on a protein lesson (predict gate answered
+ * first), run `fn` against it, then close it via its own × (the real
+ * path while focus is on the header toggle). */
+async function withPairPanel(
+  page: Page,
+  fn: (dialog: Locator) => Promise<void>,
+) {
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await answerPredictPrompt(page);
+  await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await fn(dialog);
+  await dialog
+    .getByRole("button", { name: "Close pair details" })
+    .click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** Open "Coming from PHYLIP?" — the More menu below 1024, the header
+ * button at and above it — run `fn`, close via its own ×. */
+async function withPhylipHelp(
+  page: Page,
+  fn: (dialog: Locator) => Promise<void>,
+) {
+  const direct = page.getByRole("button", { name: "Coming from PHYLIP?" });
+  if (await direct.isVisible()) {
+    await direct.click();
+  } else {
+    await page.getByRole("button", { name: "More" }).click();
+    await page
+      .getByRole("menu")
+      .getByRole("menuitem", { name: "Coming from PHYLIP?" })
+      .click();
+  }
+  const dialog = page.getByRole("dialog", { name: "Coming from PHYLIP?" });
+  await expect(dialog).toBeVisible();
+  await fn(dialog);
+  await dialog
+    .getByRole("button", { name: "Close PHYLIP help" })
+    .click();
+  await expect(dialog).toHaveCount(0);
+}
+
+const SHEET_CHECK_VIEWPORTS = [
+  { w: 768, h: 1024 },
+  { w: 1024, h: 768 },
+  { w: 1920, h: 1080 },
+] as const;
+
+/** Assert the toggle/sheet-header clearance at the current viewport in
+ * the current theme, then click the toggle (the real-input RF4 path)
+ * and assert again in the other theme. */
+async function expectClearInBothThemes(page: Page, dialog: Locator) {
+  await expectToggleClearOfSheet(page, dialog);
+  await themeToggle(page).click();
+  await expectToggleClearOfSheet(page, dialog);
+  // Back to light for the next viewport — still a real click.
+  await themeToggle(page).click();
+}
+
+test("the theme toggle never overlaps sheet header content (pair panel, PHYLIP help)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  for (const vp of SHEET_CHECK_VIEWPORTS) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await withPairPanel(page, (dialog) =>
+      expectClearInBothThemes(page, dialog),
+    );
+    await withPhylipHelp(page, (dialog) =>
+      expectClearInBothThemes(page, dialog),
+    );
+  }
+});
+
+test("the theme toggle never overlaps the replicate sheet's header", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/?lesson=cytochrome-c");
+  await waitForApp(page);
+  await stepToEnd(page);
+
+  // Same short seeded run as the replicate-sheet test above.
+  await settingsButton(page).click();
+  const dlg = drawer(page);
+  await expect(dlg).toBeVisible();
+  await dlg.getByLabel("Replicates").fill("10");
+  await dlg.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(dlg.getByText(/Run complete: /)).toBeVisible({
+    timeout: 90_000,
+  });
+  await dlg.getByRole("button", { name: /Watch one replicate/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCount(1);
+  await expect(dialog.locator(".rep-strip")).toBeVisible();
+
+  for (const vp of SHEET_CHECK_VIEWPORTS) {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await expectClearInBothThemes(page, dialog);
+  }
+});
+
+test("every Settings drawer control stays inside the drawer at 768 and 1024", async ({
+  page,
+}) => {
+  for (const w of [768, 1024] as const) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await page.goto("/?lesson=cytochrome-c");
+    await waitForApp(page);
+    await settingsButton(page).click();
+    const dlg = drawer(page);
+    await expect(dlg).toBeVisible();
+
+    const over = await dlg.evaluate((d) => {
+      const dr = d.getBoundingClientRect();
+      const bad: string[] = [];
+      if (d.scrollWidth > d.clientWidth + 1) {
+        bad.push(
+          `drawer scrollWidth ${d.scrollWidth} > clientWidth ${d.clientWidth}`,
+        );
+      }
+      for (const el of d.querySelectorAll<HTMLElement>("*")) {
+        // Content clipped or scrolled by an inner container legitimately
+        // extends past it — only free-flowing boxes must stay inside.
+        let p = el.parentElement;
+        let clipped = false;
+        while (p !== null && p !== d) {
+          if (getComputedStyle(p).overflowX !== "visible") {
+            clipped = true;
+            break;
+          }
+          p = p.parentElement;
+        }
+        if (clipped) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (r.right > dr.right + 0.5 || r.left < dr.left - 0.5) {
+          bad.push(
+            `${el.tagName.toLowerCase()}.${el.className} ` +
+              `x=[${r.left.toFixed(1)},${r.right.toFixed(1)}] ` +
+              `outside drawer [${dr.left.toFixed(1)},${dr.right.toFixed(1)}]`,
+          );
+        }
+      }
+      return bad;
+    });
+    expect(over, `drawer overflow at ${w}px`).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(dlg).toHaveCount(0);
+  }
+});
+
 /** The dialog's bounding box covers the viewport (the full-screen
  * sheet, §6.2). */
 async function expectFullScreen(page: Page, dialog: Locator) {

@@ -105,7 +105,10 @@ function hitPad(
   x2: number,
   y2: number,
 ): { x: number; y: number; width: number; height: number } {
-  const MIN = 40;
+  // 40 + a hair: WebKit quantizes layout to 1/64 px, so a fractional-
+  // width svg renders a fraction under its viewBox scale and an exact
+  // 40 comes back as 39.999 — the small margin absorbs that (§6.5).
+  const MIN = 40.05;
   const w = Math.abs(x2 - x1);
   const h = Math.abs(y2 - y1);
   return {
