@@ -3048,3 +3048,7 @@ wedging the start queue.
 - Unchanged: the 5 pp budget, BOOT_REPS (1000), the fixtures, the
   engine, and every other check in the script. No seed was picked to
   pass; seed 1 was used as specified.
+- Follow-up (same PR): the `fixtures` paths-filter in ci.yml now also
+  lists `web/scripts/r-parity.mjs`, where the parity logic actually
+  lives — before this, a change to the parity script could skip the
+  r-and-fixtures job entirely, and this PR's first CI run did skip it.
