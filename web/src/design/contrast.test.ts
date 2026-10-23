@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { contrastRatio } from "./contrast";
-import { color } from "./tokens";
+import { compositeOver, contrastRatio } from "./contrast";
+import { color, cssVariables } from "./tokens";
 import type { ThemeName } from "./tokens";
 
 const THEMES: ThemeName[] = ["light", "dark"];
@@ -18,6 +18,16 @@ describe("contrastRatio", () => {
 
   it("is symmetric and accepts #rgb", () => {
     expect(contrastRatio("#fff", "#000")).toBeCloseTo(21, 5);
+  });
+});
+
+describe("compositeOver", () => {
+  it("blends rgba over a hex ground in sRGB space", () => {
+    // 0.22·(0,114,178) + 0.78·(28,29,36) = (21.8,47.7,67.2) → #163043
+    expect(compositeOver("rgba(0, 114, 178, 0.22)", "#1c1d24")).toBe(
+      "#163043",
+    );
+    expect(compositeOver("rgb(255, 0, 0)", "#000000")).toBe("#ff0000");
   });
 });
 
@@ -56,4 +66,40 @@ describe("theme token contrast (spec §3.3)", () => {
     );
     expect(contrastRatio(c.textMuted, c.bg)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it.each(THEMES)(
+    "%s: pair-panel residue ink on every aa tint composited over surface ≥ 4.5:1",
+    (theme) => {
+      const vars = cssVariables(theme);
+      const tintKeys = Object.keys(vars).filter(
+        (k) => k.startsWith("--color-aa-") && k !== "--color-aa-text",
+      );
+      expect(tintKeys.length).toBeGreaterThan(0);
+      for (const key of tintKeys) {
+        const cell = compositeOver(
+          vars[key as `--${string}`],
+          color[theme].surface,
+        );
+        expect(
+          contrastRatio(vars["--color-aa-text"], cell),
+          key,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+
+  it.each(THEMES)(
+    "%s: text on --color-accent-bg composited over bg and surface ≥ 4.5:1",
+    (theme) => {
+      const c = color[theme];
+      const accentBg = cssVariables(theme)["--color-accent-bg"];
+      // Chips/notices paint body text on the accent tint, and the tint
+      // sits on both grounds — check each composite.
+      for (const ground of [c.bg, c.surface]) {
+        expect(
+          contrastRatio(c.text, compositeOver(accentBg, ground)),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
 });

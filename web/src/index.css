@@ -829,10 +829,10 @@ button:disabled {
 /* The aligned sequences: a grid of fixed-width columns, one per site —
  * position number, top residue, marker cell, bottom residue (checkpoint
  * 11; blank text cells used to collapse and misalign the markers).
- * Property classes use light Okabe-Ito tints behind dark text —
- * colorblind-safe and contrast-safe in both color schemes; meaning is
- * never carried by color alone (the marker cells and dimming do that
- * work). */
+ * Property classes use translucent Okabe-Ito tints behind the theme's
+ * text color — colorblind-safe, and every composited pair holds ≥ 4.5:1
+ * in both themes (design/contrast.test.ts); meaning is never carried by
+ * color alone (the marker cells and dimming do that work). */
 .pair-seqs {
   font-family: var(--font-mono);
   font-size: var(--size-sm);

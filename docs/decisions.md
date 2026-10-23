@@ -3147,3 +3147,14 @@ wedging the start queue.
   `color-scheme`). `web/e2e/visual.spec.ts` (scenes now pick the theme
   through the `neophylo.theme` device pref, not
   prefers-color-scheme emulation). `docs/decisions.md` — this entry.
+- Fix round (PR #70 review): the pair-panel residue ink is now the
+  theme's own `text` (identical in light, #e5e7eb in dark) and the
+  Okabe-Ito `special` tint drops to 0.25 alpha in dark only — the
+  unthemed "#241f2e on translucent tint" cells measured 1.17–3.44:1 on
+  the dark surface, under the 4.5:1 bar. `contrast.test.ts` now checks
+  every `--color-aa-*` composited over `surface` plus `text` over
+  composited `--color-accent-bg` (via a new `compositeOver` helper), and
+  `theme.spec.ts` runs axe on the open pair panel in both themes.
+  `web/src/index.css` (comment only — it repeated the false "dark text
+  in both schemes" claim) sits outside the Files block, like the rest
+  above.

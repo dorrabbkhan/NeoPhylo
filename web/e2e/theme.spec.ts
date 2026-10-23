@@ -9,17 +9,24 @@
 // - Review Focus 4: switching theme while a bootstrap run is in
 //   progress and the pair panel is open loses nothing — the run keeps
 //   going and the dialog stays open.
-// - axe reports no serious/critical violations in either theme.
+// - axe reports no serious/critical violations in either theme — on the
+//   page and on the open pair panel (its tinted residues are where the
+//   dark-theme contrast failure lived).
 
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
+import { fileURLToPath } from "node:url";
 
 import { stepToEnd, waitForApp } from "./helpers";
 
 // No theme test needs the PWA service worker; blocking it also keeps
 // the dev server's sw.js 404 out of the console-error assertion below.
 test.use({ serviceWorkers: "block" });
+
+const P6_150 = fileURLToPath(
+  new URL("../../fixtures/inputs/protein/p6_150.fasta", import.meta.url),
+);
 
 const dataTheme = (page: Page) =>
   page.evaluate(() => document.documentElement.dataset.theme);
@@ -29,8 +36,11 @@ const toggle = (page: Page) =>
 async function expectNoSeriousViolations(
   page: Page,
   where: string,
+  scope?: string,
 ): Promise<void> {
-  const results = await new AxeBuilder({ page }).analyze();
+  let builder = new AxeBuilder({ page });
+  if (scope !== undefined) builder = builder.include(scope);
+  const results = await builder.analyze();
   const bad = results.violations.filter(
     (v) => v.impact === "serious" || v.impact === "critical",
   );
@@ -163,4 +173,35 @@ test("axe is clean in both themes", async ({ page }) => {
   await toggle(page).click();
   expect(await dataTheme(page)).toBe("dark");
   await expectNoSeriousViolations(page, "dark theme");
+});
+
+test("axe is clean on the open pair panel in both themes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await page
+    .locator('.import-panel input[type="file"]')
+    .setInputFiles(P6_150);
+  await expect(page.locator('[role="gridcell"]')).toHaveCount(36);
+  await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // The dialog holds the tinted residue cells — the scan is scoped to
+  // it so a violation can't hide behind the rest of the page.
+  await expectNoSeriousViolations(
+    page,
+    "pair panel (light theme)",
+    '[role="dialog"]',
+  );
+  // The scrim covers the header toggle — dispatchEvent drives the same
+  // React onClick as in the mid-run test above.
+  await toggle(page).dispatchEvent("click");
+  expect(await dataTheme(page)).toBe("dark");
+  await expectNoSeriousViolations(
+    page,
+    "pair panel (dark theme)",
+    '[role="dialog"]',
+  );
 });

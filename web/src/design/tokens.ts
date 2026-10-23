@@ -132,18 +132,28 @@ const SCRIM = "rgba(0, 0, 0, 0.35)";
 // print palette is Task 15's scope.
 export const exportInk = "#1a1a1a";
 
-// Okabe-Ito property tints behind the pair panel's aligned sequences:
-// light tints with one fixed dark text color in BOTH themes —
-// colorblind-safe and contrast-safe, per the comment that was in
-// index.css. Unthemed on purpose.
-const AA_TEXT = "#241f2e";
-const AA_TINT = {
-  hydro: "rgba(0, 114, 178, 0.22)",
-  polar: "rgba(0, 158, 115, 0.22)",
-  pos: "rgba(213, 94, 0, 0.22)",
-  neg: "rgba(204, 121, 167, 0.32)",
-  special: "rgba(240, 228, 66, 0.45)",
-} as const;
+// Okabe-Ito property tints behind the pair panel's aligned sequences.
+// The residue ink is the theme's own `text` color: on light it sits on
+// the near-white composites; on dark the same translucent tints
+// composite to deep shades over the dark surface, where the light ink
+// reads instead. The dark `special` alpha drops so its composite stays
+// dark enough — contrast.test.ts asserts every composited pair ≥ 4.5:1.
+const AA_TINT: Record<ThemeName, Record<string, string>> = {
+  light: {
+    hydro: "rgba(0, 114, 178, 0.22)",
+    polar: "rgba(0, 158, 115, 0.22)",
+    pos: "rgba(213, 94, 0, 0.22)",
+    neg: "rgba(204, 121, 167, 0.32)",
+    special: "rgba(240, 228, 66, 0.45)",
+  },
+  dark: {
+    hydro: "rgba(0, 114, 178, 0.22)",
+    polar: "rgba(0, 158, 115, 0.22)",
+    pos: "rgba(213, 94, 0, 0.22)",
+    neg: "rgba(204, 121, 167, 0.32)",
+    special: "rgba(240, 228, 66, 0.25)",
+  },
+};
 
 const kebab = (key: string): string =>
   key.replace(/([a-z0-9])([A-Z0-9])/g, "$1-$2").toLowerCase();
@@ -169,8 +179,8 @@ export function cssVariables(theme: ThemeName): Record<`--${string}`, string> {
   vars["--color-accent-bg"] = rgba(c.accent, ACCENT_BG_ALPHA[theme]);
   vars["--color-accent-border"] = rgba(c.accent, ACCENT_BORDER_ALPHA);
   vars["--color-scrim"] = SCRIM;
-  vars["--color-aa-text"] = AA_TEXT;
-  for (const [key, value] of Object.entries(AA_TINT)) {
+  vars["--color-aa-text"] = c.text;
+  for (const [key, value] of Object.entries(AA_TINT[theme])) {
     vars[`--color-aa-${key}`] = value;
   }
   vars["--font-ui"] = font.ui;
