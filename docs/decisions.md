@@ -2995,3 +2995,38 @@ wedging the start queue.
   assertions unchanged. Verified: both offline tests pass
   `--repeat-each=10 --retries=0` on chromium against this branch's
   preview build (20/20).
+## v1.3 Task 5: visual snapshot infrastructure and first baselines
+
+- `web/e2e/data/weak-support.fasta` is the checkpoint-11 recipe output
+  (the `~/cp12/weak_support.fasta` artifact from the v1.2 checkpoint
+  run): 6 taxa A–F, 120 sites, seed 5. Verified in-app: the seeded
+  100-replicate NJ/JC69 run shows weak styling — groupings at 42* and
+  32* — so the `[data-weak="true"]` assertion in the `weak-support`
+  scene is a real premise check, not a tautology. Task 12 ships
+  `scripts/samples/weak_support.py` to regenerate it byte-identically.
+- The `four-taxa` scene pastes the checkpoint-11 4-taxa block inline
+  (from `~/cp12/scripts/tiny_taxa.txt`); `replicate-panel` drives
+  cytochrome-c like the Task 4 evidence captures; `export-svg-roundtrip`
+  downloads "SVG (rooted on wheat)" and renders it back in a bare
+  white document — the export is theme-independent by design (fixed
+  ink + system font stack), so light/dark baselines of that scene are
+  identical on purpose.
+- Baselines were generated inside the exact CI image
+  (`mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a…`,
+  the e2e/visual job container) with `PLAYWRIGHT_BROWSERS_PATH` pointed
+  at the image's baked-in browsers — the exported SVG's system font
+  stack and any fallback glyphs render only identically in that
+  environment. A second container run reproduced all 42 with zero
+  diffs.
+- Known current-look quirks the baselines record (all in Task 9's
+  scope, not bugs to fix here): at 768 wide the page itself scrolls
+  sideways and leaf labels at a tree panel's right edge
+  (`cytc-computed`'s "neurospora", `bootstrap-basics-final`'s "H") are
+  clipped behind the panel's horizontal scroll — allowed by the
+  layout invariants until the responsive layout lands.
+- Files outside the Files block: `scripts/ci/visual.sh` — the
+  workflow's runner script (the repo convention is that every CI job
+  delegates to `scripts/ci/*.sh`; the ci.yml job named in the Files
+  block calls it). `web/e2e/data/weak-support.fasta` — the scene
+  definition names it and says "committed here". `docs/decisions.md` —
+  this entry.
