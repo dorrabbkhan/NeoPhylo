@@ -51,10 +51,17 @@ async function runBootstrap(page: Page): Promise<void> {
   await run.click();
   const done = page.getByText(/Run complete: /);
   const start = page.getByRole("button", { name: "Start" });
-  const winner = await Promise.race([
-    done.waitFor({ timeout: 90_000 }).then(() => "done" as const),
-    start.waitFor({ timeout: 90_000 }).then(() => "confirm" as const),
-  ]);
+  const doneWait = done
+    .waitFor({ timeout: 90_000 })
+    .then(() => "done" as const);
+  const startWait = start
+    .waitFor({ timeout: 90_000 })
+    .then(() => "confirm" as const);
+  // The loser still rejects on its timeout; swallow that so it can't
+  // surface as an unhandled rejection after the race has settled.
+  doneWait.catch(() => {});
+  startWait.catch(() => {});
+  const winner = await Promise.race([doneWait, startWait]);
   if (winner === "confirm") {
     await start.click();
     await expect(done).toBeVisible({ timeout: 90_000 });

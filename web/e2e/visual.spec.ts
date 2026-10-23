@@ -42,6 +42,7 @@ for (const scene of SCENES) {
         await page.setViewportSize({ width: vp.w, height: vp.h });
         await page.emulateMedia({ colorScheme: theme });
         await scene.setup(page);
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
         // Deterministic frame: nothing mid-scroll, caret hidden.
         await page.evaluate(() => {
           for (const el of document.querySelectorAll("*")) {

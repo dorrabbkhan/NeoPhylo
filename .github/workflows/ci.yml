@@ -379,6 +379,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
+      actions: read          # lists the run's artifacts for the diff link
       contents: read
       pull-requests: write   # posts the diff-images comment on failure
     container:
@@ -425,18 +426,23 @@ jobs:
         with:
           script: |
             const marker = "<!-- neophylo-visual-diffs -->";
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-            });
-            const diff = artifacts.data.artifacts.find(
-              (a) => a.name === "visual-diffs",
-            );
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const link = diff
-              ? `${runUrl}/artifacts/${diff.id}`
-              : `${runUrl}#artifacts`;
+            let link = `${runUrl}#artifacts`;
+            try {
+              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              const diff = artifacts.data.artifacts.find(
+                (a) => a.name === "visual-diffs",
+              );
+              if (diff) {
+                link = `${runUrl}/artifacts/${diff.id}`;
+              }
+            } catch {
+              // The comment still posts with the run-page fallback link.
+            }
             const body =
               `${marker}\nThe \`visual\` job found snapshot diffs. ` +
               `Download the **visual-diffs** artifact for the actual and ` +
