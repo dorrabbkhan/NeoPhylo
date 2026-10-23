@@ -3158,3 +3158,4 @@ wedging the start queue.
   `web/src/index.css` (comment only — it repeated the false "dark text
   in both schemes" claim) sits outside the Files block, like the rest
   above.
+- Plan amended at the owner's request on PR #70: Task 9 adds a header-controls-visible-at-all-widths test (the theme toggle is clipped at 1024 and off-screen at 768 until then, a pre-existing header overflow); Tasks 10 and 11 must exercise Review Focus 4 through real input only, stopping for an owner decision if the modal design leaves no such path. Files outside the Files block: the plan file.
