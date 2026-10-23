@@ -19,7 +19,7 @@ import {
   readStep,
   stepToEnd,
   waitForApp,
-  waitForServiceWorkerControl,
+  waitForServiceWorkerReady,
 } from "./helpers";
 
 const LESSONS = ["nj-basics", "upgma-fails", "saturation"] as const;
@@ -196,13 +196,16 @@ test("a loaded lesson still works offline", async ({
   await waitForApp(page);
 
   // The service worker's install only finishes once the precache (app
-  // shell, wasm, exercises/*.json) is populated; wait until the page is
-  // controlled by the activated worker — not merely registered — before
-  // cutting the network. This must not be waitForFunction(async () =>
-  // …): a Promise is truthy, so an async predicate resolves on the
-  // first poll and the offline cut races activation (the CI
+  // shell, wasm, exercises/*.json) is populated; wait until an
+  // ACTIVATED worker exists before cutting the network. The page
+  // itself is not controlled on this first load (sw.js has no
+  // clients.claim()), but the next navigation — the offline reload
+  // below — is intercepted by the active registration, so one online
+  // load is enough. This must not be waitForFunction(async () => …):
+  // a Promise is truthy, so an async predicate resolves on the first
+  // poll and the offline cut races activation (the CI
   // ERR_INTERNET_DISCONNECTED flake).
-  await waitForServiceWorkerControl(page);
+  await waitForServiceWorkerReady(page);
 
   await context.setOffline(true);
   // Playwright's offline emulation can still lose the race against

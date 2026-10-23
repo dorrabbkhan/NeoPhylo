@@ -2981,3 +2981,17 @@ wedging the start queue.
   new `waitForServiceWorkerControl` helper; `web/e2e/a11y.spec.ts` and
   `web/e2e/bootstrap.spec.ts` — the offline tests now call it (the only
   `waitForFunction(async` sites in web/e2e; a grep found no others).
+- Fix round 3 (owner decision, option 1): the extra still-online reload
+  in `waitForServiceWorkerControl` added a second online load, breaking
+  the tests' "after ONE online load" premise. Dropped it: the helper is
+  renamed `waitForServiceWorkerReady(page)` and now only awaits
+  `navigator.serviceWorker.ready` (an active worker implies the
+  precache-completing install finished). The page itself is never
+  controlled on first load — the generated sw.js has no
+  `clients.claim()` — but a navigation selects the active registration,
+  so the offline reload in each spec is already intercepted by the
+  worker and the one-load premise is preserved. Call sites and comments
+  in `a11y.spec.ts` and `bootstrap.spec.ts` updated to match;
+  assertions unchanged. Verified: both offline tests pass
+  `--repeat-each=10 --retries=0` on chromium against this branch's
+  preview build (20/20).
