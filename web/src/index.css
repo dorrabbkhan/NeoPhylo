@@ -90,6 +90,17 @@ p {
   min-width: 0;
 }
 
+/* Below the wide breakpoint the header tightens its gap (the Settings
+ * button joins the row — Task 10); 16 px → 8 px keeps the six
+ * controls on one row at 1024 where the wider gap overflowed by
+ * ~2 px, and the wrap rule below still applies when it truly can't
+ * fit. */
+@media (width < 1280px) {
+  .app-header {
+    gap: var(--space-8);
+  }
+}
+
 /* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
  * icon at its left. flex-shrink: 0 — the wordmark never compresses to
  * make room; below the wide breakpoint it collapses to the icon
