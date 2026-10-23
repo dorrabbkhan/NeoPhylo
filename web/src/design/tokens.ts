@@ -7,9 +7,10 @@
 // Literal colors and font sizes may live ONLY here:
 // scripts/check-token-discipline.mjs enforces §3.4.
 //
-// Task 3 keeps today's look exactly: "light" is the current light
-// palette, "dark" the current prefers-color-scheme one. Task 6 designs
-// the real light-first themes and wires data-theme.
+// Task 6 lands the real themes: light is the projector-friendly
+// default (near-white bg, dark text, purple accent ≥ 3:1) and dark is
+// the refined low-light palette; the contrast contract in
+// design/contrast.test.ts pins the WCAG pairs for both.
 
 export type ThemeName = "light" | "dark";
 
@@ -47,18 +48,19 @@ export const color: Record<ThemeName, ColorTokens> = {
     // (--accent itself is too light for text).
     accentContrast: "#6d28d9",
     focus: "#6d28d9",
-    // Weak support drew in the branch's own ink with a thinner stroke +
-    // "*" glyph (never color alone); muted stands in until Task 6.
-    supportWeak: "#6b6375",
+    // Weak support reads as a warm "caution" amber — a supplementary
+    // cue only: the thinner stroke + "*" glyph still carry it (never
+    // color alone). 5.0:1 on bg.
+    supportWeak: "#b45309",
     wrongClade: "#b3261e",
     // The heatmap's saturated-cell hatch stroke (MatrixHeatmap pattern).
     saturationHatch: "#666666",
-    // Highlighted clades drew thicker in the same ink; accent stands in
-    // until Task 6 styles the highlight.
+    // Highlighted clades draw in the accent — thicker stroke carries
+    // the emphasis; the color just names it.
     highlight: "#aa3bff",
     danger: "#b3261e",
-    // Was the literal `var(--ok, #1a7f37)` fallback — one value in both
-    // themes, exactly as before.
+    // The pre-token `var(--ok, #1a7f37)` value — 4.8:1 on the light
+    // ground; dark lifts it (see below).
     success: "#1a7f37",
   },
   dark: {
@@ -71,30 +73,22 @@ export const color: Record<ThemeName, ColorTokens> = {
     accent: "#c084fc",
     accentContrast: "#c084fc",
     focus: "#c084fc",
-    supportWeak: "#9ca3af",
+    // The same caution amber as light, lifted for the dark ground.
+    supportWeak: "#fbbf24",
     wrongClade: "#f28b82",
     saturationHatch: "#666666",
     highlight: "#c084fc",
     danger: "#f28b82",
-    success: "#1a7f37",
+    // v1.3 Task 6: #1a7f37 was ~3.3:1 on the dark ground — short of
+    // the 4.5:1 body-text bar for the "Correct" verdict. 6.4:1.
+    success: "#3fb950",
   },
 };
 
-/** Type scale in px (§3.2); 12 is the minimum anywhere. */
+/** Type scale in px (§3.2); 12 is the minimum anywhere. Task 6 moved
+ * the pre-token 9/11/13/15/17 px uses onto this scale
+ * (9/11 → xs, 13 → sm, 15 → md, 17 → lg). */
 export const size = { xs: 12, sm: 14, md: 16, lg: 20, xl: 24, xxl: 32 } as const;
-
-// Temporary off-scale sizes (owner decision, option 1 on PR #65): the
-// pre-token stylesheet used 9/11/13/15/17 px and Task 3 must not move
-// a single pixel, so those values live here as --size-legacy-* vars.
-// Task 6 removes this object and moves every use onto `size`, where
-// the owner approves the baseline changes.
-export const legacySize = {
-  px9: 9,
-  px11: 11,
-  px13: 13,
-  px15: 15,
-  px17: 17,
-} as const;
 
 /** Spacing scale in px (§3.2). */
 export const space = [4, 8, 12, 16, 24, 32, 48] as const;
@@ -117,9 +111,8 @@ export const shadow = {
 
 // --- Derived values (per theme, emitted by cssVariables below) ---
 
-// The pre-token stylesheet had a third text level for headings
-// (--text-h). Kept as a derived var so Task 3 changes no pixel; Task 6
-// decides whether it survives the theme redesign.
+// The stylesheet's third text level for headings (--text-h): kept as
+// a derived var — headings take the darkest ink in both themes.
 const HEADING_TEXT: Record<ThemeName, string> = {
   light: "#08060d",
   dark: "#f3f4f6",
@@ -184,9 +177,6 @@ export function cssVariables(theme: ThemeName): Record<`--${string}`, string> {
   vars["--font-mono"] = font.mono;
   for (const [key, v] of Object.entries(size)) {
     vars[`--size-${key}`] = `${v}px`;
-  }
-  for (const [key, v] of Object.entries(legacySize)) {
-    vars[`--size-legacy-${key.slice(2)}`] = `${v}px`;
   }
   for (const n of space) {
     vars[`--space-${n}`] = `${n}px`;

@@ -3094,3 +3094,56 @@ wedging the start queue.
   shipped through Chromium-only PR e2e on #66 and #67.
 - Files outside a plan Files block (owner-requested fix): this entry
   plus `docs/decisions.md` itself.
+
+## v1.3 Task 6: light-first themes, toggle and contrast
+
+- `UiState` grows the full §7.1 field set in one go (`theme`,
+  `presenter`, `drawerOpen`, `tourStep`): the task's Produces block
+  defines that shape and Tasks 10–12 wire the rest. `uiInitial()`
+  reads the `neophylo.theme` device pref (light default); `setTheme`
+  only touches the ui slice, so a mid-run switch can't recompute or
+  drop state (Review Focus 4).
+- Theme plumbing lives in a new `web/src/design/theme.ts`
+  (`readThemePref`/`applyTheme`, both try/catch-guarded); the
+  index.html inline script repeats the same fallback so `data-theme`
+  is set before first paint. `tokensCssPlugin` drops the
+  prefers-color-scheme fallback entirely (spec §3.3: light regardless
+  of OS) and emits `color-scheme` per theme so scrollbars/form chrome
+  match.
+- Palette: light keeps the current near-white projector palette;
+  `supportWeak` becomes a caution amber in both themes (a
+  supplementary cue — weak support is still carried by the thinner
+  stroke + "*" glyph, never color alone). `highlight` stays equal to
+  `accent` — that IS the highlight style. Dark is refined: `success`
+  lifts to #3fb950 (the old #1a7f37 was ~3.3:1 on the dark ground —
+  under the 4.5:1 bar for the body-size "Correct" verdict) and
+  `supportWeak` is the lifted amber #fbbf24. `contrastRatio` covers
+  every required pair plus the semantic text colors.
+- `legacySize` is gone (the Task 3 owner's option-1 decision said
+  Task 6 removes it under baseline approval): every use moved onto the
+  type scale — 9/11 → xs, 13 → sm, 15 → md, 17 → lg. Nothing in the
+  app now renders under 12 px.
+- Baselines were regenerated inside the exact pinned CI image
+  (`mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a…`, the
+  e2e/visual job container), like Task 5 — host-local renders differ
+  enough to fail the 0.001 ratio. A second container run reproduced
+  all 42 with zero diffs.
+- The mid-run Review Focus 4 e2e opens the pair panel at step 0 (the
+  final position's matrix holds cluster labels, which can't resolve
+  to a taxon pair), toggles via `dispatchEvent` — the modal scrim
+  makes a pointer click physically impossible, and the assertion is
+  about state retention — then closes, returns to the final step and
+  confirms the run completes.
+- Files outside the Files block: `web/src/views/Header.tsx` (the Files
+  block says "Modify" but no such file existed — the header markup
+  lived inline in `App.tsx`; created per the File Map, which Tasks 8
+  and 10 also modify). `web/src/views/App.tsx` (mounts `Header`, owns
+  the session-theme → `data-theme` + storage effect).
+  `web/src/design/theme.ts` (the pref helpers above).
+  `web/src/state/actions.ts` (the `setTheme` action lives in the
+  union). `web/src/design/tokensCssPlugin.ts` (default-light +
+  color-scheme above). `web/src/index.css` (the `legacySize`
+  migration, `.theme-toggle` styles, the dropped static
+  `color-scheme`). `web/e2e/visual.spec.ts` (scenes now pick the theme
+  through the `neophylo.theme` device pref, not
+  prefers-color-scheme emulation). `docs/decisions.md` — this entry.

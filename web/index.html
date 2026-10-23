@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NeoPhylo</title>
     <script>
+      // v1.3 spec §3.3: data-theme on <html> before first paint — light
+      // by default regardless of prefers-color-scheme, with the
+      // device-local neophylo.theme pref overriding. Storage can be
+      // blocked; swallow and stay light. design/theme.ts keeps the same
+      // fallback for the session-side read.
+      try {
+        document.documentElement.dataset.theme =
+          window.localStorage.getItem("neophylo.theme") === "dark"
+            ? "dark"
+            : "light";
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
+    <script>
       // Register the service worker at parse time rather than on window
       // 'load' so install+precache starts as early as possible. In dev
       // /sw.js is a 404 — swallow the rejection there. 'sw.js'/'./' are
