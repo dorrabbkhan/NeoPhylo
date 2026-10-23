@@ -3030,3 +3030,25 @@ wedging the start queue.
   block calls it). `web/e2e/data/weak-support.fasta` — the scene
   definition names it and says "committed here". `docs/decisions.md` —
   this entry.
+
+## R parity: R-side resampling seeded
+
+- Found on PR #67: the bootstrap statistical-parity section of
+  `web/scripts/r-parity.mjs` was nondeterministic. `bootScript()`'s
+  generated R resample loop had no `set.seed`, so ape's column resamples
+  changed on every run while the engine side is seeded. Across 6 CI
+  runs the worst p6_150 Kimura/NJ split gap ranged 0.70–5.06 pp against
+  the 5 pp budget and failed once.
+- Fix (owner's choice in the PR #67 escalation): `bootScript()` takes a
+  `seed` parameter (default 1, matching the engine side's `seed: 1`
+  convention in the file) and emits `set.seed(<seed>)` immediately
+  before the resample loop. Both parity cases (jc12 JC69/NJ, p6_150
+  Kimura/NJ) use the same `BOOT_SEED = 1`. The R and engine RNGs still
+  differ, so the check remains an independent — now fixed — sample.
+- Unchanged: the 5 pp budget, BOOT_REPS (1000), the fixtures, the
+  engine, and every other check in the script. No seed was picked to
+  pass; seed 1 was used as specified.
+- Follow-up (same PR): the `fixtures` paths-filter in ci.yml now also
+  lists `web/scripts/r-parity.mjs`, where the parity logic actually
+  lives — before this, a change to the parity script could skip the
+  r-and-fixtures job entirely, and this PR's first CI run did skip it.

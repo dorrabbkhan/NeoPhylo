@@ -77,6 +77,8 @@ jobs:
               - 'crates/**'
               - 'web/src/export/**'
               - 'scripts/ci/r-parity.sh'
+              # the parity logic itself lives here; must gate r-and-fixtures
+              - 'web/scripts/r-parity.mjs'
               - 'scripts/ci/fixture-guard.sh'
               - 'scripts/compare/**'
               - 'docker/ci-r/**'

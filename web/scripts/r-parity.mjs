@@ -631,6 +631,9 @@ for (const [tag, input, correction] of [
 // not an equality check). The per-split table is printed either way.
 
 const BOOT_REPS = Number(process.env.BOOT_REPS || 1000);
+// One fixed R-side resample seed for every parity case, matching the
+// engine side's `seed: 1` convention in this file.
+const BOOT_SEED = 1;
 
 /** Leaf labels under node `id` of `tree` (test-side grouping lookup). */
 function leafSet(tree, id) {
@@ -691,7 +694,7 @@ function engineSupport(alignment, model, method, seed, replicates) {
  * in the B replicate trees. The FUN given to boot.phylo redoes the
  * full distance + NJ on each resample, matching the engine.
  */
-function bootScript(alignment, body) {
+function bootScript(alignment, body, seed = 1) {
   const lines = [];
   alignment.labels.forEach((label, i) => {
     lines.push(`>${label}`);
@@ -708,6 +711,9 @@ fa <- "${fasta}"
 ${body}
 trees <- vector("list", ${BOOT_REPS})
 kept <- 0L
+# Fixed seed: the parity check must be reproducible. The R and engine
+# RNGs differ, so this is still an independent sample — a fixed one.
+set.seed(${seed})
 for (b in seq_len(${BOOT_REPS})) {
   tr <- f(x[, sample.int(ncol(x), replace = TRUE)])
   if (!is.null(tr)) {
@@ -833,7 +839,7 @@ function compareBootstrap(tag, alignment, model, scriptBody) {
     "jc12 JC69/NJ bootstrap",
     alignment,
     "Jc69",
-    bootScript(alignment, DNA_BOOT),
+    bootScript(alignment, DNA_BOOT, BOOT_SEED),
   );
 }
 
@@ -848,7 +854,7 @@ function compareBootstrap(tag, alignment, model, scriptBody) {
     "p6_150 Kimura/NJ bootstrap",
     alignment,
     "Kimura",
-    bootScript(alignment, PROTEIN_BOOT),
+    bootScript(alignment, PROTEIN_BOOT, BOOT_SEED),
   );
 }
 
