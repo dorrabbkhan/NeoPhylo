@@ -2905,3 +2905,31 @@ wedging the start queue.
 - Files outside the Files block: `web/.gitignore` gained a
   `src/design/tokens.css` entry — the generated file must never be
   committed (spec §3.1). `docs/decisions.md` carries this entry.
+
+## v1.3 Task 4: bundled Inter and JetBrains Mono
+
+- `scripts/fonts/subset.sh` adds `--no-hinting` to the `pyftsubset`
+  flags and subsets the upstream hinted TTF statics (Inter
+  `extras/ttf/`, JetBrains Mono `fonts/ttf/`), not the OTF/CFF builds:
+  hinted subsets exceed the spec §4.1 200 KB budget, and Inter's OTF
+  statics subset ~20% larger once hinting is dropped. Final bundle:
+  16 woff2 files, 189,320 bytes — the 200 KB budget is unchanged.
+- The TreeView render gate (spec §4.2): the `<svg>` is withheld until
+  `whenFontsReady()` settles, up to the 3 s budget. A timeout lays out
+  on fallback metrics, and `onFontsLateLoad` fires a single re-render
+  (`bumpFontsTick`) so the uncached measurer re-reads the real Inter
+  metrics — the one permitted late re-layout.
+- `makeTextMeasurer`'s default probe family is now the `font.ui`
+  token (was: inherit the host context) so measurements name the
+  bundled Inter faces the tree draws; the SVG export still passes its
+  standalone document's own stack.
+- Files outside the Files block: `web/src/design/tokens.ts` — the
+  Interfaces section requires `tokens.font.mono` =
+  `"JetBrains Mono", ui-monospace, monospace`, and the token lives
+  here (the `Consolas` entry was dropped). `about.toml` — plausibly
+  "the license aggregation config" the Files block names, recorded for
+  completeness: `OFL-1.1` added to `accepted` so the cargo-about gate
+  covers the font license. `web/scripts/licenses.ts` — the license
+  aggregation script, whose `ACCEPTED_LICENSES` must mirror
+  about.toml's `accepted`; `OFL-1.1` added for the same reason.
+  `docs/decisions.md` carries this entry.

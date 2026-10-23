@@ -106,8 +106,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       workbox: {
         // `**/*.js` also covers the emitted bootstrap worker chunk, so
-        // bootstrap runs work offline (v1.2 spec §5).
-        globPatterns: ["**/*.{js,css,html,svg,wasm,json}"],
+        // bootstrap runs work offline (v1.2 spec §5); `*.woff2` precaches
+        // the bundled fonts (v1.3 spec §4.2).
+        globPatterns: ["**/*.{js,css,html,svg,wasm,json,woff2}"],
         // The wasm engine (~300 KB today) plus everything else stays
         // well under this; the default 2 MiB cap would silently drop a
         // growing wasm.

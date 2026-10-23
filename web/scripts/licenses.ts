@@ -28,13 +28,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** Licenses acceptable for redistributed dependencies; must match
- * about.toml's `accepted` list (the cargo-about gate). */
+ * about.toml's `accepted` list (the cargo-about gate). OFL-1.1 is the
+ * bundled fonts' license (spec §4.4 — the aggregation's
+ * web/public/fonts material); it appears here so the font subsets are
+ * covered by the same accepted list as the packaged dependencies. */
 export const ACCEPTED_LICENSES = [
   "MIT",
   "Apache-2.0",
   "BSD-2-Clause",
   "BSD-3-Clause",
   "ISC",
+  "OFL-1.1",
   "Unicode-3.0",
   "Zlib",
 ];

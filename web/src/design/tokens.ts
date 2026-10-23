@@ -101,12 +101,12 @@ export const space = [4, 8, 12, 16, 24, 32, 48] as const;
 
 export const radius = { sm: 4, md: 8, lg: 12 } as const;
 
-/** Full font stacks — bundled faces first (Task 4 adds the files and
- * the @font-face rules; until then these fall through to the same
- * system fonts as before). */
+/** Full font stacks — bundled faces first (Task 4 ships the subset
+ * woff2 files and the @font-face rules in fonts.css; the tails stay
+ * the same system fallbacks as before). */
 export const font = {
   ui: '"Inter", system-ui, sans-serif',
-  mono: '"JetBrains Mono", ui-monospace, Consolas, monospace',
+  mono: '"JetBrains Mono", ui-monospace, monospace',
 };
 
 /** Elevation shadows (§3.2) — the two the stylesheet already used. */
