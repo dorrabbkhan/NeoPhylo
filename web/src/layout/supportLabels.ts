@@ -93,6 +93,14 @@ const NUDGE = 6;
 // the 10 px acceptance bound. Upward is not extended: a pill pushed
 // above its row starts to read as the row above's label.
 const DROP_PAD = 10;
+// The on-segment convention is verified by measuring the DRAWN pill:
+// the e2e check allows only ~1e-6 of slop on a centre offset, and
+// Firefox's getBBox is float32-precise (~1e-5 at viewBox scale) where
+// Chromium's is exact. A pill resting exactly on the ±DROP_PAD bound
+// therefore passes in Chromium and fails in Firefox on rounding alone.
+// Placements keep the centre strictly inside the bound by this inset —
+// a fraction of a pixel, invisible in the drawing.
+const BOUND_INSET = 0.25;
 // Extra lift for a leader-offset pill: clearly off the row it
 // annotates, close enough that the leader reads as a callout.
 const LEADER_RAISE = 10;
@@ -294,8 +302,14 @@ export function supportLabels(
     // past its start, over the parent's vertical (masked by the pill).
     const right = n.x - markerR - 1 - GAP;
     // Bottom edge just above the segment, capped so the pill's centre
-    // stays within 10 px of the node's row when the font allows.
-    const raise0 = Math.max(1, Math.min(GAP, 10 - pillH / 2));
+    // stays strictly within 10 px of the node's row when the font
+    // allows (BOUND_INSET — landing on the bound itself flakes under
+    // Firefox's float32 getBBox).
+    const raise0 = Math.max(
+      // Binds only ≥14 px, where the cap would put the centre on/past the 10 px bound; smallFont is 12–13 px.
+      1,
+      Math.min(GAP, DROP_PAD - BOUND_INSET - pillH / 2),
+    );
     const atRaise = (raise: number): LabelBox => ({
       minX: right - pillW,
       maxX: right,
@@ -309,7 +323,11 @@ export function supportLabels(
     // until the pill's centre would drop 10 px below the node's row.
     const nudges = [0];
     for (let d = 1; d <= NUDGE; d += 1) nudges.push(-d, d);
-    for (let d = NUDGE + 1; raise0 - d >= -DROP_PAD - pillH / 2; d += 1)
+    for (
+      let d = NUDGE + 1;
+      raise0 - d >= BOUND_INSET - DROP_PAD - pillH / 2;
+      d += 1
+    )
       nudges.push(-d);
     for (const d of nudges) {
       const cand = atRaise(raise0 + d);

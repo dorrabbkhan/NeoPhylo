@@ -4,7 +4,8 @@
 #
 # Feedback tiers (ci/speed): PRs take a fast path — the `changes` job
 # path-filters heavy jobs (a skipped required check counts as passing),
-# e2e runs Chromium only, sharded in two, without @perf. Every non-PR
+# e2e runs Chromium only, sharded in two, without @perf — plus Firefox
+# when the PR touches rendering paths (the `render` filter). Every non-PR
 # event — main pushes, v*.*.* tags, the nightly cron, and a manual
 # workflow_dispatch on any branch ("run the full matrix on this PR's
 # branch") — sets `full`, so every job runs: all three browsers, @perf,
@@ -50,6 +51,7 @@ jobs:
       fixtures: ${{ steps.filter.outputs.fixtures }}
       fuzz: ${{ steps.filter.outputs.fuzz }}
       visual: ${{ steps.filter.outputs.visual }}
+      render: ${{ steps.filter.outputs.render }}
       e2e-browsers: ${{ steps.e2e.outputs.browsers }}
     steps:
       - name: Full-matrix flag
@@ -91,11 +93,28 @@ jobs:
               - 'web/**'
               - 'scripts/ci/visual.sh'
               - '.github/workflows/ci.yml'
+            # Rendering changes add Firefox to the PR's e2e matrix — the
+            # support-label regression (Firefox's float32 getBBox vs the
+            # drawn 10 px bound) shipped through a Chromium-only matrix.
+            render:
+              - 'web/src/views/**'
+              - 'web/src/layout/**'
+              - 'web/src/export/**'
+              - 'web/src/design/**'
+              - 'web/src/measureText.ts'
+              - 'web/src/index.css'
+              - 'web/index.html'
+              - 'web/playwright.config.ts'
+              - 'web/public/fonts/**'
+              - 'web/e2e/**'
+              - '.github/workflows/ci.yml'
       - name: E2E browser matrix
         id: e2e
         run: |
           if [ "${{ steps.full.outputs.full }}" = "true" ]; then
             browsers='["chromium","firefox","webkit"]'
+          elif [ "${{ steps.filter.outputs.render }}" = "true" ]; then
+            browsers='["chromium","firefox"]'
           else
             browsers='["chromium"]'
           fi
@@ -296,9 +315,10 @@ jobs:
           path: web/dist
           retention-days: 1
 
-  # PR fast path: Chromium only, two shards, no @perf — a fraction of
-  # the old e2e wall time. Full events shard all three browsers in two
-  # and run @perf inside each shard (E2E_PERF defaults to 1).
+  # PR fast path: Chromium only — plus Firefox when the `render` filter
+  # matched — two shards, no @perf: a fraction of the old e2e wall time.
+  # Full events shard all three browsers in two and run @perf inside
+  # each shard (E2E_PERF defaults to 1).
   e2e:
     needs: [changes, web]
     if: >-
