@@ -3159,3 +3159,19 @@ wedging the start queue.
   in both schemes" claim) sits outside the Files block, like the rest
   above.
 - Plan amended at the owner's request on PR #70: Task 9 adds a header-controls-visible-at-all-widths test (the theme toggle is clipped at 1024 and off-screen at 768 until then, a pre-existing header overflow); Tasks 10 and 11 must exercise Review Focus 4 through real input only, stopping for an owner decision if the modal design leaves no such path. Files outside the Files block: the plan file.
+
+## v1.3 Task 7: icon options
+
+- Spec §5 says the icon is "drawn with the `accent` color" without saying
+  which theme's. Resolved: the files carry the light accent `#aa3bff` as
+  the canonical brand color via `color` + `currentColor`, so a standalone
+  render (favicon/PWA/og-image) shows the accent while an inlined copy can
+  still be themed with CSS `color`. Documented in
+  `docs/brand/icon-options.md`.
+- The Playwright preview script ran from `/tmp` inside the pinned CI
+  image (same pattern as Task 5/6 baseline renders); its outputs are PR
+  comment images, not commits, per the task.
+- Owner chose Option C ("Node link") on PR #71;
+  `web/public/brand/icon.svg` is a byte-for-byte copy of
+  `options/option-c.svg` and the unchosen option files were deleted.
+- Files outside the Files block: `docs/decisions.md` — this entry.
