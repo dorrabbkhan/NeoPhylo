@@ -16,6 +16,68 @@ test("the header shows the wordmark", async ({ page }) => {
   await expect(wordmark.locator("img")).toBeVisible();
 });
 
+// Below the wide breakpoint the wordmark collapses to the icon (owner
+// decision on PR #72) so the header is exactly as tall as it was
+// before the wordmark — the fix for the clipped/wrapped controls the
+// full wordmark caused at these viewports. "As tall as before" is
+// measured directly: hiding the wordmark reproduces main's header (it
+// had no wordmark), and the icon-only header must match that height
+// within 2 px. At 768 px main's own header could already wrap, so the
+// invariant is parity, not a single row.
+for (const vp of [
+  { w: 1024, h: 768 },
+  { w: 768, h: 1024 },
+]) {
+  test(`header keeps main's height, icon-only wordmark at ${vp.w}x${vp.h}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.goto("/");
+    await waitForApp(page);
+    const header = page.locator(".app-header");
+    const wordmark = header.locator(".wordmark");
+
+    await expect(wordmark.locator("img")).toBeVisible();
+    // "NeoPhylo" is still in the DOM (the accessible name survives) but
+    // visually hidden: its box collapses to the 1 px clip, which is why
+    // the visibility matcher can't see the hiding.
+    await expect(wordmark).toContainText("NeoPhylo");
+    const textBox = await wordmark.locator(".wordmark-text").boundingBox();
+    expect(textBox, "wordmark text has a bounding box").not.toBeNull();
+    expect(textBox!.width).toBeLessThanOrEqual(1);
+    expect(textBox!.height).toBeLessThanOrEqual(1);
+
+    const withIcon = await header.boundingBox();
+    expect(withIcon, "header has a bounding box").not.toBeNull();
+    await page.addStyleTag({
+      content: ".wordmark { display: none !important; }",
+    });
+    const mainLike = await header.boundingBox();
+    expect(mainLike, "header still has a bounding box").not.toBeNull();
+    expect(
+      Math.abs(withIcon!.height - mainLike!.height),
+      "header is as tall as without the wordmark",
+    ).toBeLessThanOrEqual(2);
+
+    // Nothing the user needs is clipped: the Lesson|Sandbox switch and
+    // the Lessons button sit fully inside the viewport. (Later controls
+    // may still run off the right edge at 768 px — main did the same;
+    // that reflow is Task 9's job.)
+    for (const selector of [".mode-switch", ".lessons-menu > button"]) {
+      const child = await page.locator(selector).boundingBox();
+      expect(child, `${selector} has a bounding box`).not.toBeNull();
+      expect(
+        child!.x,
+        `${selector} starts inside the viewport`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        child!.x + child!.width,
+        `${selector} ends inside the viewport`,
+      ).toBeLessThanOrEqual(vp.w);
+    }
+  });
+}
+
 test("icon-maskable-512 keeps its mark inside the 10% safe margin", async ({
   page,
 }) => {

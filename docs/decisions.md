@@ -3201,6 +3201,18 @@ wedging the start queue.
   follow-up — deleting files is outside this task's scope).
 - Baselines regenerated in the pinned CI image, same as Tasks 5/6 —
   the header wordmark changes every full-page scene.
+- **Narrow-width icon-only wordmark (owner decision 2026-10-23, PR #72
+  escalation, option 1):** the full wordmark pushed the header over
+  main's height at the narrow snapshot viewports — at 1024×768 the
+  title and the last two buttons wrapped to two lines (~76 px vs main's
+  53), and at 768×1024 controls clipped at the right edge. Below the
+  wide breakpoint (`@media (width < 1280px)`, per the plan's
+  breakpoints) `.wordmark-text` is visually hidden but stays in the
+  DOM, so the accessible name is still "NeoPhylo"; `.wordmark` itself
+  is `flex-shrink: 0`. The header is then exactly as tall as on main at
+  both 1024×768 and 768×1024 — including the scenes where main's own
+  header already wrapped at 768 px (parity, not a forced single row).
+  A proper responsive header is Task 9's scope.
 - Files outside the Files block: `web/src/index.css` (the app's single
   stylesheet — the wordmark styles had nowhere else to live);
   `web/scripts/brand.test.ts`, `web/src/views/Wordmark.test.tsx`,
