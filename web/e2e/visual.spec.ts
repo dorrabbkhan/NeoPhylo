@@ -6,7 +6,8 @@
 //
 // Runs against the dev server like the other UI specs. Determinism:
 // bundled fonts (Task 4), fixed viewports, `animations: "disabled"`,
-// seeded bootstrap runs, scroll positions reset before the shot.
+// seeded bootstrap runs; each scene's setup ends in settleFrame()
+// (visualScenes.ts), which settles fonts and scroll positions.
 
 import { test, expect } from "@playwright/test";
 
@@ -42,17 +43,6 @@ for (const scene of SCENES) {
         await page.setViewportSize({ width: vp.w, height: vp.h });
         await page.emulateMedia({ colorScheme: theme });
         await scene.setup(page);
-        await page.evaluate(() => document.fonts.ready.then(() => undefined));
-        // Deterministic frame: nothing mid-scroll, caret hidden.
-        await page.evaluate(() => {
-          for (const el of document.querySelectorAll("*")) {
-            if (el.scrollTop !== 0 || el.scrollLeft !== 0) {
-              el.scrollTop = 0;
-              el.scrollLeft = 0;
-            }
-          }
-          window.scrollTo(0, 0);
-        });
         await expect(page).toHaveScreenshot(
           `${scene.name}-${vp.w}x${vp.h}-${theme}.png`,
           { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" },

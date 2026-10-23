@@ -32,6 +32,23 @@ const FOUR_TAXA = [
   "ACGAACGAACGTACCTACTA",
 ].join("\n");
 
+/** Deterministic frame for the screenshot: fonts settled and nothing
+ * mid-scroll — the window and every scrollable element reset to 0.
+ * Every scene's setup calls this as its last step; a scene that wants
+ * a scrolled element does that scroll after this call. */
+export async function settleFrame(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll("*")) {
+      if (el.scrollTop !== 0 || el.scrollLeft !== 0) {
+        el.scrollTop = 0;
+        el.scrollLeft = 0;
+      }
+    }
+    window.scrollTo(0, 0);
+  });
+}
+
 /** Switch to Sandbox and import FASTA by paste, then step to the end. */
 async function sandboxImport(page: Page, fasta: string): Promise<void> {
   await page.goto("/");
@@ -83,7 +100,10 @@ export const SCENES: {
   {
     // Rooted on the reference's outgroup (the default view).
     name: "cytc-rooted",
-    setup: cytcAfterRun,
+    setup: async (page) => {
+      await cytcAfterRun(page);
+      await settleFrame(page);
+    },
   },
   {
     name: "cytc-computed",
@@ -93,6 +113,7 @@ export const SCENES: {
         .getByRole("button", { name: "Show as computed (unrooted)" })
         .click();
       await expect(page.locator(".unrooted-note")).toBeVisible();
+      await settleFrame(page);
     },
   },
   {
@@ -104,6 +125,7 @@ export const SCENES: {
       await expect(
         page.locator('.tree-canvas [data-weak="true"]').first(),
       ).toBeVisible();
+      await settleFrame(page);
     },
   },
   {
@@ -111,6 +133,7 @@ export const SCENES: {
     setup: async (page) => {
       await sandboxImport(page, FOUR_TAXA);
       await expect(page.getByText(/1 grouping to test/)).toBeVisible();
+      await settleFrame(page);
     },
   },
   {
@@ -123,6 +146,7 @@ export const SCENES: {
       await expect(
         page.getByRole("dialog").locator(".rep-diff"),
       ).toBeVisible();
+      await settleFrame(page);
     },
   },
   {
@@ -141,9 +165,23 @@ export const SCENES: {
       await page.locator(".prompt-continue").click();
       await expect(page.getByText(/Now try more data/)).toBeVisible();
       await page.locator(".prompt-continue").click();
-      await expect(
-        page.getByText(/Read the numbers carefully/),
-      ).toBeVisible();
+      const closing = page.locator(".prompt-card", {
+        hasText: /Read the numbers carefully/,
+      });
+      await expect(closing).toBeVisible();
+      await settleFrame(page);
+      // Owner-approved (PR #67, option 2): the frame must show the
+      // closing note, which sits below the .prompts strip's fold after
+      // the reset — scroll it in and prove it lands fully on screen.
+      await closing.scrollIntoViewIfNeeded();
+      const box = await closing.boundingBox();
+      const vp = page.viewportSize();
+      expect(box, "closing note has a bounding box").not.toBeNull();
+      expect(vp, "viewport size is known").not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(vp!.height);
     },
   },
   {
@@ -170,7 +208,7 @@ export const SCENES: {
           `align-items:flex-start;justify-content:center;}` +
           `</style></head><body>${svgText}</body></html>`,
       );
-      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await settleFrame(page);
     },
   },
 ];
