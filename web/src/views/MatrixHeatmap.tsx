@@ -17,7 +17,7 @@
 // (at ~2 px per cell they are unreadable anyway).
 
 import { useCallback, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 
 export type MatrixCell = number | "sat";
 
@@ -233,6 +233,17 @@ export function MatrixHeatmap({
   };
 
   return (
+    // The wrap scrolls horizontally when the coarse-pointer cell floor
+    // (--matrix-min: enough width for 40 px cells, spec §6.5) outgrows
+    // the column — the matrix never shrinks below its touch target.
+    <div
+      className="matrix-wrap"
+      style={
+        {
+          "--matrix-min": `${(width * 40) / CELL}px`,
+        } as CSSProperties
+      }
+    >
     <svg
       role={compact ? "group" : "grid"}
       aria-label={compact ? `${title}, ${n} taxa` : title}
@@ -407,6 +418,7 @@ export function MatrixHeatmap({
         </g>
       ))}
     </svg>
+    </div>
   );
 }
 

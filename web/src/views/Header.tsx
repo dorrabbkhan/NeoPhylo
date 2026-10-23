@@ -1,15 +1,19 @@
-// App header (v1.3 spec §6.3): the lesson title, the link-restore
-// toast, the Lesson|Sandbox mode switch, the Lessons menu, "Coming
-// from PHYLIP?" and the theme toggle. Task 8 adds the wordmark; Task
-// 10 adds the skip link and moves secondary items into a More menu
-// below 1024 px; Task 11 adds the presenter toggle.
+// App header (v1.3 spec §6.3): the skip link, wordmark, lesson title,
+// the link-restore toast, the Lesson|Sandbox mode switch, the Lessons
+// menu, "Coming from PHYLIP?" and the theme toggle. Task 10: a "Skip
+// to content" link is the page's first focusable element; below 1280
+// px the Settings button opens the controls drawer (§6.4); below 1024
+// px "Coming from PHYLIP?", Licenses, Source code and Help live in the
+// More menu (§6.3). Task 11 adds the presenter toggle.
 
 import type { Dispatch } from "react";
 
+import type { Breakpoint } from "../design/breakpoints";
 import type { ThemeName } from "../design/tokens";
 import type { Action, Session } from "../state/session";
 
 import { LessonsMenu } from "./LessonsMenu";
+import { MoreMenu } from "./MoreMenu";
 import { ThemeToggle } from "./ThemeToggle";
 import { Wordmark } from "./Wordmark";
 
@@ -26,6 +30,11 @@ export interface HeaderProps {
   onOpenPhylipHelp: () => void;
   theme: ThemeName;
   dispatch: Dispatch<Action>;
+  /** The live breakpoint (spec §6.1) — decides which secondary
+   * controls the header shows directly vs inside the drawer/menu. */
+  breakpoint: Breakpoint;
+  /** Settings drawer open flag (§6.4) for the button's aria-expanded. */
+  drawerOpen: boolean;
 }
 
 export function Header({
@@ -38,9 +47,24 @@ export function Header({
   onOpenPhylipHelp,
   theme,
   dispatch,
+  breakpoint,
+  drawerOpen,
 }: HeaderProps) {
+  const belowWide = breakpoint !== "wide";
+  const belowMedium = breakpoint === "narrow" || breakpoint === "compact";
   return (
     <header className="app-header">
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={() =>
+          // Fragment navigation alone scrolls the target but leaves
+          // focus on the link — move focus explicitly (§6.10).
+          document.getElementById("main-content")?.focus()
+        }
+      >
+        Skip to content
+      </a>
       <Wordmark />
       <h1>{title}</h1>
       {toast !== null && (
@@ -67,14 +91,30 @@ export function Header({
         </button>
       </div>
       <LessonsMenu currentId={currentLessonId} onPick={onPickLesson} />
-      <button
-        type="button"
-        className="phylip-help-open"
-        onClick={onOpenPhylipHelp}
-      >
-        Coming from PHYLIP?
-      </button>
+      {belowWide && (
+        <button
+          type="button"
+          className="drawer-toggle"
+          aria-expanded={drawerOpen}
+          aria-controls="settings-drawer"
+          onClick={() =>
+            dispatch({ type: "setDrawer", open: !drawerOpen })
+          }
+        >
+          Settings
+        </button>
+      )}
+      {!belowMedium && (
+        <button
+          type="button"
+          className="phylip-help-open"
+          onClick={onOpenPhylipHelp}
+        >
+          Coming from PHYLIP?
+        </button>
+      )}
       <ThemeToggle theme={theme} dispatch={dispatch} />
+      {belowMedium && <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} />}
     </header>
   );
 }

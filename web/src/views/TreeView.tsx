@@ -84,22 +84,43 @@ interface Size {
   height: number;
 }
 
-/** The focusable internal-branch hit lines in the same drawing —
+/** The focusable internal-branch hit targets in the same drawing —
  * arrow keys rove among them while a predict_branch prompt is open
  * (v1.2 spec §7.1). */
-function branchHits(el: SVGLineElement): SVGLineElement[] {
+function branchHits(el: SVGGElement): SVGGElement[] {
   return Array.from(
-    el.ownerSVGElement?.querySelectorAll<SVGLineElement>(
+    el.ownerSVGElement?.querySelectorAll<SVGGElement>(
       '.branch-hit[role="button"]',
     ) ?? [],
   );
 }
 
+/** ≥ 40 px hit pad (v1.3 spec §6.5): an invisible rect covering the
+ * segment, grown to 40×40 — a stroke-thickened line can't reach both
+ * dimensions on a short or terminal edge. Displayed only under
+ * `@media (pointer: coarse)`, so fine pointers keep the 12 px line. */
+function hitPad(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): { x: number; y: number; width: number; height: number } {
+  const MIN = 40;
+  const w = Math.abs(x2 - x1);
+  const h = Math.abs(y2 - y1);
+  return {
+    x: Math.min(x1, x2) - Math.max(0, (MIN - w) / 2),
+    y: Math.min(y1, y2) - Math.max(0, (MIN - h) / 2),
+    width: Math.max(w, MIN),
+    height: Math.max(h, MIN),
+  };
+}
+
 /** The pickable overlay on an internal edge while a predict_branch
- * prompt is open: a wide invisible line that is also a real button —
- * Tab/arrows reach it, a dashed outline shows focus, Enter/Space
- * picks. Its accessible name is the grouping on the edge's far side
- * ("Branch to (E, F, G, H)"). */
+ * prompt is open: an invisible hit target (pad + line) that is also a
+ * real button — Tab/arrows reach it, a dashed outline shows focus,
+ * Enter/Space picks. Its accessible name is the grouping on the
+ * edge's far side ("Branch to (E, F, G, H)"). */
 function BranchHit({
   x1,
   y1,
@@ -116,13 +137,10 @@ function BranchHit({
   splitKey: string;
   onPick: (key: string) => void;
 }) {
+  const pad = hitPad(x1, y1, x2, y2);
   return (
-    <line
+    <g
       className="branch-hit"
-      x1={x1}
-      y1={y1}
-      x2={x2}
-      y2={y2}
       role="button"
       tabIndex={0}
       aria-label={`Branch to (${splitKey.split("|").join(", ")})`}
@@ -145,7 +163,47 @@ function BranchHit({
         const i = hits.indexOf(e.currentTarget);
         hits[(i + dir + hits.length) % hits.length]?.focus();
       }}
-    />
+    >
+      <rect
+        className="branch-hit-pad"
+        x={pad.x}
+        y={pad.y}
+        width={pad.width}
+        height={pad.height}
+      />
+      <line x1={x1} y1={y1} x2={x2} y2={y2} />
+    </g>
+  );
+}
+
+/** The pickable overlay on a terminal edge while a predict_branch
+ * prompt is open: the same pad + line hit target, pointer-only (a
+ * leaf's branch can't be the answer — no tab stop, no name). */
+function TerminalHit({
+  x1,
+  y1,
+  x2,
+  y2,
+  onPick,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  onPick: () => void;
+}) {
+  const pad = hitPad(x1, y1, x2, y2);
+  return (
+    <g className="branch-hit" onClick={() => onPick()}>
+      <rect
+        className="branch-hit-pad"
+        x={pad.x}
+        y={pad.y}
+        width={pad.width}
+        height={pad.height}
+      />
+      <line x1={x1} y1={y1} x2={x2} y2={y2} />
+    </g>
   );
 }
 
@@ -326,13 +384,12 @@ export function TreeView({
                     />
                   )}
                   {hasVisibleParent && n.leaf && onPickTerminal !== undefined && (
-                    <line
-                      className="branch-hit"
+                    <TerminalHit
                       x1={tx(n.parentX)}
                       y1={ty(n.y)}
                       x2={tx(n.x)}
                       y2={ty(n.y)}
-                      onClick={() => onPickTerminal()}
+                      onPick={onPickTerminal}
                     />
                   )}
                   {children.length > 0 && (

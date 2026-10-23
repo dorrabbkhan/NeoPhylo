@@ -1,7 +1,7 @@
 // The UI slice of Session (v1.3 spec §7.1): the Concept/Math mode plus
 // the viewer prefs — theme, presenter, drawer and tour step. The theme
 // is device-local (neophylo.theme, light by default; design/theme.ts);
-// presenter/drawer/tour wiring lands in Tasks 10, 11 and 12.
+// presenter/tour wiring lands in Tasks 11 and 12.
 
 import { readThemePref } from "../design/theme";
 import type { ThemeName } from "../design/tokens";
@@ -51,5 +51,11 @@ export function uiReducer(slice: UiState, a: Action, ctx: Session): UiState {
   void ctx; // the UI slice reads no other slices
   if (a.type === "setMode") return { ...slice, mode: a.mode };
   if (a.type === "setTheme") return { ...slice, theme: a.theme };
+  if (a.type === "setDrawer") return { ...slice, drawerOpen: a.open };
+  // Task 10 (§6.4): opening the replicate sheet from inside the
+  // drawer dismisses the drawer — one modal on screen, not two.
+  if (a.type === "setReplicateIndex" && a.index !== null) {
+    return { ...slice, drawerOpen: false };
+  }
   return slice;
 }
