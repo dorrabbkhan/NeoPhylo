@@ -79,6 +79,40 @@ p {
   gap: 16px;
 }
 
+/* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
+ * icon at its left. */
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.wordmark img {
+  display: block;
+}
+
+.wordmark-md {
+  font-size: var(--size-lg);
+}
+
+.wordmark-md img {
+  width: 24px;
+  height: 24px;
+}
+
+.wordmark-sm {
+  font-size: var(--size-md);
+}
+
+.wordmark-sm img {
+  width: 20px;
+  height: 20px;
+}
+
 /* Lesson | Sandbox switch (spec §6.2): a two-option radiogroup where
  * the checked option is filled with the accent color. */
 .mode-switch {

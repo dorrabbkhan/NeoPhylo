@@ -11,6 +11,7 @@ import type { Action, Session } from "../state/session";
 
 import { LessonsMenu } from "./LessonsMenu";
 import { ThemeToggle } from "./ThemeToggle";
+import { Wordmark } from "./Wordmark";
 
 export interface HeaderProps {
   title: string;
@@ -40,6 +41,7 @@ export function Header({
 }: HeaderProps) {
   return (
     <header className="app-header">
+      <Wordmark />
       <h1>{title}</h1>
       {toast !== null && (
         <p role="status" className="toast">
