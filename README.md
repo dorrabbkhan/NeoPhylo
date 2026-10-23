@@ -1,5 +1,7 @@
 # NeoPhylo
 
+![NeoPhylo — learn how phylogenetic trees are built, step by step](web/public/brand/og-image.png)
+
 Learn how phylogenetic trees are built — step by step, in your browser.
 
 [![CI](https://github.com/dorrabbkhan/NeoPhylo/actions/workflows/ci.yml/badge.svg)](https://github.com/dorrabbkhan/NeoPhylo/actions/workflows/ci.yml)

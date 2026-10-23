@@ -3175,3 +3175,46 @@ wedging the start queue.
   `web/public/brand/icon.svg` is a byte-for-byte copy of
   `options/option-c.svg` and the unchosen option files were deleted.
 - Files outside the Files block: `docs/decisions.md` — this entry.
+
+## v1.3 Task 8: brand assets
+
+- Every asset is rendered from `web/public/brand/icon.svg` (the Task 7
+  Option C file) — the generator never redraws the mark. The SVG icons
+  keep transparency; `apple-touch-icon.png` and `icon-maskable-512.png`
+  are solid (`bg` from the light tokens — transparency composites onto
+  black on iOS, and maskable needs a full-bleed ground). The maskable
+  mark sits at 70% (`MASKABLE_MARGIN = 0.15`, spec's ≥ 10% each side);
+  the e2e spec checks the rendered outer band, the unit test checks the
+  constant.
+- `favicon.ico` packs the 16/32/48 px renders as PNG-in-ICO entries
+  (valid since Vista). `og-image.png` renders the spec §5 template
+  (icon, "NeoPhylo" in Inter 600, the tagline) with the bundled Inter
+  subsets as data URIs so the card doesn't depend on installed fonts.
+- `index.html` `og:image` is a relative `/brand/og-image.png`: the site
+  deploys to both Netlify (root) and GitHub Pages (`NEOPHYLO_BASE`
+  scope), so no absolute origin is correct everywhere.
+- `Wordmark` renders the canonical `icon.svg` via `<img>` (never a
+  redrawn copy) at `text` color; `sm`/`md` map to the 16/20 px type
+  scale steps. The manifest now lists `brand/icon.svg` + the 192/512
+  and maskable PNGs; `web/public/favicon.svg` and `icons.svg` stay on
+  disk but nothing references them anymore (cleanup left for a
+  follow-up — deleting files is outside this task's scope).
+- Baselines regenerated in the pinned CI image, same as Tasks 5/6 —
+  the header wordmark changes every full-page scene.
+- **Narrow-width icon-only wordmark (owner decision 2026-10-23, PR #72
+  escalation, option 1):** the full wordmark pushed the header over
+  main's height at the narrow snapshot viewports — at 1024×768 the
+  title and the last two buttons wrapped to two lines (~76 px vs main's
+  53), and at 768×1024 controls clipped at the right edge. Below the
+  wide breakpoint (`@media (width < 1280px)`, per the plan's
+  breakpoints) `.wordmark-text` is visually hidden but stays in the
+  DOM, so the accessible name is still "NeoPhylo"; `.wordmark` itself
+  is `flex-shrink: 0`. The header is then exactly as tall as on main at
+  both 1024×768 and 768×1024 — including the scenes where main's own
+  header already wrapped at 768 px (parity, not a forced single row).
+  A proper responsive header is Task 9's scope.
+- Files outside the Files block: `web/src/index.css` (the app's single
+  stylesheet — the wordmark styles had nowhere else to live);
+  `web/scripts/brand.test.ts`, `web/src/views/Wordmark.test.tsx`,
+  `web/e2e/brand.spec.ts` (the task's tests — the Files block named no
+  test files); `docs/decisions.md` — this entry.
