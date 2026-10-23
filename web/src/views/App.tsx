@@ -62,6 +62,7 @@ import {
 } from "../state/urlRestore";
 
 import { applyTheme } from "../design/theme";
+import { useBreakpoint } from "../design/breakpoints";
 import { AlphabetBadge } from "./AlphabetBadge";
 import { BootstrapPanel } from "./BootstrapPanel";
 import { ConsensusTabs } from "./ConsensusTabs";
@@ -100,6 +101,9 @@ const CONSENSUS_KIND: Record<"majority" | "extended" | "strict", ConsensusKind> 
 };
 
 export function App({ exercise }: { exercise?: Exercise }) {
+  // The live breakpoint (v1.3 Task 9, spec §6.1) — exposed on .app so
+  // the arrangement is observable (and testable) alongside the CSS.
+  const breakpoint = useBreakpoint();
   const [session, setSession] = useState<Session | null>(null);
   const [playing, setPlaying] = useState(false);
   const [hoverLeaf, setHoverLeaf] = useState<string | null>(null);
@@ -708,7 +712,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
     (session.matrix?.labels.length ?? 0) > 50;
 
   return (
-    <div className="app">
+    <div className="app" data-breakpoint={breakpoint}>
       <Header
         title={session.exercise.title}
         toast={toast}

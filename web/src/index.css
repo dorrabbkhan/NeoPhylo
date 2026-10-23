@@ -77,6 +77,17 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  /* Below the wide breakpoint the controls wrap to a second row rather
+   * than clipping at the right edge (plan Task 9, PR #70 addendum). */
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+/* The title and the toast shrink and wrap instead of pushing the
+ * header controls past the viewport edge. */
+.app-header h1,
+.app-header .toast {
+  min-width: 0;
 }
 
 /* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
@@ -261,17 +272,20 @@ p {
 .app-grid {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr) 300px;
+  grid-template-areas: "controls center explain";
   min-height: 0;
   overflow: hidden;
 }
 
 .col-controls {
+  grid-area: controls;
   padding: 8px 14px;
   border-right: 1px solid var(--color-border);
   overflow-y: auto;
 }
 
 .col-explain {
+  grid-area: explain;
   padding: 8px 14px;
   border-left: 1px solid var(--color-border);
   overflow-y: auto;
@@ -286,6 +300,7 @@ p {
  * off, and the heatmap keeps its natural size — the column itself
  * scrolls when the stack is taller than the viewport. */
 .col-center {
+  grid-area: center;
   display: block;
   padding: 12px;
   overflow-x: hidden;
@@ -406,12 +421,114 @@ p {
   color: var(--color-text);
 }
 
+/* ---- Medium (1024–1279 px): controls · center, explanation below ----
+ * Owner decision on PR #73 (option B): until Task 10's settings drawer
+ * exists, the medium breakpoint keeps the wide arrangement minus the
+ * third column — the controls column on the left and the center on the
+ * right in its wide internal order (notices, prompts, trees, matrix),
+ * with the explanation below the center content inside the center's
+ * column track, not in a column of its own. The .app-grid row is the
+ * page's one vertical scroller (the per-column scrollers stay a
+ * wide-only feature); nothing on the page scrolls sideways
+ * (overflow-x: clip — over-wide figures still scroll inside their own
+ * .tree-canvas). */
+@media (1024px <= width < 1280px) {
+  .app-grid {
+    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-areas:
+      "controls center"
+      "controls explain";
+    overflow-y: auto;
+    overflow-x: clip;
+  }
+
+  .col-controls,
+  .col-center,
+  .col-explain {
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  /* The explanation sits under the center: a top rule, not the wide
+   * arrangement's column-separating left border. */
+  .col-explain {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ---- Below the medium breakpoint: single column (spec §6.1–§6.2) ----
+ * Narrow and compact share this arrangement until Task 10's settings
+ * drawer exists: the center content leads — trees (true over inferred,
+ * full width each) over the matrix over the prompts — then the
+ * explanation, then the controls column last. The .app-grid row
+ * becomes the page's one vertical scroller; the per-column scrollers
+ * and side borders drop, and nothing on the page scrolls sideways
+ * (overflow-x: clip — over-wide figures still scroll inside their own
+ * .tree-canvas). */
+@media (width < 1024px) {
+  .app-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "center"
+      "explain"
+      "controls";
+    overflow-y: auto;
+    overflow-x: clip;
+  }
+
+  .col-center {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  /* §6.1's single-column order inside the center: trees, matrix,
+   * prompts (the DOM order puts prompts first, which stays the wide
+   * arrangement "as today"). */
+  .col-center > .notices {
+    order: -1;
+  }
+
+  .col-center > .trees {
+    order: 0;
+  }
+
+  .col-center > svg {
+    order: 1;
+  }
+
+  .col-center > .prompts {
+    order: 2;
+  }
+
+  .trees {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .col-controls,
+  .col-explain {
+    overflow-y: visible;
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* The stepper bar is pinned to the bottom (spec §6.2): it is the .app
+ * grid's last row, so it never scrolls away. Safe-area insets keep the
+ * controls off rounded corners and home indicators on touch devices,
+ * and the bar wraps to a second line rather than scrolling sideways. */
 .app-footer {
   display: flex;
   align-items: center;
   gap: 16px;
+  row-gap: 4px;
+  flex-wrap: wrap;
   border-top: 1px solid var(--color-border);
-  padding: 8px 16px;
+  padding: 8px calc(16px + env(safe-area-inset-right, 0px))
+    calc(8px + env(safe-area-inset-bottom, 0px))
+    calc(16px + env(safe-area-inset-left, 0px));
 }
 
 .app-footer > .stepper {
@@ -435,10 +552,14 @@ p {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stepper input[type="range"] {
   flex: 1;
+  /* The slider keeps a usable width when the footer wraps at narrow
+   * widths instead of being squeezed to nothing. */
+  min-width: 96px;
 }
 
 .stepper-status {
