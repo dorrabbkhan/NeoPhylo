@@ -306,6 +306,7 @@ export function supportLabels(
     // allows (BOUND_INSET — landing on the bound itself flakes under
     // Firefox's float32 getBBox).
     const raise0 = Math.max(
+      // Binds only ≥14 px, where the cap would put the centre on/past the 10 px bound; smallFont is 12–13 px.
       1,
       Math.min(GAP, DROP_PAD - BOUND_INSET - pillH / 2),
     );
