@@ -16,7 +16,10 @@ Weights: Inter 400/500/600, JetBrains Mono 400. Subsets: `latin`,
 `latin-ext`, `greek`, `cyrillic` — the standard Google Fonts unicode
 ranges (the css2 API's per-subset `unicode-range` values, mirrored in
 `src/design/fonts.css`). OpenType features kept: `kern`, `tnum`; hinting
-dropped for size (web rendering doesn't rely on it). Flavor: `woff2`.
+dropped for size (web rendering doesn't rely on it). On the JetBrains
+Mono subsets those flags are no-ops — upstream JetBrains Mono ships
+neither a `kern` table nor a `tnum` feature, so the files carry none.
+Flavor: `woff2`.
 
 Tooling (pinned): fonttools `pyftsubset` 4.60.1 + brotli 1.1.0, run in a
 venv the script creates — nothing is installed system-wide.

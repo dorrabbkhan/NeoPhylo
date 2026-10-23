@@ -474,3 +474,41 @@ describe("onPickBranch (v1.2 spec §7.1)", () => {
     expect(container.querySelectorAll(".branch-hit")).toHaveLength(0);
   });
 });
+
+describe("fonts-ready gate on remount", () => {
+  // Once the page-level font gate has settled, a newly mounted TreeView
+  // must render its <svg> on the first render — not replay the wait as
+  // a blank frame. document.fonts is faked so the gate is engaged
+  // (jsdom has no FontFaceSet).
+  it("renders its <svg> on the first render after whenFontsReady resolved", async () => {
+    const resolvers: (() => void)[] = [];
+    Object.defineProperty(document, "fonts", {
+      value: {
+        load: () =>
+          new Promise<FontFace[]>((resolve) =>
+            resolvers.push(() => resolve([])),
+          ),
+      },
+      configurable: true,
+    });
+    try {
+      const { whenFontsReady } = await import("../design/fontsReady");
+      const ready = whenFontsReady();
+      for (const r of resolvers.splice(0)) r();
+      await expect(ready).resolves.toBe("loaded");
+      const { container } = render(
+        <TreeView
+          tree={makeTree()}
+          layoutKind="phylogram"
+          highlight={new Set()}
+          wrong={new Set()}
+          clampNegative={false}
+          title="Inferred tree"
+        />,
+      );
+      expect(container.querySelector("svg")).not.toBeNull();
+    } finally {
+      delete (document as { fonts?: unknown }).fonts;
+    }
+  });
+});

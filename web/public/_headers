@@ -1,8 +1,8 @@
 # Netlify custom headers (docs.netlify.com/routing/headers). Vite copies
 # public/ verbatim into dist/, so this lands at dist/_headers.
 # Unhashed entry points and the service worker must always revalidate;
-# fingerprinted files (Vite emits them under /assets/, plus the workbox
-# runtime) may be cached forever.
+# fingerprinted files (Vite emits them under /assets/) may be cached
+# forever.
 
 /
   Cache-Control: no-cache
@@ -10,13 +10,9 @@
   Cache-Control: no-cache
 /sw.js
   Cache-Control: no-cache
-/registerSW.js
-  Cache-Control: no-cache
 /manifest.webmanifest
   Cache-Control: no-cache
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
-/workbox-*.js
   Cache-Control: public, max-age=31536000, immutable
 /*.wasm
   Content-Type: application/wasm

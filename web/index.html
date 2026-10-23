@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NeoPhylo</title>
+    <script>
+      // Register the service worker at parse time rather than on window
+      // 'load' so install+precache starts as early as possible. In dev
+      // /sw.js is a 404 — swallow the rejection there. 'sw.js'/'./' are
+      // relative so the NEOPHYLO_BASE deploy scope keeps working.
+      if ("serviceWorker" in navigator)
+        navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
+    </script>
   </head>
   <body>
     <div id="root"></div>

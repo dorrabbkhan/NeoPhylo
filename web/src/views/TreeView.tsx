@@ -19,7 +19,11 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import { onFontsLateLoad, whenFontsReady } from "../design/fontsReady";
+import {
+  fontsStatus,
+  onFontsLateLoad,
+  whenFontsReady,
+} from "../design/fontsReady";
 import type { Tree } from "../engine/generated/Tree";
 import type { LaidOutNode } from "../layout/phylogram";
 import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
@@ -192,7 +196,9 @@ export function TreeView({
   // gate is open from the start.
   const fontsSupported =
     typeof document !== "undefined" && document.fonts !== undefined;
-  const [fontsSettled, setFontsSettled] = useState(!fontsSupported);
+  const [fontsSettled, setFontsSettled] = useState(
+    !fontsSupported || fontsStatus() !== "pending",
+  );
   const [, bumpFontsTick] = useReducer((t: number) => t + 1, 0);
   useEffect(() => {
     if (!fontsSupported) return;

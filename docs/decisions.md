@@ -2933,3 +2933,29 @@ wedging the start queue.
   aggregation script, whose `ACCEPTED_LICENSES` must mirror
   about.toml's `accepted`; `OFL-1.1` added for the same reason.
   `docs/decisions.md` carries this entry.
+- Fix round 1, offline e2e regression (root cause): the specs' readiness
+  check is `waitForFunction(async () => …)` — Playwright resolves an
+  async predicate on its first settled promise, so the wait is a no-op
+  and the test cuts the network at ~200 ms after nav. That race was
+  always thin; this branch's `**/*.woff2` precache glob added ~36 files
+  to the SW install (the 16 bundled fonts plus ~20 KaTeX woff2 assets
+  that were never precached before), pushing activation to ~250–275 ms
+  (base: ~180 ms). `setOffline` landed mid-install, the precache fetch
+  died, the worker went redundant, and every offline navigation then
+  missed the SW — `net::ERR_INTERNET_DISCONNECTED`. What looked like a
+  second installing worker was the same install job retrying (and
+  dying) while offline. Fix (app/build side, tests untouched): narrow
+  the glob to `fonts/*.woff2` — spec §4.2 precaches the bundled font
+  files, KaTeX assets stay out — register the SW at index.html parse
+  time instead of window `load` (`injectRegister: false` + an inline
+  `<script>` in `web/index.html`), and `inlineWorkboxRuntime: true` to
+  drop a round trip. Activation now lands ~150 ms, ahead of the test's
+  ~200 ms deadline with margin similar to or better than main's.
+- Fix round 1 also added `fontsStatus()` to `web/src/design/fontsReady.ts`
+  (synchronous gate snapshot) so a TreeView mounted after fonts settled
+  renders its `<svg>` on the first render instead of a blank frame.
+- Fix round 1, files outside the Files block: `web/index.html` — hosts
+  the inline parse-time `serviceWorker.register` (replaces the plugin's
+  generated load-gated registerSW.js); `web/public/_headers` — dropped
+  the now-dead `/registerSW.js` and `/workbox-*.js` rules (the workbox
+  runtime is inlined into sw.js).

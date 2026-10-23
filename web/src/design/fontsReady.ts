@@ -105,6 +105,16 @@ export function whenFontsReady(
 }
 
 /**
+ * Synchronous snapshot of the gate: "pending" until the loads finish or
+ * the budget expires. Components mounting after fonts settled read this
+ * to open the gate on their first render instead of replaying a
+ * settled wait as a blank frame.
+ */
+export function fontsStatus(): "pending" | "loaded" | "timeout" {
+  return status;
+}
+
+/**
  * Subscribes to the one-shot "fonts arrived after the timeout" event;
  * returns an unsubscribe. The callback fires at most once — spec §4.2
  * budgets a single re-layout. If fonts already loaded on time, or the
