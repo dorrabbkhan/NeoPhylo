@@ -5,10 +5,14 @@
 // not scroll sideways, the stepper stays pinned to the bottom of the
 // viewport, and every leaf label is reachable by scrolling the page
 // alone — tree panels scroll horizontally only when a figure is
-// genuinely wider than its column. Below the wide breakpoint the
-// three columns stack into one — true tree above inferred tree over
-// the matrix over the prompts, then the explanation, then the
-// controls — until Task 10's settings drawer takes the controls.
+// genuinely wider than its column. At medium the controls column
+// stays left of the center (the wide arrangement minus the third
+// column; the explanation moves below the center content) — the
+// owner-chosen §6.1 medium until Task 10's settings drawer (PR #73,
+// option B). Below 1024 the three columns stack into one — true tree
+// above inferred tree over the matrix over the prompts, then the
+// explanation, then the controls — until Task 10's settings drawer
+// takes the controls.
 //
 // Review Focus 2: a 1280×800 window at 200 % zoom behaves like
 // 640 CSS px — the compact layout, still with no sideways scroll.
@@ -35,6 +39,7 @@ test.use({ serviceWorkers: "block" });
 const VIEWPORTS = [
   { w: 768, h: 1024, bp: "narrow" },
   { w: 1024, h: 768, bp: "medium" },
+  { w: 1279, h: 800, bp: "medium" },
   { w: 1280, h: 800, bp: "wide" },
   { w: 1920, h: 1080, bp: "wide" },
 ] as const;
@@ -155,9 +160,83 @@ async function expectStepperPinned(page: Page): Promise<void> {
   expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width + 0.5);
 }
 
-/** One column (§6.1 narrow/compact — and the medium arrangement while
- * the Task 10 drawer is unbuilt): the true tree's panel ends above the
- * inferred tree's column, both at the same left edge. */
+/** Two columns (§6.1 medium per PR #73 option B): the controls column
+ * visible beside the center — its left edge left of the center's — and
+ * the explanation below the center content in the same column track
+ * (its top at or below the bottom of the tree row). The "Run
+ * bootstrap" control — and on bootstrap-basics the Length field, the
+ * sim control the owner's option-B rationale names — must sit inside
+ * the viewport with no page scroll at all (cytochrome-c embeds real
+ * sequences, so its Simulation section has no Length field). Runs
+ * before the leaf check, which legitimately scrolls the page. */
+async function expectMediumColumns(page: Page, lesson: string) {
+  const vp = page.viewportSize();
+  expect(vp, "viewport size is known").not.toBeNull();
+  const controls = page.locator(".col-controls");
+  const center = page.locator(".col-center");
+  const explain = page.locator(".col-explain");
+  const trees = page.locator(".trees");
+  await expect(controls).toBeVisible();
+  await expect(center).toBeVisible();
+  await expect(explain).toBeVisible();
+  const controlsBox = await controls.boundingBox();
+  const centerBox = await center.boundingBox();
+  const explainBox = await explain.boundingBox();
+  const treesBox = await trees.boundingBox();
+  expect(controlsBox, "the controls column has a bounding box").not.toBeNull();
+  expect(centerBox, "the center column has a bounding box").not.toBeNull();
+  expect(explainBox, "the explanation box has a bounding box").not.toBeNull();
+  expect(treesBox, "the tree row has a bounding box").not.toBeNull();
+  expect(
+    controlsBox!.x,
+    "the controls column sits left of the center",
+  ).toBeLessThan(centerBox!.x);
+  expect(
+    explainBox!.y,
+    "the explanation starts at or below the bottom of the trees",
+  ).toBeGreaterThanOrEqual(treesBox!.y + treesBox!.height - 0.5);
+
+  // Back to the initial, unscrolled position — answering the gating
+  // prompt during stepToEnd auto-scrolls the matrix cell into view.
+  // "Inside the viewport" at scroll 0 means the controls are reachable
+  // without scrolling the page: they sit beside the trees, not below.
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    document.querySelector(".app-grid")?.scrollTo(0, 0);
+  });
+  const scroll = await page.evaluate(() => ({
+    win: window.scrollY,
+    grid: document.querySelector(".app-grid")?.scrollTop ?? -1,
+  }));
+  expect(scroll.win, "the window is at the top").toBe(0);
+  expect(scroll.grid, "the grid scroller is at the top").toBe(0);
+  // The named controls of the option-B rationale, where each exists:
+  // cytochrome-c embeds real sequences (its Simulation section has no
+  // Length field), so it asserts "Run bootstrap"; bootstrap-basics is
+  // simulated, so it asserts the Length field the owner named — both
+  // inside the viewport at scroll 0, beside the trees.
+  const targets =
+    lesson === "bootstrap-basics"
+      ? [page.getByLabel("Length")]
+      : [page.getByRole("button", { name: /Run bootstrap/ })];
+  for (const target of targets) {
+    const box = await target.boundingBox();
+    expect(box, "the control has a bounding box").not.toBeNull();
+    expect(box!.x, "the control is inside the left edge").toBeGreaterThanOrEqual(-0.5);
+    expect(
+      box!.x + box!.width,
+      "the control is inside the right edge",
+    ).toBeLessThanOrEqual(vp!.width + 0.5);
+    expect(box!.y, "the control is inside the top edge").toBeGreaterThanOrEqual(-0.5);
+    expect(
+      box!.y + box!.height,
+      "the control is inside the bottom edge",
+    ).toBeLessThanOrEqual(vp!.height + 0.5);
+  }
+}
+
+/** One column (§6.1 narrow/compact): the true tree's panel ends above
+ * the inferred tree's column, both at the same left edge. */
 async function expectSingleColumn(page: Page): Promise<void> {
   const trueTree = page.locator(".trees > .tree-panel");
   const inferCol = page.locator(".trees > .tree-col");
@@ -192,9 +271,18 @@ for (const lesson of LESSONS) {
         vp.bp,
       );
       await expectNoSidewaysScroll(page);
+      // Medium geometry runs first — its "no scroll" premise must hold
+      // before the leaf check scrolls the page to reveal leaves.
+      if (vp.bp === "medium") {
+        await expectMediumColumns(page, lesson);
+      }
       await expectAllLeavesVisible(page, 8);
       await expectStepperPinned(page);
-      if (vp.bp !== "wide") await expectSingleColumn(page);
+      // (No compact viewport in VIEWPORTS — the zoom test asserts the
+      // compact single column directly.)
+      if (vp.bp === "narrow") {
+        await expectSingleColumn(page);
+      }
     });
   }
 }

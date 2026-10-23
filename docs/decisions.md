@@ -3221,14 +3221,19 @@ wedging the start queue.
 
 ## v1.3 Task 9: responsive layout
 
-- **Medium breakpoint without the drawer (conductor note):** spec §6.1's
-  medium and narrow arrangements put the controls in the Task 10 settings
-  drawer, which does not exist yet. Until it lands, below the wide
-  breakpoint (< 1280 px) everything stacks in a single column in §6.1's
-  order — notices, trees (true over inferred, full width each), matrix,
-  prompts, explanation, controls last — and `.app-grid` becomes the one
-  vertical scroller (`overflow-x: clip`). Task 10 replaces the trailing
-  controls column with the drawer.
+- **Medium breakpoint without the drawer (owner decision, PR #73):**
+  spec §6.1's medium and narrow arrangements put the controls in the
+  Task 10 settings drawer, which does not exist yet. The owner chose
+  option B: at medium (1024–1279 px) the wide layout keeps its first
+  two columns — controls left, center right in its wide internal order
+  — and the explanation sits below the center content inside the
+  center's column track (`"controls center" / "controls explain"`), not
+  in a third column. Below 1024 px (narrow, compact) everything stacks
+  in a single column in §6.1's order — notices, trees (true over
+  inferred, full width each), matrix, prompts, explanation, controls
+  last — and `.app-grid` becomes the one vertical scroller
+  (`overflow-x: clip`). Task 10 replaces the controls column/drawer
+  split with the real drawer.
 - **200 %-zoom test:** the plan's `document.body.style.zoom = "2"`
   emulation does not re-evaluate viewport media queries in the pinned
   Chromium (verified: innerWidth and `(width >= 1280px)` stay put while

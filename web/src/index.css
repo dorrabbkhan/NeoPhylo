@@ -421,16 +421,52 @@ p {
   color: var(--color-text);
 }
 
-/* ---- Below the wide breakpoint: single column (spec §6.1–§6.2) ----
- * Medium, narrow and compact share this arrangement until Task 10's
- * settings drawer exists: the center content leads — trees (true over
- * inferred, full width each) over the matrix over the prompts — then
- * the explanation, then the controls column last. The .app-grid row
+/* ---- Medium (1024–1279 px): controls · center, explanation below ----
+ * Owner decision on PR #73 (option B): until Task 10's settings drawer
+ * exists, the medium breakpoint keeps the wide arrangement minus the
+ * third column — the controls column on the left and the center on the
+ * right in its wide internal order (notices, prompts, trees, matrix),
+ * with the explanation below the center content inside the center's
+ * column track, not in a column of its own. The .app-grid row is the
+ * page's one vertical scroller (the per-column scrollers stay a
+ * wide-only feature); nothing on the page scrolls sideways
+ * (overflow-x: clip — over-wide figures still scroll inside their own
+ * .tree-canvas). */
+@media (1024px <= width < 1280px) {
+  .app-grid {
+    grid-template-columns: 230px minmax(0, 1fr);
+    grid-template-areas:
+      "controls center"
+      "controls explain";
+    overflow-y: auto;
+    overflow-x: clip;
+  }
+
+  .col-controls,
+  .col-center,
+  .col-explain {
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  /* The explanation sits under the center: a top rule, not the wide
+   * arrangement's column-separating left border. */
+  .col-explain {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ---- Below the medium breakpoint: single column (spec §6.1–§6.2) ----
+ * Narrow and compact share this arrangement until Task 10's settings
+ * drawer exists: the center content leads — trees (true over inferred,
+ * full width each) over the matrix over the prompts — then the
+ * explanation, then the controls column last. The .app-grid row
  * becomes the page's one vertical scroller; the per-column scrollers
  * and side borders drop, and nothing on the page scrolls sideways
  * (overflow-x: clip — over-wide figures still scroll inside their own
  * .tree-canvas). */
-@media (width < 1280px) {
+@media (width < 1024px) {
   .app-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:

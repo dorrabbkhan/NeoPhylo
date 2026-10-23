@@ -2,8 +2,10 @@
 // source the media queries in index.css mirror:
 //
 //   wide    ≥ 1280 px   three columns (controls · center · explanation)
-//   medium  1024–1279   single column (controls stack until Task 10's
-//   narrow   768–1023    settings drawer; explanation below the center)
+//   medium  1024–1279   two columns (controls · center) with the
+//                       explanation below the center — PR #73 option B,
+//                       until Task 10's settings drawer takes the controls
+//   narrow   768–1023    single column (controls last until the drawer)
 //   compact  < 768 px   same as narrow, scrollable
 //
 // `useBreakpoint` reads media queries — not just innerWidth — because
