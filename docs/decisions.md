@@ -2959,3 +2959,25 @@ wedging the start queue.
   generated load-gated registerSW.js); `web/public/_headers` — dropped
   the now-dead `/registerSW.js` and `/workbox-*.js` rules (the workbox
   runtime is inlined into sw.js).
+- Fix round 2, offline e2e flake (root cause): the readiness wait in
+  `a11y.spec.ts` and `bootstrap.spec.ts` was
+  `waitForFunction(async () => …)` — an async predicate returns a
+  Promise object, which is truthy, so Playwright's poll resolved on the
+  first tick and the wait never waited; `setOffline(true)` then raced SW
+  activation (job 120184590212's `ERR_INTERNET_DISCONNECTED`, still
+  flaky 1/3 on 406f3a1). Fix (test side, stricter — no sleeps, retries,
+  timeouts or skips added, assertions unchanged): new shared
+  `waitForServiceWorkerControl(page)` in `web/e2e/helpers.ts` awaits
+  `navigator.serviceWorker.ready` in `page.evaluate` — an active worker
+  implies install+precache completed — then, because the generated
+  sw.js never calls `clients.claim()` (so a first load is never
+  controlled), reloads once while still online so the page is genuinely
+  controlled before the network is cut. Verified: both tests pass
+  `--repeat-each=10` on chromium against this branch's preview, pass
+  once each on merge base e3acf22 with the new wait (the old failure
+  was the test-side race, not an app regression), and fonts.spec.ts
+  passes on all three engines.
+- Fix round 2, files outside the Files block: `web/e2e/helpers.ts` —
+  new `waitForServiceWorkerControl` helper; `web/e2e/a11y.spec.ts` and
+  `web/e2e/bootstrap.spec.ts` — the offline tests now call it (the only
+  `waitForFunction(async` sites in web/e2e; a grep found no others).
