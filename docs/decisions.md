@@ -3539,13 +3539,51 @@ wedging the start queue.
   both missed from this list in the first round — and this file.
   Round 2 (owner decision 2A) adds: `web/src/views/SettingsDrawer.tsx`
   (the 1024–1279 tour item) and `web/e2e/layout.spec.ts` (the header
-  button count at ≥ 1280 went 6 → 7 for "Take the tour").
+  button count). Round 3 (owner decision B) adds:
+  `web/src/views/LessonsMenu.tsx` + `web/src/views/LessonsMenu.test.tsx`
+  (the ≥ 1280 "Take the tour" menu item) and
+  `web/src/views/Header.test.tsx` (asserts no tour button in the
+  header at any width).
 - **Baselines regenerated:** round 1 only `four-taxa` (6 files: 3
   viewports × 2 themes) — the one scene where the new bootstrap-idle
   and consensus-tabs empty lines are actually visible; every other
   diff was sub-threshold stale noise reverted to main bytes. Round 2
   (owner decisions 1A/2A) adds the six `weak-support-*` frames (the
-  canonical seed-5 sample) and every 1920×1080 app frame (the new
-  "Take the tour" header button — both themes; the 1024 and 768
-  viewports show no header button and the export-svg scene no app
-  chrome, so their frames are unchanged).
+  canonical seed-5 sample). Round 3 reverts every 1920×1080 frame
+  that changed only for the header button back to main's bytes and
+  regenerates the `weak-support-*` ×6 and `four-taxa-*` ×6 frames —
+  the only scenes that legitimately differ from main (the canonical
+  sample and the §6.8 empty lines). No baseline differs because of
+  the header.
+
+### Fix round 3 (owner decision B, 2026-10-24): the ≥ 1280 reopen path moves into the Lessons menu
+
+The round-2 "Take the tour" header button wrapped the header controls
+to two rows at exactly 1280 px on the longer lesson titles
+(cytochrome-c, saturation, upgma-fails — 95 px vs main's 54 px). The
+owner chose **option B**: drop the button entirely.
+
+- `web/src/views/LessonsMenu.tsx`: a "Take the tour" `menuitem` is
+  the menu's last row when `onTakeTour` is set — plain action role
+  (never `menuitemradio`/`aria-checked`), joined into the roving
+  `active` index so arrows/Home/End reach it and Enter/Space activate
+  it like every other item. Separated from the lessons by a
+  token-space gap + the same 1 px rule (`.lessons-menu-tour` in
+  index.css; 14 px text, and the coarse-pointer 40×40 rule already
+  covers `button`). Selecting it closes the menu and calls
+  `onTakeTour`; the mounting `.tour-card`'s passive focus effect wins
+  over the menu's focus-restore, same as the drawer path.
+- `web/src/views/Header.tsx` passes `onTakeTour` only at the wide
+  breakpoint, so each width still has exactly one reopen path
+  (Lessons menu ≥ 1280, Settings drawer 1024–1279, More menu < 1024).
+- `.tour-open` markup + CSS removed; `.app-header` gap floor restored
+  to main's literal `16px` and the `< 1280` → `--space-8` media query
+  restored verbatim — header markup and CSS are identical to main
+  apart from the `onTakeTour` prop on `LessonsMenu` (and the existing
+  `MoreMenu` prop for < 1024).
+- layout.spec.ts header button count back to main's
+  `vp.w >= 1280 ? 6 : 7`; tour.spec.ts's 1280 test now opens the
+  Lessons menu and asserts focus lands in the card; a per-lesson
+  no-wrap check at 1280×720 iterates all six catalog lessons
+  asserting one row, `scrollWidth ≤ clientWidth`, and header height
+  = main's 54 px.

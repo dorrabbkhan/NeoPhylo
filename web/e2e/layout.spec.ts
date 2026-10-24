@@ -406,12 +406,12 @@ for (const vp of VIEWPORTS) {
       const count = await controls.count();
       // Wordmark, title and toast are not controls. At wide the
       // buttons are the mode switch pair, the Lessons menu, "Coming
-      // from PHYLIP?", "Take the tour" (Task 12 round 2) and the
-      // "Dark mode"/"Presenter mode" toggles. Below 1280 the Settings
-      // button joins but the tour item moves into the drawer; below
-      // 1024 "Coming from PHYLIP?" and the tour item live in the More
-      // menu — seven buttons at every width (Tasks 10-12).
-      expect(count, "the header's buttons").toBe(7);
+      // from PHYLIP?" and the "Dark mode"/"Presenter mode" toggles.
+      // Below 1280 the Settings button joins; below 1024 "Coming
+      // from PHYLIP?" leaves for the More menu. (Task 12's "Take the
+      // tour" lives inside the Lessons menu at ≥ 1280 — owner
+      // decision B — never as a header button.)
+      expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 6 : 7);
       await expect(
         page.getByRole("button", { name: "Dark mode" }),
       ).toBeVisible();

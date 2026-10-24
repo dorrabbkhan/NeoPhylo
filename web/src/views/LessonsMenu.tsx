@@ -9,6 +9,14 @@
 // is marked); ArrowUp opens on the last item. Arrow keys cycle through
 // the items, Home/End jump to the ends, Escape closes and returns focus
 // to the button, and Tab closes without moving focus back.
+//
+// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): when `onTakeTour`
+// is set — the header passes it only at ≥ 1280 — a "Take the tour" action
+// row follows the lesson list as the menu's last item, separated from the
+// lessons by the same 1 px rule plus a token space. It is a plain menuitem
+// (an action, never a "current" pick) and joins the roving keyboard order
+// like any other item; below 1280 the Settings drawer and the More menu
+// own the reopen path instead.
 
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -21,14 +29,20 @@ export interface LessonsMenuProps {
   currentId: string | null;
   /** Load the lesson with this id. */
   onPick: (id: string) => void;
+  /** Reopens the first-visit tour (§6.7). Set only at ≥ 1280 — below
+   * that the Settings drawer (1024–1279) and the More menu (< 1024)
+   * carry the item, so each width keeps exactly one reopen path. */
+  onTakeTour?: () => void;
 }
 
-export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
+export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // The roving index covers the tour action row too when it renders.
+  const itemCount = LESSONS.length + (onTakeTour !== undefined ? 1 : 0);
 
   const openAt = (index: number) => {
     setActive(index);
@@ -77,7 +91,7 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
         break;
       case "ArrowUp":
         e.preventDefault();
-        openAt(LESSONS.length - 1);
+        openAt(itemCount - 1);
         break;
       default:
         break;
@@ -88,11 +102,11 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setActive((a) => (a + 1) % LESSONS.length);
+        setActive((a) => (a + 1) % itemCount);
         break;
       case "ArrowUp":
         e.preventDefault();
-        setActive((a) => (a - 1 + LESSONS.length) % LESSONS.length);
+        setActive((a) => (a - 1 + itemCount) % itemCount);
         break;
       case "Home":
         e.preventDefault();
@@ -100,7 +114,7 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
         break;
       case "End":
         e.preventDefault();
-        setActive(LESSONS.length - 1);
+        setActive(itemCount - 1);
         break;
       case "Escape":
         e.preventDefault();
@@ -147,6 +161,23 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
               <span className="lessons-menu-summary">{l.summary}</span>
             </button>
           ))}
+          {onTakeTour !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="lessons-menu-tour"
+              tabIndex={-1}
+              ref={(el) => {
+                itemRefs.current[LESSONS.length] = el;
+              }}
+              onClick={() => {
+                closeMenu(true);
+                onTakeTour();
+              }}
+            >
+              Take the tour
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,8 @@
 // built-in lesson in teaching order, each with its title and one-line
 // summary, and marks the loaded lesson. Keyboard per the menu-button
 // pattern: Enter/Space/ArrowDown opens, arrows cycle, Escape closes.
+// Task 12 round 3 (§6.7, owner decision B): with `onTakeTour` set — the
+// ≥ 1280 case — a "Take the tour" action row is the menu's last item.
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -115,5 +117,65 @@ describe("LessonsMenu", () => {
     expect(screen.getByRole("menu")).toBeTruthy();
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("LessonsMenu — Take the tour item (§6.7, owner decision B)", () => {
+  it("shows the item as the menu's last row when onTakeTour is set (≥ 1280)", () => {
+    render(
+      <LessonsMenu currentId="nj-basics" onPick={() => {}} onTakeTour={() => {}} />,
+    );
+    fireEvent.click(menuButton());
+    const item = screen.getByRole("menuitem", { name: "Take the tour" });
+    const menu = screen.getByRole("menu");
+    expect(menu.lastElementChild).toBe(item);
+    // An action, not a lesson pick: never a "current" marker.
+    expect(item.getAttribute("aria-checked")).toBeNull();
+    expect(items()).toHaveLength(LESSONS.length);
+  });
+
+  it("selecting it closes the menu and calls onTakeTour — never onPick", () => {
+    const onPick = vi.fn();
+    const onTakeTour = vi.fn();
+    render(
+      <LessonsMenu currentId={null} onPick={onPick} onTakeTour={onTakeTour} />,
+    );
+    fireEvent.click(menuButton());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Take the tour" }));
+    expect(onTakeTour).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("is reachable and activatable by the menu's keyboard pattern", () => {
+    const onTakeTour = vi.fn();
+    render(
+      <LessonsMenu currentId={null} onPick={() => {}} onTakeTour={onTakeTour} />,
+    );
+    // ArrowUp on the closed button opens on the LAST item — the tour row.
+    fireEvent.keyDown(menuButton(), { key: "ArrowUp" });
+    expect(document.activeElement?.textContent).toBe("Take the tour");
+    const menu = screen.getByRole("menu");
+    // ArrowDown wraps back to the first lesson, End returns to the row.
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement?.textContent).toContain(
+      "How Neighbor-Joining works",
+    );
+    fireEvent.keyDown(menu, { key: "End" });
+    expect(document.activeElement?.textContent).toBe("Take the tour");
+    // (jsdom does not translate Enter into a click — click is the stand-in.)
+    fireEvent.click(document.activeElement as Element);
+    expect(onTakeTour).toHaveBeenCalledTimes(1);
+  });
+
+  it("is absent without onTakeTour (< 1280 — the drawer and More menu own it)", () => {
+    render(<LessonsMenu currentId={null} onPick={() => {}} />);
+    fireEvent.click(menuButton());
+    expect(
+      screen.queryByRole("menuitem", { name: "Take the tour" }),
+    ).toBeNull();
+    // End lands on the last LESSON — the roving index excludes the row.
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "End" });
+    expect(document.activeElement?.textContent).toContain("Cytochrome c");
   });
 });

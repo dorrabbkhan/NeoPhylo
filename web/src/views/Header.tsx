@@ -7,10 +7,10 @@
 // Licenses, Source code and Help live in the More menu (§6.3).
 // Task 11 (§6.6): presenter mode hides the Settings button — the
 // controls are unreachable by design — while the two toggles stay.
-// Task 12 round 2 (§6.7, owner decision 2A): "Take the tour" reopens
-// from a header button at ≥ 1280, from the Settings drawer at
-// 1024–1279 and from the More menu below 1024 — it stays in presenter
-// mode like the other secondary buttons.
+// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): "Take the
+// tour" reopens from the Lessons menu's last item at ≥ 1280, from the
+// Settings drawer at 1024–1279 and from the More menu below 1024 —
+// one reopen path per width, and the header itself is back to main's.
 
 import type { Dispatch } from "react";
 
@@ -101,7 +101,18 @@ export function Header({
           Sandbox
         </button>
       </div>
-      <LessonsMenu currentId={currentLessonId} onPick={onPickLesson} />
+      {/* §6.7 (owner decision B, Task 12 round 3): the tour's ≥ 1280
+          reopen path is the Lessons menu's last item — a header button
+          here wrapped the row to two lines at 1280 on the longer
+          lesson titles (round 2). Below 1280 the Settings drawer and
+          the More menu own the item instead. */}
+      <LessonsMenu
+        currentId={currentLessonId}
+        onPick={onPickLesson}
+        onTakeTour={
+          belowWide ? undefined : () => dispatch({ type: "tourStart" })
+        }
+      />
       {belowWide && !presenter && (
         <button
           type="button"
@@ -122,19 +133,6 @@ export function Header({
           onClick={onOpenPhylipHelp}
         >
           Coming from PHYLIP?
-        </button>
-      )}
-      {/* §6.7: the tour's wide-width reopen path — 1024–1279 uses the
-          Settings drawer's item, below 1024 the More menu's. Like
-          "Coming from PHYLIP?" it stays in presenter mode: the spec
-          hides only the controls the mode makes unreachable. */}
-      {!belowWide && (
-        <button
-          type="button"
-          className="tour-open"
-          onClick={() => dispatch({ type: "tourStart" })}
-        >
-          Take the tour
         </button>
       )}
       {belowMedium && (
