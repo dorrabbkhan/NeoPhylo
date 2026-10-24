@@ -3487,3 +3487,65 @@ wedging the start queue.
 - **Files outside the Files block (this round):**
   `web/src/views/App.export.test.tsx` (the regression test) and this
   file.
+
+## v1.3 Task 12: tour, empty/loading states, Sandbox samples
+
+- **Weak-support generator could not reproduce the checkpoint-11
+  bytes.** The committed `web/e2e/data/weak-support.fasta` (sha256
+  6e5ca3fe…71bf) predates any written recipe. Reconstruction attempts:
+  Python MT19937 (`random.seed(5)`, `Random(5)`, str/float/bytes seeds,
+  choice/randrange/choices/getrandbits/random()*4 draw semantics) at
+  every stream offset 0–39k words under all 24 alphabet permutations;
+  numpy-legacy `init_genrand(5)` seeding at offsets 0–2k; and the
+  engine's own ChaCha8 `simulate` (a verified pure-Python port of
+  `sim.rs`, checked against the wasm output) — none matched the
+  conserved columns. Per the conductor's fallback instruction,
+  `scripts/samples/weak_support.py` is an honest seeded generator
+  (seed 5, 6 taxa A–F, 120 sites, near-polytomous centre) writing a
+  NEW file `web/public/samples/weak-support.fasta`. Owner decision
+  (2026-10-24): the seed-5 generator output is canonical; the
+  checkpoint-11 bytes are retired — the `weak-support` visual scene
+  reads `web/public/samples/weak-support.fasta` (the file the Sandbox
+  button serves), `web/e2e/data/weak-support.fasta` is deleted, and
+  the six weak-support baselines were regenerated.
+- **Tour auto-start rules (§6.7):** starts only when the URL resolved
+  with `step === 0`, the raw href carries no `#x=`, the exercise came
+  from the URL (a prop-driven `<App exercise>` — the unit-test path —
+  never auto-tours), and `neophylo.tourSeen` is unread. Storage
+  helpers live in `web/src/design/tour.ts` beside theme.ts/
+  presenter.ts (the react-refresh lint forbids non-component exports
+  from Tour.tsx); a module flag only covers the blocked-write case so
+  in-memory state can't drift from storage.
+- **`storageState` in playwright.config.ts marks `neophylo.tourSeen`
+  for every project** (both dev 4173 and preview 4174 origins);
+  `tour.spec.ts` overrides back to empty storage. This is the shared
+  e2e mechanism the conductor prescribed instead of editing every
+  spec's init script.
+- **Consensus-tabs empty line sits under the tab strip** while no run
+  is done, so the disabled tabs explain themselves (§6.8).
+- **Files outside the Files block:** `web/src/state/actions.ts` (the
+  tour* action types — ui.ts handles them), `web/src/design/tour.ts`
+  (device-local pref helpers, mirroring theme.ts/presenter.ts),
+  `web/src/views/Header.tsx` and `web/src/views/MoreMenu.tsx` (the
+  "Take the tour" item + dispatch), `web/src/index.css` (tour,
+  empty-state and skeleton styles), `web/playwright.config.ts` (the
+  tourSeen storageState), `web/e2e/visualScenes.ts`,
+  `web/src/views/MoreMenu.test.tsx`, `web/src/views/App.prompts.test.tsx`
+  (the §6.8 loading text), `web/src/views/ImportPanel.test.tsx`,
+  `web/src/views/BootstrapPanel.test.tsx`,
+  `web/src/views/ConsensusTabs.test.tsx` (the new assertions),
+  `web/e2e/sheets.spec.ts` (the More-menu item list gained "Take the
+  tour") and `web/src/state/ui.test.ts` (the tour reducer tests) —
+  both missed from this list in the first round — and this file.
+  Round 2 (owner decision 2A) adds: `web/src/views/SettingsDrawer.tsx`
+  (the 1024–1279 tour item) and `web/e2e/layout.spec.ts` (the header
+  button count at ≥ 1280 went 6 → 7 for "Take the tour").
+- **Baselines regenerated:** round 1 only `four-taxa` (6 files: 3
+  viewports × 2 themes) — the one scene where the new bootstrap-idle
+  and consensus-tabs empty lines are actually visible; every other
+  diff was sub-threshold stale noise reverted to main bytes. Round 2
+  (owner decisions 1A/2A) adds the six `weak-support-*` frames (the
+  canonical seed-5 sample) and every 1920×1080 app frame (the new
+  "Take the tour" header button — both themes; the 1024 and 768
+  viewports show no header button and the export-svg scene no app
+  chrome, so their frames are unchanged).

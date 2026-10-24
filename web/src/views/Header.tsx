@@ -7,6 +7,10 @@
 // Licenses, Source code and Help live in the More menu (§6.3).
 // Task 11 (§6.6): presenter mode hides the Settings button — the
 // controls are unreachable by design — while the two toggles stay.
+// Task 12 round 2 (§6.7, owner decision 2A): "Take the tour" reopens
+// from a header button at ≥ 1280, from the Settings drawer at
+// 1024–1279 and from the More menu below 1024 — it stays in presenter
+// mode like the other secondary buttons.
 
 import type { Dispatch } from "react";
 
@@ -120,7 +124,25 @@ export function Header({
           Coming from PHYLIP?
         </button>
       )}
-      {belowMedium && <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} />}
+      {/* §6.7: the tour's wide-width reopen path — 1024–1279 uses the
+          Settings drawer's item, below 1024 the More menu's. Like
+          "Coming from PHYLIP?" it stays in presenter mode: the spec
+          hides only the controls the mode makes unreachable. */}
+      {!belowWide && (
+        <button
+          type="button"
+          className="tour-open"
+          onClick={() => dispatch({ type: "tourStart" })}
+        >
+          Take the tour
+        </button>
+      )}
+      {belowMedium && (
+        <MoreMenu
+          onOpenPhylipHelp={onOpenPhylipHelp}
+          onTakeTour={() => dispatch({ type: "tourStart" })}
+        />
+      )}
       {/* The toggles come last in DOM order: the presenter switch hides
           the Settings button, so nothing it can remove sits after it
           (the header-controls layout test clicks every button in

@@ -160,3 +160,51 @@ describe("uiReducer setPresenter (v1.3 Task 11, spec §6.6)", () => {
     expect(off.drawerOpen).toBe(false);
   });
 });
+
+describe("uiReducer tour (v1.3 Task 12, spec §6.7)", () => {
+  const base: UiState = uiInitial();
+
+  it("starts closed and opens at step 0 on tourStart", () => {
+    expect(base.tourStep).toBeNull();
+    const open = uiReducer(base, { type: "tourStart" }, {} as never);
+    expect(open.tourStep).toBe(0);
+    const again = uiReducer(
+      { ...base, tourStep: 3 },
+      { type: "tourStart" },
+      {} as never,
+    );
+    expect(again.tourStep).toBe(0);
+  });
+
+  it("tourNext advances and closes past the last step", () => {
+    let s = uiReducer(base, { type: "tourStart" }, {} as never);
+    for (const k of [1, 2, 3]) {
+      s = uiReducer(s, { type: "tourNext" }, {} as never);
+      expect(s.tourStep).toBe(k);
+    }
+    s = uiReducer(s, { type: "tourNext" }, {} as never);
+    expect(s.tourStep).toBeNull();
+  });
+
+  it("tourBack steps back and floors at step 0", () => {
+    let s: UiState = { ...base, tourStep: 2 };
+    s = uiReducer(s, { type: "tourBack" }, {} as never);
+    expect(s.tourStep).toBe(1);
+    s = uiReducer(s, { type: "tourBack" }, {} as never);
+    s = uiReducer(s, { type: "tourBack" }, {} as never);
+    expect(s.tourStep).toBe(0);
+    const closed = uiReducer(base, { type: "tourBack" }, {} as never);
+    expect(closed.tourStep).toBeNull();
+  });
+
+  it("tourEnd closes from any step and is a no-op when closed", () => {
+    const mid = uiReducer(
+      { ...base, tourStep: 1 },
+      { type: "tourEnd" },
+      {} as never,
+    );
+    expect(mid.tourStep).toBeNull();
+    const closed = uiReducer(base, { type: "tourEnd" }, {} as never);
+    expect(closed.tourStep).toBeNull();
+  });
+});

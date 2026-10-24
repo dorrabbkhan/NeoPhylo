@@ -14,6 +14,8 @@ import { REPO_URL } from "../config";
 export interface MoreMenuProps {
   /** Opens the "Coming from PHYLIP?" dialog. */
   onOpenPhylipHelp: () => void;
+  /** Reopens the first-visit tour (spec §6.7). */
+  onTakeTour: () => void;
 }
 
 interface Item {
@@ -23,16 +25,18 @@ interface Item {
   action?: () => void;
 }
 
-export function MoreMenu({ onOpenPhylipHelp }: MoreMenuProps) {
+export function MoreMenu({ onOpenPhylipHelp, onTakeTour }: MoreMenuProps) {
   const ITEMS: Item[] = [
     { label: "Coming from PHYLIP?", action: onOpenPhylipHelp },
+    // §6.7: the tour's only reopen path.
+    { label: "Take the tour", action: onTakeTour },
     {
       label: "Licenses",
       href: `${import.meta.env.BASE_URL}licenses.html`,
     },
     { label: "Source code", href: REPO_URL },
     // No in-app help page exists (§6.3); the project's published docs
-    // are the README — Task 12's "Take the tour" joins this menu.
+    // are the README.
     { label: "Help", href: `${REPO_URL}#readme` },
   ];
 

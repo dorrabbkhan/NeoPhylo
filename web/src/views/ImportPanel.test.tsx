@@ -4,6 +4,7 @@
 // the exact path a student's paste would.
 
 import { useState } from "react";
+import { readFileSync } from "node:fs";
 
 import {
   cleanup,
@@ -12,7 +13,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
@@ -249,6 +250,78 @@ describe("ImportPanel — file input", () => {
     await waitFor(() =>
       expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]),
     );
+    expect(screen.getByTestId("inferred").textContent).toBe("true");
+  });
+});
+
+describe("ImportPanel — empty state and samples (v1.3 Task 12, spec §6.8)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the exact empty text and both sample buttons while the sandbox is empty", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    expect(
+      screen.getByText("Paste or upload sequences, or try a sample:"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Cytochrome c (protein)" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Weak-support example (DNA)" }),
+    ).toBeTruthy();
+  });
+
+  it("hides the sample buttons once data is imported", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    paste(">a\nACGTACGT\n>b\nACGTACGA\n>c\nACGTTCGT\n");
+    expect(
+      screen.queryByRole("button", { name: "Weak-support example (DNA)" }),
+    ).toBeNull();
+  });
+
+  it("the weak-support button loads 6 taxa (A–F) of 120 sites", async () => {
+    const fasta = readFileSync("public/samples/weak-support.fasta", "utf8");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        expect(url).toContain("samples/weak-support.fasta");
+        return new Response(fasta, { status: 200 });
+      }),
+    );
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Weak-support example (DNA)" }),
+    );
+    await waitFor(() =>
+      expect(holder.s.alignment?.labels).toEqual([
+        "A", "B", "C", "D", "E", "F",
+      ]),
+    );
+    expect(holder.s.alignment?.seqs.every((s) => s.length === 120)).toBe(
+      true,
+    );
+    expect(holder.s.alignment?.alphabet).toBe("dna");
+    expect(screen.getByTestId("inferred").textContent).toBe("true");
+  });
+
+  it("the cytochrome-c button loads the lesson's protein alignment", async () => {
+    const lesson = readFileSync("../exercises/cytochrome-c.json", "utf8");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        expect(url).toContain("/exercises/cytochrome-c.json");
+        return new Response(lesson, { status: 200 });
+      }),
+    );
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cytochrome c (protein)" }),
+    );
+    await waitFor(() =>
+      expect(holder.s.alignment?.alphabet).toBe("protein"),
+    );
+    expect(holder.s.alignment?.labels).toHaveLength(8);
     expect(screen.getByTestId("inferred").textContent).toBe("true");
   });
 });

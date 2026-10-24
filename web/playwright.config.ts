@@ -14,6 +14,23 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:4173",
     trace: "retain-on-failure",
+    // v1.3 Task 12 (spec §6.7): the first-visit tour keys off the
+    // device-local neophylo.tourSeen flag. Marking it seen in the
+    // shared context keeps the tour out of every spec; tour.spec.ts
+    // overrides this back to empty storage.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: "http://localhost:4173",
+          localStorage: [{ name: "neophylo.tourSeen", value: "1" }],
+        },
+        {
+          origin: "http://localhost:4174",
+          localStorage: [{ name: "neophylo.tourSeen", value: "1" }],
+        },
+      ],
+    },
   },
   projects: [
     {

@@ -30,6 +30,13 @@ export type Action =
   | { type: "setDrawer"; open: boolean }
   // v1.3 Task 11 (spec §6.6): presenter mode on <html data-presenter>.
   | { type: "setPresenter"; presenter: boolean }
+  // v1.3 Task 12 (spec §6.7): the first-visit tour. tourStart opens at
+  // step 0 (also the More menu's "Take the tour" reopen), tourNext/
+  // tourBack step through, tourEnd is Skip/finish.
+  | { type: "tourStart" }
+  | { type: "tourNext" }
+  | { type: "tourBack" }
+  | { type: "tourEnd" }
   | { type: "toggleClamp" }
   | { type: "setMatrixView"; view: AnalysisState["matrixView"] }
   | { type: "setBranchScale"; scale: number }
