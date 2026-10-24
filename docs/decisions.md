@@ -3616,3 +3616,83 @@ wedging the start queue.
   new `web/src/layout/treeFigure.test.ts` and
   `web/e2e/leaf-labels.spec.ts`, the 15 baselines above, and this
   file.
+
+### Fix round 2 (PR #80 review): fit margin, keep-first fallback, pixel-snapped labels
+
+- **Root cause of the deterministic e2e failure.**
+  `bootstrap-sequencing.spec.ts` "sequenced notes and panel fit at
+  1920×1080" failed with leaf D's `<text>` at
+  `toBeInViewport({ratio: 1})` = 0.99999696 — measured in the pinned
+  image. Chromium rasterizes text into an *ink box* a hairline wider
+  than the measured advance box when a glyph lands on an unlucky
+  fractional x; the IntersectionObserver's viewport intersection is
+  computed against the layout box, so the leaf's ink edge poked
+  ~0.00003 px past the svg's clip and the observed ratio dropped just
+  under 1. The refit loop's `overflow <= 0.5` tolerance accepted
+  builds landing flush against the panel edge — exactly where that
+  sliver lives.
+- **Three changes (all display-only, all in the shared
+  `treeFigure`/renderer path):**
+  1. **A real fit margin.** A build now counts as fitted only when
+     its svg clears the panel by `FIGURE_FIT_MARGIN = 2` px — flush
+     fits are misses. The next pass's draw width is floored to an
+     integer before rebuilding: the iteration's fixed point is svg ==
+     panel − margin, and a non-snapped step lands within fp noise of
+     the edge (sometimes a hair over it), so the floor guarantees the
+     accepted build is strictly inside the margin. The content bounds
+     also get `FIGURE_INK_SLACK = 1` px each side so a label's
+     rasterized ink — wider than its measured advance or nudged ≤ 0.5
+     px by the renderer's pixel snap — can never poke past the svg's
+     own overflow clip.
+  2. **Never squash an unfittable tree.** When no refit pass reaches
+     the margin, the least-shrunk build that is merely inside the
+     panel stands; when nothing fits inside at all, the FIRST
+     (unrefit, least-shrunk) build stands and the tree panel scrolls
+     horizontally — the pre-PR behaviour and the Global Constraints'
+     layout invariant. The old `best = narrowest` fallback kept the
+     80 px-floor build: measured on a 30-leaf support ladder it gave
+     scale 77.7 vs the unrefit 315.8 while the svg still overflowed
+     (485 > 400 px panel) — shrunk to ~25 % AND still scrolling. Unit
+     test: the 30-leaf ladder keeps its unrefit scale and svg width >
+     panel.
+  3. **Device-pixel label snap, on screen and in export.** Leaf-name
+     anchors (and the highlighted internal names sharing the anchor)
+     snap to the device-pixel grid — `snapDevicePx(v, origin)` with
+     `origin` the canvas's content-box origin read from
+     ResizeObserver's `contentRect.{x,y}` (the svg's screen offset
+     while scrollLeft is 0); the SVG export snaps identically with
+     `origin = 0`, so exported label `x`/`y` are whole integers
+     (`toFixed(2)` of an integer). An anchored-at-integer label never
+     straddles a pixel boundary, so its ink box can't grow the
+     0.00003 px sliver. The ≤ 0.5 px nudge stays inside
+     `FIGURE_INK_SLACK`.
+- **Why every scene's baselines moved.** The margin refit shrinks the
+  draw width by up to ~2 px + integer floor on every tree that was
+  fitting flush, and the pixel snap moves every leaf-name anchor by
+  ≤ 0.5 px — both touch every scene, so all 43 frames regenerated in
+  the pinned image. The conductor pixel-diffed each against HEAD:
+  41 carry real changes (929–16035 px), 2 were anti-aliasing noise
+  (~42 px) and were restored by path.
+- **Changed baselines (41, grouped by scene):**
+  - `cytc-rooted-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `cytc-computed-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `replicate-panel-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `export-svg-roundtrip-{1024x768,1920x1080,768x1024}-{dark,light}`
+    (6)
+  - `weak-support-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `four-taxa-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `bootstrap-basics-final-{1024x768,1920x1080}-{dark,light}` (4) +
+    `bootstrap-basics-final-presenter-1920x1080-light` (1)
+  - Regenerated then reverted to HEAD bytes (anti-aliasing noise,
+    ~42 px): `bootstrap-basics-final-768x1024-{dark,light}`.
+- **Export contents.** An exported SVG's leaf `<text>` `x`/`y` are now
+  integer-anchored (e.g. `x="123.00"` where it was `x="123.47"`); the
+  tree geometry, pills and names are unchanged. The export still
+  matches the screen — `export-figure.spec.ts` ("exported SVG/PNG is
+  the on-screen figure, both views") and the six
+  `export-svg-roundtrip` visual scenes pass against the regenerated
+  baselines.
+- **Files added in round 2** (beyond the round-1 list):
+  `web/src/views/TreeView.tsx`, `web/src/export/svg.ts`, the two new
+  cases in `web/src/layout/treeFigure.test.ts`, and the 41 baselines
+  above.

@@ -29,9 +29,35 @@ export const FIGURE_WRONG_PAD = 6;
  * branches, so the weak (<50%) thin stroke stays visible on short
  * branches (checkpoint 11). */
 export const FIGURE_MIN_SUPPORT_BRANCH_PX = 12;
+/** Clearance the refit requires between the svg's right edge and the
+ * measured panel: a build that lands flush (or within a hair) of the
+ * canvas edge counts as a miss and keeps shrinking — flush fits are
+ * where sub-pixel clips hide (PR #80 round 1: a leaf label's ink box
+ * ended up a 0.00003 px sliver wider than the box the
+ * IntersectionObserver quantizes against, and `ratio: 1` failed). */
+export const FIGURE_FIT_MARGIN = 2;
+/** Extra room the content bounds leave on the left and right, so a
+ * label's rasterized ink box — a hairline wider than its measured
+ * advance at unlucky sub-pixel positions, or nudged ≤0.5 px by the
+ * renderer's device-pixel snap — can never poke past the svg's own
+ * overflow clip (same PR #80 mechanism). */
+export const FIGURE_INK_SLACK = 1;
 /** Fallback panel width before the first ResizeObserver callback (also
  * used under jsdom, where the observer is a no-op stub). */
 export const FIGURE_DEFAULT_PANEL_WIDTH = 560;
+
+/** Snap a drawn coordinate to whole pixels in the element's own space:
+ * `origin` is the svg's screen offset — the canvas's content-box
+ * origin on screen (scrollLeft 0), or 0 for the standalone export —
+ * so the snapped position lands on a device pixel. Leaf-name anchors
+ * snap to this grid because an unlucky fractional position can leave
+ * the rasterized ink box a hairline wider than the metric box the
+ * IntersectionObserver intersects, dropping the observed ratio just
+ * under 1 (PR #80 round 1: leaf D lost a 0.00003 px sliver at
+ * 1920×1080). */
+export function snapDevicePx(v: number, origin: number): number {
+  return Math.round(v + origin) - origin;
+}
 
 export interface Box {
   minX: number;
@@ -130,10 +156,17 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
   // but the CONTENT box also spans pills overhanging left and node
   // slack — if it still exceeds the panel, the draw width shrinks by
   // the measured overflow and the figure is rebuilt (the "second pass
-  // that rescales" the same decision allowed). The last built figure
-  // stands when the span stops improving — a tree that truly can't
-  // fit keeps the panel's horizontal scroll (the layout invariant).
-  let best: TreeFigure | null = null;
+  // that rescales" the same decision allowed).
+  //
+  // A build counts as fitted only when its svg clears the panel by at
+  // least FIGURE_FIT_MARGIN — a flush fit is not a fit (PR #80 round
+  // 1). When no pass reaches the margin, the least-shrunk build that
+  // is merely inside the panel stands; when nothing fits inside at
+  // all, the FIRST build stands — a tree that truly can't fit keeps
+  // the panel's horizontal scroll instead of squashing to a narrower
+  // pass that still overflows (the layout invariant).
+  let first: TreeFigure | null = null;
+  let borderline: TreeFigure | null = null;
   for (let pass = 0; pass < 8; pass += 1) {
     const laid = layout(tree, {
       kind: opts.kind,
@@ -263,10 +296,13 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       }
     }
 
-    // Keep the narrowest figure built: normally the first pass already
-    // fits and the loop exits; a left-overhanging pill can make a
-    // narrower draw worse, in which case the tighter earlier figure
-    // stands.
+    // The bounds get 1 px of extra room on the left and right
+    // (FIGURE_INK_SLACK) so a label's rasterized ink — a hairline
+    // wider than its measured advance, or nudged by the renderer's
+    // device-pixel snap — can never poke past the svg's own clip.
+    bounds.minX -= FIGURE_INK_SLACK;
+    bounds.maxX += FIGURE_INK_SLACK;
+
     const figure: TreeFigure = {
       laid,
       placed,
@@ -278,14 +314,24 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       hideInternalNames,
       cladeBox,
     };
-    const spanX = bounds.maxX - bounds.minX;
-    if (best === null || spanX < best.bounds.maxX - best.bounds.minX) {
-      best = figure;
+    if (first === null) first = figure;
+    const svgWidth = bounds.maxX - bounds.minX + FIGURE_PANEL_PAD * 2;
+    // The least-shrunk margin-fitting build wins outright; the loop
+    // only continues while a narrower pass might still reach the
+    // margin.
+    if (svgWidth <= panelWidth - FIGURE_FIT_MARGIN) return figure;
+    if (svgWidth <= panelWidth && borderline === null) {
+      borderline = figure;
     }
-    const overflow = spanX + FIGURE_PANEL_PAD * 2 - panelWidth;
-    const next = Math.max(80, drawWidth - overflow);
-    if (overflow <= 0.5 || next >= drawWidth - 0.5) break;
+    const overflow = svgWidth - (panelWidth - FIGURE_FIT_MARGIN);
+    // Snap the next draw width DOWN to an integer: the fixed point the
+    // iteration aims at is svg == panel − margin, so a non-snapped
+    // step lands within fp noise of the edge — sometimes a hair over
+    // it. Flooring guarantees the build that fits lands strictly
+    // inside the margin (at most 1 px extra shrink).
+    const next = Math.max(80, Math.floor(drawWidth - overflow));
+    if (next >= drawWidth - 0.5) break;
     drawWidth = next;
   }
-  return best!;
+  return borderline ?? first!;
 }

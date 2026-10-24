@@ -29,6 +29,7 @@ import type { LaidOutNode } from "../layout/phylogram";
 import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
 import {
   treeFigure,
+  snapDevicePx,
   FIGURE_NODE_RADIUS,
   FIGURE_LABEL_OFFSET,
   FIGURE_PANEL_PAD,
@@ -85,6 +86,11 @@ export interface TreeViewProps {
 interface Size {
   width: number;
   height: number;
+  /** Content-box origin in viewport px — while scrollLeft is 0 the
+   * svg's left edge sits exactly at x (block child at the content
+   * origin), so this is the svg's own screen offset. */
+  x: number;
+  y: number;
 }
 
 /** The focusable internal-branch hit targets in the same drawing —
@@ -216,13 +222,13 @@ function TerminalHit({
 /** Measures the drawing box via ResizeObserver; {0,0} until it fires. */
 function usePanelSize(): [React.RefObject<HTMLDivElement | null>, Size] {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const [size, setSize] = useState<Size>({ width: 0, height: 0, x: 0, y: 0 });
   useEffect(() => {
     const el = ref.current;
     if (el === null || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       const r = entries[0].contentRect;
-      setSize({ width: r.width, height: r.height });
+      setSize({ width: r.width, height: r.height, x: r.x, y: r.y });
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -324,6 +330,14 @@ export function TreeView({
   const height = bounds.maxY - bounds.minY + FIGURE_PANEL_PAD * 2;
   const tx = (x: number) => x - bounds.minX + FIGURE_PANEL_PAD;
   const ty = (y: number) => y - bounds.minY + FIGURE_PANEL_PAD;
+
+  // Leaf names (and the internal names that share their anchor) snap
+  // to the device-pixel grid — the canvas's content-box origin is the
+  // svg's own screen offset while scrollLeft is 0. The ≤0.5 px nudge
+  // stays inside the bounds' FIGURE_INK_SLACK (see treeFigure.ts for
+  // why the rasterized ink needs the pixel grid).
+  const snapX = (v: number) => snapDevicePx(v, box.x);
+  const snapY = (v: number) => snapDevicePx(v, box.y);
 
   const branchClass = (n: LaidOutNode) =>
     n.negative ? "branch negative" : "branch";
@@ -468,8 +482,10 @@ export function TreeView({
                   )}
                   {n.leaf ? (
                     <text
-                      x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
-                      y={ty(n.y)}
+                      x={snapX(
+                        tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
+                      )}
+                      y={snapY(ty(n.y))}
                       fontSize={fontSize}
                       fill="currentColor"
                       dominantBaseline="middle"
@@ -487,8 +503,10 @@ export function TreeView({
                     isHighlighted &&
                     !hideInternalNames && (
                       <text
-                        x={tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS}
-                        y={ty(n.y)}
+                        x={snapX(
+                          tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
+                        )}
+                        y={snapY(ty(n.y))}
                         fontSize={fontSize}
                         fill="currentColor"
                         dominantBaseline="middle"

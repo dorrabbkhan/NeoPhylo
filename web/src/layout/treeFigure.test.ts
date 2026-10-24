@@ -13,8 +13,15 @@ import { describe, expect, it } from "vitest";
 import { engine } from "../engine/index";
 import type { Tree } from "../engine/generated/Tree";
 
+import { layout } from "./phylogram";
+import {
+  labelRoomFor,
+  leafFontSize,
+  MIN_FONT_PX,
+} from "./treePanel";
 import {
   treeFigure,
+  FIGURE_FIT_MARGIN,
   FIGURE_LABEL_OFFSET,
   FIGURE_MIN_SUPPORT_BRANCH_PX,
   FIGURE_NODE_RADIUS,
@@ -25,6 +32,17 @@ function parse(nwk: string): Tree {
   const r = engine.parseNewick(nwk);
   if (!r.ok) throw new Error(`parseNewick failed: ${JSON.stringify(r.error)}`);
   return r.value;
+}
+
+/** A pectinate (ladder) tree on `count` leaves: the deepest leaf sits
+ * under every spine edge, so the support stretch accumulates the most
+ * along its path. */
+function ladder(count: number): string {
+  let nwk = `L${String(count).padStart(4, "0")}:1`;
+  for (let i = count - 1; i >= 1; i -= 1) {
+    nwk = `(L${String(i).padStart(4, "0")}:1,${nwk}):0.01`;
+  }
+  return `${nwk};`;
 }
 
 /** `support` on every internal non-root edge — the bootstrap case. */
@@ -120,5 +138,66 @@ describe("treeFigure fit: leaf labels stay inside the panel", () => {
     );
     const svgWidth = fig.bounds.maxX - fig.bounds.minX + FIGURE_PANEL_PAD * 2;
     expect(svgWidth).toBeLessThanOrEqual(400);
+  });
+
+  it("a fitting tree keeps a real margin inside the panel", () => {
+    // Flush fits are where sub-pixel clips hide: the refit must end
+    // the whole figure — and every leaf name — at least
+    // FIGURE_FIT_MARGIN inside the panel, not within a hair of the
+    // edge (the 0.5 px slack let svgs land flush and clipped a leaf
+    // label's ink, PR #80 round 1).
+    const t = withSupport(parse("((A:2,B:1.9):0.02,C:1.5);"), 0.42);
+    const panelWidth = 400;
+    const fig = treeFigure(t, { ...FIG_OPTS, panelWidth });
+
+    const svgWidth = fig.bounds.maxX - fig.bounds.minX + FIGURE_PANEL_PAD * 2;
+    expect(svgWidth).toBeLessThanOrEqual(panelWidth - FIGURE_FIT_MARGIN);
+    for (const n of fig.laid.nodes) {
+      if (!n.leaf) continue;
+      expect(
+        leafLabelRight(n, fig.fontSize),
+        `leaf ${n.label} ends less than the fit margin inside the panel`,
+      ).toBeLessThanOrEqual(panelWidth - FIGURE_FIT_MARGIN);
+    }
+  });
+
+  it("a tree too wide to fit keeps its unrefit scale and scrolls", () => {
+    // A 30-leaf support ladder: the flat 12 px floors accumulated on
+    // the deepest path (28 × 12 = 336 px) exceed what the 400 px panel
+    // leaves for the drawing, so NO scale can fit. The figure must
+    // keep its original least-shrunk layout and let the panel scroll —
+    // not squash to a narrower pass that still overflows (the Global
+    // Constraints' layout invariant; PR #80 round 1 measured the old
+    // "narrowest build" fallback at ~25 % of this scale).
+    const t = withSupport(parse(ladder(30)), 0.5);
+    const panelWidth = 400;
+    const fig = treeFigure(t, { ...FIG_OPTS, panelWidth });
+
+    // The unrefit layout: the same call the first pass makes.
+    const fontSize = Math.max(
+      MIN_FONT_PX,
+      leafFontSize(FIG_OPTS.leafSpacing),
+    );
+    const labelRoom = labelRoomFor(
+      t.nodes.map((n) => n.label),
+      fontSize,
+    );
+    const drawWidth0 = Math.max(
+      80,
+      panelWidth - labelRoom - FIGURE_PANEL_PAD * 2,
+    );
+    const unrefit = layout(t, {
+      ...FIG_OPTS,
+      width: drawWidth0,
+      minBranchPx: FIGURE_MIN_SUPPORT_BRANCH_PX,
+    });
+    // The floors really do exceed the draw width on their own — the
+    // premise of this case.
+    expect(drawWidth0).toBeLessThan(336);
+    expect(fig.laid.scale).toBeCloseTo(unrefit.scale, 10);
+    expect(fig.laid.width).toBeCloseTo(unrefit.width, 10);
+    // …and the figure still needs the panel's scroll.
+    const svgWidth = fig.bounds.maxX - fig.bounds.minX + FIGURE_PANEL_PAD * 2;
+    expect(svgWidth).toBeGreaterThan(panelWidth);
   });
 });
