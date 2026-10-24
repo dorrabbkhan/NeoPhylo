@@ -3393,8 +3393,12 @@ wedging the start queue.
 - **Tree text:** `treeFigure` takes a `textScale` option applied
   after the 12 px floor (21 px leaf labels, 18 px support pills);
   App passes `PRESENTER_SCALE` while the mode is on and scales the
-  shared leaf spacing the same way (28 → 42 px/leaf). Exports never
-  set it, so figures stay at document size.
+  shared leaf spacing the same way (28 → 42 px/leaf). Exports are
+  document-size figures: the ExportMenu `figure` prop pins
+  `leafSpacing: LEAF_SPACING_NATURAL` and `ExportSvgOptions` has no
+  `textScale` field, so no presenter factor reaches SVG/PNG/Newick
+  (fix round 1 — the prop originally passed the scaled
+  `sharedSpacing`).
 - **Step buttons** get the scaled spacing tokens as padding
   (`--space-8`/`--space-12` → 12/18 px) on top of the scaled type.
 - **Drawer-on-enable decision:** `setPresenter(true)` clears
@@ -3425,9 +3429,13 @@ wedging the start queue.
   layout spec clicks every header button in DOM order).
 - **Baselines regenerated (owner gate):** pinned Playwright image
   (v1.64.1-noble digest-pinned), second run zero diffs. The new
-  header button touches every scene's header, so all 36 baselines
-  changed except `export-svg-roundtrip` (6, byte-identical — it
-  renders the exported SVG on a bare page). New baseline:
+  header button touches every scene's header, so the 36 non-roundtrip
+  baselines changed; `export-svg-roundtrip` (6) stayed byte-identical —
+  it renders the exported SVG on a bare page. First-push claim of "36
+  of 42 regenerated" was wrong by one:
+  `replicate-panel-768x1024-light` had stayed byte-identical to main —
+  a real 560-px diff hidden under `maxDiffPixelRatio: 0.001` —
+  regenerated in fix round 1. New baseline:
   `bootstrap-basics-final-presenter` at 1920×1080 light only.
 - **Files outside the Files block:** `web/src/state/actions.ts` (the
   `setPresenter` variant — the Action union lives there),
@@ -3446,4 +3454,36 @@ wedging the start queue.
   bootstrap-basics-final helper), `web/e2e/visual.spec.ts`
   (scene `only` restriction), `web/e2e/layout.spec.ts` (header button
   count 6/7), `web/e2e/__screenshots__/` (baselines above) and this
+  file.
+
+### Fix round 1 (PR #78 review): stale baseline, unscaled exports
+
+- **Stale baseline regenerated:** `replicate-panel-768x1024-light`
+  was byte-identical to main at first push — the real 560-px diff
+  sat under `maxDiffPixelRatio: 0.001`, so `--update-snapshots`
+  never rewrote it. Regenerated alone in the pinned Playwright
+  image. A strict audit (throwaway spec with `maxDiffPixels: 0`,
+  deleted after use) re-rendered every baseline still byte-identical
+  to main — the six `export-svg-roundtrip` frames — and all six
+  matched at 0 px, so no other baseline is stale. Two full
+  visual-suite runs after the regen: 43/43, zero diffs. Changed
+  scenes vs main: all six viewports/themes of bootstrap-basics-final,
+  cytc-computed, cytc-rooted, four-taxa, replicate-panel and
+  weak-support (36), plus the new bootstrap-basics-final-presenter
+  baseline — `export-svg-roundtrip` (6) unchanged.
+- **Exports no longer take presenter scaling:** the ExportMenu
+  `figure` prop now passes `leafSpacing: LEAF_SPACING_NATURAL`
+  instead of the screen's `sharedSpacing` — presenter's 1.5× spacing
+  (and `textScale`) can no longer reach `exportSvg`, PNG or Newick;
+  `ExportSvgOptions` has no `textScale` field at all. `panelWidth`
+  still follows the measured `.tree-canvas` box (checkpoint 15):
+  presenter changes it only through the layout's natural width change
+  (the controls column leaves the grid), never through a scale
+  factor. `App.export.test.tsx` drives the real App → ExportMenu →
+  `exportSvg` path and asserts the SVG download is byte-identical
+  with presenter off and on at the same tree and measured width —
+  the drawer is force-opened through the captured dispatch because
+  the menu has no UI path under the mode.
+- **Files outside the Files block (this round):**
+  `web/src/views/App.export.test.tsx` (the regression test) and this
   file.

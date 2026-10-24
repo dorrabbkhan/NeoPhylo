@@ -776,10 +776,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
         // export matches the item's name (checkpoint 15).
         consensusTree={consensusViewTree === null ? null : drawnTree}
         // The SAME layout inputs the on-screen figure uses, so the
-        // SVG/PNG serialize this exact drawing (checkpoint 15).
+        // SVG/PNG serialize this exact drawing (checkpoint 15) — with
+        // one exception: exports are document-size figures, so the
+        // leaf spacing never takes presenter mode's 1.5× (§6.6). The
+        // measured panel width still follows the on-screen panel.
         figure={{
           kind: consensusTree === null ? "phylogram" : "cladogram",
-          leafSpacing: sharedSpacing,
+          leafSpacing: LEAF_SPACING_NATURAL,
           panelWidth: exportPanelW,
           visibleNodes:
             drawnTree === inferred ? visibleNodes : undefined,
