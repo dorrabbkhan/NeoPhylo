@@ -17,8 +17,12 @@
 // (an action, never a "current" pick) and joins the roving keyboard order
 // like any other item; below 1280 the Settings drawer and the More menu
 // own the reopen path instead.
+//
+// Task 12 round 4: the list is taller than a 720 px window, so it caps
+// itself inside the viewport (measured top edge + a token margin) and
+// scrolls; roving focus scrolls the active item into view.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { LESSONS } from "../lessons/catalog";
@@ -40,6 +44,7 @@ export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps)
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // The roving index covers the tour action row too when it renders.
   const itemCount = LESSONS.length + (onTakeTour !== undefined ? 1 : 0);
@@ -62,9 +67,36 @@ export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps)
     if (backToButton) buttonRef.current?.focus();
   };
 
-  // Move DOM focus to the active item once the menu is open.
+  // Measure the open list's top edge into --lessons-menu-top so CSS
+  // can cap its height inside the viewport (the header height isn't
+  // fixed — it wraps below 1280). A layout effect: the cap is in place
+  // before paint, so the roving-item scroll below never acts on an
+  // uncapped list.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!open || list === null) return;
+    const measure = () => {
+      list.style.setProperty(
+        "--lessons-menu-top",
+        `${list.getBoundingClientRect().top}px`,
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
+
+  // Move DOM focus to the active item once the menu is open, and keep
+  // it inside the capped list's scrollport so End reaches the last
+  // item. jsdom doesn't implement scrollIntoView — feature-check like
+  // Tour.tsx does.
   useEffect(() => {
-    if (open) itemRefs.current[active]?.focus();
+    if (!open) return;
+    const el = itemRefs.current[active];
+    el?.focus();
+    if (typeof el?.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
   }, [open, active]);
 
   // Clicking outside the menu closes it (focus stays where it went).
@@ -141,7 +173,13 @@ export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps)
         Lessons
       </button>
       {open && (
-        <div className="lessons-menu-list" role="menu" aria-label="Lessons" onKeyDown={onMenuKeyDown}>
+        <div
+          className="lessons-menu-list"
+          role="menu"
+          aria-label="Lessons"
+          onKeyDown={onMenuKeyDown}
+          ref={listRef}
+        >
           {LESSONS.map((l, i) => (
             <button
               key={l.id}

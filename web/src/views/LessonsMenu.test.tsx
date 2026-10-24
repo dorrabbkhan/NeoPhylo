@@ -168,6 +168,29 @@ describe("LessonsMenu — Take the tour item (§6.7, owner decision B)", () => {
     expect(onTakeTour).toHaveBeenCalledTimes(1);
   });
 
+  // Task 12 round 4: the capped list scrolls — roving focus must pull
+  // the item it lands on into the scrollport (End reaches the tour row).
+  it("scrolls the roving item into view inside the list", () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    try {
+      render(
+        <LessonsMenu
+          currentId={null}
+          onPick={() => {}}
+          onTakeTour={() => {}}
+        />,
+      );
+      fireEvent.click(menuButton());
+      const menu = screen.getByRole("menu");
+      fireEvent.keyDown(menu, { key: "End" });
+      expect(document.activeElement?.textContent).toBe("Take the tour");
+      expect(spy).toHaveBeenLastCalledWith({ block: "nearest" });
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
+  });
+
   it("is absent without onTakeTour (< 1280 — the drawer and More menu own it)", () => {
     render(<LessonsMenu currentId={null} onPick={() => {}} />);
     fireEvent.click(menuButton());

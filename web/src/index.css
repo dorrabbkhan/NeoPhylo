@@ -224,7 +224,17 @@ p {
   border-radius: 6px;
   background: var(--color-bg);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  /* Task 12 round 4: cap the list inside the viewport. The header
+   * height isn't fixed (it wraps below 1280), so the list measures
+   * its own top edge into --lessons-menu-top on open; a token margin
+   * keeps the bottom edge off the viewport's and overflow-y scrolls
+   * the over-tall list — every item stays reachable (End included).
+   * overflow-x stays hidden so the rounded corners still clip. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: calc(
+    100dvh - var(--lessons-menu-top, 0px) - var(--space-16)
+  );
 }
 
 .lessons-menu-list [role="menuitemradio"] {

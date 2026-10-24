@@ -3587,3 +3587,11 @@ owner chose **option B**: drop the button entirely.
   no-wrap check at 1280×720 iterates all six catalog lessons
   asserting one row, `scrollWidth ≤ clientWidth`, and header height
   = main's 54 px.
+- Fix round 4 (2026-10-24): `.lessons-menu-list` caps inside the
+  viewport (`max-height: calc(100dvh - var(--lessons-menu-top, 0px)
+  - var(--space-16))`, `overflow-y: auto`; the top edge is measured
+  on open + resize because the header height isn't fixed) and roving
+  focus scrolls its item into view so End reaches "Take the tour";
+  `web/e2e/lesson-picker.spec.ts` gained the 1280×720/1280×600
+  fit-and-End checks, `LessonsMenu.test.tsx` the scrollIntoView unit
+  test.
