@@ -61,7 +61,9 @@ import {
   type LinkKind,
 } from "../state/urlRestore";
 
+import { applyPresenter } from "../design/presenter";
 import { applyTheme } from "../design/theme";
+import { PRESENTER_SCALE } from "../design/tokens";
 import { useBreakpoint } from "../design/breakpoints";
 import { AlphabetBadge } from "./AlphabetBadge";
 import { BootstrapPanel } from "./BootstrapPanel";
@@ -198,6 +200,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
   useEffect(() => {
     if (theme !== undefined) applyTheme(theme);
   }, [theme]);
+
+  // Presenter mode (v1.3 spec §6.6): <html data-presenter> follows the
+  // session flag — the generated tokens.css block reads it to scale
+  // the type and spacing tokens 1.5× — and the choice is stored
+  // device-locally under neophylo.presenter, never in links.
+  const presenter = session?.presenter;
+  useEffect(() => {
+    if (presenter !== undefined) applyPresenter(presenter);
+  }, [presenter]);
 
   // Bootstrap job driver (v1.2 Task 11, spec §5). The session records
   // intent — `estimating` with no bound jobId is a start request,
@@ -637,8 +648,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // Shared leaf spacing for both trees (round 3): fixed at the
   // natural 28 px/leaf — panels grow to the tree's height instead of
   // fitting the drawing to the row, so no leaf is ever cut off and
-  // text never scales.
-  const sharedSpacing = LEAF_SPACING_NATURAL;
+  // text never scales. Presenter mode (§6.6) is the one exception:
+  // leaf spacing and figure text take the tokens' 1.5× multiplier.
+  const textScale = session.presenter ? PRESENTER_SCALE : 1;
+  const sharedSpacing = LEAF_SPACING_NATURAL * textScale;
 
   // Unpack the prompt gate (src/lessons/promptGate.ts): gating hides the
   // correct pair from the heatmap and the tree highlights.
@@ -763,10 +776,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
         // export matches the item's name (checkpoint 15).
         consensusTree={consensusViewTree === null ? null : drawnTree}
         // The SAME layout inputs the on-screen figure uses, so the
-        // SVG/PNG serialize this exact drawing (checkpoint 15).
+        // SVG/PNG serialize this exact drawing (checkpoint 15) — with
+        // one exception: exports are document-size figures, so the
+        // leaf spacing never takes presenter mode's 1.5× (§6.6). The
+        // measured panel width still follows the on-screen panel.
         figure={{
           kind: consensusTree === null ? "phylogram" : "cladogram",
-          leafSpacing: sharedSpacing,
+          leafSpacing: LEAF_SPACING_NATURAL,
           panelWidth: exportPanelW,
           visibleNodes:
             drawnTree === inferred ? visibleNodes : undefined,
@@ -791,6 +807,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         onPickLesson={(id) => void onPickLesson(id)}
         onOpenPhylipHelp={() => setPhylipHelp(true)}
         theme={session.theme}
+        presenter={session.presenter}
         dispatch={dispatch}
         breakpoint={breakpoint}
         drawerOpen={session.drawerOpen}
@@ -798,8 +815,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
       <main className="app-grid" id="main-content" tabIndex={-1}>
         {/* The controls column renders only at the wide breakpoint;
             below it the same sections live in the Settings drawer
-            opened from the header (v1.3 spec §6.1, §6.4). */}
-        {breakpoint === "wide" && (
+            opened from the header (v1.3 spec §6.1, §6.4). Presenter
+            mode hides them entirely (§6.6). */}
+        {breakpoint === "wide" && !session.presenter && (
           <aside className="col-controls" aria-label="Controls">
             {controlsSections}
           </aside>
@@ -896,6 +914,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 wrong={NO_HIGHLIGHT}
                 clampNegative={session.clampNegative}
                 leafSpacing={sharedSpacing}
+                textScale={textScale}
                 splitTaxa={splitTaxa}
                 splitRooted
                 onHoverLeaf={onHoverLeaf}
@@ -928,6 +947,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         drawnTree === inferred ? visibleNodes : undefined
                       }
                       leafSpacing={sharedSpacing}
+                      textScale={textScale}
                       splitTaxa={splitTaxa}
                       splitRooted={!isNj}
                       onPanelSize={setExportPanelW}
@@ -1135,6 +1155,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             outgroup={showReroot ? reroot!.outgroup : null}
             clampNegative={session.clampNegative}
             leafSpacing={sharedSpacing}
+            textScale={textScale}
             onNavigate={(i) =>
               dispatch({ type: "setReplicateIndex", index: i })
             }

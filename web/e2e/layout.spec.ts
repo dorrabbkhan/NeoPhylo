@@ -406,10 +406,11 @@ for (const vp of VIEWPORTS) {
       const count = await controls.count();
       // Wordmark, title and toast are not controls. At wide the
       // buttons are the mode switch pair, the Lessons menu, "Coming
-      // from PHYLIP?" and the "Dark mode" toggle. Below 1280 the
-      // Settings button joins; below 1024 "Coming from PHYLIP?" moves
-      // into the More menu — six buttons either way (Task 10).
-      expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 5 : 6);
+      // from PHYLIP?" and the "Dark mode"/"Presenter mode" toggles.
+      // Below 1280 the Settings button joins; below 1024 "Coming
+      // from PHYLIP?" moves into the More menu — seven buttons
+      // either way (Tasks 10-11).
+      expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 6 : 7);
       await expect(
         page.getByRole("button", { name: "Dark mode" }),
       ).toBeVisible();

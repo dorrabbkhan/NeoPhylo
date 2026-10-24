@@ -65,6 +65,10 @@ export interface TreeFigureOptions {
     fontSize: number,
     baseline?: "middle" | "alphabetic",
   ) => { w: number; top: number; bottom: number } | null;
+  /** Presenter mode (v1.3 §6.6): scales the figure's text by this
+   * factor (the design tokens' PRESENTER_SCALE on screen). Defaults
+   * to 1 — exports never scale. */
+  textScale?: number;
 }
 
 export interface TreeFigure {
@@ -99,9 +103,13 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
 
   // Fixed minimum text size: only branch geometry scales (checkpoint
   // 11), so leaf names, node names and support labels never draw below
-  // MIN_FONT_PX no matter the tree's scale.
-  const fontSize = Math.max(MIN_FONT_PX, leafFontSize(opts.leafSpacing));
-  const smallFont = Math.max(MIN_FONT_PX, fontSize - 3);
+  // MIN_FONT_PX no matter the tree's scale. textScale (presenter mode,
+  // §6.6) multiplies the sizes after that floor is applied, so the
+  // scaled text is exactly 1.5× the normal figure's.
+  const textScale = opts.textScale ?? 1;
+  const baseFont = Math.max(MIN_FONT_PX, leafFontSize(opts.leafSpacing));
+  const fontSize = baseFont * textScale;
+  const smallFont = Math.max(MIN_FONT_PX, baseFont - 3) * textScale;
   const labelRoom = labelRoomFor(
     tree.nodes.map((n) => n.label),
     fontSize,

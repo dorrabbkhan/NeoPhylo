@@ -36,8 +36,10 @@ test.beforeEach(async ({ context }) => {
 });
 
 for (const scene of SCENES) {
-  for (const vp of VIEWPORTS) {
-    for (const theme of THEMES) {
+  const viewports = scene.only ? [scene.only.viewport] : VIEWPORTS;
+  const themes = scene.only ? [scene.only.theme] : THEMES;
+  for (const vp of viewports) {
+    for (const theme of themes) {
       test(`${scene.name} ${vp.w}x${vp.h} ${theme}`, async ({
         page,
         context,

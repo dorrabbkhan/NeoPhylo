@@ -29,6 +29,10 @@
           window.localStorage.getItem("neophylo.theme") === "dark"
             ? "dark"
             : "light";
+        // §6.6: data-presenter too, so a stored presenter session
+        // never paints at 1× before rescaling.
+        if (window.localStorage.getItem("neophylo.presenter") === "1")
+          document.documentElement.dataset.presenter = "true";
       } catch {
         document.documentElement.dataset.theme = "light";
       }

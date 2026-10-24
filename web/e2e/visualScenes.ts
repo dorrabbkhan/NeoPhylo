@@ -122,9 +122,51 @@ async function cytcAfterRun(page: Page): Promise<void> {
   await runBootstrap(page);
 }
 
+/** bootstrap-basics' final position with the prediction answered,
+ * the seeded run done and the whole sequenced note chain open —
+ * returns the closing card for the frame assertions. */
+async function bootstrapBasicsFinal(page: Page) {
+  await page.goto("/?lesson=bootstrap-basics");
+  await waitForApp(page);
+  await stepToEnd(page);
+  await page
+    .locator('svg[aria-label="Inferred tree"] g[data-split="E|F|G|H"] .branch-hit')
+    .dispatchEvent("click");
+  await runBootstrap(page);
+  // Wobble note's Continue → length note; its Continue → closing.
+  await page.locator(".prompt-continue").click();
+  await expect(page.getByText(/Now try more data/)).toBeVisible();
+  await page.locator(".prompt-continue").click();
+  const closing = page.locator(".prompt-card", {
+    hasText: /Read the numbers carefully/,
+  });
+  await expect(closing).toBeVisible();
+  return closing;
+}
+
+/** Owner-approved (PR #67, option 2): the frame must show the
+ * closing note, which sits below the .prompts strip's fold after
+ * the settle reset — scroll it in and prove it lands fully on
+ * screen. */
+async function settleWithClosing(page: Page, closing: Locator) {
+  await settleFrame(page);
+  await closing.scrollIntoViewIfNeeded();
+  const box = await closing.boundingBox();
+  const vp = page.viewportSize();
+  expect(box, "closing note has a bounding box").not.toBeNull();
+  expect(vp, "viewport size is known").not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(vp!.height);
+}
+
 export const SCENES: {
   name: string;
   setup: (page: Page) => Promise<void>;
+  /** Restrict the scene to one viewport × theme (Task 11's
+   * presenter variant records a single 1920×1080 light frame). */
+  only?: { viewport: { w: number; h: number }; theme: "light" | "dark" };
 }[] = [
   {
     // Rooted on the reference's outgroup (the default view).
@@ -200,34 +242,22 @@ export const SCENES: {
     // sequenced note chain (reveal → wobble → length → closing) open.
     name: "bootstrap-basics-final",
     setup: async (page) => {
-      await page.goto("/?lesson=bootstrap-basics");
-      await waitForApp(page);
-      await stepToEnd(page);
+      const closing = await bootstrapBasicsFinal(page);
+      await settleWithClosing(page, closing);
+    },
+  },
+  {
+    // Task 11 (spec §6.6): the same frame with presenter mode on —
+    // 1.5× type and spacing, controls hidden — recorded once at
+    // 1920×1080 light (the projector case).
+    name: "bootstrap-basics-final-presenter",
+    only: { viewport: { w: 1920, h: 1080 }, theme: "light" },
+    setup: async (page) => {
+      const closing = await bootstrapBasicsFinal(page);
       await page
-        .locator('svg[aria-label="Inferred tree"] g[data-split="E|F|G|H"] .branch-hit')
-        .dispatchEvent("click");
-      await runBootstrap(page);
-      // Wobble note's Continue → length note; its Continue → closing.
-      await page.locator(".prompt-continue").click();
-      await expect(page.getByText(/Now try more data/)).toBeVisible();
-      await page.locator(".prompt-continue").click();
-      const closing = page.locator(".prompt-card", {
-        hasText: /Read the numbers carefully/,
-      });
-      await expect(closing).toBeVisible();
-      await settleFrame(page);
-      // Owner-approved (PR #67, option 2): the frame must show the
-      // closing note, which sits below the .prompts strip's fold after
-      // the reset — scroll it in and prove it lands fully on screen.
-      await closing.scrollIntoViewIfNeeded();
-      const box = await closing.boundingBox();
-      const vp = page.viewportSize();
-      expect(box, "closing note has a bounding box").not.toBeNull();
-      expect(vp, "viewport size is known").not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.y).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width);
-      expect(box!.y + box!.height).toBeLessThanOrEqual(vp!.height);
+        .getByRole("button", { name: "Presenter mode" })
+        .click();
+      await settleWithClosing(page, closing);
     },
   },
   {

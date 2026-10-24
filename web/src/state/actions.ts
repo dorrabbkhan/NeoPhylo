@@ -28,6 +28,8 @@ export type Action =
   | { type: "setTheme"; theme: UiState["theme"] }
   // v1.3 Task 10 (spec §6.4): the Settings drawer's open flag.
   | { type: "setDrawer"; open: boolean }
+  // v1.3 Task 11 (spec §6.6): presenter mode on <html data-presenter>.
+  | { type: "setPresenter"; presenter: boolean }
   | { type: "toggleClamp" }
   | { type: "setMatrixView"; view: AnalysisState["matrixView"] }
   | { type: "setBranchScale"; scale: number }

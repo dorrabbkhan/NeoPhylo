@@ -49,6 +49,9 @@ export interface TreeViewProps {
    * one value (passed by App) so their rows line up; when omitted, it is
    * derived from the measured panel height. */
   leafSpacing?: number;
+  /** Presenter mode (v1.3 §6.6): scales the figure's text; App passes
+   * the tokens' PRESENTER_SCALE while the mode is on, else 1. */
+  textScale?: number;
   /** Taxon labels in alignment order, for the data-split grouping keys
    * (canonical unrooted sides exclude taxa[0]); defaults to the tree's
    * arena leaf order, which is the input order for engine trees. */
@@ -235,6 +238,7 @@ export function TreeView({
   clampNegative,
   visibleNodes,
   leafSpacing,
+  textScale,
   splitTaxa,
   splitRooted = false,
   onPanelSize,
@@ -300,6 +304,7 @@ export function TreeView({
     highlight,
     wrong,
     measure,
+    textScale,
   });
   const { laid, byId, labelById, fontSize, smallFont, bounds } = fig;
   const hideInternalNames = fig.hideInternalNames;
