@@ -58,6 +58,75 @@ test("first visit: four steps highlight the stepper, trees, matrix and mode togg
     .toBe("1");
 });
 
+// Review round 1: below the wide breakpoint .col-explain (the mode
+// toggle's home) is a second grid row under the centre column, so a
+// step's target can start below the fold. Each step must scroll its
+// target into view and keep the card — Back/Skip/Next included —
+// fully inside the viewport, with at least part of the ring on
+// screen. Checked at 1024×768 and 768×1024 in addition to the
+// project default above.
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 768, height: 1024 },
+]) {
+  test(`card and ring stay in the viewport at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await waitForApp(page);
+    const dlg = tour(page);
+    await expect(dlg).toBeVisible();
+    const targets = [".stepper", ".trees", ".matrix-wrap", ".mode-toggle"];
+    for (let i = 0; i < targets.length; i += 1) {
+      await expect(page.locator(".tour")).toHaveAttribute(
+        "data-tour-target",
+        targets[i],
+      );
+      // The step's scrollIntoView animates (smooth) — poll until the
+      // geometry settles rather than asserting mid-scroll.
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() => {
+              const vw = window.innerWidth;
+              const vh = window.innerHeight;
+              const inside = (r: DOMRect) =>
+                r.left >= 0 &&
+                r.top >= 0 &&
+                r.right <= vw &&
+                r.bottom <= vh;
+              const card = document
+                .querySelector(".tour-card")
+                ?.getBoundingClientRect();
+              const buttons = Array.from(
+                document.querySelectorAll(".tour-actions button"),
+              ).map((b) => b.getBoundingClientRect());
+              const ring = document
+                .querySelector(".tour-ring")
+                ?.getBoundingClientRect();
+              return (
+                card !== undefined &&
+                inside(card) &&
+                buttons.length === 3 &&
+                buttons.every(inside) &&
+                ring !== undefined &&
+                ring.right > 0 &&
+                ring.bottom > 0 &&
+                ring.left < vw &&
+                ring.top < vh
+              );
+            }),
+          { timeout: 10_000 },
+        )
+        .toBe(true);
+      if (i < targets.length - 1) {
+        await dlg.getByRole("button", { name: "Next" }).click();
+      }
+    }
+  });
+}
+
 test("skip ends the tour and a reload does not reshow it", async ({
   page,
 }) => {

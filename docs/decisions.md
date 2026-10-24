@@ -3532,8 +3532,10 @@ wedging the start queue.
   `web/src/views/MoreMenu.test.tsx`, `web/src/views/App.prompts.test.tsx`
   (the §6.8 loading text), `web/src/views/ImportPanel.test.tsx`,
   `web/src/views/BootstrapPanel.test.tsx`,
-  `web/src/views/ConsensusTabs.test.tsx` (the new assertions), and
-  this file.
+  `web/src/views/ConsensusTabs.test.tsx` (the new assertions),
+  `web/e2e/sheets.spec.ts` (the More-menu item list gained "Take the
+  tour") and `web/src/state/ui.test.ts` (the tour reducer tests) —
+  both missed from this list in the first round — and this file.
 - **Baselines regenerated:** only `four-taxa` (6 files: 3 viewports ×
   2 themes) — the one scene where the new bootstrap-idle and
   consensus-tabs empty lines are actually visible. A full

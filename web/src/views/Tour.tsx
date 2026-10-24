@@ -68,9 +68,14 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
 
   // Locate the highlighted element on every step and on resize, and
   // give the card focus so Esc and the arrow keys work immediately.
+  // Below the wide breakpoint .col-explain is a second grid row under
+  // the centre column, so a step's target can start below the fold —
+  // scroll it into view first and keep measuring on scroll (the smooth
+  // scroll animates the rect; the backdrop is non-interactive, so the
+  // page still scrolls under the tour) as well as on resize.
   useLayoutEffect(() => {
+    const el = document.querySelector(s.selector);
     const measure = () => {
-      const el = document.querySelector(s.selector);
       const r = el?.getBoundingClientRect();
       setTarget(
         r === undefined || r === null
@@ -80,10 +85,27 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
       const card = cardRef.current;
       if (card !== null) setCardH(card.offsetHeight);
     };
+    // jsdom (the unit tests) implements neither scrollIntoView nor
+    // matchMedia — feature-check both. No smooth scroll under
+    // prefers-reduced-motion (§6.10).
+    if (el !== null && typeof el.scrollIntoView === "function") {
+      const reduced =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: reduced ? "auto" : "smooth",
+      });
+    }
     measure();
     cardRef.current?.focus();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
   }, [s.selector]);
 
   const end = () => {
@@ -105,20 +127,40 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
 
   // The card docks under the target when it fits, above it otherwise,
   // horizontally centred on the target and clamped inside the page.
+  // The final clamp also covers a taller-than-viewport target (the
+  // matrix at short heights), where neither dock exists — the card and
+  // its buttons must stay fully on screen.
   const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const cardW = Math.min(320, vw - 16);
   let top = 16;
   let left = (vw - cardW) / 2;
   if (target !== null) {
     top =
-      target.y + target.h + cardH + 24 < window.innerHeight
+      target.y + target.h + cardH + 24 < vh
         ? target.y + target.h + 12
         : Math.max(8, target.y - cardH - 12);
+    top = Math.max(8, Math.min(top, Math.max(8, vh - cardH - 8)));
     left = Math.max(
       8,
       Math.min(vw - cardW - 8, target.x + target.w / 2 - cardW / 2),
     );
   }
+
+  // The ring outlines the part of the target actually on screen: for
+  // a target taller than the viewport the full border would run off
+  // the page and draw nothing where the user is looking.
+  const vis =
+    target === null
+      ? null
+      : {
+          x: Math.max(0, target.x),
+          y: Math.max(0, target.y),
+          r: Math.min(target.x + target.w, vw),
+          b: Math.min(target.y + target.h, vh),
+        };
+  const ring =
+    vis !== null && vis.r - vis.x > 0 && vis.b - vis.y > 0 ? vis : null;
 
   return (
     <div
@@ -127,15 +169,15 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
       onKeyDown={onKeyDown}
     >
       <div className="tour-backdrop" aria-hidden="true" />
-      {target !== null && (
+      {ring !== null && (
         <div
           className="tour-ring"
           aria-hidden="true"
           style={{
-            left: target.x - RING_PAD,
-            top: target.y - RING_PAD,
-            width: target.w + RING_PAD * 2,
-            height: target.h + RING_PAD * 2,
+            left: ring.x - RING_PAD,
+            top: ring.y - RING_PAD,
+            width: ring.r - ring.x + RING_PAD * 2,
+            height: ring.b - ring.y + RING_PAD * 2,
           }}
         />
       )}
