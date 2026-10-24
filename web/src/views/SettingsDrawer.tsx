@@ -11,12 +11,21 @@ import { Sheet } from "./Sheet";
 
 export interface SettingsDrawerProps {
   onClose: () => void;
+  /** §6.7 reopen path at the medium breakpoint (Task 12, owner
+   * decision B): when set, a "Take the tour" item closes the drawer
+   * and calls back. Undefined below 1024 — the More menu owns the
+   * reopen there — and the drawer itself never opens at ≥ 1280. */
+  onTakeTour?: () => void;
   /** The controls sections (App passes the same children the wide
    * layout's `.col-controls` aside shows). */
   children: ReactNode;
 }
 
-export function SettingsDrawer({ onClose, children }: SettingsDrawerProps) {
+export function SettingsDrawer({
+  onClose,
+  onTakeTour,
+  children,
+}: SettingsDrawerProps) {
   return (
     <Sheet
       className="settings-drawer"
@@ -37,6 +46,18 @@ export function SettingsDrawer({ onClose, children }: SettingsDrawerProps) {
         </button>
       </header>
       {children}
+      {onTakeTour !== undefined && (
+        <button
+          type="button"
+          className="settings-drawer-tour"
+          onClick={() => {
+            onClose();
+            onTakeTour();
+          }}
+        >
+          Take the tour
+        </button>
+      )}
     </Sheet>
   );
 }

@@ -408,8 +408,9 @@ for (const vp of VIEWPORTS) {
       // buttons are the mode switch pair, the Lessons menu, "Coming
       // from PHYLIP?" and the "Dark mode"/"Presenter mode" toggles.
       // Below 1280 the Settings button joins; below 1024 "Coming
-      // from PHYLIP?" moves into the More menu — seven buttons
-      // either way (Tasks 10-11).
+      // from PHYLIP?" leaves for the More menu. (Task 12's "Take the
+      // tour" lives inside the Lessons menu at ≥ 1280 — owner
+      // decision B — never as a header button.)
       expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 6 : 7);
       await expect(
         page.getByRole("button", { name: "Dark mode" }),

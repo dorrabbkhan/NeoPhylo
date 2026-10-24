@@ -181,10 +181,14 @@ describe("ConsensusTabs", () => {
       screen
         .getAllByRole("tab")
         .filter((t) => t.textContent !== "Your tree with support");
-    // Before any run: all three consensus tabs disabled.
+    // Before any run: all three consensus tabs disabled, with the
+    // §6.8 empty-state line under the strip.
     for (const t of consensus()) {
       expect(t).toHaveProperty("disabled", true);
     }
+    expect(
+      screen.getByText("Available after a bootstrap run."),
+    ).toBeTruthy();
     expect(
       screen.getByRole("tab", { name: "Your tree with support" }),
     ).toHaveProperty("disabled", false);

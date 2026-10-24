@@ -13,9 +13,12 @@ afterEach(cleanup);
 
 function setup() {
   const onOpenPhylipHelp = vi.fn();
-  const utils = render(<MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} />);
+  const onTakeTour = vi.fn();
+  const utils = render(
+    <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} onTakeTour={onTakeTour} />,
+  );
   const button = utils.getByRole("button", { name: "More" });
-  return { ...utils, button, onOpenPhylipHelp };
+  return { ...utils, button, onOpenPhylipHelp, onTakeTour };
 }
 
 describe("MoreMenu", () => {
@@ -28,6 +31,7 @@ describe("MoreMenu", () => {
     );
     expect(labels).toEqual([
       "Coming from PHYLIP?",
+      "Take the tour",
       "Licenses",
       "Source code",
       "Help",

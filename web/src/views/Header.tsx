@@ -7,6 +7,10 @@
 // Licenses, Source code and Help live in the More menu (§6.3).
 // Task 11 (§6.6): presenter mode hides the Settings button — the
 // controls are unreachable by design — while the two toggles stay.
+// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): "Take the
+// tour" reopens from the Lessons menu's last item at ≥ 1280, from the
+// Settings drawer at 1024–1279 and from the More menu below 1024 —
+// one reopen path per width, and the header itself is back to main's.
 
 import type { Dispatch } from "react";
 
@@ -97,7 +101,18 @@ export function Header({
           Sandbox
         </button>
       </div>
-      <LessonsMenu currentId={currentLessonId} onPick={onPickLesson} />
+      {/* §6.7 (owner decision B, Task 12 round 3): the tour's ≥ 1280
+          reopen path is the Lessons menu's last item — a header button
+          here wrapped the row to two lines at 1280 on the longer
+          lesson titles (round 2). Below 1280 the Settings drawer and
+          the More menu own the item instead. */}
+      <LessonsMenu
+        currentId={currentLessonId}
+        onPick={onPickLesson}
+        onTakeTour={
+          belowWide ? undefined : () => dispatch({ type: "tourStart" })
+        }
+      />
       {belowWide && !presenter && (
         <button
           type="button"
@@ -120,7 +135,12 @@ export function Header({
           Coming from PHYLIP?
         </button>
       )}
-      {belowMedium && <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} />}
+      {belowMedium && (
+        <MoreMenu
+          onOpenPhylipHelp={onOpenPhylipHelp}
+          onTakeTour={() => dispatch({ type: "tourStart" })}
+        />
+      )}
       {/* The toggles come last in DOM order: the presenter switch hides
           the Settings button, so nothing it can remove sits after it
           (the header-controls layout test clicks every button in

@@ -3487,3 +3487,111 @@ wedging the start queue.
 - **Files outside the Files block (this round):**
   `web/src/views/App.export.test.tsx` (the regression test) and this
   file.
+
+## v1.3 Task 12: tour, empty/loading states, Sandbox samples
+
+- **Weak-support generator could not reproduce the checkpoint-11
+  bytes.** The committed `web/e2e/data/weak-support.fasta` (sha256
+  6e5ca3fe…71bf) predates any written recipe. Reconstruction attempts:
+  Python MT19937 (`random.seed(5)`, `Random(5)`, str/float/bytes seeds,
+  choice/randrange/choices/getrandbits/random()*4 draw semantics) at
+  every stream offset 0–39k words under all 24 alphabet permutations;
+  numpy-legacy `init_genrand(5)` seeding at offsets 0–2k; and the
+  engine's own ChaCha8 `simulate` (a verified pure-Python port of
+  `sim.rs`, checked against the wasm output) — none matched the
+  conserved columns. Per the conductor's fallback instruction,
+  `scripts/samples/weak_support.py` is an honest seeded generator
+  (seed 5, 6 taxa A–F, 120 sites, near-polytomous centre) writing a
+  NEW file `web/public/samples/weak-support.fasta`. Owner decision
+  (2026-10-24): the seed-5 generator output is canonical; the
+  checkpoint-11 bytes are retired — the `weak-support` visual scene
+  reads `web/public/samples/weak-support.fasta` (the file the Sandbox
+  button serves), `web/e2e/data/weak-support.fasta` is deleted, and
+  the six weak-support baselines were regenerated.
+- **Tour auto-start rules (§6.7):** starts only when the URL resolved
+  with `step === 0`, the raw href carries no `#x=`, the exercise came
+  from the URL (a prop-driven `<App exercise>` — the unit-test path —
+  never auto-tours), and `neophylo.tourSeen` is unread. Storage
+  helpers live in `web/src/design/tour.ts` beside theme.ts/
+  presenter.ts (the react-refresh lint forbids non-component exports
+  from Tour.tsx); a module flag only covers the blocked-write case so
+  in-memory state can't drift from storage.
+- **`storageState` in playwright.config.ts marks `neophylo.tourSeen`
+  for every project** (both dev 4173 and preview 4174 origins);
+  `tour.spec.ts` overrides back to empty storage. This is the shared
+  e2e mechanism the conductor prescribed instead of editing every
+  spec's init script.
+- **Consensus-tabs empty line sits under the tab strip** while no run
+  is done, so the disabled tabs explain themselves (§6.8).
+- **Files outside the Files block:** `web/src/state/actions.ts` (the
+  tour* action types — ui.ts handles them), `web/src/design/tour.ts`
+  (device-local pref helpers, mirroring theme.ts/presenter.ts),
+  `web/src/views/Header.tsx` and `web/src/views/MoreMenu.tsx` (the
+  "Take the tour" item + dispatch), `web/src/index.css` (tour,
+  empty-state and skeleton styles), `web/playwright.config.ts` (the
+  tourSeen storageState), `web/e2e/visualScenes.ts`,
+  `web/src/views/MoreMenu.test.tsx`, `web/src/views/App.prompts.test.tsx`
+  (the §6.8 loading text), `web/src/views/ImportPanel.test.tsx`,
+  `web/src/views/BootstrapPanel.test.tsx`,
+  `web/src/views/ConsensusTabs.test.tsx` (the new assertions),
+  `web/e2e/sheets.spec.ts` (the More-menu item list gained "Take the
+  tour") and `web/src/state/ui.test.ts` (the tour reducer tests) —
+  both missed from this list in the first round — and this file.
+  Round 2 (owner decision 2A) adds: `web/src/views/SettingsDrawer.tsx`
+  (the 1024–1279 tour item) and `web/e2e/layout.spec.ts` (the header
+  button count). Round 3 (owner decision B) adds:
+  `web/src/views/LessonsMenu.tsx` + `web/src/views/LessonsMenu.test.tsx`
+  (the ≥ 1280 "Take the tour" menu item) and
+  `web/src/views/Header.test.tsx` (asserts no tour button in the
+  header at any width).
+- **Baselines regenerated:** round 1 only `four-taxa` (6 files: 3
+  viewports × 2 themes) — the one scene where the new bootstrap-idle
+  and consensus-tabs empty lines are actually visible; every other
+  diff was sub-threshold stale noise reverted to main bytes. Round 2
+  (owner decisions 1A/2A) adds the six `weak-support-*` frames (the
+  canonical seed-5 sample). Round 3 reverts every 1920×1080 frame
+  that changed only for the header button back to main's bytes and
+  regenerates the `weak-support-*` ×6 and `four-taxa-*` ×6 frames —
+  the only scenes that legitimately differ from main (the canonical
+  sample and the §6.8 empty lines). No baseline differs because of
+  the header.
+
+### Fix round 3 (owner decision B, 2026-10-24): the ≥ 1280 reopen path moves into the Lessons menu
+
+The round-2 "Take the tour" header button wrapped the header controls
+to two rows at exactly 1280 px on the longer lesson titles
+(cytochrome-c, saturation, upgma-fails — 95 px vs main's 54 px). The
+owner chose **option B**: drop the button entirely.
+
+- `web/src/views/LessonsMenu.tsx`: a "Take the tour" `menuitem` is
+  the menu's last row when `onTakeTour` is set — plain action role
+  (never `menuitemradio`/`aria-checked`), joined into the roving
+  `active` index so arrows/Home/End reach it and Enter/Space activate
+  it like every other item. Separated from the lessons by a
+  token-space gap + the same 1 px rule (`.lessons-menu-tour` in
+  index.css; 14 px text, and the coarse-pointer 40×40 rule already
+  covers `button`). Selecting it closes the menu and calls
+  `onTakeTour`; the mounting `.tour-card`'s passive focus effect wins
+  over the menu's focus-restore, same as the drawer path.
+- `web/src/views/Header.tsx` passes `onTakeTour` only at the wide
+  breakpoint, so each width still has exactly one reopen path
+  (Lessons menu ≥ 1280, Settings drawer 1024–1279, More menu < 1024).
+- `.tour-open` markup + CSS removed; `.app-header` gap floor restored
+  to main's literal `16px` and the `< 1280` → `--space-8` media query
+  restored verbatim — header markup and CSS are identical to main
+  apart from the `onTakeTour` prop on `LessonsMenu` (and the existing
+  `MoreMenu` prop for < 1024).
+- layout.spec.ts header button count back to main's
+  `vp.w >= 1280 ? 6 : 7`; tour.spec.ts's 1280 test now opens the
+  Lessons menu and asserts focus lands in the card; a per-lesson
+  no-wrap check at 1280×720 iterates all six catalog lessons
+  asserting one row, `scrollWidth ≤ clientWidth`, and header height
+  = main's 54 px.
+- Fix round 4 (2026-10-24): `.lessons-menu-list` caps inside the
+  viewport (`max-height: calc(100dvh - var(--lessons-menu-top, 0px)
+  - var(--space-16))`, `overflow-y: auto`; the top edge is measured
+  on open + resize because the header height isn't fixed) and roving
+  focus scrolls its item into view so End reaches "Take the tour";
+  `web/e2e/lesson-picker.spec.ts` gained the 1280×720/1280×600
+  fit-and-End checks, `LessonsMenu.test.tsx` the scrollIntoView unit
+  test.

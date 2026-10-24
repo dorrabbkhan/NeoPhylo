@@ -9,8 +9,20 @@
 // is marked); ArrowUp opens on the last item. Arrow keys cycle through
 // the items, Home/End jump to the ends, Escape closes and returns focus
 // to the button, and Tab closes without moving focus back.
+//
+// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): when `onTakeTour`
+// is set — the header passes it only at ≥ 1280 — a "Take the tour" action
+// row follows the lesson list as the menu's last item, separated from the
+// lessons by the same 1 px rule plus a token space. It is a plain menuitem
+// (an action, never a "current" pick) and joins the roving keyboard order
+// like any other item; below 1280 the Settings drawer and the More menu
+// own the reopen path instead.
+//
+// Task 12 round 4: the list is taller than a 720 px window, so it caps
+// itself inside the viewport (measured top edge + a token margin) and
+// scrolls; roving focus scrolls the active item into view.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { LESSONS } from "../lessons/catalog";
@@ -21,14 +33,21 @@ export interface LessonsMenuProps {
   currentId: string | null;
   /** Load the lesson with this id. */
   onPick: (id: string) => void;
+  /** Reopens the first-visit tour (§6.7). Set only at ≥ 1280 — below
+   * that the Settings drawer (1024–1279) and the More menu (< 1024)
+   * carry the item, so each width keeps exactly one reopen path. */
+  onTakeTour?: () => void;
 }
 
-export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
+export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // The roving index covers the tour action row too when it renders.
+  const itemCount = LESSONS.length + (onTakeTour !== undefined ? 1 : 0);
 
   const openAt = (index: number) => {
     setActive(index);
@@ -48,9 +67,36 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
     if (backToButton) buttonRef.current?.focus();
   };
 
-  // Move DOM focus to the active item once the menu is open.
+  // Measure the open list's top edge into --lessons-menu-top so CSS
+  // can cap its height inside the viewport (the header height isn't
+  // fixed — it wraps below 1280). A layout effect: the cap is in place
+  // before paint, so the roving-item scroll below never acts on an
+  // uncapped list.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!open || list === null) return;
+    const measure = () => {
+      list.style.setProperty(
+        "--lessons-menu-top",
+        `${list.getBoundingClientRect().top}px`,
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
+
+  // Move DOM focus to the active item once the menu is open, and keep
+  // it inside the capped list's scrollport so End reaches the last
+  // item. jsdom doesn't implement scrollIntoView — feature-check like
+  // Tour.tsx does.
   useEffect(() => {
-    if (open) itemRefs.current[active]?.focus();
+    if (!open) return;
+    const el = itemRefs.current[active];
+    el?.focus();
+    if (typeof el?.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
   }, [open, active]);
 
   // Clicking outside the menu closes it (focus stays where it went).
@@ -77,7 +123,7 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
         break;
       case "ArrowUp":
         e.preventDefault();
-        openAt(LESSONS.length - 1);
+        openAt(itemCount - 1);
         break;
       default:
         break;
@@ -88,11 +134,11 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setActive((a) => (a + 1) % LESSONS.length);
+        setActive((a) => (a + 1) % itemCount);
         break;
       case "ArrowUp":
         e.preventDefault();
-        setActive((a) => (a - 1 + LESSONS.length) % LESSONS.length);
+        setActive((a) => (a - 1 + itemCount) % itemCount);
         break;
       case "Home":
         e.preventDefault();
@@ -100,7 +146,7 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
         break;
       case "End":
         e.preventDefault();
-        setActive(LESSONS.length - 1);
+        setActive(itemCount - 1);
         break;
       case "Escape":
         e.preventDefault();
@@ -127,7 +173,13 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
         Lessons
       </button>
       {open && (
-        <div className="lessons-menu-list" role="menu" aria-label="Lessons" onKeyDown={onMenuKeyDown}>
+        <div
+          className="lessons-menu-list"
+          role="menu"
+          aria-label="Lessons"
+          onKeyDown={onMenuKeyDown}
+          ref={listRef}
+        >
           {LESSONS.map((l, i) => (
             <button
               key={l.id}
@@ -147,6 +199,23 @@ export function LessonsMenu({ currentId, onPick }: LessonsMenuProps) {
               <span className="lessons-menu-summary">{l.summary}</span>
             </button>
           ))}
+          {onTakeTour !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="lessons-menu-tour"
+              tabIndex={-1}
+              ref={(el) => {
+                itemRefs.current[LESSONS.length] = el;
+              }}
+              onClick={() => {
+                closeMenu(true);
+                onTakeTour();
+              }}
+            >
+              Take the tour
+            </button>
+          )}
         </div>
       )}
     </div>

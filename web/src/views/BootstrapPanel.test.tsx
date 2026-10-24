@@ -153,6 +153,21 @@ describe("BootstrapPanel", () => {
     ).toBeTruthy();
   });
 
+  it("idle shows the exact §6.8 line, gone once a run starts", () => {
+    render(<Harness initial={loaded()} />);
+    expect(
+      screen.getByText(
+        "Run the bootstrap to see how strongly the data supports each grouping.",
+      ),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Run bootstrap/ }));
+    expect(
+      screen.queryByText(
+        "Run the bootstrap to see how strongly the data supports each grouping.",
+      ),
+    ).toBeNull();
+  });
+
   // Review Focus 1: tiny trees get an explanation instead of an empty
   // result or an error. Method-aware: unrooted n−3, rooted n−2.
   it("NJ, 3 taxa: '0 groupings to test', Run disabled, no error", () => {

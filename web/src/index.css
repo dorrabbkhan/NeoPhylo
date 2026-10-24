@@ -224,7 +224,17 @@ p {
   border-radius: 6px;
   background: var(--color-bg);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  /* Task 12 round 4: cap the list inside the viewport. The header
+   * height isn't fixed (it wraps below 1280), so the list measures
+   * its own top edge into --lessons-menu-top on open; a token margin
+   * keeps the bottom edge off the viewport's and overflow-y scrolls
+   * the over-tall list — every item stays reachable (End included).
+   * overflow-x stays hidden so the rounded corners still clip. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: calc(
+    100dvh - var(--lessons-menu-top, 0px) - var(--space-16)
+  );
 }
 
 .lessons-menu-list [role="menuitemradio"] {
@@ -270,6 +280,30 @@ p {
   display: block;
   font-size: var(--size-xs);
   color: var(--color-text-muted);
+}
+
+/* The ≥1280 "Take the tour" row (§6.7, Task 12 round 3, owner
+ * decision B): the menu's last item, set off from the lesson picks by
+ * a token gap inside the same 1 px rules that separate the rows. A
+ * plain menuitem styled like the More menu's action rows — it acts,
+ * it is never a "current" pick. */
+.lessons-menu-tour {
+  font: inherit;
+  font-size: var(--size-sm);
+  text-align: left;
+  padding: 8px 12px;
+  margin-top: var(--space-8);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.lessons-menu-tour:hover,
+.lessons-menu-tour:focus-visible {
+  background: var(--color-accent-bg);
+  outline: none;
 }
 
 .no-true-tree {
@@ -1398,6 +1432,14 @@ button:disabled {
   border-color: var(--color-accent-border);
 }
 
+/* The Settings drawer's own "Take the tour" item (§6.7, Task 12):
+ * the 1024–1279 reopen path, full-width at the foot of the drawer in
+ * the same generic button style as the controls' buttons. */
+.settings-drawer-tour {
+  width: 100%;
+  margin-top: var(--space-16);
+}
+
 .phylip-help .phylip-help-map {
   margin: 8px 0 0;
   padding-left: 18px;
@@ -1833,4 +1875,95 @@ button,
     animation-duration: 0s !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---- Task 12: tour, empty/loading states (v1.3 spec §6.7-§6.8) ---- */
+
+/* Engine-loading skeleton (§6.8): panel-shaped placeholders behind the
+ * exact loading text so the boot never paints a blank screen. */
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+.skeleton {
+  border-radius: var(--radius-md);
+  background: var(--color-border);
+  opacity: 0.5;
+}
+.skeleton-header {
+  height: 48px;
+}
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: var(--space-16);
+  flex: 1;
+}
+.skeleton-panel {
+  min-height: 240px;
+}
+
+/* Empty/idle states (§6.8): the exact lines where a panel would
+ * otherwise show nothing. */
+.empty-state {
+  padding: var(--space-8) 0;
+}
+.empty-state-text {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-8);
+}
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+.consensus-tabs .empty-state-text {
+  margin: var(--space-4) 0;
+}
+
+/* First-visit tour (§6.7): a highlight ring over the step's element,
+ * a card anchored near it, and a dim backdrop that stays
+ * non-interactive so the app underneath remains usable. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+.tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--color-scrim);
+}
+.tour-ring {
+  position: absolute;
+  border: 2px solid var(--color-focus);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 4px var(--color-accent-bg);
+}
+.tour-card {
+  position: absolute;
+  pointer-events: auto;
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+.tour-status {
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-8);
+}
+.tour-text {
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-12);
+}
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-8);
 }
