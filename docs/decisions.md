@@ -3742,3 +3742,10 @@ owner chose **option B**: drop the button entirely.
   `web/src/views/TreeView.tsx`, `web/src/export/svg.ts`, the two new
   cases in `web/src/layout/treeFigure.test.ts`, and the 41 baselines
   above.
+- **Re-sync onto #79 rounds 3–4** (2026-10-25): merged
+  `origin/m1.3/task-12-tour-empty-states-samples` as a merge commit
+  (no rebase); the only code conflict was this file, resolved by
+  keeping both entries, and the 13 conflicting 1920×1080 baselines
+  took the base branch's bytes before all 43 frames were regenerated
+  in the pinned Playwright image (19 changed vs the merge commit;
+  the visual suite passes 43/43 twice).
