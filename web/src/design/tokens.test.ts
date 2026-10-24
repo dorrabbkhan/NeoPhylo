@@ -9,7 +9,16 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { color, cssVariables, font, radius, size, space } from "./tokens";
+import {
+  color,
+  cssVariables,
+  font,
+  PRESENTER_SCALE,
+  presenterCssVariables,
+  radius,
+  size,
+  space,
+} from "./tokens";
 import type { ThemeName } from "./tokens";
 
 const THEMES: ThemeName[] = ["light", "dark"];
@@ -53,6 +62,22 @@ describe("design tokens", () => {
   it("every type-scale value is ≥ 12 px (spec §3.2 minimum)", () => {
     for (const v of Object.values(size)) {
       expect(v).toBeGreaterThanOrEqual(12);
+    }
+  });
+
+  it("presenter vars scale the type and spacing tokens by 1.5 (spec §6.6)", () => {
+    expect(PRESENTER_SCALE).toBe(1.5);
+    const vars = presenterCssVariables();
+    // Only the type and spacing tokens scale — colors, radii, fonts
+    // and shadows are untouched.
+    for (const key of Object.keys(vars)) {
+      expect(key).toMatch(/^--(size|space)-/);
+    }
+    for (const [key, v] of Object.entries(size)) {
+      expect(vars[`--size-${key}`]).toBe(`${v * 1.5}px`);
+    }
+    for (const n of space) {
+      expect(vars[`--space-${n}`]).toBe(`${n * 1.5}px`);
     }
   });
 

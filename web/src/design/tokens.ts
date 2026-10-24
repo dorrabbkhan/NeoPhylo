@@ -93,6 +93,13 @@ export const size = { xs: 12, sm: 14, md: 16, lg: 20, xl: 24, xxl: 32 } as const
 /** Spacing scale in px (§3.2). */
 export const space = [4, 8, 12, 16, 24, 32, 48] as const;
 
+/** Presenter mode (§6.6): `data-presenter` on <html> scales the type
+ * and spacing tokens by this multiplier — the generated
+ * `:root[data-presenter]` block overrides exactly the `--size-*` and
+ * `--space-*` vars, and the on-screen tree figure scales its text by
+ * the same factor (layout/treeFigure.ts `textScale`). */
+export const PRESENTER_SCALE = 1.5;
+
 export const radius = { sm: 4, md: 8, lg: 12 } as const;
 
 /** Full font stacks — bundled faces first (Task 4 ships the subset
@@ -196,6 +203,22 @@ export function cssVariables(theme: ThemeName): Record<`--${string}`, string> {
   }
   for (const [key, v] of Object.entries(shadow)) {
     vars[`--shadow-${key}`] = v;
+  }
+  return vars;
+}
+
+/**
+ * The `:root[data-presenter]` overrides (§6.6): every `--size-*` and
+ * `--space-*` var at PRESENTER_SCALE — the only tokens presenter mode
+ * touches (colors, radii, fonts and shadows stay).
+ */
+export function presenterCssVariables(): Record<`--${string}`, string> {
+  const vars: Record<`--${string}`, string> = {};
+  for (const [key, v] of Object.entries(size)) {
+    vars[`--size-${key}`] = `${v * PRESENTER_SCALE}px`;
+  }
+  for (const n of space) {
+    vars[`--space-${n}`] = `${n * PRESENTER_SCALE}px`;
   }
   return vars;
 }

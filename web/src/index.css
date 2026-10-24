@@ -630,6 +630,14 @@ p {
   font-size: var(--size-sm);
 }
 
+/* Presenter mode (spec §6.6): the step buttons grow past the 1.5×
+ * type the scaled tokens already give them — the padding takes the
+ * scaled spacing tokens too, so the whole control is bigger for a
+ * room. */
+:root[data-presenter] .stepper button {
+  padding: var(--space-8) var(--space-12);
+}
+
 .error {
   width: 100%;
   padding: 8px 10px;
@@ -1290,15 +1298,24 @@ button:disabled {
   margin: 8px 0;
 }
 
-/* Theme toggle (v1.3 spec §3.3, §6.3): matches the header's secondary
- * buttons; pressed (dark on) shows the accent fill like the checked
- * mode-switch option. Raised above the content sheets' scrim (z-index
- * over .sheet-backdrop's 10) so switching theme stays a real pointer
- * path while a dialog is open — Review Focus 4's real-input test.
+/* Theme and presenter toggles (v1.3 spec §3.3, §6.3, §6.6): matching
+ * the header's secondary buttons; pressed shows the accent fill like
+ * the checked mode-switch option. The pair sits in .header-toggles,
+ * raised above the content sheets' scrim (z-index over
+ * .sheet-backdrop's 10) so switching theme or presenter mode stays a
+ * real pointer path while a dialog is open — Review Focus 4's
+ * real-input test.
  * (The drawer's scrim is z-index 50 and covers it — a full modal.) */
-.theme-toggle {
+.header-toggles {
   position: relative;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.theme-toggle,
+.presenter-toggle {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1310,11 +1327,14 @@ button:disabled {
 }
 
 .theme-toggle:hover,
-.theme-toggle:focus-visible {
+.theme-toggle:focus-visible,
+.presenter-toggle:hover,
+.presenter-toggle:focus-visible {
   border-color: var(--color-accent-border);
 }
 
-.theme-toggle[aria-pressed="true"] {
+.theme-toggle[aria-pressed="true"],
+.presenter-toggle[aria-pressed="true"] {
   background: var(--color-accent-bg);
   border-color: var(--color-accent-border);
   color: var(--color-accent-contrast);
@@ -1322,19 +1342,42 @@ button:disabled {
 }
 
 /* Below 1024 a content sheet covers the whole viewport, and its
- * padding-top: 52px (above) reserves a strip for this toggle. The
- * toggle's own header spot is NOT stable — the header wraps to a
- * second row under it, dropping the button onto the sheet's title —
- * so while a content sheet is open it parks in a fixed top-right slot
- * inside the reserved strip: still a real click target (z-index 40
- * over the scrim's 10, under the drawer scrim's 50), never over sheet
- * content. */
+ * padding-top: 52px (above) reserves a strip for these toggles. The
+ * toggles' own header spot is NOT stable — the header wraps to a
+ * second row under it, dropping the buttons onto the sheet's title —
+ * so while a content sheet is open the pair parks in a fixed
+ * top-right slot inside the reserved strip: still real click targets
+ * (z-index 40 over the scrim's 10, under the drawer scrim's 50),
+ * never over sheet content. */
 @media (width < 1024px) {
   .app:has(> .sheet-backdrop > section:not(.settings-drawer))
-    .theme-toggle {
+    .header-toggles {
     position: fixed;
     top: 10px;
     right: 16px;
+  }
+}
+
+/* Presenter mode widens the same problem to every width: at 1.5× the
+ * header wraps below 1280 as well, so the pair parks while a content
+ * sheet is open at any viewport. Below 1024 it rides higher inside
+ * the same 52px strip; at and above 1024 the centered sheets take a
+ * matching top margin (the scaled space token) so the parked toggles
+ * can never land on their headers — the sheet's max-height shrinks
+ * the same amount so nothing overflows the bottom edge. */
+:root[data-presenter]
+  .app:has(> .sheet-backdrop > section:not(.settings-drawer))
+  .header-toggles {
+  position: fixed;
+  top: 4px;
+  right: 16px;
+}
+
+@media (width >= 1024px) {
+  :root[data-presenter]
+    .sheet-backdrop > section:not(.settings-drawer) {
+    margin-top: var(--space-48);
+    max-height: calc(88vh - var(--space-48));
   }
 }
 

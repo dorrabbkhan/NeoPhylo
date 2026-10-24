@@ -1,8 +1,10 @@
 // The UI slice of Session (v1.3 spec §7.1): the Concept/Math mode plus
 // the viewer prefs — theme, presenter, drawer and tour step. The theme
 // is device-local (neophylo.theme, light by default; design/theme.ts);
-// presenter/tour wiring lands in Tasks 11 and 12.
+// presenter is too (neophylo.presenter, off by default;
+// design/presenter.ts); tour wiring lands in Task 12.
 
+import { readPresenterPref } from "../design/presenter";
 import { readThemePref } from "../design/theme";
 import type { ThemeName } from "../design/tokens";
 
@@ -26,7 +28,7 @@ export function uiInitial(): UiState {
   return {
     mode: "concept",
     theme: readThemePref(),
-    presenter: false,
+    presenter: readPresenterPref(),
     drawerOpen: false,
     tourStep: null,
   };
@@ -52,6 +54,19 @@ export function uiReducer(slice: UiState, a: Action, ctx: Session): UiState {
   if (a.type === "setMode") return { ...slice, mode: a.mode };
   if (a.type === "setTheme") return { ...slice, theme: a.theme };
   if (a.type === "setDrawer") return { ...slice, drawerOpen: a.open };
+  // Task 11 (§6.6): enabling presenter hides the drawer's header
+  // button — an open drawer can't be left up with its trigger gone,
+  // so the mode closes it on the way in (its scrim covers the toggle,
+  // so this only fires through a non-pointer dispatch, but the state
+  // still has to stay consistent). Turning presenter back off does
+  // not reopen it.
+  if (a.type === "setPresenter") {
+    return {
+      ...slice,
+      presenter: a.presenter,
+      drawerOpen: a.presenter ? false : slice.drawerOpen,
+    };
+  }
   // Task 10 (§6.4): opening the replicate sheet from inside the
   // drawer dismisses the drawer — one modal on screen, not two.
   if (a.type === "setReplicateIndex" && a.index !== null) {

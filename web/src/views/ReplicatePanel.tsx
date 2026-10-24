@@ -54,6 +54,9 @@ export interface ReplicatePanelProps {
   outgroup: string[] | null;
   clampNegative?: boolean;
   leafSpacing?: number;
+  /** Presenter mode (v1.3 §6.6): forwarded to the two trees like
+   * leafSpacing so the sheet re-styles with the page. */
+  textScale?: number;
   onNavigate: (index: number) => void;
   onClose: () => void;
 }
@@ -154,6 +157,7 @@ export function ReplicatePanel({
   outgroup,
   clampNegative = false,
   leafSpacing,
+  textScale,
   onNavigate,
   onClose,
 }: ReplicatePanelProps) {
@@ -326,6 +330,7 @@ export function ReplicatePanel({
                       wrong={repWrong}
                       clampNegative={clampNegative}
                       leafSpacing={leafSpacing}
+                      textScale={textScale}
                       splitTaxa={taxa}
                       splitRooted={method === "Upgma"}
                     />
@@ -338,6 +343,7 @@ export function ReplicatePanel({
                     wrong={origMatch.nodes}
                     clampNegative={clampNegative}
                     leafSpacing={leafSpacing}
+                    textScale={textScale}
                     splitTaxa={taxa}
                     splitRooted={method === "Upgma"}
                   />

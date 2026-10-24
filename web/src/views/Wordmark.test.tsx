@@ -40,6 +40,7 @@ describe("Header", () => {
         onPickLesson={() => {}}
         onOpenPhylipHelp={() => {}}
         theme="light"
+        presenter={false}
         dispatch={() => {}}
         breakpoint="wide"
         drawerOpen={false}

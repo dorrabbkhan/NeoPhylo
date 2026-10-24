@@ -3379,3 +3379,71 @@ wedging the start queue.
   weak-support (both themes) and replicate-panel dark. The matrix now
   fills 560 px again and the toggle sits in the sheet's reserved strip.
   Every 1024×768 and 1920×1080 baseline is byte-identical.
+
+## v1.3 Task 11: presenter mode
+
+- **Mechanism (spec §6.6):** `<html data-presenter>` — set before
+  first paint by the index.html inline script and kept in sync from
+  `session.presenter` by `applyPresenter` (design/presenter.ts,
+  `neophylo.presenter`, "1"/absent, try/catch, never in URLs). The
+  generated tokens.css gains a `:root[data-presenter]` block from
+  `presenterCssVariables()` that overrides exactly the `--size-*` and
+  `--space-*` vars at `PRESENTER_SCALE` (1.5) — colors, radii, fonts
+  and shadows stay, and the Task-3 discipline test still passes.
+- **Tree text:** `treeFigure` takes a `textScale` option applied
+  after the 12 px floor (21 px leaf labels, 18 px support pills);
+  App passes `PRESENTER_SCALE` while the mode is on and scales the
+  shared leaf spacing the same way (28 → 42 px/leaf). Exports never
+  set it, so figures stay at document size.
+- **Step buttons** get the scaled spacing tokens as padding
+  (`--space-8`/`--space-12` → 12/18 px) on top of the scaled type.
+- **Drawer-on-enable decision:** `setPresenter(true)` clears
+  `drawerOpen` in `uiReducer` — the drawer button hides in presenter
+  mode, so an open drawer can't be left up with its trigger gone.
+  Its scrim (z-50) covers the toggles, so a real click can only hit
+  this through a non-pointer dispatch, but the state must stay
+  consistent either way; the drawer's focus restore finds its button
+  unmounted and focus settles on the page body. Turning presenter
+  back off does not reopen it.
+- **Toggle slot (PR #74 pattern, widened):** theme + presenter sit in
+  one `.header-toggles` flex wrapper (z-40 over the content scrim,
+  under the drawer's z-50) so both stay real click targets while a
+  dialog is open. Below 1024 the pair parks in the sheet's reserved
+  strip as before. Presenter widens the problem to every width — at
+  1.5× the header wraps below 1280 and an un-parked second row would
+  land on the centered sheets — so under `[data-presenter]` the pair
+  parks fixed at top-right while a content sheet is open at any
+  viewport, and at ≥1024 the centered sheets take a `margin-top:
+  var(--space-48)` (72 px at presenter scale) plus a matching
+  `max-height: calc(88vh - var(--space-48))` so the parked toggles
+  can never land on their headers and nothing overflows the bottom.
+  The e2e asserts zero header-element intersection at 768/1024/1920
+  in both themes, presenter on.
+- **Header DOM order:** the More menu moved before the toggles so the
+  presenter switch is the last button — enabling it removes the
+  Settings button, and nothing it can remove sits after it (the
+  layout spec clicks every header button in DOM order).
+- **Baselines regenerated (owner gate):** pinned Playwright image
+  (v1.64.1-noble digest-pinned), second run zero diffs. The new
+  header button touches every scene's header, so all 36 baselines
+  changed except `export-svg-roundtrip` (6, byte-identical — it
+  renders the exported SVG on a bare page). New baseline:
+  `bootstrap-basics-final-presenter` at 1920×1080 light only.
+- **Files outside the Files block:** `web/src/state/actions.ts` (the
+  `setPresenter` variant — the Action union lives there),
+  `web/src/design/presenter.ts` (device-local pref, mirrors
+  design/theme.ts), `web/src/design/tokensCssPlugin.ts` (emits the
+  `:root[data-presenter]` block), `web/index.html` (pre-paint
+  data-presenter in the existing inline script), `web/src/views/App.tsx`
+  (presenter prop, applyPresenter effect, hidden controls column,
+  scaled spacing/textScale), `web/src/views/TreeView.tsx` and
+  `web/src/views/ReplicatePanel.tsx` (textScale plumbing),
+  `web/src/layout/treeFigure.ts` (the textScale option),
+  `web/src/state/ui.test.ts` + `web/src/design/tokens.test.ts` +
+  `web/src/views/Wordmark.test.tsx` (unit coverage / prop updates),
+  `web/e2e/presenter.spec.ts` (the task's e2e list),
+  `web/e2e/visualScenes.ts` (presenter scene + shared
+  bootstrap-basics-final helper), `web/e2e/visual.spec.ts`
+  (scene `only` restriction), `web/e2e/layout.spec.ts` (header button
+  count 6/7), `web/e2e/__screenshots__/` (baselines above) and this
+  file.
