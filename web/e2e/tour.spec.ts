@@ -169,6 +169,86 @@ test("More → Take the tour reopens it", async ({ page }) => {
   );
 });
 
+// Task 12 round 2 (§6.7, owner decision 2A): a reopen path at every
+// width. At ≥ 1280 a header button next to "Coming from PHYLIP?"
+// reopens the tour — and the header still fits on one row with no
+// overflow at exactly 1280×720. At 1024–1279 the Settings drawer
+// holds the item; below 1024 the More-menu test above still stands.
+test("1280×720: the header button reopens the tour after Skip and the header stays one row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  await waitForApp(page);
+  await tour(page).getByRole("button", { name: "Skip" }).click();
+  await expect(tour(page)).toHaveCount(0);
+
+  const header = page.locator(".app-header");
+  // No sideways scroll inside the header, no child poking outside its
+  // box, and no wrap to a second row. The wrap check uses the vertical
+  // center, not offsetTop: align-items:center gives items of different
+  // heights different tops on the SAME line, but every item on one
+  // line shares its center — a wrapped row's center is offset by a
+  // full row height (the skip link is absolute and excluded).
+  const fits = await header.evaluate((h) => {
+    const hr = h.getBoundingClientRect();
+    const children = Array.from(h.children).filter(
+      (c) => getComputedStyle(c).position !== "absolute",
+    );
+    const inside = children.every((c) => {
+      const r = c.getBoundingClientRect();
+      return (
+        r.left >= hr.left - 0.5 &&
+        r.right <= hr.right + 0.5 &&
+        r.top >= hr.top - 0.5 &&
+        r.bottom <= hr.bottom + 0.5
+      );
+    });
+    const centers = children.map((c) => {
+      const r = c.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+    const oneRow = Math.max(...centers) - Math.min(...centers) < 1;
+    return {
+      scroll: h.scrollWidth <= h.clientWidth,
+      inside,
+      oneRow,
+    };
+  });
+  expect(fits.scroll, "header scrollWidth ≤ clientWidth at 1280").toBe(true);
+  expect(fits.inside, "no header child overflows the header box").toBe(true);
+  expect(fits.oneRow, "header controls stay on one row at 1280").toBe(true);
+
+  await page.getByRole("button", { name: "Take the tour" }).click();
+  await expect(tour(page)).toBeVisible();
+  await expect(page.locator(".tour")).toHaveAttribute(
+    "data-tour-target",
+    ".stepper",
+  );
+});
+
+test("1024×768: the Settings drawer's item closes it and reopens the tour", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  await waitForApp(page);
+  await tour(page).getByRole("button", { name: "Skip" }).click();
+  await expect(tour(page)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  const drawer = page.getByRole("dialog", { name: "Settings" });
+  await drawer.getByRole("button", { name: "Take the tour" }).click();
+  await expect(drawer).toHaveCount(0);
+  await expect(tour(page)).toBeVisible();
+  await expect(page.locator(".tour")).toHaveAttribute(
+    "data-tour-target",
+    ".stepper",
+  );
+  // Focus moved into the tour card, not back to the header's button.
+  await expect(tour(page)).toBeFocused();
+});
+
 test("Review Focus 3: blocked storage shows the tour once per page session", async ({
   page,
 }) => {

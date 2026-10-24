@@ -3502,10 +3502,12 @@ wedging the start queue.
   conserved columns. Per the conductor's fallback instruction,
   `scripts/samples/weak_support.py` is an honest seeded generator
   (seed 5, 6 taxa A–F, 120 sites, near-polytomous centre) writing a
-  NEW file `web/public/samples/weak-support.fasta`; the
-  `weak-support` visual scene keeps the checkpoint artifact, so its
-  baselines are untouched. The divergence needs an owner call —
-  flagged in the PR.
+  NEW file `web/public/samples/weak-support.fasta`. Owner decision
+  (2026-10-24): the seed-5 generator output is canonical; the
+  checkpoint-11 bytes are retired — the `weak-support` visual scene
+  reads `web/public/samples/weak-support.fasta` (the file the Sandbox
+  button serves), `web/e2e/data/weak-support.fasta` is deleted, and
+  the six weak-support baselines were regenerated.
 - **Tour auto-start rules (§6.7):** starts only when the URL resolved
   with `step === 0`, the raw href carries no `#x=`, the exercise came
   from the URL (a prop-driven `<App exercise>` — the unit-test path —
@@ -3527,8 +3529,7 @@ wedging the start queue.
   `web/src/views/Header.tsx` and `web/src/views/MoreMenu.tsx` (the
   "Take the tour" item + dispatch), `web/src/index.css` (tour,
   empty-state and skeleton styles), `web/playwright.config.ts` (the
-  tourSeen storageState), `web/e2e/visualScenes.ts` (comment only —
-  the scene keeps the old file per the fallback rule),
+  tourSeen storageState), `web/e2e/visualScenes.ts`,
   `web/src/views/MoreMenu.test.tsx`, `web/src/views/App.prompts.test.tsx`
   (the §6.8 loading text), `web/src/views/ImportPanel.test.tsx`,
   `web/src/views/BootstrapPanel.test.tsx`,
@@ -3536,11 +3537,15 @@ wedging the start queue.
   `web/e2e/sheets.spec.ts` (the More-menu item list gained "Take the
   tour") and `web/src/state/ui.test.ts` (the tour reducer tests) —
   both missed from this list in the first round — and this file.
-- **Baselines regenerated:** only `four-taxa` (6 files: 3 viewports ×
-  2 themes) — the one scene where the new bootstrap-idle and
-  consensus-tabs empty lines are actually visible. A full
-  `--update-snapshots=all` pass rewrote 22 files, but every diff
-  outside four-taxa was sub-threshold stale noise (e.g. 120 raw bytes
-  on weak-support-1920x1080-light), so those were reverted to main
-  bytes and only four-taxa was regenerated — the weak-support
-  baselines stay byte-identical as required.
+  Round 2 (owner decision 2A) adds: `web/src/views/SettingsDrawer.tsx`
+  (the 1024–1279 tour item) and `web/e2e/layout.spec.ts` (the header
+  button count at ≥ 1280 went 6 → 7 for "Take the tour").
+- **Baselines regenerated:** round 1 only `four-taxa` (6 files: 3
+  viewports × 2 themes) — the one scene where the new bootstrap-idle
+  and consensus-tabs empty lines are actually visible; every other
+  diff was sub-threshold stale noise reverted to main bytes. Round 2
+  (owner decisions 1A/2A) adds the six `weak-support-*` frames (the
+  canonical seed-5 sample) and every 1920×1080 app frame (the new
+  "Take the tour" header button — both themes; the 1024 and 768
+  viewports show no header button and the export-svg scene no app
+  chrome, so their frames are unchanged).

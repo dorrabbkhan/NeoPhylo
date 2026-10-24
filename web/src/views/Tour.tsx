@@ -7,7 +7,7 @@
 // write fails quietly and a module flag keeps it to once per page
 // session (Review Focus 3); the app never errors on it.
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, KeyboardEvent, ReactNode } from "react";
 
 import { markTourSeen } from "../design/tour";
@@ -66,8 +66,7 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
   const [cardH, setCardH] = useState(120);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Locate the highlighted element on every step and on resize, and
-  // give the card focus so Esc and the arrow keys work immediately.
+  // Locate the highlighted element on every step and on resize.
   // Below the wide breakpoint .col-explain is a second grid row under
   // the centre column, so a step's target can start below the fold —
   // scroll it into view first and keep measuring on scroll (the smooth
@@ -99,13 +98,22 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
       });
     }
     measure();
-    cardRef.current?.focus();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
+  }, [s.selector]);
+
+  // Give the card focus so Esc and the arrow keys work immediately.
+  // A passive effect on purpose: when the tour opens FROM the closing
+  // Settings drawer (Task 12 round 2), the drawer's Sheet restores
+  // focus to its header button in its own effect cleanup — and every
+  // unmount cleanup runs before every mount effect in the same flush,
+  // so this focus lands last. (A layout effect would lose the race.)
+  useEffect(() => {
+    cardRef.current?.focus();
   }, [s.selector]);
 
   const end = () => {

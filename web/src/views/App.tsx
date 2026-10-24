@@ -1122,6 +1122,14 @@ export function App({ exercise }: { exercise?: Exercise }) {
       {session.drawerOpen && (
         <SettingsDrawer
           onClose={() => dispatch({ type: "setDrawer", open: false })}
+          // §6.7 (Task 12 round 2, owner decision 2A): at 1024–1279 —
+          // below the header button's ≥ 1280 range, above the More
+          // menu's < 1024 range — the drawer holds the reopen item.
+          onTakeTour={
+            breakpoint === "medium"
+              ? () => dispatch({ type: "tourStart" })
+              : undefined
+          }
         >
           {controlsSections}
         </SettingsDrawer>

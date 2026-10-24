@@ -5,7 +5,13 @@
 // what keeps it from showing on the next visit, and what keeps it to
 // once per page session when storage is blocked.
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Dispatch } from "react";
@@ -23,6 +29,9 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   window.localStorage.clear();
+  // The breakpoint tests set window.innerWidth — restore the suite-wide
+  // 1280 pin from src/test/setup.ts.
+  window.innerWidth = 1280;
   // A prop-driven <App/> syncs #x= into the URL, which suppresses the
   // auto-start (§6.7) — reset so each test starts at a clean visit.
   history.replaceState(null, "", "/");
@@ -182,5 +191,52 @@ describe("Tour — reopen from More (spec §6.7)", () => {
       screen.getByRole("menuitem", { name: "Take the tour" }),
     );
     expect(onTakeTour).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Task 12 round 2 (§6.7, owner decision 2A): a reopen path at every
+// width — the header button at ≥ 1280, the Settings drawer's item at
+// 1024–1279, the More menu below 1024 (above). jsdom has no
+// matchMedia, so the breakpoint falls back to window.innerWidth.
+describe("Tour — reopen paths by width", () => {
+  it("wide: the header's Take the tour button opens the tour at step 1", async () => {
+    window.innerWidth = 1280;
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "True tree" });
+    fireEvent.click(screen.getByRole("button", { name: "Take the tour" }));
+    expect(await screen.findByRole("dialog", { name: "Take the tour" }))
+      .toBeTruthy();
+    expect(document.querySelector(".tour")?.getAttribute("data-tour-target"))
+      .toBe(".stepper");
+  });
+
+  it("medium: the drawer's item closes it and lands focus in the tour card", async () => {
+    window.innerWidth = 1100;
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "True tree" });
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const drawer = await screen.findByRole("dialog", { name: "Settings" });
+    fireEvent.click(
+      within(drawer).getByRole("button", { name: "Take the tour" }),
+    );
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    const card = await screen.findByRole("dialog", { name: "Take the tour" });
+    expect(document.querySelector(".tour")?.getAttribute("data-tour-target"))
+      .toBe(".stepper");
+    // The closing drawer's focus restore (a passive unmount effect)
+    // runs before the mounting card's own passive focus — the card
+    // must end up focused, not the header's Settings button.
+    expect(document.activeElement).toBe(card);
+  });
+
+  it("narrow: the drawer's item stays out — the More menu owns the reopen", async () => {
+    window.innerWidth = 800;
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "True tree" });
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const drawer = await screen.findByRole("dialog", { name: "Settings" });
+    expect(
+      within(drawer).queryByRole("button", { name: "Take the tour" }),
+    ).toBeNull();
   });
 });

@@ -76,7 +76,13 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  /* The space token is only a floor — space-between distributes the
+   * slack above it. Task 12 round 2: with the "Take the tour" button
+   * the 16 px floor overflowed the row's minimum at exactly 1280 px
+   * (1290 needed), so the floor is 8 px at every width now — the same
+   * compromise Task 10 already made below 1280 for the Settings
+   * button. */
+  gap: var(--space-8);
   /* Below the wide breakpoint the controls wrap to a second row rather
    * than clipping at the right edge (plan Task 9, PR #70 addendum). */
   flex-wrap: wrap;
@@ -88,17 +94,6 @@ p {
 .app-header h1,
 .app-header .toast {
   min-width: 0;
-}
-
-/* Below the wide breakpoint the header tightens its gap (the Settings
- * button joins the row — Task 10); 16 px → 8 px keeps the six
- * controls on one row at 1024 where the wider gap overflowed by
- * ~2 px, and the wrap rule below still applies when it truly can't
- * fit. */
-@media (width < 1280px) {
-  .app-header {
-    gap: var(--space-8);
-  }
 }
 
 /* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
@@ -1383,7 +1378,8 @@ button:disabled {
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
-.phylip-help-open {
+.phylip-help-open,
+.tour-open {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1394,8 +1390,18 @@ button:disabled {
 }
 
 .phylip-help-open:hover,
-.phylip-help-open:focus-visible {
+.phylip-help-open:focus-visible,
+.tour-open:hover,
+.tour-open:focus-visible {
   border-color: var(--color-accent-border);
+}
+
+/* The Settings drawer's own "Take the tour" item (§6.7, Task 12
+ * round 2): the 1024–1279 reopen path, full-width at the foot of the
+ * drawer in the same generic button style as the controls' buttons. */
+.settings-drawer-tour {
+  width: 100%;
+  margin-top: var(--space-16);
 }
 
 .phylip-help .phylip-help-map {
