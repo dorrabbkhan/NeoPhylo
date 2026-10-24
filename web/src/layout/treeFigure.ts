@@ -116,152 +116,176 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
   );
   const panelWidth =
     opts.panelWidth > 0 ? opts.panelWidth : FIGURE_DEFAULT_PANEL_WIDTH;
-  const drawWidth = Math.max(
+  let drawWidth = Math.max(
     80,
     panelWidth - labelRoom - FIGURE_PANEL_PAD * 2,
   );
 
-  // Supported edges get only the 12 px display-only stroke floor:
-  // their labels sit just above the incoming segment right-aligned
-  // to the node and may overhang left past the segment's start, so
-  // no fit-stretch is needed (owner refinement 21-10-26).
-  const laid = layout(tree, {
-    kind: opts.kind,
-    clampNegative: opts.clampNegative,
-    leafSpacing: opts.leafSpacing,
-    width: drawWidth,
-    visibleNodes: opts.visibleNodes,
-    minBranchPx: FIGURE_MIN_SUPPORT_BRANCH_PX,
-  });
-  const byId = new Map(laid.nodes.map((n) => [n.id, n]));
-
-  // Support labels are pills placed above the segment into each
-  // labeled node; supportLabels resolves every collision up front
-  // (never onto a node marker, a leaf name or another pill). While
-  // they are drawn the u1/u2/… internal names hide — they are a
-  // step-through aid and would sit exactly where the pills go.
-  const placed = supportLabels(tree, laid, {
-    fontSize: smallFont,
-    nameFontSize: fontSize,
-    nodeRadius: FIGURE_NODE_RADIUS,
-    labelOffset: FIGURE_LABEL_OFFSET,
-    measure: opts.measure,
-  });
-  const labelById = new Map(placed.map((p) => [p.id, p]));
-  const hideInternalNames = placed.length > 0;
-
-  const cladeBox = (id: number): Box | null => {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    const stack = [id];
-    while (stack.length > 0) {
-      const nid = stack.pop()!;
-      const cur = byId.get(nid);
-      if (cur) {
-        minX = Math.min(minX, cur.parentX, cur.x);
-        maxX = Math.max(maxX, cur.x);
-        minY = Math.min(minY, cur.y);
-        maxY = Math.max(maxY, cur.y);
-      }
-      for (const child of tree.nodes[nid].children) stack.push(child);
-    }
-    return minX === Infinity ? null : { minX, maxX, minY, maxY };
-  };
-
-  // The bounds fit the CONTENT, not the nominal layout width
-  // (checkpoint 12): the union of every drawn box, so no label can
-  // ever clip at any tree size or view — and no empty margin remains
-  // where a fixed label-room reservation used to sit (checkpoint 15).
-  const bounds: Box = {
-    minX: Infinity,
-    maxX: -Infinity,
-    minY: Infinity,
-    maxY: -Infinity,
-  };
-  const grow = (b: Box) => {
-    bounds.minX = Math.min(bounds.minX, b.minX);
-    bounds.maxX = Math.max(bounds.maxX, b.maxX);
-    bounds.minY = Math.min(bounds.minY, b.minY);
-    bounds.maxY = Math.max(bounds.maxY, b.maxY);
-  };
-  // Marker radius + highlight ring + half the widest stroke, with slack.
-  const NODE_SLACK = FIGURE_NODE_RADIUS + 5;
-  for (const n of laid.nodes) {
-    grow({
-      minX: Math.min(n.x, n.parentX) - NODE_SLACK,
-      maxX: n.x + NODE_SLACK,
-      minY: n.y - NODE_SLACK,
-      maxY: n.y + NODE_SLACK,
+  // Build the whole figure at one draw width. Supported edges get only
+  // the 12 px display-only stroke floor: their labels sit just above
+  // the incoming segment right-aligned to the node and may overhang
+  // left past the segment's start, so no fit-stretch is needed (owner
+  // refinement 21-10-26). layout() already shrinks its scale so the
+  // accumulated stretch stays inside `drawWidth` (owner decision 3A),
+  // but the CONTENT box also spans pills overhanging left and node
+  // slack — if it still exceeds the panel, the draw width shrinks by
+  // the measured overflow and the figure is rebuilt (the "second pass
+  // that rescales" the same decision allowed). The last built figure
+  // stands when the span stops improving — a tree that truly can't
+  // fit keeps the panel's horizontal scroll (the layout invariant).
+  let best: TreeFigure | null = null;
+  for (let pass = 0; pass < 8; pass += 1) {
+    const laid = layout(tree, {
+      kind: opts.kind,
+      clampNegative: opts.clampNegative,
+      leafSpacing: opts.leafSpacing,
+      width: drawWidth,
+      visibleNodes: opts.visibleNodes,
+      minBranchPx: FIGURE_MIN_SUPPORT_BRANCH_PX,
     });
-    // Text boxes: dominantBaseline="middle" puts glyphs roughly
-    // 1em above and 0.4em below the anchor — measured extents replace
-    // the estimates when the DOM can provide them, so the bounds (and
-    // the export's viewBox) cover the real text at any installed font.
-    if (n.leaf && n.label !== null) {
-      const m = opts.measure?.(n.label, fontSize);
-      grow({
-        minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
-        maxX:
-          n.x +
-          FIGURE_LABEL_OFFSET +
-          FIGURE_NODE_RADIUS +
-          (m?.w ?? n.label.length * fontSize * 0.62),
-        minY: n.y + (m?.top ?? -fontSize - 2),
-        maxY: n.y + (m?.bottom ?? fontSize * 0.5),
-      });
-    } else if (highlight.has(n.id) && !hideInternalNames) {
-      const name = nodeName(tree, n.id);
-      const m = opts.measure?.(name, fontSize);
-      grow({
-        minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
-        maxX:
-          n.x +
-          FIGURE_LABEL_OFFSET +
-          FIGURE_NODE_RADIUS +
-          (m?.w ?? name.length * fontSize * 0.62),
-        minY: n.y + (m?.top ?? -fontSize - 2),
-        maxY: n.y + (m?.bottom ?? fontSize * 0.5),
-      });
-    }
-    const parent = tree.nodes[n.id].parent;
-    if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
-      const mid = (n.parentX + n.x) / 2;
-      const m = opts.measure?.("0", smallFont, "alphabetic");
-      const w = (m?.w ?? smallFont) + 4;
-      grow({
-        minX: mid - w / 2,
-        maxX: mid + w / 2,
-        minY: n.y - 4 + (m?.top ?? -smallFont - 2),
-        maxY: n.y - 4 + (m?.bottom ?? 2),
-      });
-    }
-  }
-  for (const p of placed) grow(p.box);
-  for (const id of wrong) {
-    const cb = cladeBox(id);
-    if (cb !== null) {
-      grow({
-        minX: cb.minX - FIGURE_WRONG_PAD - 3,
-        maxX: cb.maxX + FIGURE_WRONG_PAD + 3,
-        // The ✕ glyph's baseline sits near the rect's top edge, so give
-        // it a full font above the padded box.
-        minY: cb.minY - FIGURE_WRONG_PAD - fontSize - 3,
-        maxY: cb.maxY + FIGURE_WRONG_PAD + 3,
-      });
-    }
-  }
+    const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
-  return {
-    laid,
-    placed,
-    byId,
-    labelById,
-    fontSize,
-    smallFont,
-    bounds,
-    hideInternalNames,
-    cladeBox,
-  };
+    // Support labels are pills placed above the segment into each
+    // labeled node; supportLabels resolves every collision up front
+    // (never onto a node marker, a leaf name or another pill). While
+    // they are drawn the u1/u2/… internal names hide — they are a
+    // step-through aid and would sit exactly where the pills go.
+    const placed = supportLabels(tree, laid, {
+      fontSize: smallFont,
+      nameFontSize: fontSize,
+      nodeRadius: FIGURE_NODE_RADIUS,
+      labelOffset: FIGURE_LABEL_OFFSET,
+      measure: opts.measure,
+    });
+    const labelById = new Map(placed.map((p) => [p.id, p]));
+    const hideInternalNames = placed.length > 0;
+
+    const cladeBox = (id: number): Box | null => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      const stack = [id];
+      while (stack.length > 0) {
+        const nid = stack.pop()!;
+        const cur = byId.get(nid);
+        if (cur) {
+          minX = Math.min(minX, cur.parentX, cur.x);
+          maxX = Math.max(maxX, cur.x);
+          minY = Math.min(minY, cur.y);
+          maxY = Math.max(maxY, cur.y);
+        }
+        for (const child of tree.nodes[nid].children) stack.push(child);
+      }
+      return minX === Infinity ? null : { minX, maxX, minY, maxY };
+    };
+
+    // The bounds fit the CONTENT, not the nominal layout width
+    // (checkpoint 12): the union of every drawn box, so no label can
+    // ever clip at any tree size or view — and no empty margin remains
+    // where a fixed label-room reservation used to sit (checkpoint 15).
+    const bounds: Box = {
+      minX: Infinity,
+      maxX: -Infinity,
+      minY: Infinity,
+      maxY: -Infinity,
+    };
+    const grow = (b: Box) => {
+      bounds.minX = Math.min(bounds.minX, b.minX);
+      bounds.maxX = Math.max(bounds.maxX, b.maxX);
+      bounds.minY = Math.min(bounds.minY, b.minY);
+      bounds.maxY = Math.max(bounds.maxY, b.maxY);
+    };
+    // Marker radius + highlight ring + half the widest stroke, with slack.
+    const NODE_SLACK = FIGURE_NODE_RADIUS + 5;
+    for (const n of laid.nodes) {
+      grow({
+        minX: Math.min(n.x, n.parentX) - NODE_SLACK,
+        maxX: n.x + NODE_SLACK,
+        minY: n.y - NODE_SLACK,
+        maxY: n.y + NODE_SLACK,
+      });
+      // Text boxes: dominantBaseline="middle" puts glyphs roughly
+      // 1em above and 0.4em below the anchor — measured extents replace
+      // the estimates when the DOM can provide them, so the bounds (and
+      // the export's viewBox) cover the real text at any installed font.
+      if (n.leaf && n.label !== null) {
+        const m = opts.measure?.(n.label, fontSize);
+        grow({
+          minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
+          maxX:
+            n.x +
+            FIGURE_LABEL_OFFSET +
+            FIGURE_NODE_RADIUS +
+            (m?.w ?? n.label.length * fontSize * 0.62),
+          minY: n.y + (m?.top ?? -fontSize - 2),
+          maxY: n.y + (m?.bottom ?? fontSize * 0.5),
+        });
+      } else if (highlight.has(n.id) && !hideInternalNames) {
+        const name = nodeName(tree, n.id);
+        const m = opts.measure?.(name, fontSize);
+        grow({
+          minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
+          maxX:
+            n.x +
+            FIGURE_LABEL_OFFSET +
+            FIGURE_NODE_RADIUS +
+            (m?.w ?? name.length * fontSize * 0.62),
+          minY: n.y + (m?.top ?? -fontSize - 2),
+          maxY: n.y + (m?.bottom ?? fontSize * 0.5),
+        });
+      }
+      const parent = tree.nodes[n.id].parent;
+      if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
+        const mid = (n.parentX + n.x) / 2;
+        const m = opts.measure?.("0", smallFont, "alphabetic");
+        const w = (m?.w ?? smallFont) + 4;
+        grow({
+          minX: mid - w / 2,
+          maxX: mid + w / 2,
+          minY: n.y - 4 + (m?.top ?? -smallFont - 2),
+          maxY: n.y - 4 + (m?.bottom ?? 2),
+        });
+      }
+    }
+    for (const p of placed) grow(p.box);
+    for (const id of wrong) {
+      const cb = cladeBox(id);
+      if (cb !== null) {
+        grow({
+          minX: cb.minX - FIGURE_WRONG_PAD - 3,
+          maxX: cb.maxX + FIGURE_WRONG_PAD + 3,
+          // The ✕ glyph's baseline sits near the rect's top edge, so give
+          // it a full font above the padded box.
+          minY: cb.minY - FIGURE_WRONG_PAD - fontSize - 3,
+          maxY: cb.maxY + FIGURE_WRONG_PAD + 3,
+        });
+      }
+    }
+
+    // Keep the narrowest figure built: normally the first pass already
+    // fits and the loop exits; a left-overhanging pill can make a
+    // narrower draw worse, in which case the tighter earlier figure
+    // stands.
+    const figure: TreeFigure = {
+      laid,
+      placed,
+      byId,
+      labelById,
+      fontSize,
+      smallFont,
+      bounds,
+      hideInternalNames,
+      cladeBox,
+    };
+    const spanX = bounds.maxX - bounds.minX;
+    if (best === null || spanX < best.bounds.maxX - best.bounds.minX) {
+      best = figure;
+    }
+    const overflow = spanX + FIGURE_PANEL_PAD * 2 - panelWidth;
+    const next = Math.max(80, drawWidth - overflow);
+    if (overflow <= 0.5 || next >= drawWidth - 0.5) break;
+    drawWidth = next;
+  }
+  return best!;
 }

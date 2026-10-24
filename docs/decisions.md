@@ -3549,3 +3549,70 @@ wedging the start queue.
   "Take the tour" header button — both themes; the 1024 and 768
   viewports show no header button and the export-svg scene no app
   chrome, so their frames are unchanged).
+
+## v1.3 fix: leaf labels clipped by the support stretch (owner decision 3A, 2026-10-24)
+
+- **Cause.** The checkpoint-11 `FIGURE_MIN_SUPPORT_BRANCH_PX`
+  display-only stretch (`minBranchPx` in `web/src/layout/phylogram.ts`)
+  grows a support-carrying internal branch to at least 12 drawn px;
+  the extra width is a `shift` inherited by the whole subtree, so
+  after a bootstrap run the deepest leaf's drawn x — and its name —
+  overran the reserved draw width
+  (`panelWidth − labelRoom − 2·FIGURE_PANEL_PAD`). The svg, sized from
+  the content bounds, grew wider than `.tree-canvas`
+  (`overflow: auto`) and the label sat hidden until the panel was
+  scrolled (PR #79, "Pre-existing: leaf label clipped").
+- **Fix — two places, both display-only.** (a) `layout()` fits the
+  stretch into the width itself: the deepest drawn x at scale `s` is
+  `(cum − base)·s + Σ max(0, minPx − edge·s)` over support-carrying
+  ancestors — continuous and non-decreasing in `s` (a stretched edge
+  draws exactly `minPx` whatever the scale) — so when it exceeds
+  `opts.width` at the naive scale, a bisection finds the largest scale
+  where tree plus accumulated stretch fit together; equivalently the
+  scale then comes from `width −` the stretch on the deepest path.
+  Only a tree whose flat `minPx` floors alone exceed the width still
+  overflows — the panel's horizontal scroll remains for exactly that
+  case (the Global Constraints' layout invariant). (b) `treeFigure()`
+  wraps the whole figure build in a refit pass: `layout()` alone only
+  bounds node x by the draw width, while the CONTENT box also spans
+  leaf names, support pills overhanging left and node slack — when the
+  measured bounds still exceed the panel, the draw width shrinks by
+  the measured overflow and the figure is rebuilt (up to 8 passes; the
+  narrowest build stands). Both renderers consume `treeFigure`, so
+  exports stay identical to the screen.
+- **Why `four-taxa` changed although it shows no support values.** The
+  refit loop runs for every tree; it only *engages* on real overflow.
+  `labelRoomFor` reserves `ceil(longest·fontSize·0.62) + 15` — an em
+  estimate — while the content bounds use `measure()`'s real
+  bundled-font glyph widths. Where the deepest leaf's measured label
+  exceeds the estimate by more than ~0.5 px, the first pass overflows
+  and the draw width shrinks a fraction of a percent — the sub-pixel
+  rescale the six frames show (~530–690 changed px each, under the
+  0.001 diff ratio but real, so the baselines could not be left
+  stale). That overflow predates this fix: the svg was already
+  slightly wider than the canvas and the label tail sat behind scroll
+  — the same clip decision 3A targets, just sub-pixel. Making the
+  refit stretch-only would knowingly keep it; the invariant "the
+  drawing, including the leaf labels, fits the panel" is applied
+  uniformly instead. (jsdom unit tests use the em estimates, so they
+  see no refit on no-stretch trees — verified: identical scale.)
+- **Changed baselines (15, regenerated in the pinned Playwright
+  image):**
+  - `weak-support-1024x768-{dark,light}`,
+    `weak-support-1920x1080-{dark,light}` (4) — the fix itself: all six
+    leaf names now fit inside the panel.
+  - `bootstrap-basics-final-1024x768-{dark,light}`,
+    `bootstrap-basics-final-1920x1080-{dark,light}`,
+    `bootstrap-basics-final-presenter-1920x1080-light` (5) — the same
+    stretch refit on the bootstrap-basics tree after the seeded run.
+  - `four-taxa-{1024x768,1920x1080,768x1024}-{dark,light}` (6) — the
+    measured-label refit above; no support involved.
+  - Regenerated then reverted to HEAD bytes (anti-aliasing noise,
+    1–49 px): `cytc-computed-768x1024-{dark,light}`,
+    `cytc-rooted-1024x768-dark`, `cytc-rooted-768x1024-{dark,light}`,
+    `replicate-panel-1920x1080-light`, `weak-support-768x1024-light`.
+- **Files** (this owner-requested fix has no plan Files block):
+  `web/src/layout/phylogram.ts`, `web/src/layout/treeFigure.ts`, the
+  new `web/src/layout/treeFigure.test.ts` and
+  `web/e2e/leaf-labels.spec.ts`, the 15 baselines above, and this
+  file.
