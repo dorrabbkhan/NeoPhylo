@@ -13,9 +13,12 @@ import { expect } from "@playwright/test";
 
 import { stepToEnd, waitForApp } from "./helpers";
 
-/** The checkpoint-11 weak-support sample (6 taxa A–F, 120 sites,
- * seed 5), committed in this task; Task 12 moves the generator to
- * scripts/samples/ and points the scene at web/public/samples/. */
+/** The checkpoint-11 weak-support sample (6 taxa A–F, 120 sites).
+ * Task 12: the generator recipe was never written down and could not
+ * be reconstructed byte-identically, so this scene keeps the
+ * checkpoint artifact (decisions.md); the new
+ * scripts/samples/weak_support.py generates only the Sandbox's
+ * web/public/samples/weak-support.fasta. */
 const WEAK_SUPPORT = fileURLToPath(
   new URL("./data/weak-support.fasta", import.meta.url),
 );

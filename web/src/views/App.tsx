@@ -89,6 +89,8 @@ import { Stepper } from "./Stepper";
 import { stepMatrix, traceLength } from "./stepMatrix";
 import type { StepMatrix } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
+import { readTourSeen } from "../design/tour";
+import { Tour } from "./Tour";
 import { splitKeys } from "../layout/splitKeys";
 import { LEAF_SPACING_NATURAL } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
@@ -178,6 +180,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
         source: "lesson",
       });
       if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl);
+      // First-visit tour (spec §6.7): once per device on a plain visit
+      // — suppressed by a `lesson=` step link, any `#x=` state, a
+      // prop-driven exercise (unit tests) or the tourSeen flag.
+      if (
+        exercise === undefined &&
+        r.fromUrl !== null &&
+        r.fromUrl.step === 0 &&
+        !window.location.href.includes("#x=") &&
+        !readTourSeen()
+      ) {
+        s = reducer(s, { type: "tourStart" });
+      }
       setSession(s);
     })();
     return () => {
@@ -542,7 +556,19 @@ export function App({ exercise }: { exercise?: Exercise }) {
   }, [gatedNow]);
 
   if (session === null) {
-    return <div className="app-loading">Loading…</div>;
+    // §6.8: the exact loading line over skeleton panels — never a
+    // blank screen while the wasm engine boots.
+    return (
+      <div className="app-loading">
+        <div className="skeleton skeleton-header" aria-hidden="true" />
+        <div className="skeleton-row" aria-hidden="true">
+          <div className="skeleton skeleton-panel" />
+          <div className="skeleton skeleton-panel" />
+          <div className="skeleton skeleton-panel" />
+        </div>
+        <p>Loading the NeoPhylo engine…</p>
+      </div>
+    );
   }
 
 
@@ -1101,6 +1127,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
         </SettingsDrawer>
       )}
       {phylipHelp && <PhylipHelp onClose={() => setPhylipHelp(false)} />}
+      {session.tourStep !== null && (
+        <Tour step={session.tourStep} dispatch={dispatch} />
+      )}
       {pairDetail !== null && session.alignment !== null && (
         <PairPanel
           aln={session.alignment}

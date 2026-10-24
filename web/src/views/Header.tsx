@@ -120,7 +120,12 @@ export function Header({
           Coming from PHYLIP?
         </button>
       )}
-      {belowMedium && <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} />}
+      {belowMedium && (
+        <MoreMenu
+          onOpenPhylipHelp={onOpenPhylipHelp}
+          onTakeTour={() => dispatch({ type: "tourStart" })}
+        />
+      )}
       {/* The toggles come last in DOM order: the presenter switch hides
           the Settings button, so nothing it can remove sits after it
           (the header-controls layout test clicks every button in

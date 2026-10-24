@@ -18,6 +18,7 @@ import {
   consensusKind,
   droppedLine,
 } from "./consensusTabs";
+import { EmptyState } from "./EmptyState";
 
 export interface ConsensusTabsProps {
   session: Session;
@@ -108,6 +109,8 @@ export function ConsensusTabs({
           );
         })}
       </div>
+      {/* §6.8: why the consensus tabs are disabled before a run. */}
+      {!done && <EmptyState text="Available after a bootstrap run." />}
       <div
         role="tabpanel"
         id="consensus-tree-panel"

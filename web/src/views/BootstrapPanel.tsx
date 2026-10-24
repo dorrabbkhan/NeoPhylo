@@ -23,6 +23,7 @@ import {
 import type { Action, Session } from "../state/session";
 
 import { NumberField } from "./Controls";
+import { EmptyState } from "./EmptyState";
 
 export interface BootstrapPanelProps {
   session: Session;
@@ -127,6 +128,11 @@ export function BootstrapPanel({
           dispatch({ type: "setBootstrapSettings", patch: { seed } })
         }
       />
+
+      {/* §6.8: the exact idle-state line, before any run exists. */}
+      {b.status === "idle" && (
+        <EmptyState text="Run the bootstrap to see how strongly the data supports each grouping." />
+      )}
 
       {running && (
         <div

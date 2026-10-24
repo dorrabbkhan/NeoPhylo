@@ -2,7 +2,8 @@
 // the viewer prefs — theme, presenter, drawer and tour step. The theme
 // is device-local (neophylo.theme, light by default; design/theme.ts);
 // presenter is too (neophylo.presenter, off by default;
-// design/presenter.ts); tour wiring lands in Task 12.
+// design/presenter.ts); the tour step drives views/Tour.tsx (Task 12),
+// with the device-local neophylo.tourSeen flag kept in design/tour.ts.
 
 import { readPresenterPref } from "../design/presenter";
 import { readThemePref } from "../design/theme";
@@ -45,6 +46,10 @@ export function uiSlice(s: Session): UiState {
   };
 }
 
+/** Number of tour steps (spec §6.7): the stepper, the trees, the
+ * matrix and the Concept/Math toggle. */
+export const TOUR_STEP_COUNT = 4;
+
 /** UI-slice reducer: handles the actions that only touch UI state and
  * returns `slice` unchanged for the rest. `ctx` is the pre-action
  * session (read-only) for slices that need read access to other
@@ -54,6 +59,23 @@ export function uiReducer(slice: UiState, a: Action, ctx: Session): UiState {
   if (a.type === "setMode") return { ...slice, mode: a.mode };
   if (a.type === "setTheme") return { ...slice, theme: a.theme };
   if (a.type === "setDrawer") return { ...slice, drawerOpen: a.open };
+  // Task 12 (§6.7): the tour's position in tourStep — null is closed,
+  // 0..TOUR_STEP_COUNT-1 the open step; next past the end closes.
+  if (a.type === "tourStart") return { ...slice, tourStep: 0 };
+  if (a.type === "tourNext") {
+    if (slice.tourStep === null) return slice;
+    return {
+      ...slice,
+      tourStep: slice.tourStep + 1 < TOUR_STEP_COUNT
+        ? slice.tourStep + 1
+        : null,
+    };
+  }
+  if (a.type === "tourBack") {
+    if (slice.tourStep === null) return slice;
+    return { ...slice, tourStep: Math.max(0, slice.tourStep - 1) };
+  }
+  if (a.type === "tourEnd") return { ...slice, tourStep: null };
   // Task 11 (§6.6): enabling presenter hides the drawer's header
   // button — an open drawer can't be left up with its trigger gone,
   // so the mode closes it on the way in (its scrim covers the toggle,

@@ -84,7 +84,8 @@ describe("lesson prompts", () => {
     const { rerender } = render(<App />);
     rerender(<App />);
     rerender(<App />);
-    expect(screen.getByText("Loading…")).toBeTruthy();
+    // v1.3 spec §6.8: the exact engine-loading text.
+    expect(screen.getByText("Loading the NeoPhylo engine…")).toBeTruthy();
     await screen.findByText(firstQuestion());
   });
 
