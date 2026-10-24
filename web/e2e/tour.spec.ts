@@ -1,8 +1,10 @@
 // First-visit tour e2e (v1.3 plan Task 12, spec §6.7). Four steps
 // highlight the stepper, the trees, the matrix and the Concept/Math
 // toggle; once per device via neophylo.tourSeen, suppressed by
-// lesson-step and #x= links, reopenable from More → "Take the tour",
-// and once per page session when storage is blocked (Review Focus 3).
+// lesson-step and #x= links, reopenable at every width (owner
+// decision B: the Lessons menu's last item at ≥ 1280, the Settings
+// drawer at 1024–1279, More → "Take the tour" below 1024), and once
+// per page session when storage is blocked (Review Focus 3).
 //
 // Every other spec gets neophylo.tourSeen from the project-level
 // storageState in playwright.config.ts; this file overrides it back
@@ -169,12 +171,13 @@ test("More → Take the tour reopens it", async ({ page }) => {
   );
 });
 
-// Task 12 round 2 (§6.7, owner decision 2A): a reopen path at every
-// width. At ≥ 1280 a header button next to "Coming from PHYLIP?"
-// reopens the tour — and the header still fits on one row with no
-// overflow at exactly 1280×720. At 1024–1279 the Settings drawer
-// holds the item; below 1024 the More-menu test above still stands.
-test("1280×720: the header button reopens the tour after Skip and the header stays one row", async ({
+// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): a reopen path
+// at every width — and the header itself identical to main's. The
+// round-2 header button wrapped the controls to two rows at exactly
+// 1280 on the longer lesson titles, so at ≥ 1280 "Take the tour" is
+// now the LAST item of the Lessons menu. At 1024–1279 the Settings
+// drawer holds the item; below 1024 the More-menu test above stands.
+test("1280×720: Lessons → Take the tour reopens it after Skip, focus in the card", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -183,49 +186,104 @@ test("1280×720: the header button reopens the tour after Skip and the header st
   await tour(page).getByRole("button", { name: "Skip" }).click();
   await expect(tour(page)).toHaveCount(0);
 
-  const header = page.locator(".app-header");
-  // No sideways scroll inside the header, no child poking outside its
-  // box, and no wrap to a second row. The wrap check uses the vertical
-  // center, not offsetTop: align-items:center gives items of different
-  // heights different tops on the SAME line, but every item on one
-  // line shares its center — a wrapped row's center is offset by a
-  // full row height (the skip link is absolute and excluded).
-  const fits = await header.evaluate((h) => {
-    const hr = h.getBoundingClientRect();
-    const children = Array.from(h.children).filter(
-      (c) => getComputedStyle(c).position !== "absolute",
-    );
-    const inside = children.every((c) => {
-      const r = c.getBoundingClientRect();
-      return (
-        r.left >= hr.left - 0.5 &&
-        r.right <= hr.right + 0.5 &&
-        r.top >= hr.top - 0.5 &&
-        r.bottom <= hr.bottom + 0.5
-      );
-    });
-    const centers = children.map((c) => {
-      const r = c.getBoundingClientRect();
-      return r.top + r.height / 2;
-    });
-    const oneRow = Math.max(...centers) - Math.min(...centers) < 1;
-    return {
-      scroll: h.scrollWidth <= h.clientWidth,
-      inside,
-      oneRow,
-    };
-  });
-  expect(fits.scroll, "header scrollWidth ≤ clientWidth at 1280").toBe(true);
-  expect(fits.inside, "no header child overflows the header box").toBe(true);
-  expect(fits.oneRow, "header controls stay on one row at 1280").toBe(true);
-
-  await page.getByRole("button", { name: "Take the tour" }).click();
+  const menuButton = page.getByRole("button", { name: "Lessons" });
+  await menuButton.click();
+  const menu = page.getByRole("menu", { name: "Lessons" });
+  const item = menu.getByRole("menuitem", { name: "Take the tour" });
+  // The last row of the menu, after every lesson pick.
+  await expect(item).toBeVisible();
+  expect(
+    await menu.locator(":scope > *").last().getAttribute("role"),
+  ).toBe("menuitem");
+  await item.click();
+  await expect(menu).toHaveCount(0);
   await expect(tour(page)).toBeVisible();
   await expect(page.locator(".tour")).toHaveAttribute(
     "data-tour-target",
     ".stepper",
   );
+  // Focus moved into the tour card, not back to the menu button.
+  await expect(tour(page)).toBeFocused();
 });
+
+// Owner decision B's regression guard: at exactly 1280 — the width the
+// round-2 button wrapped on — every lesson's header must match main's.
+// Round 2's check used only nj-basics; the wrap appeared on
+// cytochrome-c, saturation and upgma-fails, so this iterates the whole
+// catalog.
+//
+// Measured in the pinned image (main renders the same heights — the
+// branch's closed-menu header DOM is identical to main's): five lessons
+// sit on one row at 54.2 px. protein-models is the exception: its
+// longer title wraps the toggles to a second row on MAIN too
+// (95.4 px) — pre-existing, unrelated to this PR — so the assertion
+// pins main's height rather than inventing a new contract.
+const HEADER_HEIGHT_1280: Record<string, number> = {
+  "nj-basics": 54.2,
+  "upgma-fails": 54.2,
+  saturation: 54.2,
+  "bootstrap-basics": 54.2,
+  "protein-models": 95.4, // wraps on main too — see comment above
+  "cytochrome-c": 54.2,
+};
+for (const lesson of Object.keys(HEADER_HEIGHT_1280)) {
+  test(`1280×720 ${lesson}: header matches main's layout`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`/?lesson=${lesson}`);
+    await waitForApp(page);
+    await tour(page).getByRole("button", { name: "Skip" }).click();
+
+    const header = page.locator(".app-header");
+    // No sideways scroll inside the header, no child poking outside
+    // its box, and no wrap to a second row. The wrap check uses the
+    // vertical center, not offsetTop: align-items:center gives items
+    // of different heights different tops on the SAME line, but every
+    // item on one line shares its center — a wrapped row's center is
+    // offset by a full row height (the skip link is absolute and
+    // excluded).
+    const fits = await header.evaluate((h) => {
+      const hr = h.getBoundingClientRect();
+      const children = Array.from(h.children).filter(
+        (c) => getComputedStyle(c).position !== "absolute",
+      );
+      const inside = children.every((c) => {
+        const r = c.getBoundingClientRect();
+        return (
+          r.left >= hr.left - 0.5 &&
+          r.right <= hr.right + 0.5 &&
+          r.top >= hr.top - 0.5 &&
+          r.bottom <= hr.bottom + 0.5
+        );
+      });
+      const centers = children.map((c) => {
+        const r = c.getBoundingClientRect();
+        return r.top + r.height / 2;
+      });
+      const oneRow = Math.max(...centers) - Math.min(...centers) < 1;
+      return {
+        height: hr.height,
+        scroll: h.scrollWidth <= h.clientWidth,
+        inside,
+        oneRow,
+      };
+    });
+    expect(fits.scroll, "header scrollWidth ≤ clientWidth at 1280").toBe(true);
+    expect(fits.inside, "no header child overflows the header box").toBe(true);
+    expect(
+      fits.height,
+      "header height equals main's measured height for this lesson",
+    ).toBeCloseTo(HEADER_HEIGHT_1280[lesson], 0);
+    if (HEADER_HEIGHT_1280[lesson] < 60) {
+      // Single-row lessons: every control shares one vertical center.
+      expect(
+        fits.oneRow,
+        "header controls stay on one row at 1280",
+      ).toBe(true);
+    }
+  });
+}
 
 test("1024×768: the Settings drawer's item closes it and reopens the tour", async ({
   page,

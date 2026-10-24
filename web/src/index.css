@@ -76,13 +76,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* The space token is only a floor — space-between distributes the
-   * slack above it. Task 12 round 2: with the "Take the tour" button
-   * the 16 px floor overflowed the row's minimum at exactly 1280 px
-   * (1290 needed), so the floor is 8 px at every width now — the same
-   * compromise Task 10 already made below 1280 for the Settings
-   * button. */
-  gap: var(--space-8);
+  gap: 16px;
   /* Below the wide breakpoint the controls wrap to a second row rather
    * than clipping at the right edge (plan Task 9, PR #70 addendum). */
   flex-wrap: wrap;
@@ -94,6 +88,17 @@ p {
 .app-header h1,
 .app-header .toast {
   min-width: 0;
+}
+
+/* Below the wide breakpoint the header tightens its gap (the Settings
+ * button joins the row — Task 10); 16 px → 8 px keeps the six
+ * controls on one row at 1024 where the wider gap overflowed by
+ * ~2 px, and the wrap rule below still applies when it truly can't
+ * fit. */
+@media (width < 1280px) {
+  .app-header {
+    gap: var(--space-8);
+  }
 }
 
 /* Brand wordmark (v1.3 spec §5): Inter 600 at text color, the chosen
@@ -219,7 +224,17 @@ p {
   border-radius: 6px;
   background: var(--color-bg);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  /* Task 12 round 4: cap the list inside the viewport. The header
+   * height isn't fixed (it wraps below 1280), so the list measures
+   * its own top edge into --lessons-menu-top on open; a token margin
+   * keeps the bottom edge off the viewport's and overflow-y scrolls
+   * the over-tall list — every item stays reachable (End included).
+   * overflow-x stays hidden so the rounded corners still clip. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: calc(
+    100dvh - var(--lessons-menu-top, 0px) - var(--space-16)
+  );
 }
 
 .lessons-menu-list [role="menuitemradio"] {
@@ -265,6 +280,30 @@ p {
   display: block;
   font-size: var(--size-xs);
   color: var(--color-text-muted);
+}
+
+/* The ≥1280 "Take the tour" row (§6.7, Task 12 round 3, owner
+ * decision B): the menu's last item, set off from the lesson picks by
+ * a token gap inside the same 1 px rules that separate the rows. A
+ * plain menuitem styled like the More menu's action rows — it acts,
+ * it is never a "current" pick. */
+.lessons-menu-tour {
+  font: inherit;
+  font-size: var(--size-sm);
+  text-align: left;
+  padding: 8px 12px;
+  margin-top: var(--space-8);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.lessons-menu-tour:hover,
+.lessons-menu-tour:focus-visible {
+  background: var(--color-accent-bg);
+  outline: none;
 }
 
 .no-true-tree {
@@ -1378,8 +1417,7 @@ button:disabled {
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
-.phylip-help-open,
-.tour-open {
+.phylip-help-open {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1390,15 +1428,13 @@ button:disabled {
 }
 
 .phylip-help-open:hover,
-.phylip-help-open:focus-visible,
-.tour-open:hover,
-.tour-open:focus-visible {
+.phylip-help-open:focus-visible {
   border-color: var(--color-accent-border);
 }
 
-/* The Settings drawer's own "Take the tour" item (§6.7, Task 12
- * round 2): the 1024–1279 reopen path, full-width at the foot of the
- * drawer in the same generic button style as the controls' buttons. */
+/* The Settings drawer's own "Take the tour" item (§6.7, Task 12):
+ * the 1024–1279 reopen path, full-width at the foot of the drawer in
+ * the same generic button style as the controls' buttons. */
 .settings-drawer-tour {
   width: 100%;
   margin-top: var(--space-16);

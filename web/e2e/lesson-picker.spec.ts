@@ -84,6 +84,59 @@ test("the menu is keyboard-operable: Enter opens, arrows move, Esc closes", asyn
   await expect(menu).toBeVisible();
 });
 
+// Task 12 round 4: at 720 px the open menu was ~690 px tall and its
+// last item ("Take the tour", ≥ 1280 only) sat at/past the viewport's
+// bottom edge; at 600 px it was unreachable. The list now caps inside
+// the viewport and scrolls, so End must land the tour row fully inside
+// both the viewport and the list's visible area — then activating it
+// starts the tour. Shared storage marks tourSeen, so the tour only
+// appears via this explicit reopen.
+for (const vh of [720, 600]) {
+  test(`1280×${vh}: the menu fits the viewport and End reaches Take the tour`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: vh });
+    await page.goto("/?lesson=cytochrome-c");
+    await waitForApp(page);
+    await page.getByRole("button", { name: "Lessons" }).click();
+    const menu = page.getByRole("menu", { name: "Lessons" });
+    await expect(menu).toBeVisible();
+
+    // The whole list sits inside the viewport.
+    const mbox = await menu.boundingBox();
+    expect(mbox).not.toBeNull();
+    expect(mbox!.x).toBeGreaterThanOrEqual(0);
+    expect(mbox!.x + mbox!.width).toBeLessThanOrEqual(1280);
+    expect(mbox!.y).toBeGreaterThanOrEqual(0);
+    expect(mbox!.y + mbox!.height).toBeLessThanOrEqual(vh);
+
+    // End focuses the last item; it is fully inside the viewport AND
+    // inside the list's visible area (the scroll did its job).
+    await page.keyboard.press("End");
+    const item = menu.getByRole("menuitem", { name: "Take the tour" });
+    await expect(item).toBeFocused();
+    const ibox = await item.boundingBox();
+    expect(ibox).not.toBeNull();
+    expect(ibox!.x).toBeGreaterThanOrEqual(0);
+    expect(ibox!.x + ibox!.width).toBeLessThanOrEqual(1280);
+    expect(ibox!.y).toBeGreaterThanOrEqual(0);
+    expect(ibox!.y + ibox!.height).toBeLessThanOrEqual(vh);
+    expect(ibox!.y).toBeGreaterThanOrEqual(mbox!.y);
+    expect(ibox!.x).toBeGreaterThanOrEqual(mbox!.x);
+    expect(ibox!.x + ibox!.width).toBeLessThanOrEqual(mbox!.x + mbox!.width);
+    expect(ibox!.y + ibox!.height).toBeLessThanOrEqual(
+      mbox!.y + mbox!.height,
+    );
+
+    // Activating it closes the menu and starts the tour.
+    await page.keyboard.press("Enter");
+    await expect(menu).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Take the tour" }),
+    ).toBeVisible();
+  });
+}
+
 test("axe: the page stays clean with the Lessons menu open", async ({
   page,
 }) => {

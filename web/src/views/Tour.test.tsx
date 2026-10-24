@@ -194,20 +194,37 @@ describe("Tour — reopen from More (spec §6.7)", () => {
   });
 });
 
-// Task 12 round 2 (§6.7, owner decision 2A): a reopen path at every
-// width — the header button at ≥ 1280, the Settings drawer's item at
-// 1024–1279, the More menu below 1024 (above). jsdom has no
-// matchMedia, so the breakpoint falls back to window.innerWidth.
+// Task 12 round 3 (§6.7, owner decision B): a reopen path at every
+// width — the Lessons menu's last item at ≥ 1280, the Settings
+// drawer's item at 1024–1279, the More menu below 1024 (above). jsdom
+// has no matchMedia, so the breakpoint falls back to window.innerWidth.
 describe("Tour — reopen paths by width", () => {
-  it("wide: the header's Take the tour button opens the tour at step 1", async () => {
+  it("wide: the Lessons menu's Take the tour item opens the tour at step 1", async () => {
     window.innerWidth = 1280;
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "True tree" });
-    fireEvent.click(screen.getByRole("button", { name: "Take the tour" }));
-    expect(await screen.findByRole("dialog", { name: "Take the tour" }))
-      .toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Lessons" }));
+    const menu = await screen.findByRole("menu", { name: "Lessons" });
+    fireEvent.click(
+      within(menu).getByRole("menuitem", { name: "Take the tour" }),
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+    const card = await screen.findByRole("dialog", { name: "Take the tour" });
     expect(document.querySelector(".tour")?.getAttribute("data-tour-target"))
       .toBe(".stepper");
+    // Focus lands in the card, not back on the Lessons button.
+    expect(document.activeElement).toBe(card);
+  });
+
+  it("medium: the Lessons menu shows no tour item — the drawer owns the reopen", async () => {
+    window.innerWidth = 1100;
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "True tree" });
+    fireEvent.click(screen.getByRole("button", { name: "Lessons" }));
+    const menu = await screen.findByRole("menu", { name: "Lessons" });
+    expect(
+      within(menu).queryByRole("menuitem", { name: "Take the tour" }),
+    ).toBeNull();
   });
 
   it("medium: the drawer's item closes it and lands focus in the tour card", async () => {
