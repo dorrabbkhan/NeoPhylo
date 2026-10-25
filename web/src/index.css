@@ -77,17 +77,47 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  /* Below the wide breakpoint the controls wrap to a second row rather
-   * than clipping at the right edge (plan Task 9, PR #70 addendum). */
+  /* Below the medium breakpoint — and in presenter mode at any width,
+   * where 1.5× type can genuinely overflow — the controls wrap to a
+   * second row rather than clipping at the right edge (plan Task 9,
+   * PR #70 addendum). At and above 1024 the row never wraps outside
+   * presenter mode: the title's ellipsis takes the squeeze instead
+   * (flex-wrap's line breaking uses UNSHRUNK sizes, so a shrinkable
+   * h1 alone could never stop the toggles wrapping — v1.3 fixes). */
   flex-wrap: wrap;
   row-gap: 8px;
 }
 
-/* The title and the toast shrink and wrap instead of pushing the
- * header controls past the viewport edge. */
+@media (width >= 1024px) {
+  :root:not([data-presenter]) .app-header {
+    flex-wrap: nowrap;
+  }
+}
+
+/* The title and the toast shrink instead of pushing the header
+ * controls past the viewport edge: min-width: 0 lets a flex item go
+ * below its min-content width. The title truncates with an ellipsis
+ * on ONE line — it is the header's only item that may shrink, so the
+ * controls can never wrap to a second row because of it (v1.3 fixes,
+ * owner decision); the full title stays on the h1's title attribute
+ * and accessible name. The toast keeps wrapping. */
 .app-header h1,
 .app-header .toast {
   min-width: 0;
+}
+
+.app-header h1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The title is the row's ONLY shrinkable item: every other direct
+ * child keeps its natural width, so a long title can never squeeze a
+ * control narrow enough to wrap its own text to two lines (v1.3
+ * fixes, owner decision). */
+.app-header > :not(h1):not(.toast) {
+  flex-shrink: 0;
 }
 
 /* Below the wide breakpoint the header tightens its gap (the Settings
@@ -830,13 +860,66 @@ button:disabled {
 }
 
 /* Each formula is its own block on its own line; long formulas scroll
- * horizontally instead of wrapping mid-formula. */
+ * horizontally inside their own box instead of wrapping mid-formula.
+ * The scroll is the only overflow — the box never scrolls vertically
+ * (overflow-y hidden), the block-end padding keeps descenders and the
+ * horizontal scrollbar off the glyphs, and a line that actually
+ * overflows is a labelled tab stop (MathLine) so keyboard users can
+ * reach the clipped end. */
 .math-line {
   display: block;
   overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
+  padding: var(--space-4) 0 var(--space-8);
   margin: 0 0 8px;
   font-size: var(--size-md);
+}
+
+/* The scroll affordance for an overflowing formula (v1.3 fixes, fix
+ * round 1): the scrollbar is overlay-only, so a line clipped mid-glyph
+ * at the box edge otherwise reads as cut off. .math-line-box carries a
+ * data-fade-* attribute per edge that still hides content (MathLine
+ * sets them from the scroll position); each pseudo-element is a narrow
+ * fade from the panel's own background token toward transparent, so the
+ * mark works in light, dark and presenter mode on every surface
+ * (.col-controls, .col-explain, the Settings drawer and .pair-panel all
+ * sit on --color-bg). Absolute inside the wrapper, they are pinned to
+ * the visible edge while glyphs scroll under them, take no layout
+ * space, and can't cover the p's focus ring — outlines are drawn
+ * outside the border box, the fades only paint inside it. The band
+ * marks the edge; it is narrow on purpose so formula contrast survives
+ * outside it. */
+.math-line-box {
+  position: relative;
+}
+
+.math-line-box::before,
+.math-line-box::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--space-24);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 160ms ease;
+}
+
+.math-line-box::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-bg), transparent);
+}
+
+.math-line-box::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-bg), transparent);
+}
+
+.math-line-box[data-fade-left]::before,
+.math-line-box[data-fade-right]::after {
+  opacity: 1;
 }
 
 .katex {

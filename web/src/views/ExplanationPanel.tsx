@@ -8,15 +8,14 @@
 // formulas. Math mode ends with a rounding disclosure — displayed values
 // are 3-decimal, calculations use full precision.
 
-import { useMemo } from "react";
 import type { Dispatch } from "react";
 
 import type { Trace } from "../engine/generated/Trace";
 import { conceptText } from "../explain/concept";
-import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { mathTex } from "../explain/math";
 import type { Action, Session } from "../state/session";
 
+import { MathLine } from "./MathLine";
 import { ModeToggle } from "./ModeToggle";
 
 export interface ExplanationPanelProps {
@@ -41,25 +40,6 @@ export interface ExplanationPanelProps {
 /** mathTex lines are KaTeX source unless they carry no formula at all —
  * plain notices like "Tie: chosen by input order." render as text. */
 const isFormula = (line: string) => line.includes("=");
-
-function MathLine({ source }: { source: string }) {
-  const katex = useKatex();
-  const html = useMemo(
-    () => (katex === null ? null : renderMath(katex, source)),
-    [katex, source],
-  );
-  if (katex === null) {
-    return <p className="math-line math-loading">{MATH_LOADING}</p>;
-  }
-  if (html === null) {
-    return (
-      <p className="math-line">
-        <code>{source}</code>
-      </p>
-    );
-  }
-  return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
-}
 
 export function ExplanationPanel({
   trace,

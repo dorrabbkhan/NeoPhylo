@@ -84,18 +84,16 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
       const card = cardRef.current;
       if (card !== null) setCardH(card.offsetHeight);
     };
-    // jsdom (the unit tests) implements neither scrollIntoView nor
-    // matchMedia — feature-check both. No smooth scroll under
-    // prefers-reduced-motion (§6.10).
+    // jsdom (the unit tests) implements no scrollIntoView — feature-
+    // check it. The scroll is instant, not smooth: during a smooth
+    // scroll the card glides under the pointer for hundreds of ms, and
+    // a click whose down/up straddle a move lands on different
+    // elements — Firefox's tour "Next" dropped ~1-in-7 at 768×1024 and
+    // the step never advanced. An instant scroll can't outrace the
+    // next step's either, and §6.10's reduced-motion rule is met by
+    // never animating.
     if (el !== null && typeof el.scrollIntoView === "function") {
-      const reduced =
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({
-        block: "center",
-        inline: "nearest",
-        behavior: reduced ? "auto" : "smooth",
-      });
+      el.scrollIntoView({ block: "center", inline: "nearest" });
     }
     measure();
     window.addEventListener("resize", measure);

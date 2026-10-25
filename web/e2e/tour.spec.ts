@@ -85,8 +85,9 @@ for (const viewport of [
         "data-tour-target",
         targets[i],
       );
-      // The step's scrollIntoView animates (smooth) — poll until the
-      // geometry settles rather than asserting mid-scroll.
+      // The step's scrollIntoView settles (instant — the smooth scroll
+      // raced clicks, see the fast-step test below) — poll until the
+      // geometry lands rather than asserting mid-scroll.
       await expect
         .poll(
           async () =>
@@ -128,6 +129,56 @@ for (const viewport of [
     }
   });
 }
+
+// v1.3 fixes: the Firefox failure this guards — a "Next" click while
+// step 3's smooth scroll still glided the card could straddle a move
+// (down/up on different elements → no click), and the ring could keep
+// step-3 geometry into step 4. The scroll is instant now, so stepping
+// straight through — no settle waits — must land the ring on each
+// step's own target; asserted exactly on the last step's box.
+test("768x1024: stepping straight through lands the ring on each target", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/");
+  await waitForApp(page);
+  const dlg = tour(page);
+  await expect(dlg).toBeVisible();
+  const targets = [".stepper", ".trees", ".matrix-wrap", ".mode-toggle"];
+  for (const sel of targets) {
+    await expect(page.locator(".tour")).toHaveAttribute(
+      "data-tour-target",
+      sel,
+    );
+    if (sel !== targets[targets.length - 1]) {
+      await dlg.getByRole("button", { name: "Next" }).click();
+    }
+  }
+  // The ring is the step-4 target's visible rect padded by RING_PAD
+  // (6 px — the same constant Tour.tsx draws with).
+  const geo = await page.evaluate(() => {
+    const pad = 6;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const t = document
+      .querySelector(".mode-toggle")!
+      .getBoundingClientRect();
+    const r = document.querySelector(".tour-ring")!.getBoundingClientRect();
+    return {
+      ring: { l: r.left, t: r.top, w: r.width, h: r.height },
+      want: {
+        l: Math.max(0, t.left) - pad,
+        t: Math.max(0, t.top) - pad,
+        w: Math.min(t.right, vw) - Math.max(0, t.left) + pad * 2,
+        h: Math.min(t.bottom, vh) - Math.max(0, t.top) + pad * 2,
+      },
+    };
+  });
+  expect(Math.abs(geo.ring.l - geo.want.l)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.t - geo.want.t)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.w - geo.want.w)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.h - geo.want.h)).toBeLessThan(1);
+});
 
 test("skip ends the tour and a reload does not reshow it", async ({
   page,
@@ -212,77 +263,83 @@ test("1280×720: Lessons → Take the tour reopens it after Skip, focus in the c
 // cytochrome-c, saturation and upgma-fails, so this iterates the whole
 // catalog.
 //
-// Measured in the pinned image (main renders the same heights — the
-// branch's closed-menu header DOM is identical to main's): five lessons
-// sit on one row at 54.2 px. protein-models is the exception: its
-// longer title wraps the toggles to a second row on MAIN too
-// (95.4 px) — pre-existing, unrelated to this PR — so the assertion
-// pins main's height rather than inventing a new contract.
-const HEADER_HEIGHT_1280: Record<string, number> = {
+// v1.3 fixes: the title now truncates with an ellipsis instead of
+// wrapping the row — protein-models' 95.4 px two-row header at 1280
+// and every 1024 wrap are gone — so every lesson pins the single-row
+// height measured in the pinned image (54.2 px at both widths).
+const HEADER_HEIGHT: Record<string, number> = {
   "nj-basics": 54.2,
   "upgma-fails": 54.2,
   saturation: 54.2,
   "bootstrap-basics": 54.2,
-  "protein-models": 95.4, // wraps on main too — see comment above
+  "protein-models": 54.2,
   "cytochrome-c": 54.2,
 };
-for (const lesson of Object.keys(HEADER_HEIGHT_1280)) {
-  test(`1280×720 ${lesson}: header matches main's layout`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto(`/?lesson=${lesson}`);
-    await waitForApp(page);
-    await tour(page).getByRole("button", { name: "Skip" }).click();
+for (const [width, height] of [
+  [1280, 720],
+  [1024, 768],
+] as const) {
+  for (const lesson of Object.keys(HEADER_HEIGHT)) {
+    test(`${width}x${height} ${lesson}: header stays one row`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/?lesson=${lesson}`);
+      await waitForApp(page);
+      await tour(page).getByRole("button", { name: "Skip" }).click();
 
-    const header = page.locator(".app-header");
-    // No sideways scroll inside the header, no child poking outside
-    // its box, and no wrap to a second row. The wrap check uses the
-    // vertical center, not offsetTop: align-items:center gives items
-    // of different heights different tops on the SAME line, but every
-    // item on one line shares its center — a wrapped row's center is
-    // offset by a full row height (the skip link is absolute and
-    // excluded).
-    const fits = await header.evaluate((h) => {
-      const hr = h.getBoundingClientRect();
-      const children = Array.from(h.children).filter(
-        (c) => getComputedStyle(c).position !== "absolute",
-      );
-      const inside = children.every((c) => {
-        const r = c.getBoundingClientRect();
-        return (
-          r.left >= hr.left - 0.5 &&
-          r.right <= hr.right + 0.5 &&
-          r.top >= hr.top - 0.5 &&
-          r.bottom <= hr.bottom + 0.5
+      const header = page.locator(".app-header");
+      // No sideways scroll inside the header, no child poking outside
+      // its box, and no wrap to a second row. The wrap check uses the
+      // vertical center, not offsetTop: align-items:center gives items
+      // of different heights different tops on the SAME line, but
+      // every item on one line shares its center — a wrapped row's
+      // center is offset by a full row height (the skip link is
+      // absolute and excluded).
+      const fits = await header.evaluate((h) => {
+        const hr = h.getBoundingClientRect();
+        const children = Array.from(h.children).filter(
+          (c) => getComputedStyle(c).position !== "absolute",
         );
+        const inside = children.every((c) => {
+          const r = c.getBoundingClientRect();
+          return (
+            r.left >= hr.left - 0.5 &&
+            r.right <= hr.right + 0.5 &&
+            r.top >= hr.top - 0.5 &&
+            r.bottom <= hr.bottom + 0.5
+          );
+        });
+        const centers = children.map((c) => {
+          const r = c.getBoundingClientRect();
+          return r.top + r.height / 2;
+        });
+        const oneRow = Math.max(...centers) - Math.min(...centers) < 1;
+        return {
+          height: hr.height,
+          scroll: h.scrollWidth <= h.clientWidth,
+          inside,
+          oneRow,
+        };
       });
-      const centers = children.map((c) => {
-        const r = c.getBoundingClientRect();
-        return r.top + r.height / 2;
-      });
-      const oneRow = Math.max(...centers) - Math.min(...centers) < 1;
-      return {
-        height: hr.height,
-        scroll: h.scrollWidth <= h.clientWidth,
-        inside,
-        oneRow,
-      };
-    });
-    expect(fits.scroll, "header scrollWidth ≤ clientWidth at 1280").toBe(true);
-    expect(fits.inside, "no header child overflows the header box").toBe(true);
-    expect(
-      fits.height,
-      "header height equals main's measured height for this lesson",
-    ).toBeCloseTo(HEADER_HEIGHT_1280[lesson], 0);
-    if (HEADER_HEIGHT_1280[lesson] < 60) {
-      // Single-row lessons: every control shares one vertical center.
+      expect(
+        fits.scroll,
+        `header scrollWidth ≤ clientWidth at ${width}`,
+      ).toBe(true);
+      expect(
+        fits.inside,
+        "no header child overflows the header box",
+      ).toBe(true);
+      expect(
+        fits.height,
+        "header height equals the measured single-row height",
+      ).toBeCloseTo(HEADER_HEIGHT[lesson], 0);
       expect(
         fits.oneRow,
-        "header controls stay on one row at 1280",
+        `header controls stay on one row at ${width}`,
       ).toBe(true);
-    }
-  });
+    });
+  }
 }
 
 test("1024×768: the Settings drawer's item closes it and reopens the tour", async ({

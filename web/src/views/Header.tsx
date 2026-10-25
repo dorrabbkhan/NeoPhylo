@@ -77,7 +77,11 @@ export function Header({
         Skip to content
       </a>
       <Wordmark />
-      <h1>{title}</h1>
+      {/* The title truncates with an ellipsis when it's the header's
+          only shrinkable item (index.css) — the attribute keeps the
+          full text on hover, and the accessible name stays the full
+          title either way (v1.3 fixes, owner decision). */}
+      <h1 title={title}>{title}</h1>
       {toast !== null && (
         <p role="status" className="toast">
           {toast}

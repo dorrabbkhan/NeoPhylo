@@ -57,3 +57,14 @@ describe("Header — Take the tour (§6.7)", () => {
     ).toBeNull();
   });
 });
+
+describe("Header — truncated title (v1.3 fixes)", () => {
+  it("keeps the full title on the h1's title attribute for the ellipsis", () => {
+    setup("wide");
+    // The accessible name is the full text either way: getByRole's
+    // name match and the title attribute carry it for the ellipsis.
+    const h1 = screen.getByRole("heading", { level: 1, name: "Lesson" });
+    expect(h1.getAttribute("title")).toBe("Lesson");
+    expect(h1.textContent).toBe("Lesson");
+  });
+});
