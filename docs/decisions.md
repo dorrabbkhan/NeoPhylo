@@ -3878,3 +3878,14 @@ owner chose **option B**: drop the button entirely.
   `export-svg-roundtrip-*-linux.png` baselines (dark frames now show
   the default light export palette; task Step 2 requires updating
   exactly this scene's frames).
+- Fix round 1 (PR #83 review): `onSvg` now catches a rejected
+  bundled-font fetch into a visible `.export-error` state like
+  `onPng`; the `failed` state records which export failed so the
+  byte-identical PNG text and the SVG text can never cross. The
+  outside-subset warning now scans `exportSvgDetailed`'s returned
+  `texts` — the strings the figure actually drew (the same set the
+  embedded subsets were picked for) — instead of every leaf label on
+  `tree`, so a leaf `figure.visibleNodes` hides cannot trigger it.
+  `exportSvg` keeps its `Promise<string>` contract; the new
+  `exportSvgDetailed` in `web/src/export/svg.ts` additionally returns
+  the drawn texts (same file, no new module).

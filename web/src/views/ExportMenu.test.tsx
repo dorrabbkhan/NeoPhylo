@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // Export menu tests (v1.1 plan Task 13): the "Distance matrix (PHYLIP)"
 // item downloads distances.phy produced by engine.writePhylipMatrix
 // (Auto names) and explains the Relaxed fallback when names are too long.
@@ -564,5 +565,86 @@ describe("ExportMenu outside-subset warning (Review Focus 1)", () => {
     fireEvent.click(screen.getByRole("button", { name: "SVG" }));
     await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
     expect(screen.queryByText(FONT_WARNING)).toBeNull();
+  });
+
+  it("scans only the drawn labels: a hidden CJK leaf does not warn", async () => {
+    stubFontFetch();
+    const { names } = await stubDownloadTexts();
+    const t = parse("('中文名':0.1,B:0.2,C:0.3);");
+    const hidden = t.nodes.findIndex((n) => n.label === "中文名");
+    const visibleNodes = new Set(
+      t.nodes.map((_, i) => i).filter((i) => i !== hidden),
+    );
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={t}
+        figure={{ visibleNodes }}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
+    expect(screen.queryByText(FONT_WARNING)).toBeNull();
+  });
+
+  it("warns when the same CJK leaf is visible", async () => {
+    stubFontFetch();
+    const { names } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={parse("('中文名':0.1,B:0.2,C:0.3);")}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
+    expect(screen.getByText(FONT_WARNING)).toBeTruthy();
+  });
+});
+
+// ---- v1.3 Task 15 fix round 1: figure-export failure states ----
+
+const PNG_FAIL = "PNG export failed — try the SVG instead.";
+const SVG_FAIL =
+  "SVG export failed — the bundled fonts could not be loaded. Try again.";
+
+describe("ExportMenu figure-export failure (v1.3 fix round 1)", () => {
+  it("a rejected font fetch shows the SVG message, not the PNG one", async () => {
+    // faceCss throws when a bundled-font fetch rejects (fontEmbed.ts);
+    // the handler must catch it into a visible state — no unhandled
+    // rejection, no silent no-op.
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
+    const unhandled: unknown[] = [];
+    const onRejection = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onRejection);
+    try {
+      const { names } = await stubDownloadTexts();
+      render(
+        <ExportMenu
+          {...BASE}
+          tree={supportTree()}
+          treeView={{ kind: "plain" }}
+          consensusTree={null}
+          bootstrap={null}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+      expect(await screen.findByText(SVG_FAIL)).toBeTruthy();
+      expect(screen.queryByText(PNG_FAIL)).toBeNull();
+      expect(names).toEqual([]);
+      // Let any stray rejection settle: onSvg must have caught it.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+    }
   });
 });

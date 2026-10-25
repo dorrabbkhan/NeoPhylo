@@ -100,7 +100,9 @@ export function ExportMenu({
   theme,
 }: ExportMenuProps) {
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // Which figure export last failed, so each failure shows its own
+  // message — a rejected font fetch must never surface the PNG text.
+  const [failed, setFailed] = useState<"svg" | "png" | null>(null);
   const [phylipNote, setPhylipNote] = useState<{
     relaxed: boolean;
     saturated: boolean;
@@ -136,32 +138,36 @@ export function ExportMenu({
   // stays with the screen code, so the export still draws the
   // identical figure.
   const svg = async () => {
-    const { exportSvg, uncoveredChars } = await import("../export/svg");
-    const text = await exportSvg(tree as Tree, {
+    const { exportSvgDetailed, uncoveredChars } = await import(
+      "../export/svg"
+    );
+    const out = await exportSvgDetailed(tree as Tree, {
       ...figure,
       kind: figure?.kind ?? "phylogram",
       clampNegative,
       theme: matchScreenTheme ? theme : "light",
     });
-    setFontWarning(
-      uncoveredChars(
-        (tree as Tree).nodes
-          .filter((n) => n.children.length === 0 && n.label !== null)
-          .map((n) => n.label as string),
-      ).length > 0,
-    );
-    return text;
+    // Warn on the texts the export actually drew — a leaf
+    // figure.visibleNodes hides is not scanned.
+    setFontWarning(uncoveredChars(out.texts).length > 0);
+    return out.svg;
   };
 
-  const onSvg = async () =>
-    download(
-      "neophylo-tree.svg",
-      new Blob([await svg()], { type: "image/svg+xml" }),
-    );
+  const onSvg = async () => {
+    setFailed(null);
+    try {
+      download(
+        "neophylo-tree.svg",
+        new Blob([await svg()], { type: "image/svg+xml" }),
+      );
+    } catch {
+      setFailed("svg");
+    }
+  };
 
   const onPng = async () => {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       const [{ exportPng }, svgText] = await Promise.all([
         import("../export/png"),
@@ -169,7 +175,7 @@ export function ExportMenu({
       ]);
       download("neophylo-tree.png", await exportPng(svgText, 2));
     } catch {
-      setFailed(true);
+      setFailed("png");
     } finally {
       setBusy(false);
     }
@@ -356,9 +362,11 @@ export function ExportMenu({
           )}
         </div>
       )}
-      {failed && (
+      {failed !== null && (
         <p role="status" className="export-error">
-          PNG export failed — try the SVG instead.
+          {failed === "png"
+            ? "PNG export failed — try the SVG instead."
+            : "SVG export failed — the bundled fonts could not be loaded. Try again."}
         </p>
       )}
     </section>

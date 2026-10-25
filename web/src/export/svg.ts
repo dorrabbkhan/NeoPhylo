@@ -77,6 +77,18 @@ export function escapeXml(s: string): string {
     .replaceAll("'", "&apos;");
 }
 
+/** The document `exportSvg` produces plus the texts it drew. */
+export interface ExportedSvg {
+  /** The standalone SVG document. */
+  svg: string;
+  /** Every string the figure draws — leaf names and zero-length "0"
+   * markers at weight 400, then the support labels at 500: the same
+   * strings `fontFacesFor` picks embedded subsets for, so a caller
+   * warning about out-of-subset names scans exactly what the export
+   * draws. A leaf `visibleNodes` hides is not in it. */
+  texts: string[];
+}
+
 /**
  * Serialize `tree` to a standalone SVG document of the same figure the
  * screen draws. Branch geometry and label placement come from
@@ -84,10 +96,10 @@ export function escapeXml(s: string): string {
  * convention (spec §6.3). Every node group and support label carries
  * the same `data-split` key as the on-screen tree.
  */
-export async function exportSvg(
+export async function exportSvgDetailed(
   tree: Tree,
   opts: ExportSvgOptions,
-): Promise<string> {
+): Promise<ExportedSvg> {
   const pal = color[opts.theme ?? "light"];
   const leafSpacing = opts.leafSpacing ?? LEAF_SPACING;
   // Default the panel width to reproduce the legacy drawing width
@@ -239,14 +251,24 @@ export async function exportSvg(
     (fontCss === "" ? "" : `\n${fontCss}`) +
     `</style>`;
 
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" ` +
-    `viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}" ` +
-    `width="${Math.ceil(width)}" height="${Math.ceil(height)}" ` +
-    `font-family="${escapeXml(font.ui)}">` +
-    style +
-    `<rect x="0" y="0" width="${width.toFixed(2)}" height="${height.toFixed(2)}" fill="${pal.bg}"/>` +
-    parts.join("") +
-    `</svg>`
-  );
+  return {
+    svg:
+      `<svg xmlns="http://www.w3.org/2000/svg" ` +
+      `viewBox="0 0 ${width.toFixed(2)} ${height.toFixed(2)}" ` +
+      `width="${Math.ceil(width)}" height="${Math.ceil(height)}" ` +
+      `font-family="${escapeXml(font.ui)}">` +
+      style +
+      `<rect x="0" y="0" width="${width.toFixed(2)}" height="${height.toFixed(2)}" fill="${pal.bg}"/>` +
+      parts.join("") +
+      `</svg>`,
+    texts: [...regularTexts, ...labelTexts],
+  };
+}
+
+/** The document only — `exportSvgDetailed` without the drawn texts. */
+export async function exportSvg(
+  tree: Tree,
+  opts: ExportSvgOptions,
+): Promise<string> {
+  return (await exportSvgDetailed(tree, opts)).svg;
 }
