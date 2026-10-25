@@ -124,25 +124,36 @@ async function expectAllLeavesVisible(page: Page, leafCount: number) {
     for (let i = 0; i < leafCount; i += 1) {
       const label = labels.nth(i);
       await revealByPageScroll(label);
-      const box = await label.boundingBox();
+      // Measure the rect in-page, not via boundingBox(): WebKit's
+      // DOM.getContentQuads anchors an SVG descendant's quad at the
+      // <svg>'s own top-left corner (its local offset is dropped), so
+      // a fully visible label read as y≈-7.6 whenever the svg's top
+      // sat above the column top — while the in-page rect stayed at
+      // y≈0.69 with a stable scrollTop. getBoundingClientRect returns
+      // exactly what the other two engines' quads do (verified in the
+      // same run) and is how leaf-labels.spec.ts measures SVG text.
+      const box = await label.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+      });
       expect(
-        box,
+        box.width > 0 && box.height > 0,
         `leaf label ${i} in panel ${p} has a bounding box`,
-      ).not.toBeNull();
+      ).toBe(true);
       expect(
-        box!.x,
+        box.x,
         `leaf label ${i} in panel ${p} is inside the viewport's left edge`,
       ).toBeGreaterThanOrEqual(-0.5);
       expect(
-        box!.x + box!.width,
+        box.x + box.width,
         `leaf label ${i} in panel ${p} is inside the viewport's right edge`,
       ).toBeLessThanOrEqual(vp!.width + 0.5);
       expect(
-        box!.y,
+        box.y,
         `leaf label ${i} in panel ${p} is inside the viewport's top edge`,
       ).toBeGreaterThanOrEqual(-0.5);
       expect(
-        box!.y + box!.height,
+        box.y + box.height,
         `leaf label ${i} in panel ${p} is inside the viewport's bottom edge`,
       ).toBeLessThanOrEqual(vp!.height + 0.5);
     }

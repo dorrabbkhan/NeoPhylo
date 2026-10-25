@@ -109,6 +109,12 @@ test("the choice persists per device and stays out of the URL", async ({
 }) => {
   await page.goto("/?lesson=nj-basics");
   await waitForApp(page);
+  // The URL state sync is a replaceState in a post-render effect — on
+  // WebKit it lands measurably after .app first paints (~200 ms), so a
+  // URL read now can still catch the pre-sync "?lesson=" form. Wait
+  // for the deterministic end state (encode() always writes `s=`), so
+  // urlBefore is the SETTLED URL the toggle must not change.
+  await expect.poll(() => page.url()).toContain("&s=");
   const urlBefore = page.url();
 
   await toggle(page).click();
