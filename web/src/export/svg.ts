@@ -31,6 +31,11 @@ import { color, font, type ThemeName } from "../design/tokens";
 
 import { fontFacesFor } from "./fontEmbed";
 
+// The export menu's outside-subset warning uses the same coverage
+// data — re-exported through this (already-lazy) module so the menu
+// needs no second dynamic import.
+export { uncoveredChars } from "./fontEmbed";
+
 export interface ExportSvgOptions {
   kind: "phylogram" | "cladogram";
   clampNegative: boolean;

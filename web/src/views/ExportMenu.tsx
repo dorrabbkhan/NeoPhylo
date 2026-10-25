@@ -136,10 +136,7 @@ export function ExportMenu({
   // stays with the screen code, so the export still draws the
   // identical figure.
   const svg = async () => {
-    const [{ exportSvg }, { uncoveredChars }] = await Promise.all([
-      import("../export/svg"),
-      import("../export/fontEmbed"),
-    ]);
+    const { exportSvg, uncoveredChars } = await import("../export/svg");
     const text = await exportSvg(tree as Tree, {
       ...figure,
       kind: figure?.kind ?? "phylogram",
