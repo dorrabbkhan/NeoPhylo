@@ -111,6 +111,18 @@ async function expectLayoutFit(page: Page): Promise<void> {
     ).toBeInViewport({ ratio: 1 });
   }
 
+  // The strip must not be a scroll container: WebKit's integral
+  // scrollport clips a sub-pixel off the wrapped row's bottom edge,
+  // which fails the ratio-1 check above even though nothing is
+  // actually scrolled away. Wrapping already prevents horizontal
+  // overflow, so the strip stays overflow: visible.
+  const stripOverflow = await page
+    .getByRole("tablist", { name: "Bootstrap tree views" })
+    .evaluate((el) => getComputedStyle(el).overflowY);
+  expect(stripOverflow, "tab strip clips its wrapped tabs").toBe(
+    "visible",
+  );
+
   // The reroot caption wraps fully — every line inside the viewport.
   await expect(page.locator(".unrooted-note")).toBeInViewport({
     ratio: 1,
