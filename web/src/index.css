@@ -876,6 +876,52 @@ button:disabled {
   font-size: var(--size-md);
 }
 
+/* The scroll affordance for an overflowing formula (v1.3 fixes, fix
+ * round 1): the scrollbar is overlay-only, so a line clipped mid-glyph
+ * at the box edge otherwise reads as cut off. .math-line-box carries a
+ * data-fade-* attribute per edge that still hides content (MathLine
+ * sets them from the scroll position); each pseudo-element is a narrow
+ * fade from the panel's own background token toward transparent, so the
+ * mark works in light, dark and presenter mode on every surface
+ * (.col-controls, .col-explain, the Settings drawer and .pair-panel all
+ * sit on --color-bg). Absolute inside the wrapper, they are pinned to
+ * the visible edge while glyphs scroll under them, take no layout
+ * space, and can't cover the p's focus ring — outlines are drawn
+ * outside the border box, the fades only paint inside it. The band
+ * marks the edge; it is narrow on purpose so formula contrast survives
+ * outside it. */
+.math-line-box {
+  position: relative;
+}
+
+.math-line-box::before,
+.math-line-box::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--space-24);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 160ms ease;
+}
+
+.math-line-box::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-bg), transparent);
+}
+
+.math-line-box::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-bg), transparent);
+}
+
+.math-line-box[data-fade-left]::before,
+.math-line-box[data-fade-right]::after {
+  opacity: 1;
+}
+
 .katex {
   color: var(--color-text);
 }

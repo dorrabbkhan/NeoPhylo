@@ -3939,3 +3939,21 @@ Four bugs found during Tasks 12–14, fixed in one PR on `m1.3/fixes` from main
   the new regression test); Chromium stayed 40/40 over the same repeats;
   tour.spec.ts + math.spec.ts are 24/24 on both Chromium and Firefox; axe spec
   5/5 unchanged.
+- **Fix round 1 (KaTeX scroll affordance + `useOverflowsX` robustness):** the
+  overflow fix scrolled formulas but gave no visible hint — the scrollbar is
+  overlay-only, so a line clipped mid-glyph read as cut off. `.math-line` is
+  now wrapped in `.math-line-box`, which carries a `data-fade-*` attribute per
+  edge that still hides content (`useScrollEdges`: right at scrollLeft 0, both
+  in the middle, left at the end, none when the line fits); CSS paints a
+  24 px (`--space-24`) fade from `--color-bg` — the panel token every math
+  surface sits on — toward transparent, absolute inside the wrapper so it
+  pins to the visible edge, takes no layout space, and can't cover the
+  outline focus ring. The same hook replaces `useOverflowsX`'s box-only
+  ResizeObserver with scroll + RO on the line AND its children +
+  MutationObserver + `document.fonts.ready`, so the state also tracks content
+  that changes width without a box resize (lazy KaTeX swap, late webfont
+  metrics). New unit tests pin the edge/scroll contract and the
+  content-swap-without-resize path; math.spec.ts asserts the affordance
+  tracks real scrolling. Files: `web/src/views/MathLine.tsx`,
+  `web/src/views/MathLine.test.tsx` (new), `web/src/index.css`,
+  `web/e2e/math.spec.ts`, `docs/decisions.md`.
