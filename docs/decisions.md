@@ -3763,3 +3763,8 @@ owner chose **option B**: drop the button entirely.
   `sat.cells.length` from the engine's SaturatedMatrix error, never
   a literal.
 - Files outside the Files block: `docs/decisions.md` — this entry.
+- Fix round 1: `web/src/views/SaturationChart.tsx` is also outside the
+  Files block. The chart drew its labels at 9 px; the v1.3 global
+  constraint is a 12 px minimum anywhere, so its text now uses the
+  `size.xs` token and the viewBox/padding grew to fit it (280×190,
+  wider left/right/bottom padding — the data mapping is unchanged).
