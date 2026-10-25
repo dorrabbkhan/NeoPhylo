@@ -15,10 +15,7 @@ import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
 import type { Tree } from "../engine/generated/Tree";
-import { exportPng } from "../export/png";
-import { phylipMatrix } from "../export/phylip";
-import { exportR } from "../export/rscript";
-import { exportSvg, type ExportSvgOptions } from "../export/svg";
+import type { ExportSvgOptions } from "../export/svg";
 
 export interface ExportMenuProps {
   /** The tree the user sees: support labels and reference rooting
@@ -118,24 +115,36 @@ export function ExportMenu({
       ? engine.compatibleNames((tree ?? consensusTree) as Tree)
       : [];
 
-  // The figure options App measured on the displayed tree — the
-  // export draws the identical layout, only in document form
-  // (checkpoint 15). `kind` defaults to phylogram for standalone use.
-  const svg = () =>
-    exportSvg(tree as Tree, {
+  // The export writers are lazy chunks (v1.3 Task 14, spec §8.2):
+  // fetched only when the matching item runs, precached by the SW's
+  // `**/*.js` glob so every export still works offline after first
+  // load. Only the serialization moved — the shared figure layout
+  // stays with the screen code, so the export still draws the
+  // identical figure.
+  const svg = async () => {
+    const { exportSvg } = await import("../export/svg");
+    return exportSvg(tree as Tree, {
       ...figure,
       kind: figure?.kind ?? "phylogram",
       clampNegative,
     });
+  };
 
-  const onSvg = () =>
-    download("neophylo-tree.svg", new Blob([svg()], { type: "image/svg+xml" }));
+  const onSvg = async () =>
+    download(
+      "neophylo-tree.svg",
+      new Blob([await svg()], { type: "image/svg+xml" }),
+    );
 
   const onPng = async () => {
     setBusy(true);
     setFailed(false);
     try {
-      download("neophylo-tree.png", await exportPng(svg(), 2));
+      const [{ exportPng }, svgText] = await Promise.all([
+        import("../export/png"),
+        svg(),
+      ]);
+      download("neophylo-tree.png", await exportPng(svgText, 2));
     } catch {
       setFailed(true);
     } finally {
@@ -166,7 +175,8 @@ export function ExportMenu({
   const onConsensus = () =>
     onNewickTree(consensusTree as Tree, "neophylo-consensus.nwk");
 
-  const onR = () =>
+  const onR = async () => {
+    const { exportR } = await import("../export/rscript");
     download(
       "neophylo-analysis.R",
       new Blob(
@@ -181,11 +191,13 @@ export function ExportMenu({
         { type: "text/plain" },
       ),
     );
+  };
 
   // spec §5.6: the matrix in neighbor input format. Auto picks Strict
   // names when they fit in 10 characters, else Relaxed with a note;
   // saturated cells are written -1.000000 (PHYLIP's convention, §3.2).
-  const onPhylip = () => {
+  const onPhylip = async () => {
+    const { phylipMatrix } = await import("../export/phylip");
     const r = phylipMatrix(matrix as DistanceMatrix);
     setPhylipNote({ relaxed: r.relaxed, saturated: r.saturated });
     download(
@@ -211,7 +223,11 @@ export function ExportMenu({
     <section className="export-menu" aria-label="Export">
       <h2>Export</h2>
       <div className="export-buttons">
-        <button type="button" disabled={tree === null} onClick={onSvg}>
+        <button
+          type="button"
+          disabled={tree === null}
+          onClick={() => void onSvg()}
+        >
           {treeLabel("SVG")}
         </button>
         <button
@@ -233,13 +249,17 @@ export function ExportMenu({
             ? "Consensus (Newick)"
             : `Consensus (Newick, ${viewSuffix})`}
         </button>
-        <button type="button" disabled={alignment === null} onClick={onR}>
+        <button
+          type="button"
+          disabled={alignment === null}
+          onClick={() => void onR()}
+        >
           R script
         </button>
         <button
           type="button"
           disabled={matrix === null}
-          onClick={onPhylip}
+          onClick={() => void onPhylip()}
         >
           Distance matrix (PHYLIP)
         </button>

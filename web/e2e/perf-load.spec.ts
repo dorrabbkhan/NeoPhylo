@@ -7,11 +7,17 @@
 //     toggling back to Math never refetches it. The "Coming from
 //     PHYLIP?" dialog is lazy the same way (§8.2 trim): its chunk is
 //     requested only when the header button opens it.
+//   - The export writers (SVG document, PNG rasterizer, R script,
+//     PHYLIP matrix) are lazy chunks the same way (owner decision,
+//     v1.3 Task 14 fix round): the initial load never fetches them and
+//     each is requested once, only when its item runs. The shared
+//     figure layout stays with the screen code.
 //   - The service worker precaches the KaTeX chunk, its CSS and the
 //     KaTeX woff2 faces, so after one online load Math renders offline
 //     with KaTeX's own fonts, not a fallback. The `**/*.js` glob that
-//     covers the KaTeX chunk also precaches the PhylipHelp chunk, so
-//     the help dialog opens offline on first use too.
+//     covers the KaTeX chunk also precaches the PhylipHelp and export-
+//     writer chunks, so the help dialog and every export work offline
+//     on first use too.
 //   - @perf: time to the first rendered tree under Fast-3G throttling
 //     stays within 110% of the v1.2.0 baseline.
 //
@@ -19,10 +25,13 @@
 // and the service worker only exist in the built app, and wall-clock
 // budgets are meaningless under dev-mode transforms.
 
+import { readFile } from "node:fs/promises";
+
 import { test, expect } from "@playwright/test";
 
 import {
   answerPredictPrompt,
+  stepToEnd,
   waitForApp,
   waitForServiceWorkerReady,
 } from "./helpers";
@@ -136,6 +145,74 @@ test.describe("lazy KaTeX chunk", () => {
   });
 });
 
+test.describe("lazy export writer chunks", () => {
+  // Same as the KaTeX describe: the SW precaches the writer chunks
+  // during install; block it so the request log measures only the
+  // document's own fetches.
+  test.use({ serviceWorkers: "block" });
+
+  test("initial load fetches no export writer; each is fetched once, on use", async ({
+    page,
+  }) => {
+    const jsChunkRequests: string[] = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/") && u.pathname.endsWith(".js")) {
+        jsChunkRequests.push(u.pathname);
+      }
+    });
+
+    await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+    await waitForApp(page);
+    const initialChunks = new Set(jsChunkRequests);
+    // The export items need a finished tree (SVG/PNG), the matrix
+    // (PHYLIP) and the alignment (R script) — all present at the end.
+    await stepToEnd(page);
+
+    // No writer-shaped chunk loaded with the app.
+    const writer = (name: string) =>
+      jsChunkRequests.filter((u) => u.startsWith(`/assets/${name}-`));
+    for (const w of ["svg", "png", "rscript", "phylip"]) {
+      expect(
+        [...initialChunks].some((u) => u.startsWith(`/assets/${w}-`)),
+        `${w} writer must not be an initial chunk`,
+      ).toBe(false);
+    }
+
+    const menu = page.locator(".export-menu");
+    const exportItem = async (name: RegExp | string) => {
+      await Promise.all([
+        page.waitForEvent("download"),
+        menu.getByRole("button", { name }).click(),
+      ]);
+    };
+
+    // SVG fetches the svg writer once; a second export refetches
+    // nothing.
+    await exportItem(/^SVG/);
+    expect(writer("svg")).toHaveLength(1);
+    const afterSvg = jsChunkRequests.length;
+    await exportItem(/^SVG/);
+    expect(jsChunkRequests).toHaveLength(afterSvg);
+
+    // R script and the PHYLIP matrix: one chunk each, on first use.
+    await exportItem("R script");
+    expect(writer("rscript")).toHaveLength(1);
+    await exportItem("Distance matrix (PHYLIP)");
+    expect(writer("phylip")).toHaveLength(1);
+
+    // PNG reuses the already-fetched svg chunk; only png is new.
+    await exportItem(/^PNG/);
+    expect(writer("png")).toHaveLength(1);
+    expect(writer("svg")).toHaveLength(1);
+
+    expect(
+      jsChunkRequests.filter((u) => !initialChunks.has(u)),
+      "exactly the four writer chunks were fetched",
+    ).toHaveLength(4);
+  });
+});
+
 test("after one online load, Math renders offline with KaTeX's own fonts", async ({
   page,
   context,
@@ -184,6 +261,41 @@ test("after one online load, Math renders offline with KaTeX's own fonts", async
   await expect(
     page.getByRole("dialog", { name: "Coming from PHYLIP?" }),
   ).toBeVisible();
+});
+
+test("after one online load, exports work offline", async ({
+  page,
+  context,
+  browserName,
+}) => {
+  // Same Chromium-only driver limitation as the Math offline test.
+  test.skip(browserName !== "chromium");
+
+  await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+  await waitForApp(page);
+  // The export writers were never requested online — the export below
+  // comes entirely from the `**/*.js` precache.
+  await waitForServiceWorkerReady(page);
+
+  await context.setOffline(true);
+  await expect(async () => {
+    await page.reload({ timeout: 8_000 });
+    await waitForApp(page);
+  }).toPass({ timeout: 45_000, intervals: [500, 1_000, 2_000] });
+
+  // The SVG item runs the lazily-imported export/svg chunk: proof the
+  // precached writer loads offline, and the file it produces is the
+  // figure document.
+  await stepToEnd(page);
+  const [dl] = await Promise.all([
+    page.waitForEvent("download"),
+    page
+      .locator(".export-menu")
+      .getByRole("button", { name: /^SVG/ })
+      .click(),
+  ]);
+  const svg = await readFile((await dl.path())!, "utf8");
+  expect(svg).toContain("<svg");
 });
 
 test(

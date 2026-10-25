@@ -7,6 +7,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -49,14 +50,13 @@ const MATRIX: DistanceMatrix = {
   ],
 };
 
-/** Stub object URLs and capture every downloaded file name. */
+/** Stub object URLs and capture every downloaded file name. The spies
+ * leave `URL` a real constructor — the lazy export chunks' dynamic
+ * import goes through vitest's module runner, which does `new URL()`. */
 function stubDownloads(): string[] {
   const names: string[] = [];
-  vi.stubGlobal("URL", {
-    ...URL,
-    createObjectURL: vi.fn(() => "blob:fake"),
-    revokeObjectURL: vi.fn(),
-  });
+  vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:fake");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
     function (this: HTMLAnchorElement) {
       names.push(this.download);
@@ -68,7 +68,7 @@ function stubDownloads(): string[] {
 const MENU_LABEL = "Distance matrix (PHYLIP)";
 
 describe("ExportMenu PHYLIP matrix", () => {
-  it("downloads distances.phy via writePhylipMatrix with Auto names", () => {
+  it("downloads distances.phy via writePhylipMatrix with Auto names", async () => {
     const downloads = stubDownloads();
     render(
       <ExportMenu
@@ -84,7 +84,7 @@ describe("ExportMenu PHYLIP matrix", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
-    expect(downloads).toEqual(["distances.phy"]);
+    await waitFor(() => expect(downloads).toEqual(["distances.phy"]));
   });
 
   it("is disabled while no distance matrix exists", () => {
@@ -106,7 +106,7 @@ describe("ExportMenu PHYLIP matrix", () => {
     ).toHaveProperty("disabled", true);
   });
 
-  it("explains the Relaxed fallback when a name exceeds 10 characters", () => {
+  it("explains the Relaxed fallback when a name exceeds 10 characters", async () => {
     stubDownloads();
     const long: DistanceMatrix = {
       ...MATRIX,
@@ -126,7 +126,7 @@ describe("ExportMenu PHYLIP matrix", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: MENU_LABEL }));
-    expect(screen.getByText(/Relaxed names/)).toBeTruthy();
+    expect(await screen.findByText(/Relaxed names/)).toBeTruthy();
   });
 });
 
@@ -155,14 +155,11 @@ async function stubDownloadTexts(): Promise<{
 }> {
   const names: string[] = [];
   const blobs: Blob[] = [];
-  vi.stubGlobal("URL", {
-    ...URL,
-    createObjectURL: vi.fn((b: Blob) => {
-      blobs.push(b);
-      return "blob:fake";
-    }),
-    revokeObjectURL: vi.fn(),
+  vi.spyOn(URL, "createObjectURL").mockImplementation((b) => {
+    blobs.push(b as Blob);
+    return "blob:fake";
   });
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
     function (this: HTMLAnchorElement) {
       names.push(this.download);
@@ -344,7 +341,7 @@ describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "R script" }));
-    expect(names).toEqual(["neophylo-analysis.R"]);
+    await waitFor(() => expect(names).toEqual(["neophylo-analysis.R"]));
     const [script] = await texts();
     expect(script).not.toContain("boot.phylo(tree");
     expect(script).toContain("for (i in seq_len(B))");

@@ -19,6 +19,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import type { Dispatch } from "react";
@@ -84,18 +85,18 @@ function finalStep(ex: Exercise): number {
   return "Nj" in trace ? trace.Nj.steps.length + 1 : trace.Upgma.steps.length;
 }
 
-/** Capture downloaded (name, text) pairs by stubbing URL.createObjectURL. */
+/** Capture downloaded (name, text) pairs by stubbing
+ * URL.createObjectURL. The spies leave `URL` a real constructor — the
+ * lazy export chunks' dynamic import goes through vitest's module
+ * runner, which does `new URL()`. */
 function stubDownloads() {
   const names: string[] = [];
   const blobs: Blob[] = [];
-  vi.stubGlobal("URL", {
-    ...URL,
-    createObjectURL: vi.fn((b: Blob) => {
-      blobs.push(b);
-      return "blob:fake";
-    }),
-    revokeObjectURL: vi.fn(),
+  vi.spyOn(URL, "createObjectURL").mockImplementation((b) => {
+    blobs.push(b as Blob);
+    return "blob:fake";
   });
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
     function (this: HTMLAnchorElement) {
       names.push(this.download);
@@ -123,6 +124,9 @@ describe("export path under presenter mode", () => {
     const columnMenu = document.querySelector<HTMLElement>(".export-menu");
     expect(columnMenu).not.toBeNull();
     fireEvent.click(svgExportButton(columnMenu!));
+    // The SVG writer is a lazy chunk (v1.3 Task 14): the download
+    // resolves asynchronously.
+    await waitFor(() => expect(dl.names).toEqual(["neophylo-tree.svg"]));
 
     // Presenter on: the controls column — and with it the export menu —
     // unmounts by design (§6.6). A setDrawer dispatch still mounts the
@@ -139,6 +143,9 @@ describe("export path under presenter mode", () => {
     const drawerMenu = drawer.querySelector<HTMLElement>(".export-menu");
     expect(drawerMenu).not.toBeNull();
     fireEvent.click(svgExportButton(drawerMenu!));
+    await waitFor(() =>
+      expect(dl.names).toEqual(["neophylo-tree.svg", "neophylo-tree.svg"]),
+    );
 
     const texts = await dl.texts();
     expect(dl.names).toEqual(["neophylo-tree.svg", "neophylo-tree.svg"]);

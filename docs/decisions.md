@@ -3811,3 +3811,22 @@ owner chose **option B**: drop the button entirely.
   ~1.5 kB / 0.63 kB gz) — under the 120 168 B limit but short of the
   required ≥ 2 KB margin (≤ 118 120 B) by 1 991 B. Per the owner's
   instruction the round stopped there for a decision on the next trim.
+- Owner decision (2026-10-25), closing the margin gap: lazy-load the
+  export writers under `web/src/export/` in the ExportMenu handlers
+  (dynamic `import()` in onSvg/onPng/onR/onPhylip), then the replicate
+  panel only if still over the ≤ 118 120 B margin. Exports must be
+  byte-identical and work offline (the `**/*.js` precache glob covers
+  the emitted chunks — proven by the new "exports work offline" e2e
+  test). Initial JS went 120 111 → **116 879 gz**, 1 241 B under the
+  required margin, so the replicate panel stays eager. New chunks:
+  svg 2.93 kB / rscript 4.68 kB / png 0.82 kB / phylip 0.28 kB; the
+  shared figure layout (`layout/treeFigure` etc.) stays in the entry
+  chunk because the screen uses it. Precache: 60 entries / 1 765.01
+  KiB → 64 entries / 1 765.74 KiB (+0.73 KiB).
+- Files outside the Files block (this round): `web/src/views/ExportMenu.tsx`
+  (the four dynamic imports — the Newick items stay synchronous; they
+  call engine writers, not `web/src/export/*`), `web/src/views/ExportMenu.test.tsx`
+  and `web/src/views/App.export.test.tsx` (await the now-async
+  downloads; the URL stubs became `vi.spyOn(URL, …)` because a
+  whole-object `stubGlobal("URL")` left `URL` non-constructible and
+  broke vitest's module runner resolving `import()`).
