@@ -3997,3 +3997,32 @@ which is why PR CI never saw them. Each bug has its own commit.
 - **Verification:** see the PR body — both fixed tests `--repeat-each 10` on
   WebKit, the same on Chromium and Firefox, the full e2e suite on all three
   browsers in the pinned image, and the 43/43 visual suite unchanged.
+- **Fix round 1 — layout.spec.ts "leaves reachable" was a real failure,
+  not a flake (test fix):** the earlier PR body lumped the cytochrome-c
+  1280×800 WebKit failure under "one-off flakes under parallel load" —
+  wrong. It fails 50–70 % SERIALLY on a quiet machine, always as
+  `leaf label 0 in panel 0` at `y = -7.625`. Instrumentation (rAF
+  sampling + interleaved in-page/protocol reads in the pinned image):
+  the reveal helper works — after `col-center.scrollTop += delta` the
+  label's `getBoundingClientRect` settles at `y = 0.6875` and stays put
+  for 2.5 s with `scrollTop` stable at 375 and no DOM/geometry change.
+  The assertion's `locator.boundingBox()` is what lies: Playwright's
+  WebKit path uses the protocol's `DOM.getContentQuads`, which for an
+  SVG descendant returns the quad anchored at the `<svg>`'s own
+  top-left corner — every leaf `<text>` in panel 0 reported
+  `x=242, y=-7.625` (the svg's origin) with its own correct width and
+  height, while the in-page rects put each label at its true position
+  (x = svg.x + its `x` attribute). Chromium (`Page.getContentQuads`)
+  and Firefox (in-page `getClientRects`) return the true box. The
+  failure fired only when the first tree's svg top sat above the
+  column top — i.e. whenever the matrix-cell click during `stepToEnd`
+  left `.col-center` scrolled past ~34 px — hence the ~60 % rate. The
+  app is correct; the test now measures the label rect in-page via
+  `getBoundingClientRect`, identical to the other engines' quads and
+  to leaf-labels.spec.ts's existing pattern; the every-leaf-in-
+  viewport assertions are unchanged. Files: `web/e2e/layout.spec.ts`.
+  Verified: `--repeat-each 20` on the failing test 20/20 WebKit;
+  layout.spec.ts `--repeat-each 5` 140/140 on all three engines; full
+  `E2E=1` suite webkit 146, chromium 151, firefox 145 passed (the
+  webkit/chromium runs included the temporary instrumentation spec —
+  145/150 committed), 0 failed, 0 flaky; visual 43/43.
