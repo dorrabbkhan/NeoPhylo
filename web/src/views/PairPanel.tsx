@@ -26,14 +26,12 @@
 import { useMemo } from "react";
 import type { Dispatch } from "react";
 
-import katex from "katex";
-import "katex/dist/katex.min.css";
-
 import type { Result } from "../engine";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Cell } from "../engine/generated/Cell";
 import type { PairDetail } from "../engine/generated/PairDetail";
 import { errorMessage } from "../explain/errors";
+import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { pairConcept, pairMathTex } from "../explain/pair";
 import type { Action, Session } from "../state/session";
 
@@ -73,13 +71,14 @@ function cellText(c: Cell): string {
 }
 
 function KaTeXLine({ source }: { source: string }) {
-  const html = useMemo(() => {
-    try {
-      return katex.renderToString(source, { throwOnError: true });
-    } catch {
-      return null; // show the source verbatim rather than fail
-    }
-  }, [source]);
+  const katex = useKatex();
+  const html = useMemo(
+    () => (katex === null ? null : renderMath(katex, source)),
+    [katex, source],
+  );
+  if (katex === null) {
+    return <p className="math-line math-loading">{MATH_LOADING}</p>;
+  }
   if (html === null) {
     return (
       <p className="math-line">

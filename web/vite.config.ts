@@ -111,13 +111,19 @@ export default defineConfig({
       // install earlier so the SW controls the page sooner.
       injectRegister: false,
       workbox: {
-        // `**/*.js` also covers the emitted bootstrap worker chunk, so
-        // bootstrap runs work offline (v1.2 spec §5); `fonts/*.woff2`
-        // precaches the bundled fonts (v1.3 spec §4.2). The narrower
-        // font glob also keeps the emitted KaTeX woff2 assets out of the
-        // install-time precache — every extra precached file delays
-        // activation, and KaTeX faces were never precached before.
-        globPatterns: ["**/*.{js,css,html,svg,wasm,json}", "fonts/*.woff2"],
+        // `**/*.js` also covers the emitted bootstrap worker chunk and
+        // the lazily-imported KaTeX chunk, so bootstrap runs and Math
+        // mode work offline (v1.2 spec §5, v1.3 spec §7.2);
+        // `fonts/*.woff2` precaches the bundled fonts (v1.3 spec §4.2).
+        // `assets/KaTeX_*.woff2` precaches the KaTeX faces (~296 KB) —
+        // required so offline Math renders with KaTeX's own fonts, not
+        // a system fallback; the woff/ttf fallbacks stay out of the
+        // precache since every supported browser reads woff2.
+        globPatterns: [
+          "**/*.{js,css,html,svg,wasm,json}",
+          "fonts/*.woff2",
+          "assets/KaTeX_*.woff2",
+        ],
         // One less request on the SW's install path.
         inlineWorkboxRuntime: true,
         // The wasm engine (~300 KB today) plus everything else stays
@@ -154,6 +160,11 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // Emitted so scripts/check-bundle-size.sh can walk the entry chunk's
+    // static-import closure for the initial-JS budget (v1.3 §8.2).
+    manifest: true,
+  },
   worker: {
     // The bootstrap worker is constructed with `{ type: "module" }`
     // (v1.2 Task 9); the build must emit an ES worker bundle.

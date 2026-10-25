@@ -3768,3 +3768,35 @@ owner chose **option B**: drop the button entirely.
   constraint is a 12 px minimum anywhere, so its text now uses the
   `size.xs` token and the viewBox/padding grew to fit it (280×190,
   wider left/right/bottom padding — the data mapping is unchanged).
+
+## v1.3 Task 14: lazy KaTeX, bundle and performance budgets
+
+- Files outside the Files block: `web/src/views/PairPanel.tsx` and
+  `web/src/views/BootstrapPanel.tsx` — both imported KaTeX statically;
+  spec §7.2 requires every math surface on the one shared lazy loader
+  so the chunk is fetched once and each caller shows "Loading
+  formulas…" meanwhile. The loader itself, `web/src/explain/katex.ts`
+  (plus its `katex.test.ts`), is new under `web/src/explain/*`.
+  `scripts/ci/web.sh` now invokes `scripts/check-bundle-size.sh` right
+  after `vite build` — the initial-JS check needs `web/dist`, which the
+  wasm job never builds. The three `*.test.tsx` updates are the same
+  tests awaited for async math.
+- The three math surfaces keep their own `MathLine`/`KaTeXLine` shape;
+  the shared module exports `loadKatex`/`useKatex`/`renderMath` and the
+  exact placeholder `MATH_LOADING` = "Loading formulas…".
+- KaTeX woff2 precache (§7.2 offline test needs KaTeX's own faces, not
+  a fallback): `assets/KaTeX_*.woff2` joined the workbox glob; the
+  woff/ttf fallbacks stay out. Precache went 38 entries / 1 577 524 B
+  on main (679e5f9) → 59 entries / 1 835 284 B (+257 760 B): the 19
+  emitted KaTeX woff2 faces plus the new `katex-*.js`/`katex-*.css`
+  chunks, which the existing `**/*.{js,css}` glob already covered.
+- `build.manifest: true` emits `.vite/manifest.json` so the budget
+  script can walk the entry's static-import closure; the file is not
+  precached (dot-dir is outside the glob match) and is build output
+  only.
+- Pending owner decision — the §8.2 JS budget baseline: branch initial
+  JS is 120 367 gz B (entry chunk; worker, wasm and the lazy KaTeX
+  chunk excluded). The v1.2.0-anchored budget misses under every
+  "KaTeX" reading (by 199 B–8.5 KB); the main-anchored reading passes
+  under the shipped standalone KaTeX JS+CSS size (limit 121 621 B,
+  margin 1 254 B) — see the STOP note / PR body for the full table.

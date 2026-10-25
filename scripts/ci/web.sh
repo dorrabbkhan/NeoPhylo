@@ -13,4 +13,7 @@ if [ -f web/package.json ]; then
     node scripts/check-token-discipline.mjs
     npm test
     npm run build )
+  # v1.3 §8.2: the initial-JS budget needs dist/, so it lives in the
+  # bundle-size script but runs here, right after the build.
+  step "web: initial-JS budget"; scripts/check-bundle-size.sh
 fi

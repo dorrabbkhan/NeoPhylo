@@ -7,7 +7,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine";
@@ -77,7 +83,11 @@ describe("ExplanationPanel", () => {
     expect(dispatch).toHaveBeenCalledWith({ type: "setMode", mode: "math" });
   });
 
-  it("renders math lines as KaTeX in math mode", () => {
+  it("shows 'Loading formulas…' until the lazy KaTeX chunk resolves", async () => {
+    // Fresh module registry so this test always sees a cold loader —
+    // otherwise whichever test rendered math first wins the cache.
+    vi.resetModules();
+    const { ExplanationPanel } = await import("./ExplanationPanel");
     render(
       <ExplanationPanel
         trace={trace}
@@ -87,7 +97,30 @@ describe("ExplanationPanel", () => {
         dispatch={vi.fn()}
       />,
     );
-    expect(document.querySelector(".katex")).not.toBeNull();
+    // The first frame after switching to Math is the exact §7.2
+    // placeholder — one per pending formula line.
+    expect(
+      screen.getAllByText("Loading formulas…").length,
+    ).toBeGreaterThan(0);
+    await waitFor(() =>
+      expect(document.querySelector(".katex")).not.toBeNull(),
+    );
+    expect(screen.queryByText("Loading formulas…")).toBeNull();
+  });
+
+  it("renders math lines as KaTeX in math mode", async () => {
+    render(
+      <ExplanationPanel
+        trace={trace}
+        step={0}
+        labels={labels}
+        mode="math"
+        dispatch={vi.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(document.querySelector(".katex")).not.toBeNull(),
+    );
     expect(
       screen.getByText(
         "Values shown rounded; calculations use full precision.",
@@ -95,7 +128,7 @@ describe("ExplanationPanel", () => {
     ).toBeTruthy();
   });
 
-  it("renders each mathTex line as its own block element", () => {
+  it("renders each mathTex line as its own block element", async () => {
     render(
       <ExplanationPanel
         trace={trace}
@@ -107,10 +140,17 @@ describe("ExplanationPanel", () => {
     );
     const lines = mathTex(trace, 0, labels);
     const formulaCount = lines.filter((l) => l.includes("=")).length;
+    expect(formulaCount).toBeGreaterThan(0);
+    // Formula lines render through KaTeX — wait for the lazy chunk;
+    // until then each pending line is a "Loading formulas…" block.
+    await waitFor(() =>
+      expect(
+        document.querySelectorAll(".math-line .katex"),
+      ).toHaveLength(formulaCount),
+    );
     const blocks = document.querySelectorAll(".math-line");
     // One .math-line block per formula line, each a <p> (display: block).
     expect(blocks).toHaveLength(formulaCount);
-    expect(blocks.length).toBeGreaterThan(0);
     blocks.forEach((el) => expect(el.tagName).toBe("P"));
   });
 
