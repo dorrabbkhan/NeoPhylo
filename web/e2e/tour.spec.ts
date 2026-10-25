@@ -85,8 +85,9 @@ for (const viewport of [
         "data-tour-target",
         targets[i],
       );
-      // The step's scrollIntoView animates (smooth) — poll until the
-      // geometry settles rather than asserting mid-scroll.
+      // The step's scrollIntoView settles (instant — the smooth scroll
+      // raced clicks, see the fast-step test below) — poll until the
+      // geometry lands rather than asserting mid-scroll.
       await expect
         .poll(
           async () =>
@@ -128,6 +129,56 @@ for (const viewport of [
     }
   });
 }
+
+// v1.3 fixes: the Firefox failure this guards — a "Next" click while
+// step 3's smooth scroll still glided the card could straddle a move
+// (down/up on different elements → no click), and the ring could keep
+// step-3 geometry into step 4. The scroll is instant now, so stepping
+// straight through — no settle waits — must land the ring on each
+// step's own target; asserted exactly on the last step's box.
+test("768x1024: stepping straight through lands the ring on each target", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/");
+  await waitForApp(page);
+  const dlg = tour(page);
+  await expect(dlg).toBeVisible();
+  const targets = [".stepper", ".trees", ".matrix-wrap", ".mode-toggle"];
+  for (const sel of targets) {
+    await expect(page.locator(".tour")).toHaveAttribute(
+      "data-tour-target",
+      sel,
+    );
+    if (sel !== targets[targets.length - 1]) {
+      await dlg.getByRole("button", { name: "Next" }).click();
+    }
+  }
+  // The ring is the step-4 target's visible rect padded by RING_PAD
+  // (6 px — the same constant Tour.tsx draws with).
+  const geo = await page.evaluate(() => {
+    const pad = 6;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const t = document
+      .querySelector(".mode-toggle")!
+      .getBoundingClientRect();
+    const r = document.querySelector(".tour-ring")!.getBoundingClientRect();
+    return {
+      ring: { l: r.left, t: r.top, w: r.width, h: r.height },
+      want: {
+        l: Math.max(0, t.left) - pad,
+        t: Math.max(0, t.top) - pad,
+        w: Math.min(t.right, vw) - Math.max(0, t.left) + pad * 2,
+        h: Math.min(t.bottom, vh) - Math.max(0, t.top) + pad * 2,
+      },
+    };
+  });
+  expect(Math.abs(geo.ring.l - geo.want.l)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.t - geo.want.t)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.w - geo.want.w)).toBeLessThan(1);
+  expect(Math.abs(geo.ring.h - geo.want.h)).toBeLessThan(1);
+});
 
 test("skip ends the tour and a reload does not reshow it", async ({
   page,
