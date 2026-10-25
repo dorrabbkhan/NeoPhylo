@@ -8,6 +8,7 @@ abstract: "A browser-based teaching tool for distance-based phylogenetics of
   simulate sequence evolution on a known tree, and work with real data in
   guided lessons and a sandbox that reads and writes PHYLIP formats."
 version: 1.3.0
+date-released: "2026-10-25"
 authors:
   - family-names: "Khan"
     given-names: "Dorrabb"
