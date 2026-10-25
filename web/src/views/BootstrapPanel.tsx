@@ -12,9 +12,8 @@
 import { useMemo } from "react";
 import type { Dispatch } from "react";
 
-import katex from "katex";
-
 import { bootstrapConcept, bootstrapMathTex } from "../explain/bootstrap";
+import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { errorMessage } from "../explain/errors";
 import {
   MAX_REPLICATES,
@@ -41,15 +40,17 @@ function aboutMs(ms: number): string {
 }
 
 /** KaTeX for math-mode lines that carry a formula ("="); the rest are
- * plain text — the same convention as ExplanationPanel. */
+ * plain text — the same convention as ExplanationPanel. The module is
+ * lazy (§7.2): pending lines show the shared placeholder. */
 function MathLine({ source }: { source: string }) {
-  const html = useMemo(() => {
-    try {
-      return katex.renderToString(source, { throwOnError: true });
-    } catch {
-      return null;
-    }
-  }, [source]);
+  const katex = useKatex();
+  const html = useMemo(
+    () => (katex === null ? null : renderMath(katex, source)),
+    [katex, source],
+  );
+  if (katex === null) {
+    return <p className="math-line math-loading">{MATH_LOADING}</p>;
+  }
   if (html === null) {
     return (
       <p className="math-line">

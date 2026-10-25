@@ -11,11 +11,9 @@
 import { useMemo } from "react";
 import type { Dispatch } from "react";
 
-import katex from "katex";
-import "katex/dist/katex.min.css";
-
 import type { Trace } from "../engine/generated/Trace";
 import { conceptText } from "../explain/concept";
+import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { mathTex } from "../explain/math";
 import type { Action, Session } from "../state/session";
 
@@ -45,13 +43,14 @@ export interface ExplanationPanelProps {
 const isFormula = (line: string) => line.includes("=");
 
 function MathLine({ source }: { source: string }) {
-  const html = useMemo(() => {
-    try {
-      return katex.renderToString(source, { throwOnError: true });
-    } catch {
-      return null; // malformed source: show it verbatim rather than fail
-    }
-  }, [source]);
+  const katex = useKatex();
+  const html = useMemo(
+    () => (katex === null ? null : renderMath(katex, source)),
+    [katex, source],
+  );
+  if (katex === null) {
+    return <p className="math-line math-loading">{MATH_LOADING}</p>;
+  }
   if (html === null) {
     return (
       <p className="math-line">

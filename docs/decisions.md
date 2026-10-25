@@ -3768,3 +3768,65 @@ owner chose **option B**: drop the button entirely.
   constraint is a 12 px minimum anywhere, so its text now uses the
   `size.xs` token and the viewBox/padding grew to fit it (280×190,
   wider left/right/bottom padding — the data mapping is unchanged).
+
+## v1.3 Task 14: lazy KaTeX, bundle and performance budgets
+
+- Files outside the Files block: `web/src/views/PairPanel.tsx` and
+  `web/src/views/BootstrapPanel.tsx` — both imported KaTeX statically;
+  spec §7.2 requires every math surface on the one shared lazy loader
+  so the chunk is fetched once and each caller shows "Loading
+  formulas…" meanwhile. The loader itself, `web/src/explain/katex.ts`
+  (plus its `katex.test.ts`), is new under `web/src/explain/*`.
+  `scripts/ci/web.sh` now invokes `scripts/check-bundle-size.sh` right
+  after `vite build` — the initial-JS check needs `web/dist`, which the
+  wasm job never builds. The three `*.test.tsx` updates are the same
+  tests awaited for async math.
+- The three math surfaces keep their own `MathLine`/`KaTeXLine` shape;
+  the shared module exports `loadKatex`/`useKatex`/`renderMath` and the
+  exact placeholder `MATH_LOADING` = "Loading formulas…".
+- KaTeX woff2 precache (§7.2 offline test needs KaTeX's own faces, not
+  a fallback): `assets/KaTeX_*.woff2` joined the workbox glob; the
+  woff/ttf fallbacks stay out. Precache went 38 entries / 1 577 524 B
+  on main (679e5f9) → 59 entries / 1 835 284 B (+257 760 B): the 19
+  emitted KaTeX woff2 faces plus the new `katex-*.js`/`katex-*.css`
+  chunks, which the existing `**/*.{js,css}` glob already covered.
+- `build.manifest: true` emits `.vite/manifest.json` so the budget
+  script can walk the entry's static-import closure; the file is not
+  precached (dot-dir is outside the glob match) and is build output
+  only.
+- Owner decision (2026-10-25): v1.2.0 baseline; KaTeX measured as its
+  JS. `scripts/check-bundle-size.sh` therefore uses KATEX_GZ = 76 524
+  (the shipped `katex.min.js` gzip; the CSS isn't JS) and the §8.2
+  limit is 191 572 − 76 524 + 5 120 = 120 168 B.
+- Files outside the Files block (this round): `web/src/views/App.tsx`
+  now lazy-imports `web/src/views/PhylipHelp.tsx` via `React.lazy` +
+  `Suspense` (owner decision: trim the initial bundle by loading the
+  "Coming from PHYLIP?" dialog on first open; Sheet's mount-time focus
+  contract is unchanged, and the `**/*.js` precache glob already covers
+  the emitted `PhylipHelp-*.js` chunk for offline). The dialog's own
+  source needed no edit — the lazy call maps its named export.
+  `PhylipHelp.test.tsx` only awaited the now-async open (findByRole).
+- Margin status: lazy PhylipHelp took the branch's initial JS from
+  120 367 gz to 120 111 gz (the emitted `PhylipHelp-*.js` chunk is
+  ~1.5 kB / 0.63 kB gz) — under the 120 168 B limit but short of the
+  required ≥ 2 KB margin (≤ 118 120 B) by 1 991 B. Per the owner's
+  instruction the round stopped there for a decision on the next trim.
+- Owner decision (2026-10-25), closing the margin gap: lazy-load the
+  export writers under `web/src/export/` in the ExportMenu handlers
+  (dynamic `import()` in onSvg/onPng/onR/onPhylip), then the replicate
+  panel only if still over the ≤ 118 120 B margin. Exports must be
+  byte-identical and work offline (the `**/*.js` precache glob covers
+  the emitted chunks — proven by the new "exports work offline" e2e
+  test). Initial JS went 120 111 → **116 879 gz**, 1 241 B under the
+  required margin, so the replicate panel stays eager. New chunks:
+  svg 2.93 kB / rscript 4.68 kB / png 0.82 kB / phylip 0.28 kB; the
+  shared figure layout (`layout/treeFigure` etc.) stays in the entry
+  chunk because the screen uses it. Precache: 60 entries / 1 765.01
+  KiB → 64 entries / 1 765.74 KiB (+0.73 KiB).
+- Files outside the Files block (this round): `web/src/views/ExportMenu.tsx`
+  (the four dynamic imports — the Newick items stay synchronous; they
+  call engine writers, not `web/src/export/*`), `web/src/views/ExportMenu.test.tsx`
+  and `web/src/views/App.export.test.tsx` (await the now-async
+  downloads; the URL stubs became `vi.spyOn(URL, …)` because a
+  whole-object `stubGlobal("URL")` left `URL` non-constructible and
+  broke vitest's module runner resolving `import()`).

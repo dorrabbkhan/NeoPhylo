@@ -18,6 +18,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -179,11 +180,14 @@ describe("PairPanel content", () => {
     expect(container.querySelector(".pair-math")).toBeNull();
   });
 
-  it("math mode: the KaTeX lines and no Concept sentence", () => {
+  it("math mode: the KaTeX lines and no Concept sentence", async () => {
     const d = okDetail(ALN, 0, 1);
     const { container } = renderPanel(ALN, { ok: true, value: d }, "math");
-    // Every math line renders through KaTeX (one .katex root per line).
-    expect(container.querySelectorAll(".pair-math .katex").length).toBe(3);
+    // Every math line renders through KaTeX (one .katex root per line)
+    // once the lazy chunk resolves (spec §7.2).
+    await waitFor(() =>
+      expect(container.querySelectorAll(".pair-math .katex").length).toBe(3),
+    );
     expect(container.querySelector(".pair-concept")).toBeNull();
     expect(
       screen.queryByText(

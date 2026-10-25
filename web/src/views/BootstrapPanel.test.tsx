@@ -10,6 +10,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -332,7 +333,7 @@ describe("BootstrapPanel", () => {
     });
   });
 
-  it("concept mode shows the §6.6 wording; math mode renders formulas", () => {
+  it("concept mode shows the §6.6 wording; math mode renders formulas", async () => {
     render(<Harness initial={loaded()} />);
     expect(
       screen.getByText(/87 means this group appeared in 87 of 100/),
@@ -340,8 +341,11 @@ describe("BootstrapPanel", () => {
     cleanup();
     const s = reducer(loaded(), { type: "setMode", mode: "math" });
     const { container } = render(<Harness initial={s} />);
-    // KaTeX renders into elements with class .katex.
-    expect(container.querySelectorAll(".katex").length).toBeGreaterThan(0);
+    // KaTeX renders into elements with class .katex once the lazy chunk
+    // resolves (spec §7.2).
+    await waitFor(() =>
+      expect(container.querySelectorAll(".katex").length).toBeGreaterThan(0),
+    );
   });
 });
 
