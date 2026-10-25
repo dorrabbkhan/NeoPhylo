@@ -8,11 +8,9 @@ Learn how phylogenetic trees are built — step by step, in your browser.
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Live site](https://img.shields.io/badge/live-site-brightgreen)](https://neophylo.netlify.app)
 
-![The nj-basics lesson, mid-lesson: true and inferred trees, the distance matrix, and a predict-the-next-join prompt.](docs/media/nj-basics-mid-lesson.png)
+![The cytochrome-c lesson at its final step: the reference classification and the inferred NJ tree drawn rooted with wheat as the outgroup, bootstrap support values on the inferred tree's branches.](docs/media/cytochrome-c-rooted-support.png)
 
-![Stepping through Neighbor-Joining one join at a time.](docs/media/nj-step-through.gif)
-
-![The protein pair panel: two sequences aligned with differences marked, p/Kimura/JTT side by side, and the JTT likelihood curve.](docs/media/protein-pair-panel.png)
+![The bootstrap-basics lesson at its final step: the closing notes, the simulated true tree and the inferred tree with bootstrap support labels, both drawn with the same outgroup.](docs/media/bootstrap-basics-final-step.png)
 
 **Try it:** https://neophylo.netlify.app
 

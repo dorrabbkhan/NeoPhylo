@@ -4026,3 +4026,36 @@ which is why PR CI never saw them. Each bug has its own commit.
   `E2E=1` suite webkit 146, chromium 151, firefox 145 passed (the
   webkit/chromium runs included the temporary instrumentation spec —
   145/150 committed), 0 failed, 0 flaky; visual 43/43.
+
+## v1.3 Task 16: release checkpoint, README images, CITATION
+
+- **Files outside the Files block:** this entry (`docs/decisions.md`),
+  as every task records; `docs/media/cytochrome-c-rooted-support.png`
+  and `docs/media/bootstrap-basics-final-step.png` (new README media,
+  see below); the deleted `docs/media/{nj-basics-mid-lesson.png,
+  nj-step-through.gif, protein-pair-panel.png}` (see below).
+- **README images replace, not join.** The README's media block showed
+  the pre-v1.3 UI (old header, no wordmark or theme toggle); joining
+  would have put two designs side by side in the release README. The
+  three stale images were unreferenced anywhere else, so the files are
+  deleted (git history keeps them). The two replacements are
+  byte-identical copies of the committed snapshot baselines
+  `cytc-rooted-1920x1080-light` and `bootstrap-basics-final-1920x1080-light`
+  from `web/e2e/__screenshots__/` — nothing under that directory was
+  modified. `og-image.png` is unchanged. Regenerating the step-through
+  GIF on the v1.3 design via `web/scripts/record-media.mjs` is a
+  follow-up, not part of this task (the plan names exactly the two
+  snapshot scenes).
+- **`docs/roadmap.md`:** the Status line only — v1.3 moves into the
+  "released or releasing" list the way v1.2 was written, next becomes
+  v1.4, and the revision date moves to today. The v1.3 section heading
+  is untouched.
+- **`CITATION.cff`:** `version: 1.3.0` only; `date-released` stays
+  absent for the owner to fill at tag time (same arrangement as the
+  v1.2 release).
+- **Step 2 scope:** `E2E=1 RPARITY=1 FUZZ=1 ./scripts/check.sh` can't
+  run inside the agent sandbox (docker, the wasm build and the fuzz
+  toolchain are unreliable here). The default gate was run as
+  fixture-guard + rust + web — `wasm.sh` skipped, no `crates/` files
+  changed in this task. The conductor runs the full E2E/RPARITY/FUZZ
+  gate outside the sandbox; the PR body carries a checkbox for it.

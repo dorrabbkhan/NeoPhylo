@@ -1,7 +1,8 @@
 # NeoPhylo roadmap
 
-**Status:** v1.0, v1.1 (protein support, PHYLIP I/O) and **v1.2 (bootstrap, consensus, reference
-rooting)** released or releasing; **next: v1.3** (design system and polish). Last revised 2026-10-21.
+**Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
+rooting)** and **v1.3 (design system and polish)** released or releasing; **next: v1.4** (instructor
+kit, PHYLIP lab packs and MEGA companion). Last revised 2026-10-25.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
