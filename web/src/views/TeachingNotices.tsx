@@ -99,7 +99,9 @@ function SaturationPanel({
   pairName,
 }: SaturationPanelProps) {
   const [fixTried, setFixTried] = useState<"length" | "scale" | null>(null);
-  const remaining = `${sat.cells.length} pair${sat.cells.length === 1 ? "" : "s"} remain${sat.cells.length === 1 ? "s" : ""}`;
+  // Spec §6.9 verbatim: "pair(s) remain" is literal — no plural
+  // switching. k is the engine's saturated-pair count.
+  const remaining = `${sat.cells.length} pair(s) remain`;
   return (
     <section className="notice" aria-label="Saturation">
       {/* The headline matches errorMessage(SaturatedMatrix).title so the

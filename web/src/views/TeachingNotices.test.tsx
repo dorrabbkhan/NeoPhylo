@@ -91,6 +91,16 @@ function renderNotices(initial: Session) {
   return holder;
 }
 
+/** The saturated-pair count straight from the engine error — the test
+ * never hard-codes k (spec §6.9 fills it from `sat.cells.length`). */
+function saturatedPairCount(s: Session): number {
+  const e = s.error;
+  if (e?.kind !== "SaturatedMatrix") {
+    throw new Error("expected a SaturatedMatrix error");
+  }
+  return e.cells.length;
+}
+
 /** A copy of the session whose inferred tree has one negative branch. */
 function withNegativeBranch(s: Session): Session {
   const result = s.result;
@@ -166,30 +176,49 @@ describe("TeachingNotices — saturation", () => {
     fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
     expect(holder.s.error?.kind).toBe("SaturatedMatrix");
     expect(exerciseSim(holder.s.exercise)?.length).toBe(20);
+    // Spec §6.9 verbatim: "pair(s) remain" is literal, k is the
+    // engine's saturated-pair count.
     expect(
       screen.getByText(
-        /Still saturated at length 20: \d+ pairs? remains?\. Try again, or choose another fix\./,
+        `Still saturated at length 20: ${saturatedPairCount(holder.s)} pair(s) remain. Try again, or choose another fix.`,
       ),
     ).toBeTruthy();
     // A second click updates the progress line, not just the buttons.
     fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
     expect(exerciseSim(holder.s.exercise)?.length).toBe(40);
     expect(
-      screen.getByText(/Still saturated at length 40:/),
+      screen.getByText(
+        `Still saturated at length 40: ${saturatedPairCount(holder.s)} pair(s) remain. Try again, or choose another fix.`,
+      ),
     ).toBeTruthy();
   });
 
   it('"Use shorter branches" reports the branch scale in the same way', () => {
     const holder = renderNotices(loaded(SATURATING));
     fireEvent.click(screen.getByRole("button", { name: /shorter branches/i }));
-    // Halving the 5.0 branches still leaves every pair saturated
-    // (verified against the wasm build: 6 pairs).
+    // Halving the 5.0 branches still leaves every pair saturated.
     expect(holder.s.error?.kind).toBe("SaturatedMatrix");
     expect(
       screen.getByText(
-        "Still saturated at branch scale ×0.5: 6 pairs remain. Try again, or choose another fix.",
+        `Still saturated at branch scale ×${holder.s.branchScale}: ${saturatedPairCount(holder.s)} pair(s) remain. Try again, or choose another fix.`,
       ),
     ).toBeTruthy();
+  });
+
+  it('"Use shorter branches" clears the message once it resolves', () => {
+    const holder = renderNotices(loaded(SATURATING));
+    fireEvent.click(screen.getByRole("button", { name: /shorter branches/i }));
+    expect(holder.s.error?.kind).toBe("SaturatedMatrix");
+    expect(screen.getByText(/Still saturated/)).toBeTruthy();
+    // Keep halving until every observed distance drops under the
+    // ceiling; the panel unmounts and the progress line goes with it.
+    for (let i = 0; i < 12 && holder.s.error !== null; i++) {
+      fireEvent.click(screen.getByRole("button", { name: /shorter branches/i }));
+    }
+    expect(holder.s.error).toBeNull();
+    expect(holder.s.result?.tree).not.toBeNull();
+    expect(screen.queryByText(/Still saturated/)).toBeNull();
+    expect(screen.queryByText(/cannot estimate/i)).toBeNull();
   });
 
   it("the real saturation lesson: one click shows progress, the second builds the tree", () => {
@@ -203,12 +232,13 @@ describe("TeachingNotices — saturation", () => {
     // The lesson starts blocked at length 50 (3 saturated pairs).
     expect(holder.s.error?.kind).toBe("SaturatedMatrix");
     // Click 1: 50 → 100. Longer sequences sharpen p but it is still
-    // past the ceiling for 4 pairs — the panel says so, at length 100.
+    // past the ceiling for several pairs — the panel says so, at
+    // length 100, with k read from the engine's error.
     fireEvent.click(screen.getByRole("button", { name: /longer sequences/i }));
     expect(holder.s.error?.kind).toBe("SaturatedMatrix");
     expect(
       screen.getByText(
-        "Still saturated at length 100: 4 pairs remain. Try again, or choose another fix.",
+        `Still saturated at length 100: ${saturatedPairCount(holder.s)} pair(s) remain. Try again, or choose another fix.`,
       ),
     ).toBeTruthy();
     // Click 2: 100 → 200 — now every pair is under the ceiling and the
