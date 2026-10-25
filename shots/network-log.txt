@@ -1,0 +1,33 @@
+initial document chunk requests (1):
+  /assets/index-C9HwjxMv.js
+  initial contains "katex"? no
+  initial contains "PhylipHelp"? no
+  initial contains "svg"? no
+  initial contains "png"? no
+  initial contains "rscript"? no
+  initial contains "phylip"? no
+  initial contains "eplicate"? no
+stepper at end: step 4 of 4
+screenshot: math-loading.png
+screenshot: math-rendered.png
+after Math click, new chunks: /assets/katex-DMqEsVPU.js (katex count: 1)
+PhylipHelp opened; chunks so far: /assets/katex-DMqEsVPU.js, /assets/PhylipHelp-FCSkzJGL.js
+SVG export: fetched [/assets/svg-CHMsdfoZ.js]
+PNG export: fetched [/assets/png-DsBxUl2z.js]
+R script export: fetched [/assets/rscript-CDZ62rI0.js]
+PHYLIP matrix export: fetched [/assets/phylip-Ddvmkn9h.js]
+
+lazy chunk fetches, in order (6):
+  /assets/katex-DMqEsVPU.js
+  /assets/PhylipHelp-FCSkzJGL.js
+  /assets/svg-CHMsdfoZ.js
+  /assets/png-DsBxUl2z.js
+  /assets/rscript-CDZ62rI0.js
+  /assets/phylip-Ddvmkn9h.js
+unique lazy chunks: 6
+  /assets/katex-DMqEsVPU.js ×1
+  /assets/PhylipHelp-FCSkzJGL.js ×1
+  /assets/svg-CHMsdfoZ.js ×1
+  /assets/png-DsBxUl2z.js ×1
+  /assets/rscript-CDZ62rI0.js ×1
+  /assets/phylip-Ddvmkn9h.js ×1
