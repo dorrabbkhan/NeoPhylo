@@ -3595,3 +3595,157 @@ owner chose **option B**: drop the button entirely.
   `web/e2e/lesson-picker.spec.ts` gained the 1280×720/1280×600
   fit-and-End checks, `LessonsMenu.test.tsx` the scrollIntoView unit
   test.
+
+## v1.3 fix: leaf labels clipped by the support stretch (owner decision 3A, 2026-10-24)
+
+- **Cause.** The checkpoint-11 `FIGURE_MIN_SUPPORT_BRANCH_PX`
+  display-only stretch (`minBranchPx` in `web/src/layout/phylogram.ts`)
+  grows a support-carrying internal branch to at least 12 drawn px;
+  the extra width is a `shift` inherited by the whole subtree, so
+  after a bootstrap run the deepest leaf's drawn x — and its name —
+  overran the reserved draw width
+  (`panelWidth − labelRoom − 2·FIGURE_PANEL_PAD`). The svg, sized from
+  the content bounds, grew wider than `.tree-canvas`
+  (`overflow: auto`) and the label sat hidden until the panel was
+  scrolled (PR #79, "Pre-existing: leaf label clipped").
+- **Fix — two places, both display-only.** (a) `layout()` fits the
+  stretch into the width itself: the deepest drawn x at scale `s` is
+  `(cum − base)·s + Σ max(0, minPx − edge·s)` over support-carrying
+  ancestors — continuous and non-decreasing in `s` (a stretched edge
+  draws exactly `minPx` whatever the scale) — so when it exceeds
+  `opts.width` at the naive scale, a bisection finds the largest scale
+  where tree plus accumulated stretch fit together; equivalently the
+  scale then comes from `width −` the stretch on the deepest path.
+  Only a tree whose flat `minPx` floors alone exceed the width still
+  overflows — the panel's horizontal scroll remains for exactly that
+  case (the Global Constraints' layout invariant). (b) `treeFigure()`
+  wraps the whole figure build in a refit pass: `layout()` alone only
+  bounds node x by the draw width, while the CONTENT box also spans
+  leaf names, support pills overhanging left and node slack — when the
+  measured bounds still exceed the panel, the draw width shrinks by
+  the measured overflow and the figure is rebuilt (up to 8 passes; the
+  narrowest build stands). Both renderers consume `treeFigure`, so
+  exports stay identical to the screen.
+- **Why `four-taxa` changed although it shows no support values.** The
+  refit loop runs for every tree; it only *engages* on real overflow.
+  `labelRoomFor` reserves `ceil(longest·fontSize·0.62) + 15` — an em
+  estimate — while the content bounds use `measure()`'s real
+  bundled-font glyph widths. Where the deepest leaf's measured label
+  exceeds the estimate by more than ~0.5 px, the first pass overflows
+  and the draw width shrinks a fraction of a percent — the sub-pixel
+  rescale the six frames show (~530–690 changed px each, under the
+  0.001 diff ratio but real, so the baselines could not be left
+  stale). That overflow predates this fix: the svg was already
+  slightly wider than the canvas and the label tail sat behind scroll
+  — the same clip decision 3A targets, just sub-pixel. Making the
+  refit stretch-only would knowingly keep it; the invariant "the
+  drawing, including the leaf labels, fits the panel" is applied
+  uniformly instead. (jsdom unit tests use the em estimates, so they
+  see no refit on no-stretch trees — verified: identical scale.)
+- **Changed baselines (15, regenerated in the pinned Playwright
+  image):**
+  - `weak-support-1024x768-{dark,light}`,
+    `weak-support-1920x1080-{dark,light}` (4) — the fix itself: all six
+    leaf names now fit inside the panel.
+  - `bootstrap-basics-final-1024x768-{dark,light}`,
+    `bootstrap-basics-final-1920x1080-{dark,light}`,
+    `bootstrap-basics-final-presenter-1920x1080-light` (5) — the same
+    stretch refit on the bootstrap-basics tree after the seeded run.
+  - `four-taxa-{1024x768,1920x1080,768x1024}-{dark,light}` (6) — the
+    measured-label refit above; no support involved.
+  - Regenerated then reverted to HEAD bytes (anti-aliasing noise,
+    1–49 px): `cytc-computed-768x1024-{dark,light}`,
+    `cytc-rooted-1024x768-dark`, `cytc-rooted-768x1024-{dark,light}`,
+    `replicate-panel-1920x1080-light`, `weak-support-768x1024-light`.
+- **Files** (this owner-requested fix has no plan Files block):
+  `web/src/layout/phylogram.ts`, `web/src/layout/treeFigure.ts`, the
+  new `web/src/layout/treeFigure.test.ts` and
+  `web/e2e/leaf-labels.spec.ts`, the 15 baselines above, and this
+  file.
+
+### Fix round 2 (PR #80 review): fit margin, keep-first fallback, pixel-snapped labels
+
+- **Root cause of the deterministic e2e failure.**
+  `bootstrap-sequencing.spec.ts` "sequenced notes and panel fit at
+  1920×1080" failed with leaf D's `<text>` at
+  `toBeInViewport({ratio: 1})` = 0.99999696 — measured in the pinned
+  image. Chromium rasterizes text into an *ink box* a hairline wider
+  than the measured advance box when a glyph lands on an unlucky
+  fractional x; the IntersectionObserver's viewport intersection is
+  computed against the layout box, so the leaf's ink edge poked
+  ~0.00003 px past the svg's clip and the observed ratio dropped just
+  under 1. The refit loop's `overflow <= 0.5` tolerance accepted
+  builds landing flush against the panel edge — exactly where that
+  sliver lives.
+- **Three changes (all display-only, all in the shared
+  `treeFigure`/renderer path):**
+  1. **A real fit margin.** A build now counts as fitted only when
+     its svg clears the panel by `FIGURE_FIT_MARGIN = 2` px — flush
+     fits are misses. The next pass's draw width is floored to an
+     integer before rebuilding: the iteration's fixed point is svg ==
+     panel − margin, and a non-snapped step lands within fp noise of
+     the edge (sometimes a hair over it), so the floor guarantees the
+     accepted build is strictly inside the margin. The content bounds
+     also get `FIGURE_INK_SLACK = 1` px each side so a label's
+     rasterized ink — wider than its measured advance or nudged ≤ 0.5
+     px by the renderer's pixel snap — can never poke past the svg's
+     own overflow clip.
+  2. **Never squash an unfittable tree.** When no refit pass reaches
+     the margin, the least-shrunk build that is merely inside the
+     panel stands; when nothing fits inside at all, the FIRST
+     (unrefit, least-shrunk) build stands and the tree panel scrolls
+     horizontally — the pre-PR behaviour and the Global Constraints'
+     layout invariant. The old `best = narrowest` fallback kept the
+     80 px-floor build: measured on a 30-leaf support ladder it gave
+     scale 77.7 vs the unrefit 315.8 while the svg still overflowed
+     (485 > 400 px panel) — shrunk to ~25 % AND still scrolling. Unit
+     test: the 30-leaf ladder keeps its unrefit scale and svg width >
+     panel.
+  3. **Device-pixel label snap, on screen and in export.** Leaf-name
+     anchors (and the highlighted internal names sharing the anchor)
+     snap to the device-pixel grid — `snapDevicePx(v, origin)` with
+     `origin` the canvas's content-box origin read from
+     ResizeObserver's `contentRect.{x,y}` (the svg's screen offset
+     while scrollLeft is 0); the SVG export snaps identically with
+     `origin = 0`, so exported label `x`/`y` are whole integers
+     (`toFixed(2)` of an integer). An anchored-at-integer label never
+     straddles a pixel boundary, so its ink box can't grow the
+     0.00003 px sliver. The ≤ 0.5 px nudge stays inside
+     `FIGURE_INK_SLACK`.
+- **Why every scene's baselines moved.** The margin refit shrinks the
+  draw width by up to ~2 px + integer floor on every tree that was
+  fitting flush, and the pixel snap moves every leaf-name anchor by
+  ≤ 0.5 px — both touch every scene, so all 43 frames regenerated in
+  the pinned image. The conductor pixel-diffed each against HEAD:
+  41 carry real changes (929–16035 px), 2 were anti-aliasing noise
+  (~42 px) and were restored by path.
+- **Changed baselines (41, grouped by scene):**
+  - `cytc-rooted-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `cytc-computed-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `replicate-panel-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `export-svg-roundtrip-{1024x768,1920x1080,768x1024}-{dark,light}`
+    (6)
+  - `weak-support-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `four-taxa-{1024x768,1920x1080,768x1024}-{dark,light}` (6)
+  - `bootstrap-basics-final-{1024x768,1920x1080}-{dark,light}` (4) +
+    `bootstrap-basics-final-presenter-1920x1080-light` (1)
+  - Regenerated then reverted to HEAD bytes (anti-aliasing noise,
+    ~42 px): `bootstrap-basics-final-768x1024-{dark,light}`.
+- **Export contents.** An exported SVG's leaf `<text>` `x`/`y` are now
+  integer-anchored (e.g. `x="123.00"` where it was `x="123.47"`); the
+  tree geometry, pills and names are unchanged. The export still
+  matches the screen — `export-figure.spec.ts` ("exported SVG/PNG is
+  the on-screen figure, both views") and the six
+  `export-svg-roundtrip` visual scenes pass against the regenerated
+  baselines.
+- **Files added in round 2** (beyond the round-1 list):
+  `web/src/views/TreeView.tsx`, `web/src/export/svg.ts`, the two new
+  cases in `web/src/layout/treeFigure.test.ts`, and the 41 baselines
+  above.
+- **Re-sync onto #79 rounds 3–4** (2026-10-25): merged
+  `origin/m1.3/task-12-tour-empty-states-samples` as a merge commit
+  (no rebase); the only code conflict was this file, resolved by
+  keeping both entries, and the 13 conflicting 1920×1080 baselines
+  took the base branch's bytes before all 43 frames were regenerated
+  in the pinned Playwright image (19 changed vs the merge commit;
+  the visual suite passes 43/43 twice).

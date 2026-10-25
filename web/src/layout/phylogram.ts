@@ -29,8 +29,12 @@
 //   a flat floor, not a fit: labels overhang short segments leftward
 //   rather than stretching them (refinement 21-10-26). The extra width is
 //   a shift inherited by the whole subtree: a node's drawn branch grows
-//   by its own stretch only, positions stay stable across steps, and
-//   `width` grows past `opts.width` by whatever the shifts add.
+//   by its own stretch only, and positions stay stable across steps.
+//   When the accumulated stretch would push the deepest node past
+//   `opts.width`, `scale` shrinks until tree and stretch fit together
+//   (owner decision 3A — that overrun is what clipped leaf labels
+//   behind the panel's scroll). Only a tree whose flat minPx floors
+//   alone exceed `width` still overflows, leaving the panel to scroll.
 
 import type { Tree } from "../engine/generated/Tree";
 
@@ -106,7 +110,7 @@ export function layout(tree: Tree, opts: LayoutOptions): Layout {
   // Cladogram depths are non-negative, so base is always 0 there.
   const base = opts.kind === "phylogram" ? minCum : 0;
   const span = maxCum - base;
-  const scale = span > 0 ? opts.width / span : 0;
+  let scale = span > 0 ? opts.width / span : 0;
 
   // Support-label branches get a display-only minimum drawn length
   // (minBranchPx). `shift` accumulates each node's own stretch plus its
@@ -115,24 +119,64 @@ export function layout(tree: Tree, opts: LayoutOptions): Layout {
   // visibility changes nothing, so positions stay stable across steps.
   const minPx = opts.minBranchPx ?? 0;
   const shift = new Map<number, number>();
-  if (minPx > 0) {
+
+  // (Re)fill `shift` at scale `s` and return the deepest drawn x over
+  // the same node set the emit step produces — cladogram tips at their
+  // aligned cum included. A node's drawn x is (cum − base)·s plus
+  // Σ max(0, minPx − e·s) over its support-carrying ancestors, which is
+  // continuous and non-decreasing in s (a stretched edge draws exactly
+  // minPx whatever the scale), so fitting the stretch inside `width`
+  // is a monotone bisection on the scale below.
+  const extentAt = (s: number): number => {
     for (const id of order) {
       const parent = tree.nodes[id].parent;
       if (parent === null) {
         shift.set(id, 0);
         continue;
       }
-      const parentShift = shift.get(parent) ?? 0;
       let extra = 0;
       if (
         tree.branches[id].support !== null &&
         tree.nodes[id].children.length > 0
       ) {
-        const edgePx = (cum.get(id)! - cum.get(parent)!) * scale;
+        const edgePx = (cum.get(id)! - cum.get(parent)!) * s;
         extra = Math.max(0, minPx - edgePx);
       }
-      shift.set(id, parentShift + extra);
+      shift.set(id, (shift.get(parent) ?? 0) + extra);
     }
+    let deepest = 0;
+    for (const id of order) {
+      if (!isVisible(id)) continue;
+      const leaf = !tree.nodes[id].children.some(isVisible);
+      const ownCum =
+        opts.kind === "cladogram" && leaf ? maxCum : cum.get(id)!;
+      const x = (ownCum - base) * s + (shift.get(id) ?? 0);
+      if (x > deepest) deepest = x;
+    }
+    return deepest;
+  };
+
+  if (minPx > 0) {
+    // The stretch can push the deepest node past `opts.width` — the
+    // accumulated shift used to just grow the drawing, which is what
+    // clipped leaf names behind the canvas's scroll (owner decision
+    // 3A). Shrink the scale until tree plus stretch fit: the scale
+    // then comes from (width − accumulated stretch on the deepest
+    // path). Only when even the flat minPx floors can't fit does the
+    // drawing stay wider than `width` — the panel's horizontal scroll
+    // exists for that case.
+    if (extentAt(scale) > opts.width && extentAt(0) <= opts.width) {
+      let lo = 0;
+      let hi = scale;
+      for (let i = 0; i < 48 && hi - lo > 1e-9; i += 1) {
+        const mid = (lo + hi) / 2;
+        if (extentAt(mid) <= opts.width) lo = mid;
+        else hi = mid;
+      }
+      scale = lo;
+    }
+    // Leave `shift` filled at the final scale for the emit step.
+    extentAt(scale);
   }
   const sh = (id: number): number => shift.get(id) ?? 0;
 

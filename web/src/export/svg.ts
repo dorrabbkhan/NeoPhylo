@@ -13,6 +13,7 @@ import { splitKeys, treeTaxaOrder } from "../layout/splitKeys";
 import {
   FIGURE_LABEL_OFFSET,
   FIGURE_NODE_RADIUS,
+  snapDevicePx,
   treeFigure,
 } from "../layout/treeFigure";
 import { makeTextMeasurer } from "../measureText";
@@ -185,8 +186,11 @@ export function exportSvg(tree: Tree, opts: ExportSvgOptions): string {
       );
     }
     if (n.leaf && n.label !== null) {
+      // Same device-pixel snap as the on-screen draw (origin 0 — the
+      // document has no screen offset), so the exported label lands on
+      // the same pixel grid the screen draws.
       parts.push(
-        `<text x="${(tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS).toFixed(2)}" y="${ty(n.y).toFixed(2)}" font-size="${leafFont}" fill="${INK}" dominant-baseline="middle">${escapeXml(n.label)}</text>`,
+        `<text x="${snapDevicePx(tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS, 0).toFixed(2)}" y="${snapDevicePx(ty(n.y), 0).toFixed(2)}" font-size="${leafFont}" fill="${INK}" dominant-baseline="middle">${escapeXml(n.label)}</text>`,
       );
     }
     parts.push("</g>");
