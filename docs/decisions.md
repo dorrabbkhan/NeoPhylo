@@ -3749,3 +3749,22 @@ owner chose **option B**: drop the button entirely.
   took the base branch's bytes before all 43 frames were regenerated
   in the pinned Playwright image (19 changed vs the merge commit;
   the visual suite passes 43/43 twice).
+
+## v1.3 Task 13: saturation progress feedback
+
+- Spec §6.9 gives only the "Use longer sequences" wording. The
+  branch-fix counterpart keeps the same structure, swapping the
+  knob read-out: "Still saturated at branch scale ×{s}: {k} pair(s)
+  remain. Try again, or choose another fix."
+- "pair(s) remain" is literal per §6.9 — the panel previously
+  pluralized ("4 pairs remain" / "1 pair remains"); now the exact
+  spec string is rendered with only {n}/{s} and {k} substituted. {n}
+  is read back from `exerciseSim` so the SIM_MAX cap shows; {k} is
+  `sat.cells.length` from the engine's SaturatedMatrix error, never
+  a literal.
+- Files outside the Files block: `docs/decisions.md` — this entry.
+- Fix round 1: `web/src/views/SaturationChart.tsx` is also outside the
+  Files block. The chart drew its labels at 9 px; the v1.3 global
+  constraint is a 12 px minimum anywhere, so its text now uses the
+  `size.xs` token and the viewBox/padding grew to fit it (280×190,
+  wider left/right/bottom padding — the data mapping is unchanged).

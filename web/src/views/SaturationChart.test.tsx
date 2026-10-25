@@ -5,6 +5,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { size } from "../design/tokens";
 import { SaturationChart } from "./SaturationChart";
 
 afterEach(cleanup);
@@ -45,5 +46,18 @@ describe("SaturationChart", () => {
     const { container } = render(<SaturationChart points={[]} />);
     expect(screen.getByRole("img")).toBeTruthy();
     expect(container.querySelectorAll("circle.point")).toHaveLength(0);
+  });
+
+  it("draws every label at the 12 px type minimum (§3.2)", () => {
+    const { container } = render(
+      <SaturationChart points={[{ p: 0.5, d: 1.2 }]} />,
+    );
+    const texts = container.querySelectorAll("text");
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) {
+      expect(Number(t.getAttribute("font-size"))).toBeGreaterThanOrEqual(
+        size.xs,
+      );
+    }
   });
 });

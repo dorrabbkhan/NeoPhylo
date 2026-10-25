@@ -135,4 +135,28 @@ test.describe("saturation", () => {
       page.getByRole("group", { name: "Trace stepper" }),
     ).toBeVisible();
   });
+
+  test("the saturation chart's labels render at the 12 px minimum (§3.2)", async ({
+    page,
+  }) => {
+    await page.goto("/?lesson=saturation");
+    await waitForApp(page);
+    const chart = page.locator("svg.saturation-chart");
+    await expect(chart).toBeVisible();
+    // Rendered size = declared font-size × the viewBox→screen scale.
+    const scale = await chart.evaluate((svg) => {
+      const viewW = (svg as SVGSVGElement).viewBox.baseVal.width;
+      const renderedW = svg.getBoundingClientRect().width;
+      return viewW > 0 ? renderedW / viewW : 1;
+    });
+    const sizes = await chart
+      .locator("text")
+      .evaluateAll((els) =>
+        els.map((el) => parseFloat(getComputedStyle(el).fontSize)),
+      );
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const px of sizes) {
+      expect(px * scale).toBeGreaterThanOrEqual(12);
+    }
+  });
 });

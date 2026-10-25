@@ -8,6 +8,8 @@
 // (TeachingNotices): p comes from the engine's uncorrected "P" model —
 // no distance math is ever reimplemented in TypeScript.
 
+import { size } from "../design/tokens";
+
 export interface ChartPoint {
   /** Observed p-distance for the pair (engine "P" model). */
   p: number;
@@ -21,18 +23,20 @@ export interface SaturationChartProps {
 }
 
 const W = 280;
-const H = 176;
-const PAD_L = 32; // y-axis tick labels
-const PAD_R = 10;
-const PAD_T = 8;
-const PAD_B = 26; // x-axis ticks + title
+const H = 190;
+const PAD_L = 36; // y-axis tick labels + rotated title
+const PAD_R = 16;
+const PAD_T = 10;
+const PAD_B = 36; // x-axis ticks + title
 const P_MAX = 1;
 const ASYMPTOTE = 0.75;
 /** The curve's spec domain (§6.3, "[0, 2]"); the axis extends past it
  * only when a plotted pair's true distance lies further out. */
 const D_MAX = 2;
 const SAMPLES = 60;
-const FONT = 9;
+/** §3.2's 12 px floor: at the chart's ≥ 1:1 render scale this draws at
+ * ≥ 12 CSS px. */
+const FONT = size.xs;
 
 /** JC69 expectation of the observed difference at true distance d. */
 const jc69 = (d: number) => ASYMPTOTE * (1 - Math.exp((-4 * d) / 3));
@@ -90,11 +94,11 @@ export function SaturationChart({ points }: SaturationChartProps) {
         strokeDasharray="4 3"
       />
       <text
-        x={W - PAD_R}
-        y={py(ASYMPTOTE) - 3}
+        x={PAD_L + 4}
+        y={py(ASYMPTOTE) - 4}
         fontSize={FONT}
         fill="currentColor"
-        textAnchor="end"
+        textAnchor="start"
       >
         p = 0.75
       </text>
@@ -131,7 +135,7 @@ export function SaturationChart({ points }: SaturationChartProps) {
       </text>
       <text
         x={PAD_L}
-        y={py(0) + 12}
+        y={py(0) + 16}
         fontSize={FONT}
         fill="currentColor"
         textAnchor="middle"
@@ -140,7 +144,7 @@ export function SaturationChart({ points }: SaturationChartProps) {
       </text>
       <text
         x={W - PAD_R}
-        y={py(0) + 12}
+        y={py(0) + 16}
         fontSize={FONT}
         fill="currentColor"
         textAnchor="middle"
