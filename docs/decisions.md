@@ -3889,3 +3889,53 @@ owner chose **option B**: drop the button entirely.
   `exportSvg` keeps its `Promise<string>` contract; the new
   `exportSvgDetailed` in `web/src/export/svg.ts` additionally returns
   the drawn texts (same file, no new module).
+
+## v1.3 fixes: tour Firefox, KaTeX overflow, header title wrap (out-of-plan, owner-approved)
+
+Four bugs found during Tasks 12–14, fixed in one PR on `m1.3/fixes` from main
+689518a. No plan Files block — every file touched is listed per fix.
+
+- **Firefox tour at 768×1024:** the step's `scrollIntoView` used
+  `behavior: "smooth"`. While the smooth scroll animates, every scroll event
+  re-measures the target and the card glides under the pointer for hundreds of
+  ms; a click whose down/up straddle a move lands on different elements and no
+  `click` fires — Firefox dropped "Next" ~1-in-7 runs (reproduced 3/20 on main;
+  the step stayed on `.matrix-wrap`). The scroll is instant now — a real fix,
+  not a masked wait: the card never moves post-commit, the step's scroll can't
+  outrace the next step's, and §6.10's reduced-motion rule is met by never
+  animating. Regression test steps straight through at 768×1024 and asserts the
+  ring is exactly the step-4 target's padded rect. Files: `web/src/views/Tour.tsx`,
+  `web/e2e/tour.spec.ts` (new "stepping straight through" test).
+- **KaTeX overflow at 1280:** `.math-line` already had `overflow-x: auto`, but
+  overlay scrollbars hide the affordance, glyph edges clip at the box edge, and
+  a keyboard user could never reach the clipped end (axe
+  scrollable-region-focusable). The box now has `overflow-y: hidden` and
+  block-end padding (design tokens), and the three identical local math-line
+  renders (ExplanationPanel, BootstrapPanel, PairPanel) are one shared
+  `MathLine` component that makes a line a labelled tab stop only while it
+  actually overflows horizontally (ResizeObserver; jsdom reports no overflow,
+  so unit tests see no extra tab stop). PairPanel's copy is folded in although
+  the notes named only two surfaces — the identical component would have kept
+  the same bug. Files: `web/src/views/MathLine.tsx` (new), `ExplanationPanel.tsx`,
+  `BootstrapPanel.tsx`, `PairPanel.tsx`, `web/src/index.css`,
+  `web/e2e/math.spec.ts` (new).
+- **Header title wrap (1024 saturation, 1280 protein-models):** `flex-wrap` was
+  kept for the header, but CSS line breaking uses each item's UNSHRUNK flex
+  basis — a shrinkable h1 can never stop the controls wrapping. The header is
+  `flex-wrap: nowrap` at ≥1024 outside presenter mode (1.5× type keeps the
+  wrap escape at every width, as before; <1024 keeps it too), the h1 truncates
+  with an ellipsis (`white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0`) and is the row's only shrinkable
+  item — every other direct child is `flex-shrink: 0`, so no control's text
+  wraps inside it either. The full title stays on the h1's `title` attribute
+  and accessible name. tour.spec.ts's per-lesson header check now pins 54.2 px
+  for every catalog lesson at 1280 AND 1024 (protein-models' "wraps on main"
+  exception removed). Files: `web/src/index.css`, `web/src/views/Header.tsx`,
+  `web/src/views/Header.test.tsx`, `web/e2e/tour.spec.ts`.
+- **Files outside the task (no Files block exists):** all files above plus
+  `docs/decisions.md`; `web/e2e/__screenshots__/` baseline regenerations are
+  listed individually in the PR body.
+- **Verification:** the failing Firefox test went 17/20 → 20/20 (plus 20/20 on
+  the new regression test); Chromium stayed 40/40 over the same repeats;
+  tour.spec.ts + math.spec.ts are 24/24 on both Chromium and Firefox; axe spec
+  5/5 unchanged.
