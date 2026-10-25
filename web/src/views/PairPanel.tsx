@@ -23,7 +23,6 @@
 // focus moves in on open, Tab is trapped, Esc closes and focus
 // returns to the element that opened it (§6.5).
 
-import { useMemo } from "react";
 import type { Dispatch } from "react";
 
 import type { Result } from "../engine";
@@ -31,11 +30,11 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Cell } from "../engine/generated/Cell";
 import type { PairDetail } from "../engine/generated/PairDetail";
 import { errorMessage } from "../explain/errors";
-import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { pairConcept, pairMathTex } from "../explain/pair";
 import type { Action, Session } from "../state/session";
 
 import { LikelihoodCurve } from "./LikelihoodCurve";
+import { MathLine } from "./MathLine";
 import { ModeToggle } from "./ModeToggle";
 import { Sheet } from "./Sheet";
 
@@ -68,25 +67,6 @@ for (const c of "GP") AA_CLASS[c] = "aa-special";
 
 function cellText(c: Cell): string {
   return c === "Saturated" ? "can't estimate" : c.Value.toFixed(3);
-}
-
-function KaTeXLine({ source }: { source: string }) {
-  const katex = useKatex();
-  const html = useMemo(
-    () => (katex === null ? null : renderMath(katex, source)),
-    [katex, source],
-  );
-  if (katex === null) {
-    return <p className="math-line math-loading">{MATH_LOADING}</p>;
-  }
-  if (html === null) {
-    return (
-      <p className="math-line">
-        <code>{source}</code>
-      </p>
-    );
-  }
-  return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export function PairPanel({
@@ -210,7 +190,7 @@ export function PairPanel({
             ) : (
               <div className="pair-math">
                 {pairMathTex(d).map((line, i) => (
-                  <KaTeXLine key={i} source={line} />
+                  <MathLine key={i} source={line} />
                 ))}
               </div>
             )}

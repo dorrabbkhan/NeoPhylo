@@ -9,11 +9,9 @@
 // n−2 internal branches. For tiny trees the line explains why there
 // is nothing (or little) to test instead of showing an empty result.
 
-import { useMemo } from "react";
 import type { Dispatch } from "react";
 
 import { bootstrapConcept, bootstrapMathTex } from "../explain/bootstrap";
-import { MATH_LOADING, renderMath, useKatex } from "../explain/katex";
 import { errorMessage } from "../explain/errors";
 import {
   MAX_REPLICATES,
@@ -23,6 +21,7 @@ import type { Action, Session } from "../state/session";
 
 import { NumberField } from "./Controls";
 import { EmptyState } from "./EmptyState";
+import { MathLine } from "./MathLine";
 
 export interface BootstrapPanelProps {
   session: Session;
@@ -37,28 +36,6 @@ export interface BootstrapPanelProps {
 function aboutMs(ms: number): string {
   if (ms < 60_000) return `${Math.max(1, Math.ceil(ms / 1000))} s`;
   return `${Math.round(ms / 60_000)} min`;
-}
-
-/** KaTeX for math-mode lines that carry a formula ("="); the rest are
- * plain text — the same convention as ExplanationPanel. The module is
- * lazy (§7.2): pending lines show the shared placeholder. */
-function MathLine({ source }: { source: string }) {
-  const katex = useKatex();
-  const html = useMemo(
-    () => (katex === null ? null : renderMath(katex, source)),
-    [katex, source],
-  );
-  if (katex === null) {
-    return <p className="math-line math-loading">{MATH_LOADING}</p>;
-  }
-  if (html === null) {
-    return (
-      <p className="math-line">
-        <code>{source}</code>
-      </p>
-    );
-  }
-  return <p className="math-line" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export function BootstrapPanel({
@@ -96,6 +73,9 @@ export function BootstrapPanel({
       </p>
 
       <div className="bootstrap-explain">
+        {/* KaTeX for math-mode lines that carry a formula ("="); the
+            rest are plain text — the same convention as
+            ExplanationPanel. */}
         {session.mode === "concept" ? (
           <p>{bootstrapConcept()}</p>
         ) : (

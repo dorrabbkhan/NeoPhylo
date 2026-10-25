@@ -830,11 +830,18 @@ button:disabled {
 }
 
 /* Each formula is its own block on its own line; long formulas scroll
- * horizontally instead of wrapping mid-formula. */
+ * horizontally inside their own box instead of wrapping mid-formula.
+ * The scroll is the only overflow — the box never scrolls vertically
+ * (overflow-y hidden), the block-end padding keeps descenders and the
+ * horizontal scrollbar off the glyphs, and a line that actually
+ * overflows is a labelled tab stop (MathLine) so keyboard users can
+ * reach the clipped end. */
 .math-line {
   display: block;
   overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
+  padding: var(--space-4) 0 var(--space-8);
   margin: 0 0 8px;
   font-size: var(--size-md);
 }
