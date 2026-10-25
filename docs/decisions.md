@@ -3794,9 +3794,20 @@ owner chose **option B**: drop the button entirely.
   script can walk the entry's static-import closure; the file is not
   precached (dot-dir is outside the glob match) and is build output
   only.
-- Pending owner decision — the §8.2 JS budget baseline: branch initial
-  JS is 120 367 gz B (entry chunk; worker, wasm and the lazy KaTeX
-  chunk excluded). The v1.2.0-anchored budget misses under every
-  "KaTeX" reading (by 199 B–8.5 KB); the main-anchored reading passes
-  under the shipped standalone KaTeX JS+CSS size (limit 121 621 B,
-  margin 1 254 B) — see the STOP note / PR body for the full table.
+- Owner decision (2026-10-25): v1.2.0 baseline; KaTeX measured as its
+  JS. `scripts/check-bundle-size.sh` therefore uses KATEX_GZ = 76 524
+  (the shipped `katex.min.js` gzip; the CSS isn't JS) and the §8.2
+  limit is 191 572 − 76 524 + 5 120 = 120 168 B.
+- Files outside the Files block (this round): `web/src/views/App.tsx`
+  now lazy-imports `web/src/views/PhylipHelp.tsx` via `React.lazy` +
+  `Suspense` (owner decision: trim the initial bundle by loading the
+  "Coming from PHYLIP?" dialog on first open; Sheet's mount-time focus
+  contract is unchanged, and the `**/*.js` precache glob already covers
+  the emitted `PhylipHelp-*.js` chunk for offline). The dialog's own
+  source needed no edit — the lazy call maps its named export.
+  `PhylipHelp.test.tsx` only awaited the now-async open (findByRole).
+- Margin status: lazy PhylipHelp took the branch's initial JS from
+  120 367 gz to 120 111 gz (the emitted `PhylipHelp-*.js` chunk is
+  ~1.5 kB / 0.63 kB gz) — under the 120 168 B limit but short of the
+  required ≥ 2 KB margin (≤ 118 120 B) by 1 991 B. Per the owner's
+  instruction the round stopped there for a decision on the next trim.

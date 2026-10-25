@@ -76,9 +76,10 @@ describe("header entry", () => {
     // focus on it already.
     open.focus();
     fireEvent.click(open);
-    expect(screen.getByRole("dialog")).toBeTruthy();
+    // The dialog is a lazy chunk (v1.3 Task 14): the open is async.
+    const dialog = await screen.findByRole("dialog");
     // Focus moved into the panel; closing returns it to the button.
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(open);
   });

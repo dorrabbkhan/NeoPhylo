@@ -34,13 +34,14 @@ fi
 #
 # Measured at task start (v1.3 Task 14) with this script: tag v1.2.0's
 # initial JS was the entry chunk index-NogIFoQJ.js (191432 gz) plus the
-# registerSW.js script tag (140 gz) = 191572 bytes; KaTeX's shipped
-# payload gzip is katex.min.js 76524 + katex.min.css 3636 = 80160
-# bytes. Budget: 191572 - 80160 + 5120 = 116532.
+# registerSW.js script tag (140 gz) = 191572 bytes. Owner decision
+# (2026-10-25): the baseline stays v1.2.0 and "minus KaTeX" means
+# KaTeX's JS only — the shipped katex.min.js gzips to 76524 bytes; the
+# CSS isn't JS. Budget: 191572 - 76524 + 5120 = 120168.
 # (For reference, main at 679e5f9 measured 196661 bytes.)
 V120_INITIAL_JS_GZ=191572
-KATEX_GZ=80160
-JS_LIMIT=$((V120_INITIAL_JS_GZ - KATEX_GZ + 5120))   # = 116532
+KATEX_GZ=76524
+JS_LIMIT=$((V120_INITIAL_JS_GZ - KATEX_GZ + 5120))   # = 120168
 
 DIST=web/dist
 if [ ! -f "$DIST/index.html" ]; then

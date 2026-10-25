@@ -27,6 +27,8 @@
 // resets whenever a different exercise is loaded.
 
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -76,7 +78,6 @@ import { Header } from "./Header";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
-import { PhylipHelp } from "./PhylipHelp";
 import { ReplicatePanel } from "./ReplicatePanel";
 import { PromptCard } from "./PromptCard";
 import { SettingsDrawer } from "./SettingsDrawer";
@@ -95,6 +96,14 @@ import { splitKeys } from "../layout/splitKeys";
 import { LEAF_SPACING_NATURAL } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
 import { nodeName } from "../state/names";
+
+// "Coming from PHYLIP?" is a lazy chunk (v1.3 Task 14, spec §8.2):
+// fetched on first open, not with the app. Sheet's mount-time focus
+// contract is unchanged — it runs when the chunk resolves, and the
+// SW's `**/*.js` precache keeps it working offline after first load.
+const PhylipHelp = lazy(() =>
+  import("./PhylipHelp").then((m) => ({ default: m.PhylipHelp })),
+);
 
 const NO_HIGHLIGHT = new Set<number>();
 
@@ -1134,7 +1143,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
           {controlsSections}
         </SettingsDrawer>
       )}
-      {phylipHelp && <PhylipHelp onClose={() => setPhylipHelp(false)} />}
+      {phylipHelp && (
+        <Suspense fallback={null}>
+          <PhylipHelp onClose={() => setPhylipHelp(false)} />
+        </Suspense>
+      )}
       {session.tourStep !== null && (
         <Tour step={session.tourStep} dispatch={dispatch} />
       )}

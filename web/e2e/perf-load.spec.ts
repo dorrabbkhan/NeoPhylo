@@ -4,10 +4,14 @@
 //   - KaTeX is a lazy chunk: the initial document load never requests
 //     it; the first Math view shows exactly "Loading formulas…" while
 //     the chunk is fetched once through a shared cached promise, and
-//     toggling back to Math never refetches it.
+//     toggling back to Math never refetches it. The "Coming from
+//     PHYLIP?" dialog is lazy the same way (§8.2 trim): its chunk is
+//     requested only when the header button opens it.
 //   - The service worker precaches the KaTeX chunk, its CSS and the
 //     KaTeX woff2 faces, so after one online load Math renders offline
-//     with KaTeX's own fonts, not a fallback.
+//     with KaTeX's own fonts, not a fallback. The `**/*.js` glob that
+//     covers the KaTeX chunk also precaches the PhylipHelp chunk, so
+//     the help dialog opens offline on first use too.
 //   - @perf: time to the first rendered tree under Fast-3G throttling
 //     stays within 110% of the v1.2.0 baseline.
 //
@@ -96,6 +100,39 @@ test.describe("lazy KaTeX chunk", () => {
     expect(jsChunkRequests.filter((u) => !initialChunks.has(u))).toEqual(
       fetched,
     );
+
+    // The PHYLIP help chunk is requested only on open (the §8.2 trim):
+    // one fetch for the click, none on re-open — still under the 1.2 s
+    // delay route above, which keeps the async open observable.
+    await page
+      .getByRole("button", { name: "Coming from PHYLIP?" })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Coming from PHYLIP?",
+    });
+    await expect(dialog).toBeVisible();
+    const helpFetched = jsChunkRequests.filter(
+      (u) => !initialChunks.has(u) && !fetched.includes(u),
+    );
+    expect(
+      helpFetched,
+      `expected exactly one PhylipHelp chunk fetch, got: ${helpFetched.join(", ")}`,
+    ).toHaveLength(1);
+    expect(helpFetched[0]).toContain("PhylipHelp");
+
+    await dialog
+      .getByRole("button", { name: "Close PHYLIP help" })
+      .click();
+    await expect(dialog).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Coming from PHYLIP?" })
+      .click();
+    await expect(dialog).toBeVisible();
+    expect(
+      jsChunkRequests.filter(
+        (u) => !initialChunks.has(u) && !fetched.includes(u),
+      ),
+    ).toEqual(helpFetched);
   });
 });
 
@@ -139,6 +176,14 @@ test("after one online load, Math renders offline with KaTeX's own fonts", async
       ),
     )
     .toBe(true);
+
+  // The PhylipHelp chunk is precached by the same `**/*.js` glob, so
+  // "Coming from PHYLIP?" opens offline on first use — never requested
+  // during the online load above.
+  await page.getByRole("button", { name: "Coming from PHYLIP?" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Coming from PHYLIP?" }),
+  ).toBeVisible();
 });
 
 test(
