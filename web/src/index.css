@@ -1683,14 +1683,17 @@ button:disabled {
   min-width: 0;
 }
 
-/* The strip wraps so all four tabs keep their full labels (round 3);
- * the horizontal scroll stays as the narrow-column fallback — the
- * earlier starvation bug it worked around can't recur now that panels
- * size to their drawing instead of the row. */
+/* The strip wraps so all four tabs keep their full labels (round 3).
+ * Overflow stays VISIBLE here: the wrap already makes horizontal
+ * overflow unreachable (no single tab is wider than the strip at any
+ * supported width), and making the strip a scroll container clips it
+ * to an integral scrollport — WebKit then shaves a sub-pixel off the
+ * wrapped second row's bottom edge (the 98.76% viewport-ratio e2e
+ * failure). Over-wide content is still clipped by .col-center and
+ * .app-grid. */
 .consensus-tabs [role="tablist"] {
   display: flex;
   flex-wrap: wrap;
-  overflow-x: auto;
   flex-shrink: 0;
   gap: 2px;
   margin-bottom: 4px;

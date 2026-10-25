@@ -3958,6 +3958,75 @@ Four bugs found during Tasks 12–14, fixed in one PR on `m1.3/fixes` from main
   `web/src/views/MathLine.test.tsx` (new), `web/src/index.css`,
   `web/e2e/math.spec.ts`, `docs/decisions.md`.
 
+## v1.3 WebKit fixes (out-of-plan, owner decision 1A on PR #85, 2026-10-25)
+
+Two deterministic WebKit e2e failures on main since e06a352 (#70), fixed in
+one PR on `m1.3/webkit-fixes` from main 1b7acd9 so the release's full matrix
+(chromium + firefox + webkit) is green. WebKit only runs in the full matrix,
+which is why PR CI never saw them. Each bug has its own commit.
+
+- **Consensus tab strip clipped its wrapped row (bootstrap-sequencing.spec.ts
+  "panel fit" at 1280×800 and 1920×1080):** `[role="tablist"]` carried
+  `overflow-x: auto`, which under CSS overflow rules also makes the block axis
+  `auto` — the strip was a scroll container. Its scrollport is integral
+  (clientHeight), so a sub-pixel of the wrapped second row's bottom edge fell
+  outside it; WebKit's IntersectionObserver clips to that scrollport and
+  reported the "Extended majority" tab at 98.76 % in-viewport (measured:
+  content box 62.375 px tall, scrollport floored to 62 px, tab bottom 0.375 px
+  under it). Chromium and Firefox clip to the unrounded content box and never
+  failed. The strip already has `flex-wrap: wrap`, which makes horizontal
+  overflow unreachable at every supported width (below 1024 px it is a
+  full-width single column; the widest tab is ~255 px even at 1.5× presenter
+  type), so the `overflow-x: auto` fallback was dead code — removed; output is
+  pixel-identical (over-wide content is still clipped by `.col-center` /
+  `.app-grid`). The spec now also pins computed `overflow-y: visible` on the
+  strip as the regression guard. Files: `web/src/index.css`,
+  `web/e2e/bootstrap-sequencing.spec.ts`.
+- **presenter.spec.ts "stays out of the URL" read the pre-sync URL:** the
+  app's URL state writer is a `replaceState` in a post-render effect; on
+  WebKit it lands ~200 ms after `.app` first paints, so `page.url()` right
+  after `waitForApp` caught `?lesson=nj-basics` without `s=`. Verified case
+  (a) — a test race, not a toggle write: the same `&s=0&m=concept&o=…&b=…`
+  appears with NO toggle (sampled every ~10 ms; the write lands at ~190 ms),
+  and the settled pre-toggle URL equals the post-toggle URL exactly. The test
+  now waits for `&s=` (encode() always emits `s`) before capturing
+  `urlBefore`; the strict `toBe(urlBefore)` assertion is unchanged. Files:
+  `web/e2e/presenter.spec.ts`.
+- **Files (no plan Files block — out-of-plan PR):** all files above plus
+  `docs/decisions.md`.
+- **Verification:** see the PR body — both fixed tests `--repeat-each 10` on
+  WebKit, the same on Chromium and Firefox, the full e2e suite on all three
+  browsers in the pinned image, and the 43/43 visual suite unchanged.
+- **Fix round 1 — layout.spec.ts "leaves reachable" was a real failure,
+  not a flake (test fix):** the earlier PR body lumped the cytochrome-c
+  1280×800 WebKit failure under "one-off flakes under parallel load" —
+  wrong. It fails 50–70 % SERIALLY on a quiet machine, always as
+  `leaf label 0 in panel 0` at `y = -7.625`. Instrumentation (rAF
+  sampling + interleaved in-page/protocol reads in the pinned image):
+  the reveal helper works — after `col-center.scrollTop += delta` the
+  label's `getBoundingClientRect` settles at `y = 0.6875` and stays put
+  for 2.5 s with `scrollTop` stable at 375 and no DOM/geometry change.
+  The assertion's `locator.boundingBox()` is what lies: Playwright's
+  WebKit path uses the protocol's `DOM.getContentQuads`, which for an
+  SVG descendant returns the quad anchored at the `<svg>`'s own
+  top-left corner — every leaf `<text>` in panel 0 reported
+  `x=242, y=-7.625` (the svg's origin) with its own correct width and
+  height, while the in-page rects put each label at its true position
+  (x = svg.x + its `x` attribute). Chromium (`Page.getContentQuads`)
+  and Firefox (in-page `getClientRects`) return the true box. The
+  failure fired only when the first tree's svg top sat above the
+  column top — i.e. whenever the matrix-cell click during `stepToEnd`
+  left `.col-center` scrolled past ~34 px — hence the ~60 % rate. The
+  app is correct; the test now measures the label rect in-page via
+  `getBoundingClientRect`, identical to the other engines' quads and
+  to leaf-labels.spec.ts's existing pattern; the every-leaf-in-
+  viewport assertions are unchanged. Files: `web/e2e/layout.spec.ts`.
+  Verified: `--repeat-each 20` on the failing test 20/20 WebKit;
+  layout.spec.ts `--repeat-each 5` 140/140 on all three engines; full
+  `E2E=1` suite webkit 146, chromium 151, firefox 145 passed (the
+  webkit/chromium runs included the temporary instrumentation spec —
+  145/150 committed), 0 failed, 0 flaky; visual 43/43.
+
 ## v1.3 Task 16: release checkpoint, README images, CITATION
 
 - **Files outside the Files block:** this entry (`docs/decisions.md`),
