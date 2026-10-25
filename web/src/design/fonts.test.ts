@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import { buildLicensesHtml } from "../../scripts/licenses.ts";
 
+import { FONT_FACES } from "./fontSubsets";
+
 const WEB = process.cwd(); // vitest runs in web/
 const REPO = resolve(WEB, "..");
 const FONTS_DIR = join(WEB, "public", "fonts");
@@ -64,6 +66,24 @@ describe("fonts.css", () => {
         }
       }
     }
+  });
+
+  // Task 15: design/fontSubsets.ts is the one source for the
+  // unicode-range lists — the export's fontEmbed picks faces from it,
+  // so fonts.css must declare exactly what it says, rule for rule.
+  it("declares exactly the fontSubsets.ts faces, in order", () => {
+    const rules = css().match(/@font-face\s*\{[^}]*\}/g) ?? [];
+    expect(rules).toHaveLength(FONT_FACES.length);
+    FONT_FACES.forEach((face, i) => {
+      const rule = rules[i];
+      expect(rule).toContain(`font-family: "${face.family}"`);
+      expect(rule).toContain(`font-weight: ${face.weight}`);
+      expect(rule).toContain(`url("/fonts/${face.file}")`);
+      const spec = /unicode-range:\s*([^;]+);/.exec(rule)?.[1];
+      expect(spec?.replace(/\s+/g, " ").trim(), face.file).toBe(
+        face.rangeSpec,
+      );
+    });
   });
 });
 

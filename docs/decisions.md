@@ -3830,3 +3830,51 @@ owner chose **option B**: drop the button entirely.
   downloads; the URL stubs became `vi.spyOn(URL, …)` because a
   whole-object `stubGlobal("URL")` left `URL` non-constructible and
   broke vitest's module runner resolving `import()`).
+
+## v1.3 Task 15: exports embed fonts, print palette
+
+- "Match screen theme" is **in-session UI state only** (spec §7.4
+  lists theme/presenter/tourSeen as the only device preferences):
+  React state in ExportMenu, unchecked by default, never written to
+  localStorage, never encoded in URLs, so v1/v2 old-link fixtures and
+  export bytes are unaffected. It lives in the export menu itself, so
+  it is reachable wherever the menu renders — the controls column at
+  ≥ 1280 and the Settings drawer below that.
+- `fontFacesFor(texts, weights, families?)` gained an optional third
+  parameter so the caller can ask for Inter and JetBrains Mono faces
+  independently of weight selection (the produced signature is a
+  superset of the plan's `(texts, weights)`; existing call semantics
+  are unchanged when the parameter is omitted).
+- `fontSubsets.ts` is the one structured source for the bundled
+  faces' family/weight/subset/file/unicode-range (conductor note:
+  same ranges as fonts.css, never duplicated). `fonts.css` stays the
+  committed stylesheet form of that data — the new
+  "declares exactly the fontSubsets.ts faces, in order" test keeps
+  the two from drifting — and `fontEmbed.ts` picks faces from the
+  same list. (`?raw` on a `.css` import returns "" under vitest, so
+  parsing fonts.css at test-time was not a viable single source.)
+- `text{text-rendering:optimizeLegibility}` is emitted into the
+  exported `<style>` because index.css styles app text that way;
+  without it a bare document shapes the same faces differently
+  (~0.9 px on kern pairs). `getComputedTextLength` also pixel-fits to
+  the svg's display scale, so the e2e fidelity check transplants the
+  app's <text> elements into the blocked document rather than
+  comparing lengths across documents.
+- `png.ts` needed no edit although the Files block lists it under
+  Modify: `exportPng` rasterizes the same `svg()` output, so the
+  selected palette flows through with geometry untouched.
+- Files outside the Files block: `web/src/views/App.tsx` (passes
+  `theme={session.theme}` to ExportMenu — the menu needs the screen
+  theme for the option); `web/src/design/fontSubsets.ts` (the single
+  structured source above); `web/src/design/fonts.test.ts` (the
+  fonts.css ↔ fontSubsets sync test); `web/src/index.css`
+  (`.export-theme-match` layout + 40 px coarse-pointer target);
+  `web/e2e/visualScenes.ts` (the `export-svg-roundtrip` scene now
+  renders the downloaded SVG with every font request aborted and
+  `svg text{font-family:"Inter"}` — the blocked-fonts render the task
+  requires); `web/src/test/fontFetch.ts` and
+  `web/src/views/App.export.test.tsx` (stub `/fonts/*.woff2` fetches
+  for jsdom, which has no real fetch targets); the six regenerated
+  `export-svg-roundtrip-*-linux.png` baselines (dark frames now show
+  the default light export palette; task Step 2 requires updating
+  exactly this scene's frames).

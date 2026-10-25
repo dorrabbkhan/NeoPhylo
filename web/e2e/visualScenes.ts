@@ -263,7 +263,11 @@ export const SCENES: {
     },
   },
   {
-    // The exported SVG rendered back as a document (spec §8.3).
+    // The exported SVG rendered back as a document (spec §8.3) — the
+    // Task-15 blocked-fonts render (§4.3, spec §8.2): every font
+    // request is aborted and the document's text is restricted to the
+    // faces the export embeds, so the frame only matches if the
+    // bundled Inter subsets really ride inside the file.
     name: "export-svg-roundtrip",
     setup: async (page) => {
       await cytcAfterRun(page);
@@ -283,12 +287,21 @@ export const SCENES: {
       const chunks: Buffer[] = [];
       for await (const c of stream) chunks.push(c as Buffer);
       const svgText = Buffer.concat(chunks).toString("utf8");
-      // The export is a self-contained, theme-independent print
-      // figure (system font stack, white pills) — render it on white.
+      await page.route("**/*", (route) =>
+        route.request().resourceType() === "font"
+          ? route.abort()
+          : route.continue(),
+      );
+      // The export is a self-contained print figure (light palette by
+      // default in either theme) — render it on white. The font-family
+      // override limits text to the embedded "Inter" faces: without
+      // the @font-face payload it could only fall back to a generic
+      // face and the frame would diverge.
       await page.setContent(
         `<!DOCTYPE html><html><head><style>` +
           `html,body{margin:0;background:#fff;display:flex;` +
           `align-items:flex-start;justify-content:center;}` +
+          `svg text{font-family:"Inter"}` +
           `</style></head><body>${svgText}</body></html>`,
       );
       await settleFrame(page);

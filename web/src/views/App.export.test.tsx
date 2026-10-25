@@ -28,6 +28,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Action } from "../state/session";
 import { initialSession, reducer } from "../state/session";
+import { stubFontFetch } from "../test/fontFetch";
 import { App } from "./App";
 import type { HeaderProps } from "./Header";
 
@@ -112,6 +113,9 @@ function svgExportButton(menu: HTMLElement) {
 
 describe("export path under presenter mode", () => {
   it("exports the identical SVG whether presenter mode is on or off", async () => {
+    // exportSvg fetches the bundled woff2 subsets to embed (v1.3
+    // Task 15) — serve the committed files.
+    stubFontFetch();
     const dl = stubDownloads();
     render(<App exercise={NJ_BASICS} />);
     const slider = await screen.findByRole("slider");

@@ -11,10 +11,13 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { color } from "../design/tokens";
 import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { Tree } from "../engine/generated/Tree";
+
+import { stubFontFetch } from "../test/fontFetch";
 
 import { ExportMenu } from "./ExportMenu";
 
@@ -78,6 +81,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={MATRIX}
+        theme="light"
         treeView={{ kind: "plain" }}
         consensusTree={null}
         bootstrap={null}
@@ -96,6 +100,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={null}
+        theme="light"
         treeView={{ kind: "plain" }}
         consensusTree={null}
         bootstrap={null}
@@ -120,6 +125,7 @@ describe("ExportMenu PHYLIP matrix", () => {
         method="Nj"
         clampNegative={false}
         matrix={long}
+        theme="light"
         treeView={{ kind: "plain" }}
         consensusTree={null}
         bootstrap={null}
@@ -174,6 +180,7 @@ const BASE = {
   method: "Nj" as const,
   clampNegative: false,
   matrix: null,
+  theme: "light" as const,
 };
 
 describe("ExportMenu bootstrap exports (v1.2 spec §6.8)", () => {
@@ -462,5 +469,100 @@ describe("ExportMenu Newick label mode (checkpoint-15)", () => {
     ]);
     const [nwk] = await texts();
     expect(nwk).toBe("(Homo_sapiens,O_Brien,Dog);");
+  });
+});
+
+// ---- v1.3 Task 15: print palette, Match screen theme, font warning ----
+
+/** The exact warning (Review Focus 1): names outside the bundled
+ * subsets fall back per glyph on screen, and may render differently
+ * where the exported file is opened. */
+const FONT_WARNING =
+  "Some names use characters outside the bundled fonts and may look " +
+  "different in other programs.";
+
+describe("ExportMenu print palette (v1.3 spec §7.3)", () => {
+  it("offers 'Match screen theme', off by default", () => {
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={supportTree()}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    const box = screen.getByRole("checkbox", { name: "Match screen theme" });
+    expect(box).toHaveProperty("checked", false);
+  });
+
+  it("exports the light palette in dark mode unless matching is on", async () => {
+    stubFontFetch();
+    const { names, texts } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        theme="dark"
+        tree={supportTree()}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Match screen theme" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() =>
+      expect(names).toEqual(["neophylo-tree.svg", "neophylo-tree.svg"]),
+    );
+    const [light, dark] = await texts();
+    // §7.3: the default export prints the light palette whatever the
+    // screen shows; matching uses the screen's dark tokens instead.
+    expect(light).toContain(`stroke="${color.light.text}"`);
+    expect(light).not.toContain(`stroke="${color.dark.text}"`);
+    expect(dark).toContain(`stroke="${color.dark.text}"`);
+  });
+});
+
+describe("ExportMenu outside-subset warning (Review Focus 1)", () => {
+  const OUTSIDE = parse("('中文名':0.1,'🦋':0.2,'عربي':0.3);");
+  const GREEK = parse("('Ω':0.1,'Δ':0.2,'Ψ':0.3);");
+
+  it("warns with the exact text when a figure export covers no face", async () => {
+    stubFontFetch();
+    const { names } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={OUTSIDE}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    expect(screen.queryByText(FONT_WARNING)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
+    expect(screen.getByText(FONT_WARNING)).toBeTruthy();
+  });
+
+  it("does not warn for a Greek-only tree (the greek subset covers it)", async () => {
+    stubFontFetch();
+    const { names } = await stubDownloadTexts();
+    render(
+      <ExportMenu
+        {...BASE}
+        tree={GREEK}
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SVG" }));
+    await waitFor(() => expect(names).toEqual(["neophylo-tree.svg"]));
+    expect(screen.queryByText(FONT_WARNING)).toBeNull();
   });
 });

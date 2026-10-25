@@ -14,6 +14,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
+import type { ThemeName } from "../design/tokens";
 import type { Tree } from "../engine/generated/Tree";
 import type { ExportSvgOptions } from "../export/svg";
 
@@ -49,6 +50,10 @@ export interface ExportMenuProps {
   /** Replicates and seed of the finished run, for the R script's
    * bootstrap block; null when no run has finished. */
   bootstrap: { replicates: number; seed: number } | null;
+  /** The screen's theme — used for figure exports only when "Match
+   * screen theme" is checked; the default is the light print palette
+   * (v1.3 spec §7.3). */
+  theme: ThemeName;
 }
 
 /** Trigger a browser download of `content` under `filename`. */
@@ -92,6 +97,7 @@ export function ExportMenu({
   consensusTree,
   figure,
   bootstrap,
+  theme,
 }: ExportMenuProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -103,6 +109,14 @@ export function ExportMenu({
   // name on either exportable tree would need quoting (those break
   // ape::read.tree, FigTree and iTOL), else Exact.
   const [chosenMode, setChosenMode] = useState<NameLabelMode | null>(null);
+  // §7.3: figure exports print the light palette by default; "Match
+  // screen theme" switches them to the current screen theme. It is
+  // in-session UI state only — not a device-local preference (§7.4
+  // lists only theme/presenter/tourSeen) and never in the URL.
+  const [matchScreenTheme, setMatchScreenTheme] = useState(false);
+  // Review Focus 1: set when a figure export's names reach outside
+  // every bundled font subset.
+  const [fontWarning, setFontWarning] = useState(false);
   const needsQuotes =
     (tree !== null && engine.labelsNeedQuotes(tree)) ||
     (consensusTree !== null && engine.labelsNeedQuotes(consensusTree));
@@ -122,12 +136,24 @@ export function ExportMenu({
   // stays with the screen code, so the export still draws the
   // identical figure.
   const svg = async () => {
-    const { exportSvg } = await import("../export/svg");
-    return exportSvg(tree as Tree, {
+    const [{ exportSvg }, { uncoveredChars }] = await Promise.all([
+      import("../export/svg"),
+      import("../export/fontEmbed"),
+    ]);
+    const text = await exportSvg(tree as Tree, {
       ...figure,
       kind: figure?.kind ?? "phylogram",
       clampNegative,
+      theme: matchScreenTheme ? theme : "light",
     });
+    setFontWarning(
+      uncoveredChars(
+        (tree as Tree).nodes
+          .filter((n) => n.children.length === 0 && n.label !== null)
+          .map((n) => n.label as string),
+      ).length > 0,
+    );
+    return text;
   };
 
   const onSvg = async () =>
@@ -264,6 +290,22 @@ export function ExportMenu({
           Distance matrix (PHYLIP)
         </button>
       </div>
+      <label className="export-theme-match">
+        <input
+          type="checkbox"
+          checked={matchScreenTheme}
+          onChange={(e) => setMatchScreenTheme(e.target.checked)}
+        />
+        Match screen theme
+      </label>
+      {fontWarning && (
+        <div className="phylip-note" role="status">
+          <p>
+            Some names use characters outside the bundled fonts and may
+            look different in other programs.
+          </p>
+        </div>
+      )}
       <label className="newick-name-mode">
         Newick names:{" "}
         <select
