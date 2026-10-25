@@ -3957,6 +3957,7 @@ Four bugs found during Tasks 12–14, fixed in one PR on `m1.3/fixes` from main
   tracks real scrolling. Files: `web/src/views/MathLine.tsx`,
   `web/src/views/MathLine.test.tsx` (new), `web/src/index.css`,
   `web/e2e/math.spec.ts`, `docs/decisions.md`.
+
 ## v1.3 WebKit fixes (out-of-plan, owner decision 1A on PR #85, 2026-10-25)
 
 Two deterministic WebKit e2e failures on main since e06a352 (#70), fixed in
