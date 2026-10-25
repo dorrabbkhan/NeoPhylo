@@ -1465,6 +1465,18 @@ button:disabled {
   margin: 4px 0 0;
 }
 
+/* "Match screen theme" (v1.3 spec §7.3): figure exports print the
+ * light palette by default; this in-session option switches them to
+ * the current screen theme. */
+.export-theme-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
 /* Newick label-mode select (fix/newick-compatible-names) */
 .newick-name-mode {
   display: block;
@@ -1834,6 +1846,10 @@ button:disabled {
   [role="tab"],
   [role="menuitem"] {
     min-width: 40px;
+    min-height: 40px;
+  }
+
+  .export-theme-match {
     min-height: 40px;
   }
 

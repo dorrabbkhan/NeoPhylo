@@ -825,6 +825,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
           splitRooted: !isNj,
         }}
         bootstrap={exportBootstrap}
+        theme={session.theme}
       />
     </>
   );

@@ -1,10 +1,16 @@
 /// <reference types="node" />
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine/index";
 import type { Tree } from "../engine/generated/Tree";
+import { color } from "../design/tokens";
+import { stubFontFetch } from "../test/fontFetch";
 
 import { exportSvg } from "./svg";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function parse(nwk: string): Tree {
   const r = engine.parseNewick(nwk);
@@ -13,9 +19,10 @@ function parse(nwk: string): Tree {
 }
 
 describe("exportSvg", () => {
-  it("escapes markup in labels (Review Focus 2)", () => {
+  it("escapes markup in labels (Review Focus 2)", async () => {
+    stubFontFetch();
     const t = parse("(A:1,'<b>&\"x\"</b>':2,B:1.5);");
-    const svg = exportSvg(t, { kind: "phylogram", clampNegative: false });
+    const svg = await exportSvg(t, { kind: "phylogram", clampNegative: false });
     expect(svg).toContain("&lt;b&gt;&amp;&quot;x&quot;&lt;/b&gt;");
     // The escaped label must not round-trip into a real <b> element.
     const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
@@ -23,15 +30,18 @@ describe("exportSvg", () => {
     expect(doc.querySelector("b")).toBeNull();
   });
 
-  it("is standalone: carries an xmlns and a system font stack", () => {
+  it("is standalone: carries an xmlns and the bundled font stack", async () => {
+    stubFontFetch();
     const t = parse("(A:1,B:2,C:3);");
-    const svg = exportSvg(t, { kind: "cladogram", clampNegative: false });
+    const svg = await exportSvg(t, { kind: "cladogram", clampNegative: false });
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg).toContain("font-family");
+    expect(svg).toContain("Inter");
     expect(svg).toContain("sans-serif");
   });
 
-  it("draws support labels and weak styling like the on-screen tree (v1.2 §6.8)", () => {
+  it("draws support labels and weak styling like the on-screen tree (v1.2 §6.8)", async () => {
+    stubFontFetch();
     const t = parse("((A:1,B:2):0.5,(C:1,D:1):0.4,E:2);");
     const internal = t.nodes
       .map((n, i) => ({ n, i }))
@@ -44,7 +54,7 @@ describe("exportSvg", () => {
     expect(internal).toHaveLength(2);
     t.branches[internal[0].i].support = 0.87;
     t.branches[internal[1].i].support = 0.42;
-    const svg = exportSvg(t, { kind: "phylogram", clampNegative: false });
+    const svg = await exportSvg(t, { kind: "phylogram", clampNegative: false });
     // Math.round(100·s); weak (<0.5) carries the "*" marker in the text.
     expect(svg).toContain(">87</text>");
     expect(svg).toContain(">42*</text>");
@@ -70,8 +80,9 @@ describe("exportSvg", () => {
     expect(doc.querySelectorAll(".support-pill")).toHaveLength(2);
   });
 
-  it("draws no support pills on a tree without support", () => {
-    const svg = exportSvg(parse("(A:1,B:2,C:3);"), {
+  it("draws no support pills on a tree without support", async () => {
+    stubFontFetch();
+    const svg = await exportSvg(parse("(A:1,B:2,C:3);"), {
       kind: "phylogram",
       clampNegative: false,
     });
@@ -95,8 +106,9 @@ describe("exportSvg", () => {
       return t;
     };
 
-    it("carries data-split on every node and support label", () => {
-      const svg = exportSvg(supported(), {
+    it("carries data-split on every node and support label", async () => {
+      stubFontFetch();
+      const svg = await exportSvg(supported(), {
         kind: "phylogram",
         clampNegative: false,
       });
@@ -122,8 +134,9 @@ describe("exportSvg", () => {
       for (const k of keys) expect(nodeKeys.has(k)).toBe(true);
     });
 
-    it("fits the content: no clipping, no empty right margin", () => {
-      const svg = exportSvg(supported(), {
+    it("fits the content: no clipping, no empty right margin", async () => {
+      stubFontFetch();
+      const svg = await exportSvg(supported(), {
         kind: "phylogram",
         clampNegative: false,
       });
@@ -157,6 +170,67 @@ describe("exportSvg", () => {
       expect(vy).toBe(0);
       expect(vw).toBeGreaterThan(0);
       expect(vh).toBeGreaterThan(0);
+    });
+  });
+
+  // v1.3 spec §4.3/§7.3: the exported document embeds the bundled
+  // font subsets its text needs and draws the print palette — light
+  // tokens by default, the screen theme only when asked.
+  describe("embedded fonts and print palette (v1.3 Task 15)", () => {
+    it("embeds @font-face data URIs for exactly the used subsets", async () => {
+      stubFontFetch();
+      const t = parse("((A:1,B:2):0.5,C:0.3);");
+      const internal = t.nodes.findIndex(
+        (n, i) => n.children.length > 0 && n.parent !== null && i !== t.root,
+      );
+      t.branches[internal].support = 0.87;
+      const svg = await exportSvg(t, {
+        kind: "phylogram",
+        clampNegative: false,
+      });
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      expect(doc.querySelector("parsererror")).toBeNull();
+      const style = doc.querySelector("style")!.textContent!;
+      // latin names at weight 400 + the support label's weight 500 →
+      // two embedded faces; no other subset or family.
+      expect(style.match(/@font-face/g)).toHaveLength(2);
+      expect(style).toContain('font-family:"Inter"');
+      expect(style).toContain("font-weight:400");
+      expect(style).toContain("font-weight:500");
+      expect(style).toContain("data:font/woff2;base64,");
+      expect(style).not.toContain("font-weight:600");
+      expect(style).not.toContain("JetBrains Mono");
+      expect(style).not.toContain("U+0370");
+    });
+
+    it("adds the greek subset for a Greek leaf name", async () => {
+      stubFontFetch();
+      const svg = await exportSvg(parse("(Ω:1,B:2,C:3);"), {
+        kind: "phylogram",
+        clampNegative: false,
+      });
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      const style = doc.querySelector("style")!.textContent!;
+      expect(style).toContain("U+0370");
+      // Only the weight-400 faces grew — no support labels drawn.
+      expect(style.match(/@font-face/g)).toHaveLength(2);
+    });
+
+    it("draws the light print palette by default, dark when asked", async () => {
+      stubFontFetch();
+      const opts = { kind: "phylogram" as const, clampNegative: false };
+      const light = await exportSvg(parse("(A:1,B:2,C:3);"), opts);
+      const dark = await exportSvg(parse("(A:1,B:2,C:3);"), {
+        ...opts,
+        theme: "dark",
+      });
+      // §7.3: the default export uses the light-theme tokens whatever
+      // the screen shows — the branch ink is the theme's text color.
+      expect(light).toContain(`stroke="${color.light.text}"`);
+      expect(light).toContain(`fill="${color.light.text}"`);
+      expect(dark).toContain(`stroke="${color.dark.text}"`);
+      expect(dark).toContain(`fill="${color.dark.bg}"`);
+      expect(dark).not.toContain(`stroke="${color.light.text}"`);
     });
   });
 });
