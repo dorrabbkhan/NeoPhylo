@@ -183,20 +183,34 @@ export function analysisReducer(
   }
 }
 
+/** The plain-string `DistModel` variants — the only values the
+ * correction menu can list or label. `K2pPhylip` carries a ratio and
+ * arrives only via an exercise file (v1.4), never from this menu. */
+export type DistModelName = Extract<DistModel, string>;
+
+/** A string value for the correction `<select>`: the `DistModel`
+ * variant string itself ("P", "Jc69", "K80", "Kimura", "Jtt", "F84")
+ * for the plain variants, "K2P_PHYLIP" for `K2pPhylip`, whose ratio
+ * travels in the enum, not the name (v1.4). */
+export function distModelName(m: DistModel): string {
+  return typeof m === "string" ? m : "K2P_PHYLIP";
+}
+
 /** Corrections valid for each alphabet, in menu order (v1.1 spec
  * §5.1). The first non-`P` entry is the alphabet's default. */
-export const CORRECTIONS: Record<Alphabet, DistModel[]> = {
+export const CORRECTIONS: Record<Alphabet, DistModelName[]> = {
   dna: ["P", "Jc69", "K80"],
   protein: ["P", "Kimura", "Jtt"],
 };
 
 /** Display labels for the correction menu and `notice` text. */
-export const DIST_LABEL: Record<DistModel, string> = {
+export const DIST_LABEL: Record<DistModelName, string> = {
   P: "p",
   Jc69: "JC69",
   K80: "K80",
   Kimura: "Kimura",
   Jtt: "JTT",
+  F84: "F84",
 };
 
 /** The simple name of a `SimModel` (the K80 parameter is a detail). */

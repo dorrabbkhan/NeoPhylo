@@ -10,6 +10,7 @@ pub mod alphabet;
 pub mod bootstrap;
 pub mod compare;
 pub mod dist;
+mod dist_phylip;
 pub mod error;
 pub mod exercise;
 pub mod matrix;

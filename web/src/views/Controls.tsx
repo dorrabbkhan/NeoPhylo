@@ -20,6 +20,7 @@ import {
   DIST_LABEL,
   SIM_LABEL,
   SIM_MODEL_NAMES,
+  distModelName,
   simModelName,
 } from "../state/session";
 import type { SimModelName } from "../state/session";
@@ -255,7 +256,7 @@ export function Controls({
         <span>Correction</span>
         <select
           aria-label="Distance correction"
-          value={analysis.correction}
+          value={distModelName(analysis.correction)}
           disabled={isLocked("analysis.correction")}
           title={isLocked("analysis.correction") ? LOCKED_TOOLTIP : undefined}
           onChange={(e) =>

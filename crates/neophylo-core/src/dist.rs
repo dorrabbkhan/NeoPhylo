@@ -1,5 +1,7 @@
-//! Pairwise distances: p, JC69 and K80 (spec §4.3), plus the v1.2
-//! weighted form used by bootstrap resampling (v1.2 spec §3.1).
+//! Pairwise distances: p, JC69 and K80 (spec §4.3), the protein models
+//! of v1.1 (§3.4 there), the v1.4 PHYLIP-parity models F84 and
+//! K2P_PHYLIP (v1.4 spec §3.1, implemented in `dist_phylip`), plus the
+//! v1.2 weighted form used by bootstrap resampling (v1.2 spec §3.1).
 //!
 //! A site counts for a pair only when both bases are A, C, G or T
 //! (pairwise deletion). A pair with zero comparable sites gives
@@ -17,13 +19,14 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::alphabet::{protein_index, Alphabet};
+use crate::dist_phylip;
 use crate::error::NeoError;
 use crate::matrix::Matrix;
 use crate::protein_dist;
 use crate::seq::Alignment;
 
-/// Distance correction model (spec §4.3, v1.1 §3.4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// Distance correction model (spec §4.3, v1.1 §3.4, v1.4 §3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub enum DistModel {
     /// Uncorrected proportion of differences. Never saturates.
@@ -39,11 +42,20 @@ pub enum DistModel {
     /// JTT maximum-likelihood distance (protein). Saturates when the
     /// likelihood still rises at the search bound.
     Jtt,
+    /// F84 as PHYLIP `dnadist` computes it (v1.4 §3.1): ML distance with
+    /// empirical base frequencies and the fixed ratio 2.0.
+    F84,
+    /// PHYLIP `dnadist`'s "Kimura 2-parameter" (v1.4 §3.1): an ML
+    /// distance at the user-fixed transition/transversion `ratio` with
+    /// equal base frequencies — not K80's closed form (spec §3.3).
+    /// `ratio` must be positive and finite.
+    K2pPhylip { ratio: f64 },
 }
 
 impl DistModel {
     /// The exercise-file spelling of the model name ("p", "JC69",
-    /// "K80", "Kimura", "JTT").
+    /// "K80", "Kimura", "JTT", "F84", "K2P_PHYLIP"). `K2pPhylip`'s ratio
+    /// travels in the enum, not the name.
     pub fn name(self) -> &'static str {
         match self {
             DistModel::P => "p",
@@ -51,13 +63,22 @@ impl DistModel {
             DistModel::K80 => "K80",
             DistModel::Kimura => "Kimura",
             DistModel::Jtt => "JTT",
+            DistModel::F84 => "F84",
+            DistModel::K2pPhylip { .. } => "K2P_PHYLIP",
         }
     }
 
-    /// Models valid for `alphabet` (v1.1 spec §3.4).
+    /// Models valid for `alphabet` (v1.1 spec §3.4, v1.4 §3.1).
     pub(crate) fn supports(self, alphabet: Alphabet) -> bool {
         match alphabet {
-            Alphabet::Dna => matches!(self, DistModel::P | DistModel::Jc69 | DistModel::K80),
+            Alphabet::Dna => matches!(
+                self,
+                DistModel::P
+                    | DistModel::Jc69
+                    | DistModel::K80
+                    | DistModel::F84
+                    | DistModel::K2pPhylip { .. }
+            ),
             Alphabet::Protein => {
                 matches!(self, DistModel::P | DistModel::Kimura | DistModel::Jtt)
             }
@@ -166,6 +187,11 @@ struct PairCounts {
     comparable: u64,
     differences: u64,
     transitions: u64,
+    /// Weighted 4×4 pattern counts, A/C/G/T order (needed by F84, whose
+    /// likelihood terms depend on the actual bases, not just the
+    /// transition/transversion class). DNA only; stays all-zero for
+    /// protein alignments, which never reach `distance`.
+    table: [u64; 16],
 }
 
 fn pair_counts_weighted(a: &[u8], b: &[u8], alphabet: Alphabet, w: &[u32]) -> PairCounts {
@@ -184,6 +210,11 @@ fn pair_counts_weighted(a: &[u8], b: &[u8], alphabet: Alphabet, w: &[u32]) -> Pa
             continue;
         }
         counts.comparable += wt;
+        if alphabet == Alphabet::Dna {
+            if let (Some(ix), Some(iy)) = (dist_phylip::base_index(x), dist_phylip::base_index(y)) {
+                counts.table[ix * 4 + iy] += wt;
+            }
+        }
         if x != y {
             counts.differences += wt;
             if alphabet == Alphabet::Dna && is_transition(x, y) {
@@ -194,7 +225,16 @@ fn pair_counts_weighted(a: &[u8], b: &[u8], alphabet: Alphabet, w: &[u32]) -> Pa
     counts
 }
 
-fn distance(counts: &PairCounts, model: DistModel) -> Cell {
+/// Per-call constants the DNA-only models need beyond `PairCounts`:
+/// F84's empirical-frequency context and `K2pPhylip`'s equal-frequency
+/// ratio parameters. `None` for the closed-form models.
+enum DnaParams {
+    F84(dist_phylip::F84Ctx),
+    K2p(dist_phylip::RatioParams),
+    Other,
+}
+
+fn distance(counts: &PairCounts, model: DistModel, params: &DnaParams) -> Cell {
     let sites = counts.comparable as f64;
     let p = counts.differences as f64 / sites;
     match model {
@@ -204,6 +244,22 @@ fn distance(counts: &PairCounts, model: DistModel) -> Cell {
         // protein pairs through `protein_dist` directly. A saturated
         // cell is the honest fallthrough for a wrong model.
         DistModel::Kimura | DistModel::Jtt => Cell::Saturated,
+        // dnadist's ML solves; `params` is built for the same model in
+        // `compute_weighted`, so the Other arm is unreachable in
+        // practice and Saturated stays the honest fallthrough.
+        DistModel::F84 => match params {
+            DnaParams::F84(ctx) => dist_phylip::f84_distance(ctx, &counts.table),
+            _ => Cell::Saturated,
+        },
+        DistModel::K2pPhylip { .. } => match params {
+            DnaParams::K2p(rp) => dist_phylip::k2p_distance(
+                (counts.comparable - counts.differences) as f64,
+                counts.transitions as f64,
+                (counts.differences - counts.transitions) as f64,
+                rp,
+            ),
+            _ => Cell::Saturated,
+        },
         // d = -3/4 ln(1 - 4p/3); saturated at p >= 0.75.
         DistModel::Jc69 => {
             if p >= 0.75 {
@@ -256,12 +312,27 @@ pub fn compute_weighted(
             msg: format!("expected {cols} column weights, got {}", w.len()),
         });
     }
+    if let DistModel::K2pPhylip { ratio } = model {
+        if !ratio.is_finite() || ratio <= 0.0 {
+            return Err(NeoError::InvalidExercise {
+                field: "ratio".to_string(),
+                msg: format!("K2P_PHYLIP ratio must be positive and finite, got {ratio}"),
+            });
+        }
+    }
     if !model.supports(aln.alphabet) {
         return Err(NeoError::ModelAlphabetMismatch {
             model: model.name().to_string(),
             alphabet: aln.alphabet,
         });
     }
+    let dna_params = match model {
+        DistModel::F84 => DnaParams::F84(dist_phylip::f84_context(aln, w)),
+        DistModel::K2pPhylip { ratio } => {
+            DnaParams::K2p(dist_phylip::ratio_params(&[0.25; 4], ratio))
+        }
+        _ => DnaParams::Other,
+    };
     let n = aln.seqs.len();
     let mut cells = vec![Cell::Value(0.0); n * n];
     for i in 0..n {
@@ -275,7 +346,7 @@ pub fn compute_weighted(
                             b: label(&aln.labels, j),
                         });
                     }
-                    distance(&counts, model)
+                    distance(&counts, model, &dna_params)
                 }
                 Alphabet::Protein => {
                     let (table, comparable, differences) =
@@ -320,4 +391,70 @@ pub(crate) fn label(labels: &[String], i: usize) -> String {
         .get(i)
         .cloned()
         .unwrap_or_else(|| format!("taxon{}", i + 1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::seq::parse_fasta;
+
+    fn aln(records: &[(&str, &str)]) -> Alignment {
+        let text: String = records
+            .iter()
+            .map(|(name, seq)| format!(">{name}\n{seq}\n"))
+            .collect();
+        parse_fasta(&text).unwrap()
+    }
+
+    #[test]
+    fn pair_counts_table_matches_class_counts() {
+        // 1 transition (A→G), 2 transversions (A→C, A→T), 3 identical.
+        let a = parse_fasta(">a\nAAAAAA\n").unwrap();
+        let b = parse_fasta(">b\nGCTAAA\n").unwrap();
+        let w = [1u32; 6];
+        let c = pair_counts_weighted(&a.seqs[0], &b.seqs[0], Alphabet::Dna, &w);
+        assert_eq!(c.comparable, 6);
+        assert_eq!(c.differences, 3);
+        assert_eq!(c.transitions, 1);
+        // A→G at index 0·4+2, A→C at 0·4+1, A→T at 0·4+3.
+        assert_eq!(c.table[2], 1);
+        assert_eq!(c.table[1], 1);
+        assert_eq!(c.table[3], 1);
+        assert_eq!(c.table.iter().sum::<u64>(), c.comparable);
+    }
+
+    #[test]
+    fn k2p_equal_frequency_ratio_params() {
+        // getbasefreqs at equal frequencies: xv = 1/(r + 0.5),
+        // fracchange = 0.5·xi + 0.75·xv (PHYLIP 3.697 seq.c).
+        let rp = dist_phylip::ratio_params(&[0.25; 4], 2.0);
+        assert!((rp.xv - 0.4).abs() < 1e-12);
+        assert!((rp.fracchange - 0.6).abs() < 1e-12);
+        // r ≤ 0.5 hits dnadist's "impossible ratio" reset: xi = 0, xv = 1.
+        let rp = dist_phylip::ratio_params(&[0.25; 4], 0.4);
+        assert_eq!(rp.xv, 1.0);
+    }
+
+    #[test]
+    fn k2p_distances_increase_in_divergence() {
+        // Monotone in observed divergence on a fixed pair (spec §3.4):
+        // each step adds two more differences to an 8-site pair.
+        let a = "AAAAAAAA";
+        let mut d_prev = 0.0;
+        for diffs in [0usize, 2, 4] {
+            let mut b = a.to_string();
+            for (k, ch) in "GGTT".chars().enumerate().take(diffs) {
+                b.replace_range(k..k + 1, &ch.to_string());
+            }
+            let aln = aln(&[("a", a), ("b", &b)]);
+            let m = compute(&aln, DistModel::K2pPhylip { ratio: 2.0 }).unwrap();
+            match m.cells[1] {
+                Cell::Value(d) => {
+                    assert!(d >= d_prev, "distance must not decrease");
+                    d_prev = d;
+                }
+                Cell::Saturated => panic!("8-site pair should not saturate"),
+            }
+        }
+    }
 }

@@ -52,9 +52,11 @@ export {
   DIST_LABEL,
   SIM_LABEL,
   SIM_MODEL_NAMES,
+  distModelName,
   exerciseSim,
   recompute,
   simModelName,
+  type DistModelName,
   type SimModelName,
 } from "./analysis";
 export { hasImportedData, reconcileModels } from "./lesson";
