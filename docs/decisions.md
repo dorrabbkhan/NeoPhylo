@@ -4059,3 +4059,36 @@ which is why PR CI never saw them. Each bug has its own commit.
   fixture-guard + rust + web — `wasm.sh` skipped, no `crates/` files
   changed in this task. The conductor runs the full E2E/RPARITY/FUZZ
   gate outside the sandbox; the PR body carries a checkbox for it.
+
+## v1.4 decisions (owner, brainstorming and planning, 2026-10-26)
+
+Recorded at Task 1 of the v1.4 plan. Spec:
+`docs/superpowers/specs/2026-10-26-neophylo-v1.4-instructor-kit-design.md`.
+Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
+
+- **Split:** v1.4 = PHYLIP parity models + PHYLIP lab packs + exercise
+  editor. v1.4b = MEGA companion, `.meg` import, MEGA-CC oracle, curated
+  data library.
+- **Identifiers `F84` and `K2P_PHYLIP`** (not `f84` / `k2p-phylip`). The
+  schema already uses `"Kimura"` for the protein Kimura correction
+  (`DistModel::Kimura`), so a DNA model with a similar name would collide.
+  Existing uppercase names (`JC69`, `K80`, `JTT`) are the convention. The
+  UI label is "K2P (dnadist, κ = 2.0)".
+- **F84 simulation takes instructor-set base frequencies** (A, C, G, T,
+  positive, sum 1 within 1e-6; default equal). Estimation still uses observed
+  frequencies, as `dnadist` does by default.
+- **Exercise schema 3:** `analysis.kappa` (required for `K2P_PHYLIP`,
+  default 2.0 in the editor) and optional `sim.base_freqs`. Schema 1 and 2
+  files keep loading.
+- **Exercise file is the source of truth;** the `#x=` share link is generated
+  from it, and import accepts either.
+- **Editor tree input:** drag-to-draw, Newick and a branch-length table, all
+  views of one engine-validated tree model. Structural edits live in
+  `crates/neophylo-core/src/edit.rs`.
+- **Lab packs** are in-app pages with a print view, not separate PDF or Word
+  files.
+- **Files outside a Files block:** Task 1 only touches
+  `.devin/skills/neophylo-task/SKILL.md`,
+  `.devin/skills/neophylo-review/SKILL.md` (both: the `v1.4` plan row) and
+  this entry, plus `scripts/parallel-worktrees.sh` (conductor tooling: one
+  detached worktree per task for parallel agent sessions; no product code).
