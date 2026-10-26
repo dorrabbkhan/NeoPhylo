@@ -2069,3 +2069,140 @@ button,
   justify-content: flex-end;
   gap: var(--space-8);
 }
+
+/* ---- Exercise editor (v1.4 Task 8, spec §5.1, §5.5) ---- */
+
+.editor-page {
+  min-height: 100%;
+  padding: var(--space-24);
+}
+
+.editor-page-head {
+  max-width: 1100px;
+  margin: 0 auto var(--space-16);
+}
+
+.editor-home {
+  display: inline-flex;
+  align-items: center;
+}
+
+.editor-panel {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.editor-panel h1 {
+  margin: 0 0 var(--space-8);
+}
+
+.editor-intro {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-16);
+}
+
+/* The views sit side by side at the wide breakpoints; below 1024 px
+ * they stack (the full-screen-sheet treatment is Task 10's). */
+.editor-views {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-24);
+  align-items: start;
+}
+
+@media (width < 1024px) {
+  .editor-views {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-view-label,
+.branch-table caption {
+  display: block;
+  text-align: left;
+  font-size: var(--size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+}
+
+.newick-input {
+  width: 100%;
+  min-height: 140px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  resize: vertical;
+}
+
+.branch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--size-sm);
+}
+
+.branch-table th,
+.branch-table td {
+  text-align: left;
+  padding: var(--space-4) var(--space-8) var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.branch-table th[scope="row"] {
+  font-weight: 400;
+  font-family: var(--font-mono);
+  color: var(--color-text-h);
+}
+
+.branch-table input {
+  width: 110px;
+  font: inherit;
+  font-family: var(--font-mono);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.newick-input:focus-visible,
+.branch-table input:focus-visible,
+.editor-home:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.newick-input[aria-invalid="true"],
+.branch-table input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.editor-error {
+  color: var(--color-danger);
+  font-size: var(--size-xs);
+  margin: var(--space-4) 0 0;
+}
+
+.editor-hint,
+.editor-loading {
+  color: var(--color-text-muted);
+  font-size: var(--size-xs);
+  margin: var(--space-4) 0 0;
+}
+
+/* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
+ * Constraints): the editor's text fields get the same floor as its
+ * buttons. */
+@media (pointer: coarse) {
+  .editor-panel input,
+  .editor-panel textarea {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
