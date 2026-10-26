@@ -4437,6 +4437,82 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   the repo keeps all view styles there (Task 11's `labs.css` is for the
   lab pages' print view, a different mechanism).
 
+## v1.4 Task 9: drag-to-draw canvas and keyboard path
+
+- **`N` (create leaf) — implemented in fix round 2 via the engine
+  `add_leaf` op the owner chose on PR #96 (Option A, shipped as
+  Task 9a / PR #97).** The `N` key and the always-visible "New leaf"
+  button open the same inline form (`NewLeafForm`: a labelled "New
+  taxon name" field plus an Add-leaf submit); Enter/submit applies
+  `addLeaf`, Escape cancels and returns focus to the element that had
+  it. The op creates a parentless labelled leaf — a new detached
+  component — which is found by its engine-unique name after apply
+  (never a predicted arena id) and becomes the selected AND focused
+  node, announced in the canvas's status line. A refusal keeps the
+  form open with its value and shows `Can't add leaf '<name>'` plus
+  the engine's reason, with no history entry. The button is a ≥40×40
+  target under (pointer: coarse) like the rest of the editor's
+  controls; the announcement is keyed to the tree that produced it so
+  the tree-change message sweep can't wipe it before it is read.
+- **Gesture mapping:** dropping a node on a branch or another node is
+  `move`; dropping it on its own edge/marker or on empty space within
+  its row is `setLength` from the drop x; dropping it anywhere else on
+  empty canvas is a `detach` attempt — detach is the only op whose
+  refusal names a unary result ("would leave node N with fewer than
+  two children"), which is the plan's "a drag that would create a
+  unary node is refused" test. `J` joins two selected component roots
+  or applies the same `move` as the drag for a node+branch selection.
+- **Shared defaults:** `moveOp` splits the target edge at its midpoint
+  and keeps the moved node's previous edge length (a detached root
+  gets the split's remainder); `join` gives each subtree a 0.1 edge;
+  arrow nudges step ±0.01. Suggested lengths are rounded to 6 decimals
+  so fp dust never prints in Newick. All are suggestions — the engine
+  validates every one.
+- **Selection is two slots** (FIFO eviction) so it can feed `J`;
+  `Delete` and the arrow keys act on every selected item's edge.
+- **Drop resolution hit-tests `elementFromPoint`** — touch (and pen)
+  pointers implicitly capture to the pointerdown element, so
+  `e.target` on pointerup is always the dragged node for them;
+  `e.target` is the fallback only where no layout hit-test exists
+  (jsdom). Drag tracking lives in window listeners while a drag is
+  live so a drop outside the svg still resolves (the detach gesture);
+  Escape or pointercancel aborts. `touch-action: none` on the node
+  handles keeps a touch drag from becoming a page pan.
+- **Detached components draw below the main tree**, each laid out with
+  the same `layout()` call on `{...tree, root}` — coordinates only, no
+  structure decision in TS. Husks (parentless, childless, unlabeled
+  arena slots left by a splice) are never drawn.
+- **Files outside the Files block:** `web/src/views/editor/drawOps.ts`
+  (pure gesture→op translation, aria-name helpers and the refusal
+  text); `web/src/index.css` (canvas styles, tokens only — the
+  codebase's one stylesheet); `docs/decisions.md` (this entry).
+  **Fix round 1** added `web/src/views/editor/drawLayout.ts`
+  (geometry: pad constants and the per-component layout() loop),
+  `web/src/views/editor/useDrawDrag.ts` (the pointer-drag lifecycle
+  hook: drag state, window listeners, drop→op resolution) and
+  `web/src/views/editor/DrawTree.tsx` (the svg content component) —
+  the split that keeps DrawCanvas.tsx under the ~400-line rule.
+  **Fix round 2** added `web/src/views/editor/NewLeafForm.tsx` (the
+  new-taxon inline form the `N` key and the "New leaf" button share)
+  and `web/src/views/editor/useNewLeaf.ts` (its open/submit/focus
+  flow — the split that keeps DrawCanvas.tsx under the ~400-line
+  rule).
+  **Fix round 3** (owner-authorized, one cosmetic issue): the leaf
+  label offset and the svg margin now derive from the painted
+  decorations' reach — named constants in `drawLayout.ts`
+  (`DECOR_R` = the larger of the selected dot and the focus ring's
+  outer stroke edge, `LABEL_DX`/`PAD` = `DECOR_R` + a gap) — so a
+  selected and/or keyboard-focused node's label clears its ring and
+  every ring stays inside the viewBox, including detached roots at
+  the canvas's left edge. No new files; all touched files were
+  already in the Files block or recorded above.
+  Fix-round-1 behaviour changes: drop resolution hit-tests
+  `elementFromPoint` (touch pointers implicitly capture `e.target`),
+  `touch-action: none` + `user-select: none` on the canvas, refusals
+  present a readable title built from the op's own ids while keeping
+  the engine's reason as detail, and keyboard focus draws a dedicated
+  `.focus-ring` element instead of restyling the dot/line.
+
 ## v1.4 Task 9a (follow-up): engine `add_leaf` edit op
 
 - **Owner chose Option A on PR #96 (2026-10-26):** an engine `add_leaf`

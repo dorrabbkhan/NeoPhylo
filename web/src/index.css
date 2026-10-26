@@ -2204,6 +2204,152 @@ button,
   margin: var(--space-4) 0 0;
 }
 
+/* ---- Drag-to-draw canvas (v1.4 Task 9, spec §5.2, §5.5) ---- */
+
+/* The canvas spans both columns of the views grid. */
+.draw-view {
+  grid-column: 1 / -1;
+}
+
+/* Same scroll behaviour as .tree-canvas: the svg renders at its
+ * natural pixel size and the box scrolls when the drawing is larger —
+ * text never shrinks below the 12 px floor. */
+.draw-canvas-box {
+  max-height: 1180px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.draw-canvas {
+  display: block;
+  color: var(--color-text);
+  /* A drag must never select the leaf labels as text. */
+  user-select: none;
+  /* A touch drag on a handle must not become a page pan — the browser
+   * would pointercancel it. On the svg itself because Chromium only
+   * honours touch-action on the outer svg element, not inner nodes. */
+  touch-action: none;
+}
+
+.draw-canvas .node-hit {
+  cursor: grab;
+  /* For engines that honour touch-action on inner svg nodes. */
+  touch-action: none;
+}
+
+.draw-canvas .edge-hit {
+  cursor: pointer;
+}
+
+/* The visible branch plus a generous invisible stroke to hit it. */
+.draw-canvas .edge-target {
+  stroke: transparent;
+  stroke-width: 12;
+}
+
+.draw-canvas .node-target {
+  fill: transparent;
+}
+
+.draw-canvas .node-hit-pad,
+.draw-canvas .edge-hit-pad {
+  display: none;
+  fill: transparent;
+  stroke: none;
+}
+
+.draw-canvas .node-hit:focus-visible,
+.draw-canvas .edge-hit:focus-visible,
+.draw-canvas:focus-visible {
+  outline: none;
+}
+
+.draw-canvas:focus-visible {
+  /* The svg element itself: a token-colored frame (the elements below
+   * are inside it, so a ring would overflow the viewport). */
+  border: 2px solid var(--color-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* Keyboard focus: a ring element around the node dot / the branch
+ * segment that only paints under :focus-visible — clearly visible and
+ * distinct from the purple "selected" state, so a selected AND
+ * focused handle shows both. */
+.draw-canvas .focus-ring {
+  fill: none;
+  stroke: none;
+  pointer-events: none;
+}
+
+.draw-canvas .node-hit:focus-visible .focus-ring,
+.draw-canvas .edge-hit:focus-visible .focus-ring {
+  stroke: var(--color-focus);
+  stroke-width: 2.5;
+}
+
+.draw-canvas .node-hit[data-selected="true"] .node-dot {
+  fill: var(--color-accent);
+}
+
+.draw-canvas .edge-hit[data-selected="true"] .edge-line {
+  stroke: var(--color-accent);
+  stroke-width: 3;
+}
+
+.draw-canvas .drag-line {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+.draw-canvas .drag-dot {
+  fill: none;
+  stroke: var(--color-accent);
+  pointer-events: none;
+}
+
+.draw-canvas .detached-cap {
+  fill: var(--color-text-muted);
+}
+
+/* The "New leaf" button and its inline form sit in one row under the
+ * canvas — the touch path to the N shortcut (spec §5.2). */
+.new-leaf-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
+}
+
+.new-leaf-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.new-leaf-form label {
+  margin-bottom: 0;
+}
+
+.new-leaf-form input {
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.new-leaf-form input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
 /* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
  * Constraints): the editor's text fields and its "Back to NeoPhylo"
  * link get the same floor as its buttons. */
@@ -2218,5 +2364,20 @@ button,
     min-height: 40px;
     min-width: 40px;
     justify-content: center;
+  }
+
+  /* DrawCanvas (Task 9): node dots and branch segments get their ≥40×40
+   * pads only under a coarse pointer — fine pointers keep the 12 px
+   * stroke and r=10 circle. */
+  .draw-canvas .node-hit-pad,
+  .draw-canvas .edge-hit-pad {
+    display: block;
+  }
+
+  /* The New-leaf button and its form's submit get the same ≥40 px
+   * floor as the rest of the editor's controls. */
+  .new-leaf-row button {
+    min-height: 40px;
+    min-width: 40px;
   }
 }
