@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 419128f1bac02faa859cd932902e42d2f0fd2c720ec6994b8af392e6772895c1 # shrinks to n = 12, picks = [619830708, 1519427992, 49593995, 37350, 584530, 34452, 569670372, 1565864782, 0, 0, 397784741, 27316438, 0, 174422467, 1937650, 501847240, 1962950472, 924215779, 421113612, 228010586, 0, 0, 0, 0], lens = [0.0, 0.37351183554835865, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], ops = [(7, 2778986935, 4027390212, 0.0, 0.0), (2, 0, 0, 0.0, 0.0)]
