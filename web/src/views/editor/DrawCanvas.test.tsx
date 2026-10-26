@@ -1,0 +1,270 @@
+// DrawCanvas tests (v1.4 plan Task 9, spec §5.2): the drag canvas is the
+// third view over the shared EditorModel — pointer drags translate into
+// the same EditOps the keyboard path uses (move, join, setLength,
+// detach), every op runs through the engine, and every refusal leaves
+// the tree's object identity untouched with the NeoError shown inline.
+//
+// Drags are simulated with pointer events: pointerDown on a node handle,
+// pointerMove past the click tolerance, pointerUp on the drop target's
+// element (the browser hit-tests SVG children for us; in jsdom the
+// dispatched target stands in for it). Drop coordinates come from the
+// event's clientX/Y — jsdom has no real layout, so drops that depend on
+// position (length pulls) are exercised in the e2e spec.
+
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { EditorHistory } from "../../editor/history";
+import { engine } from "../../engine/index";
+import type { Tree } from "../../engine/generated/Tree";
+
+import { DrawCanvas } from "./DrawCanvas";
+import { EditorPanel } from "./EditorPanel";
+
+afterEach(cleanup);
+
+const STARTER = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
+
+function parseTree(newick: string): Tree {
+  const r = engine.parseNewick(newick);
+  if (!r.ok) throw new Error(`fixture Newick must parse: ${newick}`);
+  return r.value;
+}
+
+function renderCanvas(newick = STARTER): EditorHistory {
+  const model = new EditorHistory(parseTree(newick));
+  render(<DrawCanvas model={model} />);
+  return model;
+}
+
+function canvas(): HTMLElement {
+  return screen.getByRole("application", { name: "Tree canvas" });
+}
+
+function node(name: string): HTMLElement {
+  return screen.getByRole("button", { name });
+}
+
+function edge(name: string): HTMLElement {
+  return screen.getByRole("button", { name });
+}
+
+/** A pointer click on a node handle toggles its selection. */
+function select(el: HTMLElement): void {
+  fireEvent.pointerDown(el);
+  fireEvent.pointerUp(el);
+}
+
+describe("DrawCanvas", () => {
+  it("renders every node and branch as a named control", () => {
+    renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    for (const leaf of ["A", "B", "C"]) {
+      expect(node(`Leaf ${leaf}`)).toBeTruthy();
+      expect(edge(`Branch to ${leaf}`)).toBeTruthy();
+    }
+    // The root is an internal node control too (selectable for J).
+    expect(node("Node u1 (A, B, C)")).toBeTruthy();
+  });
+
+  it("a drag onto a branch produces the same tree as the keyboard join, and the Newick text of both is identical", () => {
+    const dragged = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.pointerDown(node("Leaf C"), { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(node("Leaf C"), { clientX: 60, clientY: 40 });
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 40 });
+    const byDrag = engine.writeNewick(dragged.tree);
+    cleanup();
+
+    const keyed = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    select(node("Leaf C"));
+    fireEvent.click(edge("Branch to B"));
+    fireEvent.keyDown(canvas(), { key: "j" });
+
+    const byKeys = engine.writeNewick(keyed.tree);
+    expect(byKeys).toBe(byDrag);
+    expect(byDrag).toBe("(A:0.1,(B:0.1,C:0.3):0.1);");
+  });
+
+  it("a drag that would create a unary node is refused", () => {
+    const model = renderCanvas("((A:0.1,B:0.2):0.05,C:0.3);");
+    const before = model.tree;
+    // Dragging A off the tree detaches it — which would leave the
+    // (A,B) parent with a single child. The engine refuses and the
+    // refusal message shows inline.
+    fireEvent.pointerDown(node("Leaf A"), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(node("Leaf A"), { clientX: 80, clientY: 500 });
+    fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /fewer than two children/,
+    );
+    expect(model.tree).toBe(before);
+  });
+
+  it("Escape cancels an in-progress drag", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    const before = model.tree;
+    fireEvent.pointerDown(node("Leaf C"), { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(node("Leaf C"), { clientX: 60, clientY: 40 });
+    fireEvent.keyDown(canvas(), { key: "Escape" });
+    // Dropping on a branch now must not apply the move the drag meant.
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 40 });
+    expect(model.tree).toBe(before);
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.2,C:0.3);");
+  });
+
+  it("each control has an accessible name", () => {
+    renderCanvas();
+    expect(canvas().getAttribute("aria-label")).toBe("Tree canvas");
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThan(10);
+    for (const b of buttons) {
+      expect(b.getAttribute("aria-label") ?? "").toMatch(/\S/);
+    }
+  });
+
+  it("a refused move shows the engine's message and keeps the same tree object", () => {
+    const model = renderCanvas();
+    const before = model.tree;
+    // Dragging the root onto a branch is refused: "the root cannot move".
+    fireEvent.pointerDown(node("Node u1 (A, B, C, D, E)"), {
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(node("Node u1 (A, B, C, D, E)"), {
+      clientX: 60,
+      clientY: 60,
+    });
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 60 });
+    expect(screen.getByRole("alert").textContent).toMatch(/root/i);
+    expect(model.tree).toBe(before);
+  });
+
+  it("dragging a node onto its own subtree's branch is refused", () => {
+    const model = renderCanvas();
+    const before = model.tree;
+    // (D,E) cannot move under D — its own descendant.
+    fireEvent.pointerDown(node("Node u3 (D, E)"), { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(node("Node u3 (D, E)"), { clientX: 30, clientY: 30 });
+    fireEvent.pointerUp(edge("Branch to D"), { clientX: 30, clientY: 30 });
+    expect(screen.getByRole("alert").textContent).toMatch(/descendant/i);
+    expect(model.tree).toBe(before);
+  });
+
+  it("Delete detaches a selected node and the detached subtree draws beside the tree", () => {
+    const model = renderCanvas();
+    select(node("Node u3 (D, E)"));
+    fireEvent.keyDown(canvas(), { key: "Delete" });
+    // The main tree keeps A, B, C; (D,E) draws as a detached component.
+    expect(engine.writeNewick(model.tree)).toBe("((A:0.1,B:0.2):0.05,C:0.3);");
+    expect(screen.getByText(/Detached/)).toBeTruthy();
+    expect(node("Leaf D")).toBeTruthy();
+    expect(node("Node u3 (D, E)")).toBeTruthy();
+  });
+
+  it("J joins two selected component roots back into one tree", () => {
+    const model = renderCanvas();
+    // Detach (D,E) first — it stays selected — then select the main
+    // root too and press J to join the two component roots.
+    select(node("Node u3 (D, E)"));
+    fireEvent.keyDown(canvas(), { key: "Delete" });
+    select(node("Node u1 (A, B, C)"));
+    fireEvent.keyDown(canvas(), { key: "j" });
+    expect(engine.writeNewick(model.tree)).toBe(
+      "((D:0.1,E:0.15):0.1,((A:0.1,B:0.2):0.05,C:0.3):0.1);",
+    );
+    // The join is undoable like any other edit.
+    model.undo();
+    expect(engine.writeNewick(model.tree)).toBe(
+      "((A:0.1,B:0.2):0.05,C:0.3);",
+    );
+    model.redo();
+    expect(engine.writeNewick(model.tree)).toBe(
+      "((D:0.1,E:0.15):0.1,((A:0.1,B:0.2):0.05,C:0.3):0.1);",
+    );
+  });
+
+  it("arrow keys nudge the selected branch length by a fixed step", () => {
+    const model = renderCanvas("(A:0.1,B:0.2);");
+    select(node("Leaf B"));
+    fireEvent.keyDown(canvas(), { key: "ArrowRight" });
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.21);");
+    fireEvent.keyDown(canvas(), { key: "ArrowLeft" });
+    fireEvent.keyDown(canvas(), { key: "ArrowLeft" });
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.19);");
+  });
+
+  it("nudging a branch below zero is refused with the engine's message", () => {
+    const model = renderCanvas("(A:0.005,B:0.2);");
+    const before = model.tree;
+    select(node("Leaf A"));
+    fireEvent.keyDown(canvas(), { key: "ArrowLeft" });
+    expect(screen.getByRole("alert").textContent).toMatch(/negative/i);
+    expect(model.tree).toBe(before);
+  });
+
+  it("a refused edit adds no undo entry — undo still restores the last accepted edit", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    // One accepted edit.
+    select(node("Leaf B"));
+    fireEvent.keyDown(canvas(), { key: "ArrowRight" });
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.21,C:0.3);");
+    // One refused edit — dragging the root at a branch.
+    fireEvent.pointerDown(node("Node u1 (A, B, C)"), {
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(node("Node u1 (A, B, C)"), {
+      clientX: 60,
+      clientY: 40,
+    });
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 40 });
+    expect(screen.getByRole("alert")).toBeTruthy();
+    // A single undo must restore the starter tree, proving the refused
+    // drag added no history entry.
+    model.undo();
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.2,C:0.3);");
+  });
+
+  it("a drag onto a detached subtree's branch grafts the node there", () => {
+    const model = renderCanvas();
+    select(node("Node u3 (D, E)"));
+    fireEvent.keyDown(canvas(), { key: "Delete" });
+    // Drag C onto the branch above D inside the detached component.
+    fireEvent.pointerDown(node("Leaf C"), { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(node("Leaf C"), { clientX: 40, clientY: 300 });
+    fireEvent.pointerUp(edge("Branch to D"), { clientX: 40, clientY: 300 });
+    // The split edge above D is 0.1 → junction at 0.05; C keeps its
+    // previous length 0.3. Moving C out of the root's 3-child tree
+    // leaves (A,B) as the root component.
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.2);");
+    // The detached component now contains C, D and E.
+    expect(node("Leaf C")).toBeTruthy();
+    expect(screen.getByText(/Detached/)).toBeTruthy();
+  });
+
+  it("edits on the canvas update the Newick view through the model", () => {
+    const model = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    render(<EditorPanel model={model} />);
+    const newick = screen.getByRole("textbox", {
+      name: "Newick tree",
+    }) as HTMLTextAreaElement;
+    fireEvent.pointerDown(node("Leaf C"), { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(node("Leaf C"), { clientX: 60, clientY: 40 });
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 40 });
+    expect(newick.value).toBe("(A:0.1,(B:0.1,C:0.3):0.1);");
+  });
+
+  it("J with a single selected node shows a hint, not an error", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    const before = model.tree;
+    select(node("Leaf A"));
+    fireEvent.keyDown(canvas(), { key: "j" });
+    expect(screen.getByRole("status").textContent).toMatch(/select/i);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(model.tree).toBe(before);
+  });
+});

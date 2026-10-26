@@ -4436,3 +4436,43 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **Editor CSS lives in `index.css`,** not a per-feature stylesheet —
   the repo keeps all view styles there (Task 11's `labs.css` is for the
   lab pages' print view, a different mechanism).
+
+## v1.4 Task 9: drag-to-draw canvas and keyboard path
+
+- **`N` (create leaf) is deferred — not implemented.** The engine has no
+  create-leaf operation (`edit.rs` exposes join, detach, move_subtree,
+  set_length, rename_leaf, validate_editable only) and spec §5.1
+  requires node creation to be an engine op; building nodes or Newick
+  strings in TypeScript would duplicate tree logic. New taxa are added
+  through the Newick view (engine parser). Needs an owner decision on
+  adding an engine `create_leaf` op.
+- **Gesture mapping:** dropping a node on a branch or another node is
+  `move`; dropping it on its own edge/marker or on empty space within
+  its row is `setLength` from the drop x; dropping it anywhere else on
+  empty canvas is a `detach` attempt — detach is the only op whose
+  refusal names a unary result ("would leave node N with fewer than
+  two children"), which is the plan's "a drag that would create a
+  unary node is refused" test. `J` joins two selected component roots
+  or applies the same `move` as the drag for a node+branch selection.
+- **Shared defaults:** `moveOp` splits the target edge at its midpoint
+  and keeps the moved node's previous edge length (a detached root
+  gets the split's remainder); `join` gives each subtree a 0.1 edge;
+  arrow nudges step ±0.01. Suggested lengths are rounded to 6 decimals
+  so fp dust never prints in Newick. All are suggestions — the engine
+  validates every one.
+- **Selection is two slots** (FIFO eviction) so it can feed `J`;
+  `Delete` and the arrow keys act on every selected item's edge.
+- **Drop resolution uses `e.target`, not coordinates** — no pointer
+  capture, so the element under the pointer at pointerup reports the
+  branch/node hit. Drag tracking lives in window listeners while a
+  drag is live so a drop outside the svg still resolves (the detach
+  gesture); Escape or pointercancel aborts.
+- **Detached components draw below the main tree**, each laid out with
+  the same `layout()` call on `{...tree, root}` — coordinates only, no
+  structure decision in TS. Husks (parentless, childless, unlabeled
+  arena slots left by a splice) are never drawn.
+- **Files outside the Files block:** `web/src/views/editor/drawOps.ts`
+  (pure gesture→op translation and aria-name helpers — keeps
+  DrawCanvas.tsx under the file-size rule); `web/src/index.css` (canvas
+  styles, tokens only — the codebase's one stylesheet);
+  `docs/decisions.md` (this entry).
