@@ -10,7 +10,6 @@ import { engine } from "../engine/index";
 
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
-import type { DistModel } from "../engine/generated/DistModel";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
@@ -26,6 +25,7 @@ import {
   recompute,
   simModelName,
   traceLength,
+  type DistModelName,
 } from "./analysis";
 import { bootstrapReducer, clearBootstrap } from "./bootstrap";
 import type { Action } from "./actions";
@@ -78,7 +78,7 @@ export function lessonReducer(
 }
 
 /** The alphabet's default correction (v1.1 spec §5.1: protein → JTT). */
-function defaultCorrection(a: Alphabet): DistModel {
+function defaultCorrection(a: Alphabet): DistModelName {
   return a === "protein" ? "Jtt" : "Jc69";
 }
 
@@ -100,7 +100,7 @@ function reconcileExercise(
   target: Alphabet,
 ): { exercise: Exercise; notice: string } | null {
   const switches: string[] = [];
-  if (!CORRECTIONS[target].includes(exercise.analysis.correction)) {
+  if (!CORRECTIONS[target].some((c) => c === exercise.analysis.correction)) {
     const c = defaultCorrection(target);
     exercise = {
       ...exercise,
