@@ -4182,10 +4182,10 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   default 2.0. The per-site probability is `makev`'s pattern
   probability divided by πx:
   `πy·(1 − z1) + [same class]·(πy/fclass)·(z1 − z1zz) + δxy·z1zz`.
-- **Infeasible kappa:** a kappa below the feasible floor for the given
-  frequencies makes `ratio_params` reset (xi = 0, xv = 1) exactly as
-  dnadist does — the model degenerates to F81 rather than erroring.
-  Only non-positive or non-finite kappa is refused.
+- **Infeasible kappa:** the owner decided on 2026-10-26 (conductor
+  chat, PR #90 escalation, option 1) that the simulator refuses kappa
+  below `(a·g + c·t)/(freqR·freqY)` with `NeoError`; the distance path
+  keeps dnadist's reset.
 - **Convergence-test kappa resolved as 2.0:** the task fixes equal
   frequencies and the 4-taxon tree but not kappa; 2.0 is dnadist's
   default ratio and the ratio `DistModel::F84` estimates under, so the

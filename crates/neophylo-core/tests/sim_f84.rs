@@ -265,6 +265,49 @@ fn kappa_invalid() {
 }
 
 #[test]
+fn kappa_infeasible() {
+    // Owner decision 2026-10-26 (PR #90): the simulator refuses a kappa
+    // below the feasible floor (a·g + c·t)/(freqR·freqY) with
+    // `NeoError`; only the distance path keeps dnadist's reset to F81.
+    let tree = parse_newick("(A:0.1,B:0.2,C:0.3);").unwrap();
+    let run = |kappa: f64, base_freqs: [f64; 4]| {
+        simulate(&tree, &spec(SimModel::F84 { kappa, base_freqs }, 100, 1))
+    };
+    let assert_kappa_err = |r: Result<Alignment, NeoError>, kappa: f64| {
+        let err = r.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                NeoError::InvalidExercise { ref field, .. } if field == "sim.kappa"
+            ),
+            "kappa {kappa} gave {err:?}"
+        );
+    };
+
+    // Equal frequencies: the floor is exactly 0.5, and kappa = 0.5 is
+    // the allowed F81 limit.
+    assert_kappa_err(run(0.3, EQUAL), 0.3);
+    assert_kappa_err(run(0.4999, EQUAL), 0.4999);
+    run(0.5, EQUAL).unwrap();
+    run(0.5001, EQUAL).unwrap();
+
+    // Unequal frequencies: the floor is computed from the same formula.
+    let freqs = [0.1, 0.4, 0.15, 0.35];
+    let (a, c, g, t) = (freqs[0], freqs[1], freqs[2], freqs[3]);
+    let min = (a * g + c * t) / ((a + g) * (c + t));
+    assert_kappa_err(run(min * 0.999, freqs), min * 0.999);
+    run(min * 1.001, freqs).unwrap();
+
+    // A huge kappa still succeeds and yields only A/C/G/T (no NaN can
+    // reach the byte output, but the run must not error out either).
+    let aln = run(1e300, EQUAL).unwrap();
+    assert!(aln
+        .seqs
+        .iter()
+        .all(|s| s.iter().all(|b| b"ACGT".contains(b))));
+}
+
+#[test]
 fn base_freq_invalid() {
     let tree = parse_newick("(A:0.1,B:0.2,C:0.3);").unwrap();
     for freqs in [

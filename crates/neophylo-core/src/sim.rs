@@ -71,7 +71,8 @@ pub struct SimSpec {
 }
 
 /// Engine-level `SimSpec` validation (spec §4.2). `length` must be in
-/// `10..=100_000` and `kappa` must be positive.
+/// `10..=100_000`, `kappa` must be positive, and an F84 `kappa` must
+/// be feasible for the given base frequencies.
 pub(crate) fn check_spec(spec: &SimSpec) -> Result<(), NeoError> {
     if !(MIN_SIM_LEN..=MAX_SIM_LEN).contains(&spec.length) {
         return Err(NeoError::InvalidExercise {
@@ -118,6 +119,24 @@ pub(crate) fn check_spec(spec: &SimSpec) -> Result<(), NeoError> {
             return Err(NeoError::InvalidExercise {
                 field: "sim.base_freqs".to_string(),
                 msg: format!("base frequencies must sum to 1 within 1e-6, got {sum}"),
+            });
+        }
+        // A kappa below (a·g + c·t)/(freqR·freqY) is impossible with
+        // these frequencies: `ratio_params` would have aa < 0 and
+        // silently reset to its F81 floor (xi = 0). The simulator
+        // refuses instead (owner decision 2026-10-26, PR #90); the
+        // distance path keeps dnadist's reset. freqs are positive and
+        // finite here, so the denominator is non-zero. kappa equal to
+        // the floor is allowed — it is exactly the F81 limit.
+        let (a, c, g, t) = (base_freqs[0], base_freqs[1], base_freqs[2], base_freqs[3]);
+        let min_kappa = (a * g + c * t) / ((a + g) * (c + t));
+        if kappa < min_kappa {
+            return Err(NeoError::InvalidExercise {
+                field: "sim.kappa".to_string(),
+                msg: format!(
+                    "kappa {kappa} is impossible with these base frequencies; \
+                     the minimum is {min_kappa}"
+                ),
             });
         }
     }
