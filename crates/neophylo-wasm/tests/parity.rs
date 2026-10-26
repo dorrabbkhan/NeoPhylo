@@ -530,6 +530,30 @@ fn edit_exports_smoke() {
         other => panic!("expected InvalidEdit, got {other:?}"),
     }
 
+    // add_leaf (Task 9a): a fresh parentless leaf under the same name
+    // rules; a duplicate is an InvalidEdit value, not a throw.
+    let with_leaf: Tree = ok_value(neophylo_wasm::edit_add_leaf(
+        tree_js.clone(),
+        JsValue::from_str("z"),
+    ));
+    let z = leaf_id(&with_leaf, "z");
+    assert_eq!(
+        with_leaf.nodes[z as usize].parent, None,
+        "a new leaf is a detached component"
+    );
+    let dup_leaf: WasmResult<Tree> = unpack(neophylo_wasm::edit_add_leaf(
+        tree_js.clone(),
+        JsValue::from_str("b"),
+    ));
+    assert!(
+        !dup_leaf.ok,
+        "duplicate new-leaf name must be an error value"
+    );
+    match dup_leaf.error.unwrap() {
+        NeoError::InvalidEdit { .. } => {}
+        other => panic!("expected InvalidEdit, got {other:?}"),
+    }
+
     // detach + join: detach leaf `a`, then rejoin it with the root —
     // the new node becomes the root and validation still passes.
     let detached: Tree = ok_value(neophylo_wasm::edit_detach(tree_js.clone(), node_id(a)));

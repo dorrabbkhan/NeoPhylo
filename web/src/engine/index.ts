@@ -12,6 +12,7 @@ import init, {
   consensus_dropped,
   detect_alphabet,
   distances,
+  edit_add_leaf,
   edit_detach,
   edit_join,
   edit_move_subtree,
@@ -266,6 +267,12 @@ export const engine = {
    * §5.1). */
   editRenameLeaf(t: Tree, leaf: NodeId, name: string): Result<Tree> {
     return edit_rename_leaf(t, leaf, name);
+  },
+  /** Create a new parentless leaf labelled `name` — a detached
+   * component `editJoin`/`editMoveSubtree` can graft (v1.4 Task 9a).
+   * Same name rules as `editRenameLeaf`. */
+  editAddLeaf(t: Tree, name: string): Result<Tree> {
+    return edit_add_leaf(t, name);
   },
   /** True when the root component is a saveable exercise tree (v1.4
    * spec §5.1; engine `edit::validate_editable`). */

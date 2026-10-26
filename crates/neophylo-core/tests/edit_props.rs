@@ -4,7 +4,9 @@
 //! leaf set of `parse_newick(write_newick(tree))`; after every `Err`, the
 //! tree is bit-for-bit unchanged.
 
-use neophylo_core::edit::{detach, join, move_subtree, rename_leaf, set_length, validate_editable};
+use neophylo_core::edit::{
+    add_leaf, detach, join, move_subtree, rename_leaf, set_length, validate_editable,
+};
 use neophylo_core::newick::{parse_newick, write_newick};
 use neophylo_core::tree::{NodeId, Tree};
 use neophylo_core::NeoError;
@@ -84,21 +86,23 @@ proptest! {
     /// Random op sequences on random valid trees (4-12 leaves). Op kinds:
     /// 0,6 detach; 1,7 move; 2 join two component roots; 3 join a fresh
     /// leaf; 4 set_length; 5 rename (a third of renames reuse an existing
-    /// leaf label to hit the duplicate refusal). Length arguments range
-    /// over -1..3 so invalid values occur.
+    /// leaf label to hit the duplicate refusal); 8 add_leaf with a fresh
+    /// unique name (Task 9a). Length arguments range over -1..3 so
+    /// invalid values occur.
     #[test]
     fn op_sequence_preserves_validity(
         n in 4usize..=12,
         picks in proptest::collection::vec(any::<u32>(), 24),
         lens in proptest::collection::vec(0.0f64..2.0, 40),
         ops in proptest::collection::vec(
-            (0u8..8, any::<u32>(), any::<u32>(), -1.0f64..3.0, -1.0f64..3.0),
+            (0u8..9, any::<u32>(), any::<u32>(), -1.0f64..3.0, -1.0f64..3.0),
             0..24,
         ),
     ) {
         let mut tree = grow_tree(n, &picks, &lens);
         let mut join_seq = 0usize;
         let mut rename_seq = 0usize;
+        let mut add_seq = 0usize;
 
         for (kind, a, b, l0, l1) in ops {
             let len = tree.nodes.len();
@@ -148,6 +152,18 @@ proptest! {
                     let node = pick(a);
                     let before = tree.clone();
                     (before, set_length(&mut tree, node, l0))
+                }
+                8 => {
+                    // Task 9a: a fresh unique name, so the op exercises
+                    // the accepted path — a new parentless component the
+                    // main-component checks must be blind to, and a
+                    // component root later joins can graft.
+                    add_seq += 1;
+                    let before = tree.clone();
+                    (
+                        before,
+                        add_leaf(&mut tree, &format!("a{add_seq}")).map(|_| ()),
+                    )
                 }
                 _ => {
                     let leaves = all_leaves(&tree);

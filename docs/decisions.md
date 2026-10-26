@@ -4436,3 +4436,36 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **Editor CSS lives in `index.css`,** not a per-feature stylesheet —
   the repo keeps all view styles there (Task 11's `labs.css` is for the
   lab pages' print view, a different mechanism).
+
+## v1.4 Task 9a (follow-up): engine `add_leaf` edit op
+
+- **Owner chose Option A on PR #96 (2026-10-26):** an engine `add_leaf`
+  op, instead of dropping the `N` key or folding creation into Task 10.
+  Reason: spec §5.1 requires creating a node to be an engine operation —
+  the science stays in Rust, and Task 9's keyboard `N` (new leaf) had no
+  op to call. This task adds the engine op and its plumbing only; the
+  `N` key wiring and the draw-canvas gesture follow in a web PR after
+  PR #96 merges.
+- **Semantics:** `add_leaf(tree, name)` appends one new PARENTLESS leaf
+  labelled `name` (a new detached component, like a detached subtree)
+  with no branch length (`None`) and no support, and returns its id.
+  Existing nodes are not renumbered. `join` and `move_subtree` graft it
+  into the tree; until then `validate_editable` does not see it (it
+  judges only the root component), unchanged.
+- **Name rules are exactly `rename_leaf`'s:** empty or whitespace-only
+  names and names another leaf already carries in ANY component are
+  refused with `NeoError::InvalidEdit` and the same message wording;
+  unlabelled husks never collide. The shared check is factored into one
+  private helper (`check_leaf_name`) used by both ops; `rename_leaf`'s
+  behaviour and messages are byte-identical.
+- **Files outside the Files block:**
+  `crates/neophylo-wasm/tests/parity.rs` (the existing
+  `edit_exports_smoke` boundary test now also covers `edit_add_leaf`);
+  `docs/decisions.md` (this entry).
+- **Sandbox note (same as Tasks 6/7):** `wasm-pack`'s `cargo install`
+  step is blocked (read-only `$CARGO_HOME`); with `WASM_PACK_CACHE`
+  set to an ABSOLUTE path at `target/.wasm-pack-cache` (a relative
+  path resolves inside `crates/neophylo-wasm` and breaks the test
+  runner) the full `./scripts/check.sh` gate runs green here,
+  including `wasm-pack test --node`, the pkg rebuild, the
+  generated-types diff and all 684 vitest tests.
