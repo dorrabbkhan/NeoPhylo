@@ -4458,6 +4458,16 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   unlabelled husks never collide. The shared check is factored into one
   private helper (`check_leaf_name`) used by both ops; `rename_leaf`'s
   behaviour and messages are byte-identical.
+- **Proptest coverage is a separate property, not a widened one:** the
+  first cut widened `op_sequence_preserves_validity`'s op range
+  `0u8..8` → `0u8..9`, but `edit_props.proptest-regressions` stores RNG
+  seeds, not values — a changed strategy replays the saved Task 5
+  husk-join seed as different inputs, silently un-pinning that
+  regression. The original property is restored byte-identical;
+  `add_leaf` lives in a new `op_sequence_with_add_leaf_preserves_validity`
+  (fresh names plus duplicate adds ~⅓ of the time, joins biased toward
+  detached added leaves, and a scripted tail add→join so grafting is
+  guaranteed every run).
 - **Files outside the Files block:**
   `crates/neophylo-wasm/tests/parity.rs` (the existing
   `edit_exports_smoke` boundary test now also covers `edit_add_leaf`);

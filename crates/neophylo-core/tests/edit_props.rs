@@ -86,23 +86,21 @@ proptest! {
     /// Random op sequences on random valid trees (4-12 leaves). Op kinds:
     /// 0,6 detach; 1,7 move; 2 join two component roots; 3 join a fresh
     /// leaf; 4 set_length; 5 rename (a third of renames reuse an existing
-    /// leaf label to hit the duplicate refusal); 8 add_leaf with a fresh
-    /// unique name (Task 9a). Length arguments range over -1..3 so
-    /// invalid values occur.
+    /// leaf label to hit the duplicate refusal). Length arguments range
+    /// over -1..3 so invalid values occur.
     #[test]
     fn op_sequence_preserves_validity(
         n in 4usize..=12,
         picks in proptest::collection::vec(any::<u32>(), 24),
         lens in proptest::collection::vec(0.0f64..2.0, 40),
         ops in proptest::collection::vec(
-            (0u8..9, any::<u32>(), any::<u32>(), -1.0f64..3.0, -1.0f64..3.0),
+            (0u8..8, any::<u32>(), any::<u32>(), -1.0f64..3.0, -1.0f64..3.0),
             0..24,
         ),
     ) {
         let mut tree = grow_tree(n, &picks, &lens);
         let mut join_seq = 0usize;
         let mut rename_seq = 0usize;
-        let mut add_seq = 0usize;
 
         for (kind, a, b, l0, l1) in ops {
             let len = tree.nodes.len();
@@ -153,17 +151,161 @@ proptest! {
                     let before = tree.clone();
                     (before, set_length(&mut tree, node, l0))
                 }
-                8 => {
-                    // Task 9a: a fresh unique name, so the op exercises
-                    // the accepted path — a new parentless component the
-                    // main-component checks must be blind to, and a
-                    // component root later joins can graft.
-                    add_seq += 1;
+                _ => {
+                    let leaves = all_leaves(&tree);
+                    let leaf = leaves[a as usize % leaves.len()];
+                    let name = if b % 3 == 0 {
+                        let other = leaves[b as usize % leaves.len()];
+                        tree.nodes[other.0 as usize]
+                            .label
+                            .clone()
+                            .unwrap_or_default()
+                    } else {
+                        rename_seq += 1;
+                        format!("r{rename_seq}")
+                    };
                     let before = tree.clone();
-                    (
-                        before,
-                        add_leaf(&mut tree, &format!("a{add_seq}")).map(|_| ()),
-                    )
+                    (before, rename_leaf(&mut tree, leaf, &name))
+                }
+            };
+
+            match res {
+                Ok(()) => {
+                    prop_assert!(
+                        validate_editable(&tree).is_ok(),
+                        "validate_editable failed after Ok op {kind}: {:?}; newick: {}",
+                        validate_editable(&tree).unwrap_err(),
+                        write_newick(&tree),
+                    );
+                    let mut via_newick = parse_newick(&write_newick(&tree))
+                        .unwrap()
+                        .leaf_labels();
+                    via_newick.sort();
+                    prop_assert_eq!(
+                        leaf_labels_sorted(&tree),
+                        via_newick,
+                        "leaf multiset mismatch after Ok op {}",
+                        kind
+                    );
+                }
+                Err(_) => {
+                    prop_assert_eq!(
+                        &tree, &before,
+                        "tree changed on refused op {}",
+                        kind
+                    );
+                }
+            }
+        }
+    }
+
+    /// Same property as `op_sequence_preserves_validity`, plus Task
+    /// 9a's `add_leaf` as kind 8: a third of adds reuse an existing
+    /// leaf's label to hit the duplicate refusal, the rest take a
+    /// fresh unique `a{seq}` name. The join kind prefers a
+    /// still-detached added leaf for one side so add→join pairs really
+    /// occur, and a scripted add→join onto the root ends every run, so
+    /// the closing `attached > 0` assertion holds by construction.
+    #[test]
+    fn op_sequence_with_add_leaf_preserves_validity(
+        n in 4usize..=12,
+        picks in proptest::collection::vec(any::<u32>(), 24),
+        lens in proptest::collection::vec(0.0f64..2.0, 40),
+        ops in proptest::collection::vec(
+            (0u8..9, any::<u32>(), any::<u32>(), -1.0f64..3.0, -1.0f64..3.0),
+            0..24,
+        ),
+    ) {
+        let mut tree = grow_tree(n, &picks, &lens);
+        let mut join_seq = 0usize;
+        let mut rename_seq = 0usize;
+        let mut add_seq = 0usize;
+        let mut added: Vec<NodeId> = Vec::new();
+
+        for (kind, a, b, l0, l1) in ops {
+            let len = tree.nodes.len();
+            let pick = |v: u32| NodeId((v as usize % len) as u32);
+
+            let (before, res): (Tree, Result<(), NeoError>) = match kind {
+                0 | 6 => {
+                    let node = pick(a);
+                    let before = tree.clone();
+                    (before, detach(&mut tree, node))
+                }
+                1 | 7 => {
+                    let (node, x) = (pick(a), pick(b));
+                    let before = tree.clone();
+                    (before, move_subtree(&mut tree, node, x, (l0, l1)))
+                }
+                2 => {
+                    let roots = component_roots(&tree);
+                    // Prefer a still-detached added leaf as one side so
+                    // add→join pairs really occur.
+                    let fresh: Vec<NodeId> = added
+                        .iter()
+                        .copied()
+                        .filter(|&id| tree.nodes[id.0 as usize].parent.is_none())
+                        .collect();
+                    let (x, y) = if !fresh.is_empty() && roots.len() >= 2 && a % 2 == 0 {
+                        let x = fresh[b as usize % fresh.len()];
+                        let others: Vec<NodeId> =
+                            roots.into_iter().filter(|&r| r != x).collect();
+                        (x, others[b as usize % others.len()])
+                    } else if roots.len() >= 2 {
+                        let i = a as usize % roots.len();
+                        let mut j = b as usize % (roots.len() - 1);
+                        if j >= i {
+                            j += 1;
+                        }
+                        (roots[i], roots[j])
+                    } else {
+                        (pick(a), pick(b))
+                    };
+                    let before = tree.clone();
+                    (before, join(&mut tree, x, y, (l0, l1)).map(|_| ()))
+                }
+                3 => {
+                    let leaf = tree.add_node(Some(format!("j{join_seq}")));
+                    join_seq += 1;
+                    let roots = component_roots(&tree);
+                    let others: Vec<NodeId> =
+                        roots.into_iter().filter(|&r| r != leaf).collect();
+                    let other = if others.is_empty() {
+                        pick(b)
+                    } else {
+                        others[b as usize % others.len()]
+                    };
+                    let before = tree.clone();
+                    (before, join(&mut tree, leaf, other, (l0, l1)).map(|_| ()))
+                }
+                4 => {
+                    let node = pick(a);
+                    let before = tree.clone();
+                    (before, set_length(&mut tree, node, l0))
+                }
+                8 => {
+                    // Task 9a: fresh unique `a{seq}` names, except a
+                    // third reuse an existing leaf's label to hit the
+                    // duplicate refusal.
+                    add_seq += 1;
+                    let labelled: Vec<NodeId> = all_leaves(&tree)
+                        .into_iter()
+                        .filter(|&id| tree.nodes[id.0 as usize].label.is_some())
+                        .collect();
+                    let name = if b % 3 == 0 && !labelled.is_empty() {
+                        tree.nodes[labelled[b as usize % labelled.len()].0 as usize]
+                            .label
+                            .clone()
+                            .unwrap_or_default()
+                    } else {
+                        format!("a{add_seq}")
+                    };
+                    let before = tree.clone();
+                    let r = add_leaf(&mut tree, &name);
+                    if let Ok(id) = r {
+                        added.push(id);
+                    }
+                    (before, r.map(|_| ()))
                 }
                 _ => {
                     let leaves = all_leaves(&tree);
@@ -211,5 +353,38 @@ proptest! {
                 }
             }
         }
+
+        // Scripted tail — one add_leaf joined onto the root — so every
+        // run grafts at least one added leaf even when the drawn ops
+        // held no add or join. Both calls must succeed: the name is
+        // unique and the root is always a joinable component root.
+        add_seq += 1;
+        let leaf = add_leaf(&mut tree, &format!("a{add_seq}"));
+        prop_assert!(leaf.is_ok(), "tail add_leaf refused: {leaf:?}");
+        let leaf = leaf.unwrap();
+        added.push(leaf);
+        let root = tree.root;
+        let res = join(&mut tree, leaf, root, (0.5, 0.5));
+        prop_assert!(res.is_ok(), "tail join refused: {res:?}");
+        prop_assert!(
+            validate_editable(&tree).is_ok(),
+            "validate_editable failed after the tail add+join: {:?}; newick: {}",
+            validate_editable(&tree).unwrap_err(),
+            write_newick(&tree),
+        );
+        let mut via_newick = parse_newick(&write_newick(&tree))
+            .unwrap()
+            .leaf_labels();
+        via_newick.sort();
+        prop_assert_eq!(
+            leaf_labels_sorted(&tree),
+            via_newick,
+            "leaf multiset mismatch after the tail add+join",
+        );
+        let attached = added
+            .iter()
+            .filter(|&&id| tree.nodes[id.0 as usize].parent.is_some())
+            .count();
+        prop_assert!(attached > 0, "no added leaf was grafted all run");
     }
 }
