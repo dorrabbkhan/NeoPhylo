@@ -9,6 +9,7 @@ import { engine } from "../engine/index";
 import type { NodeId } from "../engine/generated/NodeId";
 import type { Tree } from "../engine/generated/Tree";
 
+import { EditorHistory } from "./history";
 import { EditorModel } from "./model";
 
 function parseTree(newick: string): Tree {
@@ -77,6 +78,55 @@ describe("EditorModel.apply", () => {
       .filter((n) => n.children.length === 0 && n.label !== null)
       .map((n) => n.label);
     expect(labels.sort()).toEqual(["A", "B", "C"]);
+  });
+
+  it("add_leaf adds a parentless leaf found by name", () => {
+    const m = new EditorModel(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const before = m.tree;
+    expect(m.apply({ kind: "addLeaf", name: "D" }).ok).toBe(true);
+    expect(m.tree).not.toBe(before);
+    const d = nodeId(m.tree, "D");
+    expect(m.tree.nodes[d].parent).toBeNull();
+    expect(m.tree.nodes[d].children).toEqual([]);
+    expect(m.tree.branches[d].length).toBeNull();
+    // A detached new leaf does not affect the main component.
+    expect(engine.editValidate(m.tree).ok).toBe(true);
+  });
+
+  it("add_leaf with a duplicate name is refused: same tree object, the name in the message, no history entry", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    let calls = 0;
+    h.subscribe(() => calls++);
+    const before = h.tree;
+    const r = h.apply({ kind: "addLeaf", name: "B" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.kind).toBe("InvalidEdit");
+      if (r.error.kind === "InvalidEdit") {
+        expect(r.error.msg).toBe("duplicate taxon name 'B'");
+      }
+    }
+    expect(h.tree).toBe(before);
+    expect(calls).toBe(0);
+    expect(h.canUndo).toBe(false);
+  });
+
+  it("undo removes an added leaf and redo restores it", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const t0 = h.tree;
+    expect(h.apply({ kind: "addLeaf", name: "D" }).ok).toBe(true);
+    const t1 = h.tree;
+    const d = nodeId(t1, "D");
+
+    h.undo();
+    expect(h.tree).toBe(t0);
+    expect(h.tree.nodes.some((n) => n.label === "D")).toBe(false);
+    expect(h.canRedo).toBe(true);
+
+    h.redo();
+    expect(h.tree).toBe(t1);
+    expect(h.tree.nodes[d].label).toBe("D");
+    expect(h.tree.nodes[d].parent).toBeNull();
   });
 
   it("a duplicate taxon name is refused: same tree object, no notification", () => {

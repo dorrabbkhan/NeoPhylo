@@ -6,7 +6,9 @@
 //! internal nodes follow in preorder (newick.rs), so in
 //! `((a,b),(c,d));` the root is 4, `(a,b)` is 5 and `(c,d)` is 6.
 
-use neophylo_core::edit::{detach, join, move_subtree, rename_leaf, set_length, validate_editable};
+use neophylo_core::edit::{
+    add_leaf, detach, join, move_subtree, rename_leaf, set_length, validate_editable,
+};
 use neophylo_core::newick::{parse_newick, write_newick};
 use neophylo_core::tree::{NodeId, Tree};
 use neophylo_core::NeoError;
@@ -424,4 +426,124 @@ fn validate_refuses_missing_or_bad_lengths() {
         validate_editable(&negative),
         Err(NeoError::InvalidEdit { .. })
     ));
+}
+
+// ---- add_leaf (v1.4 Task 9a: the editor's new-leaf key) ---------------------
+
+#[test]
+fn add_leaf_creates_a_parentless_component() {
+    let mut tree = four_taxon();
+    let newick_before = write_newick(&tree);
+    let nodes_before = tree.nodes.len();
+    let leaf = add_leaf(&mut tree, "e").unwrap();
+    assert_eq!(
+        leaf,
+        NodeId(nodes_before as u32),
+        "existing ids are not renumbered"
+    );
+    let i = leaf.0 as usize;
+    assert_eq!(tree.nodes[i].parent, None, "the new leaf is a component");
+    assert!(tree.nodes[i].children.is_empty());
+    assert_eq!(tree.nodes[i].label.as_deref(), Some("e"));
+    assert_eq!(
+        tree.branches[i].length, None,
+        "a component root has no edge"
+    );
+    assert_eq!(tree.branches[i].support, None);
+    assert_eq!(tree.nodes.len(), nodes_before + 1);
+    assert_eq!(
+        write_newick(&tree),
+        newick_before,
+        "the main component is untouched"
+    );
+    validate_editable(&tree).unwrap();
+}
+
+#[test]
+fn add_leaf_then_move_subtree_attaches_it() {
+    let mut tree = four_taxon();
+    let leaf = add_leaf(&mut tree, "e").unwrap();
+    move_subtree(&mut tree, leaf, NodeId(0), (0.0625, 0.125)).unwrap();
+    validate_editable(&tree).unwrap();
+    assert_eq!(
+        write_newick(&tree),
+        "(((a:0.0625,e:0.125):0.0625,b:0.25):0.5,(c:0.5,d:0.25):0.5);"
+    );
+}
+
+#[test]
+fn add_leaf_joins_a_detached_component() {
+    let mut tree = parse_newick("((a:0.1,b:0.2):0.3,c:0.4,d:0.5);").unwrap();
+    detach(&mut tree, NodeId(5)).unwrap(); // (a,b) leaves the main tree
+    let leaf = add_leaf(&mut tree, "e").unwrap();
+    let u = join(&mut tree, NodeId(5), leaf, (0.25, 0.125)).unwrap();
+    let ui = u.0 as usize;
+    assert_eq!(tree.nodes[ui].parent, None, "the graft stays a component");
+    assert_eq!(tree.nodes[ui].children, vec![NodeId(5), leaf]);
+    assert_eq!(tree.nodes[5].parent, Some(u));
+    assert_eq!(tree.nodes[leaf.0 as usize].parent, Some(u));
+    assert_eq!(tree.branches[leaf.0 as usize].length, Some(0.125));
+    assert_eq!(write_newick(&tree), "(c:0.4,d:0.5);");
+    validate_editable(&tree).unwrap();
+}
+
+#[test]
+fn add_leaf_ignores_unlabelled_husks() {
+    // A spliced-out internal node is a parentless, childless,
+    // unlabelled husk; it carries no name and can never collide.
+    let mut tree = four_taxon();
+    move_subtree(&mut tree, NodeId(2), NodeId(0), (0.0625, 0.125)).unwrap();
+    assert!(tree.nodes[6].parent.is_none() && tree.nodes[6].children.is_empty());
+    assert_eq!(tree.nodes[6].label, None);
+    let leaf = add_leaf(&mut tree, "e").unwrap();
+    assert_eq!(tree.nodes[leaf.0 as usize].label.as_deref(), Some("e"));
+}
+
+#[test]
+fn add_leaf_refuses_empty_names() {
+    let mut tree = four_taxon();
+    for name in ["", "   "] {
+        let before = tree.clone();
+        let err = add_leaf(&mut tree, name).unwrap_err();
+        let NeoError::InvalidEdit { msg } = &err else {
+            panic!("expected InvalidEdit, got {err:?}")
+        };
+        assert_eq!(msg, "a taxon name may not be empty");
+        assert_eq!(tree, before);
+    }
+}
+
+#[test]
+fn add_leaf_refuses_duplicate_names_in_any_component() {
+    // A name a main-component leaf already carries.
+    let mut tree = four_taxon();
+    let before = tree.clone();
+    let err = add_leaf(&mut tree, "c").unwrap_err();
+    let NeoError::InvalidEdit { msg } = &err else {
+        panic!("expected InvalidEdit, got {err:?}")
+    };
+    assert_eq!(msg, "duplicate taxon name 'c'");
+    assert_eq!(tree, before);
+
+    // A name carried only by a leaf in a detached component: 'a' left
+    // the main tree with (a,b) = 5.
+    let mut tree = parse_newick("((a:0.1,b:0.2):0.3,c:0.4,d:0.5);").unwrap();
+    detach(&mut tree, NodeId(5)).unwrap();
+    let before = tree.clone();
+    let err = add_leaf(&mut tree, "a").unwrap_err();
+    let NeoError::InvalidEdit { msg } = &err else {
+        panic!("expected InvalidEdit, got {err:?}")
+    };
+    assert_eq!(msg, "duplicate taxon name 'a'");
+    assert_eq!(tree, before);
+}
+
+#[test]
+fn add_leaf_malformed_arena_is_refused() {
+    let mut tree = four_taxon();
+    tree.branches.pop();
+    let before = tree.clone();
+    let err = add_leaf(&mut tree, "e").unwrap_err();
+    assert!(matches!(err, NeoError::InvalidEdit { .. }));
+    assert_eq!(tree, before);
 }

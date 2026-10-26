@@ -370,6 +370,28 @@ pub fn set_length(tree: &mut Tree, child: NodeId, length: f64) -> Result<(), Neo
     Ok(())
 }
 
+/// The name rules `rename_leaf` and `add_leaf` share: a name may not
+/// be empty or whitespace-only, and no OTHER leaf in the arena — in
+/// any component, so a detached subtree cannot collide when grafted
+/// back — may already carry it. Unlabelled husks never collide.
+/// `exclude` is the leaf being renamed (it may keep its own name);
+/// `add_leaf` passes `None`.
+fn check_leaf_name(tree: &Tree, name: &str, exclude: Option<NodeId>) -> Result<(), NeoError> {
+    if name.trim().is_empty() {
+        return Err(invalid("a taxon name may not be empty".to_string()));
+    }
+    let i = exclude.map(|id| id.0 as usize);
+    if tree
+        .nodes
+        .iter()
+        .enumerate()
+        .any(|(k, n)| Some(k) != i && n.children.is_empty() && n.label.as_deref() == Some(name))
+    {
+        return Err(invalid(format!("duplicate taxon name '{name}'")));
+    }
+    Ok(())
+}
+
 /// Rename a leaf. Refuses nonexistent or non-leaf nodes, empty names
 /// and names another leaf already carries — in any component, so a
 /// detached subtree cannot collide when grafted back.
@@ -381,20 +403,22 @@ pub fn rename_leaf(tree: &mut Tree, leaf: NodeId, name: &str) -> Result<(), NeoE
     if !tree.nodes[leaf.0 as usize].children.is_empty() {
         return Err(invalid(format!("node {} is not a leaf", leaf.0)));
     }
-    if name.trim().is_empty() {
-        return Err(invalid("a taxon name may not be empty".to_string()));
-    }
-    let i = leaf.0 as usize;
-    if tree
-        .nodes
-        .iter()
-        .enumerate()
-        .any(|(k, n)| k != i && n.children.is_empty() && n.label.as_deref() == Some(name))
-    {
-        return Err(invalid(format!("duplicate taxon name '{name}'")));
-    }
-    tree.nodes[i].label = Some(name.to_string());
+    check_leaf_name(tree, name, Some(leaf))?;
+    tree.nodes[leaf.0 as usize].label = Some(name.to_string());
     Ok(())
+}
+
+/// Create a new parentless leaf labelled `name` — a fresh detached
+/// component, like a detached subtree — with no branch length and no
+/// support, and return its id. Existing nodes are not renumbered.
+/// `join` and `move_subtree` graft the leaf into the tree; until then
+/// it is invisible to `validate_editable`, which judges only the root
+/// component. Refuses — leaving the tree unchanged — a malformed
+/// arena and any name `rename_leaf` would refuse (`check_leaf_name`).
+pub fn add_leaf(tree: &mut Tree, name: &str) -> Result<NodeId, NeoError> {
+    check_arena(tree)?;
+    check_leaf_name(tree, name, None)?;
+    Ok(tree.add_node(Some(name.to_string())))
 }
 
 /// Is the component reachable from `tree.root` a tree the editor may
