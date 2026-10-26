@@ -103,26 +103,12 @@ fn empirical_freqs(aln: &Alignment, w: &[u32]) -> [f64; 4] {
     c.map(|x| x / total)
 }
 
-/// The `getinput` floor: a frequency below 1e-8 is set to 1e-6 and the
-/// other three rescaled by 0.999999 (not renormalized), applied in
-/// A, C, G, T order. This is what `makev`'s per-site terms see.
-fn clamp_freqs(mut f: [f64; 4]) -> [f64; 4] {
-    for i in 0..4 {
-        if f[i] < 1e-8 {
-            f[i] = 1e-6;
-            for (j, fj) in f.iter_mut().enumerate() {
-                if j != i {
-                    *fj *= 0.999999;
-                }
-            }
-        }
-    }
-    f
-}
-
-/// Per-alignment constants for the F84 solve: the clamped empirical
+/// Per-alignment constants for the F84 solve: the raw empirical
 /// frequencies `makev` multiplies into its per-site products, and the
-/// ratio parameters at dnadist's default T = 2.0.
+/// ratio parameters at dnadist's default T = 2.0. dnadist's `getinput`
+/// floor (`freq < 1e-8 -> 1e-6`, others scaled by 0.999999) sits inside
+/// `if (!freqsfrom)` only, so on the empirical path F84 uses `makev`
+/// sees the unfloored frequencies (dnadist.c `getinput`, 3.697).
 pub(crate) struct F84Ctx {
     f: [f64; 4],
     rp: RatioParams,
@@ -131,7 +117,7 @@ pub(crate) struct F84Ctx {
 pub(crate) fn f84_context(aln: &Alignment, w: &[u32]) -> F84Ctx {
     let raw = empirical_freqs(aln, w);
     F84Ctx {
-        f: clamp_freqs(raw),
+        f: raw,
         rp: ratio_params(&raw, TTRATIO),
     }
 }
@@ -173,8 +159,16 @@ pub(crate) fn f84_distance(ctx: &F84Ctx, tab: &[u64; 16]) -> Cell {
                     let aa = if x == y { ctx.f[x] } else { 0.0 };
                     let bb = prod2(x, y, &ctx.f, &ctx.rp);
                     let cc = ctx.f[x] * ctx.f[y];
-                    slope += n * (z1zz * (bb - aa) + z1xv * (cc - bb))
-                        / (aa * z1zz + bb * z1yy + cc * y1);
+                    let denom = aa * z1zz + bb * z1yy + cc * y1;
+                    // Any observed pattern has f[x] > 0 and f[y] > 0,
+                    // so denom > 0 whenever xv > 0 (cc * y1 term). At
+                    // xv = 0 a transversion pattern has denom = 0;
+                    // dnadist divides anyway and the NaN slope ends the
+                    // climb at -1.0, i.e. Saturated.
+                    if denom <= 0.0 || denom.is_nan() {
+                        return Cell::Saturated;
+                    }
+                    slope += n * (z1zz * (bb - aa) + z1xv * (cc - bb)) / denom;
                 }
             }
         }

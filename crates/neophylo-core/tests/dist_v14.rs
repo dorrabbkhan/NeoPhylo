@@ -61,6 +61,43 @@ fn k2p_phylip_matches_dnadist_worked_example() {
 }
 
 #[test]
+fn f84_matches_dnadist_when_a_base_is_missing() {
+    // 4-taxon alignment with no G at all: dnadist's empirical-frequency
+    // path feeds `makev` the raw frequencies (the `getinput` floor is
+    // `!freqsfrom` only). dnadist 3.697, all default settings (D=F84,
+    // G=No, T=2.0, C=Yes, F=Yes), printed:
+    //     Taxon1     0.000000 0.256408 0.274450 0.890129
+    //     Taxon2     0.256408 0.000000 0.539643 0.327208
+    //     Taxon3     0.274450 0.539643 0.000000 0.826500
+    //     Taxon4     0.890129 0.327208 0.826500 0.000000
+    let aln = parse_fasta(
+        ">Taxon1\nATCCCATCACTCCATCCATTCCCAATCCATCCATTCCATCCATCCCATCCTACCTAAT\n\
+         >Taxon2\nATCTCAACATTCTATTCAATCACAATCAATCCACTCCATCCAACCAATCCTCCCTAAT\n\
+         >Taxon3\nATTCCATTACTTTATCTATTCTTAATCTATCTATTTCATCTATCTTATCCTATCTAAT\n\
+         >Taxon4\nATATCAAAATTATATTAAATCAAAATCAATAAACTACATCAAACAAATCCTAACTAAT\n",
+    )
+    .unwrap();
+    let expected = [
+        [0.000000, 0.256408, 0.274450, 0.890129],
+        [0.256408, 0.000000, 0.539643, 0.327208],
+        [0.274450, 0.539643, 0.000000, 0.826500],
+        [0.890129, 0.327208, 0.826500, 0.000000],
+    ];
+    let m = compute(&aln, DistModel::F84).unwrap();
+    for (i, row) in expected.iter().enumerate() {
+        for (j, &exp) in row.iter().enumerate() {
+            if i != j {
+                assert!(
+                    (value(cell(&m, i, j)) - exp).abs() <= 0.5e-6,
+                    "cell ({i}, {j}): engine {} vs dnadist {exp}",
+                    value(cell(&m, i, j)),
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn new_model_names_and_alphabet_support() {
     assert_eq!(DistModel::F84.name(), "F84");
     assert_eq!(DistModel::K2pPhylip { ratio: 2.0 }.name(), "K2P_PHYLIP");

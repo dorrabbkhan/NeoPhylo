@@ -4102,6 +4102,15 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   empirical frequencies from the column-weighted alignment (ambiguity
   codes are not counted, unlike dnadist's EM treatment of ambiguous
   data) and the fixed ratio 2.0; `K2P_PHYLIP` uses equal frequencies.
+  The frequencies `makev` sees are the *raw* empirical ones: dnadist's
+  `getinput` floor (`< 1e-8 -> 1e-6`, others `*0.999999`) sits inside
+  `if (!freqsfrom)` only, so it never applies on the empirical path F84
+  uses (fix in the Task 2 review round; `getbasefreqs`'s own
+  `<= 0 -> 1e-6` floor still applies to the `fracchange` term). When
+  `xv = 0` (e.g. only A+T in the data) an observed transversion pattern
+  has a zero likelihood denominator; dnadist divides anyway and the NaN
+  slope saturates the climb to -1.0, and the port returns `Saturated`
+  for the pair directly instead of computing the NaN.
 - **Worked-example oracle carried inline.** The plan's Task 2 test cites
   a worked example under `fixtures/worked/` that Task 3 adds; to avoid a
   fixture change in this task, `tests/dist_v14.rs` carries the dnadist
