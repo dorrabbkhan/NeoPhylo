@@ -71,6 +71,13 @@ export function errorMessage(e: NeoError): ErrorMessage {
         title: "Every bootstrap replicate failed",
         body: `All ${e.total} resampled datasets had distances too divergent to correct. Use longer sequences or switch to p-distance.`,
       };
+    case "InvalidEdit":
+      // v1.4 spec §5.1: the engine's msg already names the taxon or
+      // node and the reason.
+      return {
+        title: "That edit isn't allowed",
+        body: e.msg,
+      };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";

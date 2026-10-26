@@ -19,6 +19,7 @@ const VARIANTS: NeoError[] = [
   { kind: "SaturatedMatrix", cells: [[0, 1]] },
   { kind: "LabelMismatch", only_in_a: ["A", "B"], only_in_b: ["Z"] },
   { kind: "InvalidExercise", field: "true_tree", msg: "branch length missing" },
+  { kind: "InvalidEdit", msg: "duplicate taxon name 'Human'" },
   { kind: "ModelAlphabetMismatch", model: "JC69", alphabet: "protein" },
 ];
 
@@ -32,6 +33,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   SaturatedMatrix: "Some distances can't be estimated",
   LabelMismatch: "Tree and sequences have different names",
   InvalidExercise: "This exercise file has a problem",
+  InvalidEdit: "That edit isn't allowed",
   ModelAlphabetMismatch: "JC69 doesn't fit this data",
   BootstrapFailed: "Every bootstrap replicate failed",
 };
@@ -88,6 +90,12 @@ describe("errorMessage", () => {
         msg: "branch length missing",
       }).body,
     ).toContain("true_tree");
+    expect(
+      errorMessage({
+        kind: "InvalidEdit",
+        msg: "duplicate taxon name 'Human'",
+      }).body,
+    ).toContain("duplicate taxon name 'Human'");
   });
 
   it("names the model's alphabet and the valid corrections (v1.1 Task 10)", () => {

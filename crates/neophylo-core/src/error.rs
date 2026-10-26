@@ -64,6 +64,11 @@ pub enum NeoError {
         failed: u32,
         total: u32,
     },
+    /// An editing operation on a tree was refused (v1.4 spec §5.1);
+    /// the message names the taxon or node that caused the refusal.
+    InvalidEdit {
+        msg: String,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -123,6 +128,7 @@ impl fmt::Display for NeoError {
                     "all {total} bootstrap replicates failed ({failed} skipped)"
                 )
             }
+            Self::InvalidEdit { msg } => write!(f, "{msg}"),
         }
     }
 }
