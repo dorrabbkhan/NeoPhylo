@@ -139,6 +139,73 @@ test("a leaf dragged onto a branch moves it; the keyboard path produces the same
   await expect(newick).toHaveValue("(A:0.1,(B:0.1,C:0.3):0.1);");
 });
 
+test("a touch drag drops on the branch under the finger, matching the keyboard path", async ({
+  browser,
+  browserName,
+}) => {
+  // Implicit pointer capture makes a touch pointerup's target the
+  // dragged node regardless of where the finger lifts — only Chromium's
+  // CDP Input.dispatchTouchEvent reproduces a real touch.
+  test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await newick.fill("(A:0.1,B:0.2,C:0.3);");
+  await newick.press("Enter");
+
+  const leafC = page.getByRole("button", { name: "Leaf C" });
+  const edgeB = page.getByRole("button", { name: "Branch to B" });
+  const a = await leafC.boundingBox();
+  const b = await edgeB.boundingBox();
+  if (a === null || b === null) throw new Error("no box");
+  const sx = a.x + a.width / 2;
+  const sy = a.y + a.height / 2;
+  const ex = b.x + b.width / 2;
+  const ey = b.y + b.height / 2;
+
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: sx, y: sy, id: 1 }],
+  });
+  const steps = 8;
+  for (let i = 1; i <= steps; i += 1) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        {
+          x: sx + ((ex - sx) * i) / steps,
+          y: sy + ((ey - sy) * i) / steps,
+          id: 1,
+        },
+      ],
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  const byTouch = await newick.inputValue();
+
+  // Reset and take the keyboard path: the touch drop must land on the
+  // same move op, not a length pull on the captured node.
+  await newick.fill("(A:0.1,B:0.2,C:0.3);");
+  await newick.press("Enter");
+  await leafC.focus();
+  await page.keyboard.press("Enter");
+  await edgeB.focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("j");
+  await expect(newick).toHaveValue(byTouch);
+  await expect(newick).toHaveValue("(A:0.1,(B:0.1,C:0.3):0.1);");
+  await context.close();
+});
+
 test("the keyboard path covers join, detach and length nudges without a drag", async ({
   page,
 }) => {
@@ -262,6 +329,53 @@ test("dragging a branch end changes its length", async ({ page }) => {
   await expect(newick).not.toHaveValue("(A:0.1,B:0.2,C:0.3);");
   await expect(newick).toHaveValue(/C:0\.[0-9]/);
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("a keyboard-focused handle shows a visible focus ring", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const svg = CANVAS(page);
+  await expect(svg).toBeVisible();
+  await svg.focus();
+  // Tab into the canvas until a node or branch handle holds focus —
+  // real keyboard input, so :focus-visible applies on every engine.
+  let onHandle = await page.evaluate(
+    () =>
+      document.activeElement instanceof Element &&
+      document.activeElement.closest("[data-node],[data-edge]") !== null,
+  );
+  for (let i = 0; i < 24 && !onHandle; i += 1) {
+    await page.keyboard.press("Tab");
+    onHandle = await page.evaluate(
+      () =>
+        document.activeElement instanceof Element &&
+        document.activeElement.closest("[data-node],[data-edge]") !==
+          null,
+    );
+  }
+  expect(onHandle, "Tab reached a node or branch handle").toBe(true);
+
+  const ring = await page.evaluate(() => {
+    const el = document.activeElement;
+    if (!(el instanceof Element)) return null;
+    const ringEl = el.querySelector(".focus-ring");
+    if (ringEl === null) return null;
+    const cs = getComputedStyle(ringEl);
+    return {
+      focusVisible: el.matches(":focus-visible"),
+      stroke: cs.stroke,
+      strokeWidth: parseFloat(cs.strokeWidth),
+    };
+  });
+  expect(ring?.focusVisible, "the handle matches :focus-visible").toBe(
+    true,
+  );
+  expect(ring?.stroke, "the focus ring paints a stroke").not.toBe("none");
+  expect(
+    ring?.strokeWidth ?? 0,
+    "the focus ring is at least 2 px wide",
+  ).toBeGreaterThanOrEqual(2);
 });
 
 test("under (pointer: coarse) the canvas's node and branch hit targets are ≥40×40", async ({

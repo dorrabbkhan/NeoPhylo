@@ -2225,10 +2225,18 @@ button,
 .draw-canvas {
   display: block;
   color: var(--color-text);
+  /* A drag must never select the leaf labels as text. */
+  user-select: none;
+  /* A touch drag on a handle must not become a page pan — the browser
+   * would pointercancel it. On the svg itself because Chromium only
+   * honours touch-action on the outer svg element, not inner nodes. */
+  touch-action: none;
 }
 
 .draw-canvas .node-hit {
   cursor: grab;
+  /* For engines that honour touch-action on inner svg nodes. */
+  touch-action: none;
 }
 
 .draw-canvas .edge-hit {
@@ -2265,15 +2273,20 @@ button,
   border-radius: var(--radius-sm);
 }
 
-.draw-canvas .node-hit:focus-visible .node-dot {
-  stroke: var(--color-focus);
-  stroke-width: 2;
+/* Keyboard focus: a ring element around the node dot / the branch
+ * segment that only paints under :focus-visible — clearly visible and
+ * distinct from the purple "selected" state, so a selected AND
+ * focused handle shows both. */
+.draw-canvas .focus-ring {
+  fill: none;
+  stroke: none;
+  pointer-events: none;
 }
 
-.draw-canvas .edge-hit:focus-visible .edge-line {
+.draw-canvas .node-hit:focus-visible .focus-ring,
+.draw-canvas .edge-hit:focus-visible .focus-ring {
   stroke: var(--color-focus);
-  stroke-width: 3;
-  stroke-dasharray: 3 3;
+  stroke-width: 2.5;
 }
 
 .draw-canvas .node-hit[data-selected="true"] .node-dot {

@@ -6,9 +6,18 @@
 // the engine validates everything.
 
 import type { EditOp } from "../../editor/model";
+import type { NeoError } from "../../engine/generated/NeoError";
 import type { NodeId } from "../../engine/generated/NodeId";
 import type { Tree } from "../../engine/generated/Tree";
+import { errorMessage, type ErrorMessage } from "../../explain/errors";
 import { nodeName } from "../../state/names";
+
+/** One selection slot on the draw canvas: a node, or the incoming
+ * edge of a node. */
+export interface Sel {
+  kind: "node" | "edge";
+  id: NodeId;
+}
 
 /** Arrow-key nudge step in branch-length units. */
 export const LENGTH_STEP = 0.01;
@@ -84,6 +93,44 @@ export function moveOp(tree: Tree, node: NodeId, edgeChild: NodeId): EditOp {
     node,
     newParentEdge: edgeChild,
     lengths: [round6(l / 2), round6(own)],
+  };
+}
+
+/** What the user tried, in the names they see — an InvalidEdit
+ * refusal's title. Legality stays the engine's call; this is only
+ * the op's own target ids read back through the display helpers. */
+function opTitle(tree: Tree, op: EditOp): string {
+  switch (op.kind) {
+    case "detach":
+      return `Can't detach ${cladeName(tree, op.node)}`;
+    case "move":
+      return `Can't move ${cladeName(tree, op.node)} onto the branch to ${cladeName(tree, op.newParentEdge)}`;
+    case "join":
+      return `Can't join ${cladeName(tree, op.a)} and ${cladeName(tree, op.b)}`;
+    case "setLength":
+      return `Can't change the length of the branch to ${cladeName(tree, op.child)}`;
+    case "rename":
+      return `Can't rename ${cladeName(tree, op.leaf)}`;
+  }
+}
+
+/** A refusal shown on the canvas: the engine keeps the last word on
+ * legality, but its messages name arena ids an instructor never sees.
+ * The title says what was tried in tree terms; the body is the
+ * engine's reason with each `node <id>` shown as that node's clade
+ * name (an id that isn't in the arena is left as written). */
+export function refusalMessage(
+  tree: Tree,
+  op: EditOp,
+  e: NeoError,
+): ErrorMessage {
+  if (e.kind !== "InvalidEdit") return errorMessage(e);
+  return {
+    title: opTitle(tree, op),
+    body: e.msg.replace(/node (\d+)/g, (raw, digits: string) => {
+      const id = Number(digits);
+      return tree.nodes[id] === undefined ? raw : cladeName(tree, id);
+    }),
   };
 }
 

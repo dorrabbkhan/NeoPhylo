@@ -104,6 +104,35 @@ describe("DrawCanvas", () => {
     expect(model.tree).toBe(before);
   });
 
+  it("a refused detach names the taxon — no bare arena ids in the message", () => {
+    const model = renderCanvas("((A:0.1,B:0.2):0.05,C:0.3);");
+    const before = model.tree;
+    fireEvent.pointerDown(node("Leaf A"), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(node("Leaf A"), { clientX: 80, clientY: 500 });
+    fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
+    const alert = screen.getByRole("alert").textContent ?? "";
+    // The title says what was tried in tree terms; the engine's reason
+    // is the detail with `node <id>` shown as clade names.
+    expect(alert).toContain("Can't detach A");
+    expect(alert).toMatch(/fewer than two children/);
+    expect(alert).not.toMatch(/node \d/);
+    expect(model.tree).toBe(before);
+  });
+
+  it("a refused move names the dragged node and the target branch", () => {
+    const model = renderCanvas();
+    const before = model.tree;
+    // (D,E) cannot move under D — its own descendant. The refusal
+    // names the clades, not the arena ids.
+    fireEvent.pointerDown(node("Node u3 (D, E)"), { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(node("Node u3 (D, E)"), { clientX: 30, clientY: 30 });
+    fireEvent.pointerUp(edge("Branch to D"), { clientX: 30, clientY: 30 });
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toContain("Can't move (D, E) onto the branch to D");
+    expect(alert).toMatch(/descendant/i);
+    expect(model.tree).toBe(before);
+  });
+
   it("Escape cancels an in-progress drag", () => {
     const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
     const before = model.tree;

@@ -4462,17 +4462,31 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   validates every one.
 - **Selection is two slots** (FIFO eviction) so it can feed `J`;
   `Delete` and the arrow keys act on every selected item's edge.
-- **Drop resolution uses `e.target`, not coordinates** — no pointer
-  capture, so the element under the pointer at pointerup reports the
-  branch/node hit. Drag tracking lives in window listeners while a
-  drag is live so a drop outside the svg still resolves (the detach
-  gesture); Escape or pointercancel aborts.
+- **Drop resolution hit-tests `elementFromPoint`** — touch (and pen)
+  pointers implicitly capture to the pointerdown element, so
+  `e.target` on pointerup is always the dragged node for them;
+  `e.target` is the fallback only where no layout hit-test exists
+  (jsdom). Drag tracking lives in window listeners while a drag is
+  live so a drop outside the svg still resolves (the detach gesture);
+  Escape or pointercancel aborts. `touch-action: none` on the node
+  handles keeps a touch drag from becoming a page pan.
 - **Detached components draw below the main tree**, each laid out with
   the same `layout()` call on `{...tree, root}` — coordinates only, no
   structure decision in TS. Husks (parentless, childless, unlabeled
   arena slots left by a splice) are never drawn.
 - **Files outside the Files block:** `web/src/views/editor/drawOps.ts`
-  (pure gesture→op translation and aria-name helpers — keeps
-  DrawCanvas.tsx under the file-size rule); `web/src/index.css` (canvas
-  styles, tokens only — the codebase's one stylesheet);
-  `docs/decisions.md` (this entry).
+  (pure gesture→op translation, aria-name helpers and the refusal
+  text); `web/src/index.css` (canvas styles, tokens only — the
+  codebase's one stylesheet); `docs/decisions.md` (this entry).
+  **Fix round 1** added `web/src/views/editor/drawLayout.ts`
+  (geometry: pad constants and the per-component layout() loop),
+  `web/src/views/editor/useDrawDrag.ts` (the pointer-drag lifecycle
+  hook: drag state, window listeners, drop→op resolution) and
+  `web/src/views/editor/DrawTree.tsx` (the svg content component) —
+  the split that keeps DrawCanvas.tsx under the ~400-line rule.
+  Fix-round-1 behaviour changes: drop resolution hit-tests
+  `elementFromPoint` (touch pointers implicitly capture `e.target`),
+  `touch-action: none` + `user-select: none` on the canvas, refusals
+  present a readable title built from the op's own ids while keeping
+  the engine's reason as detail, and keyboard focus draws a dedicated
+  `.focus-ring` element instead of restyling the dot/line.
