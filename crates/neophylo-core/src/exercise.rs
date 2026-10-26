@@ -538,6 +538,9 @@ fn sim_model_name(m: &SimModel) -> &'static str {
         SimModel::Jc69 => "JC69",
         SimModel::K80 { .. } => "K80",
         SimModel::Jtt => "JTT",
+        // The JSON identifier (v1.4); `sim_spec` learns to parse it in
+        // the schema-3 task.
+        SimModel::F84 { .. } => "F84",
     }
 }
 

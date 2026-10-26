@@ -246,6 +246,9 @@ export function simModelName(m: SimModel): SimModelName {
     }
   }
   if ("K80" in m) return "K80";
+  // F84 has no menu name yet (the editor task adds it); refuse rather
+  // than guessing one.
+  if ("F84" in m) throw new Error("SimModel F84 has no SimModelName yet");
   const _exhaustive: never = m;
   throw new Error(`unhandled SimModel variant: ${JSON.stringify(_exhaustive)}`);
 }

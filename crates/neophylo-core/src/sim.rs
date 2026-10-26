@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::alphabet::{protein_index, Alphabet, PROTEIN_STATES};
+use crate::dist_phylip;
 use crate::error::NeoError;
 use crate::model::JTT;
 use crate::seq::Alignment;
@@ -52,6 +53,11 @@ pub enum SimModel {
     /// `JTT.freqs`, branch transitions from `JTT.transition_probs(t)`
     /// (v1.1 spec §3.5).
     Jtt,
+    /// F84 (v1.4 spec §3.5): dnadist's default model with
+    /// transition/transversion ratio `kappa` and caller-set base
+    /// frequencies in A, C, G, T order (default equal). Root draws and
+    /// stationary frequencies come from `base_freqs`.
+    F84 { kappa: f64, base_freqs: [f64; 4] },
 }
 
 /// What to simulate: model, site count and the RNG seed.
@@ -86,6 +92,32 @@ pub(crate) fn check_spec(spec: &SimSpec) -> Result<(), NeoError> {
             return Err(NeoError::InvalidExercise {
                 field: "sim.kappa".to_string(),
                 msg: "kappa must be positive".to_string(),
+            });
+        }
+    }
+    if let SimModel::F84 {
+        kappa, base_freqs, ..
+    } = spec.model
+    {
+        if !kappa.is_finite() || kappa <= 0.0 {
+            return Err(NeoError::InvalidExercise {
+                field: "sim.kappa".to_string(),
+                msg: "kappa must be positive and finite".to_string(),
+            });
+        }
+        for f in base_freqs {
+            if !f.is_finite() || f <= 0.0 {
+                return Err(NeoError::InvalidExercise {
+                    field: "sim.base_freqs".to_string(),
+                    msg: "base frequencies must be positive and finite".to_string(),
+                });
+            }
+        }
+        let sum: f64 = base_freqs.iter().sum();
+        if (sum - 1.0).abs() > 1e-6 {
+            return Err(NeoError::InvalidExercise {
+                field: "sim.base_freqs".to_string(),
+                msg: format!("base frequencies must sum to 1 within 1e-6, got {sum}"),
             });
         }
     }
@@ -124,14 +156,20 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
     let len = spec.length as usize;
     let mut seqs: Vec<Vec<u8>> = vec![Vec::new(); tree.nodes.len()];
 
-    // 1. The root sequence: `len` draws — uniform over A/C/G/T for the
-    //    DNA models, cumulative over `JTT.freqs` in PROTEIN_STATES order
-    //    for JTT (v1.1 spec §3.5).
+    // 1. The root sequence: `len` draws — uniform over A/C/G/T for
+    //    JC69/K80, cumulative over `base_freqs` in A/C/G/T order for
+    //    F84 (v1.4 spec §3.5), cumulative over `JTT.freqs` in
+    //    PROTEIN_STATES order for JTT (v1.1 spec §3.5).
     let mut root_seq = Vec::with_capacity(len);
     match spec.model {
         SimModel::Jtt => {
             for _ in 0..len {
                 root_seq.push(sample_aa(&JTT.freqs, uniform(&mut rng)));
+            }
+        }
+        SimModel::F84 { base_freqs, .. } => {
+            for _ in 0..len {
+                root_seq.push(sample_base(&base_freqs, uniform(&mut rng)));
             }
         }
         _ => {
@@ -189,6 +227,24 @@ fn evolve(parent: &[u8], d: f64, model: SimModel, rng: &mut ChaCha8Rng) -> Vec<u
             .map(|&b| mutate_protein(b, &p, uniform(rng)))
             .collect();
     }
+    // F84: the branch's two exponentials are likewise shared by all its
+    // sites (v1.4 spec §3.5).
+    if let SimModel::F84 {
+        kappa, base_freqs, ..
+    } = model
+    {
+        // `tt` is dnadist's time parameter: the branch length in
+        // expected substitutions per site divided by `fracchange`,
+        // exactly what `makev` scales back at the end of its solve.
+        let rp = dist_phylip::ratio_params(&base_freqs, kappa);
+        let tt = d / rp.fracchange;
+        let z1 = exp(-rp.xv * tt);
+        let z1zz = exp(-tt);
+        return parent
+            .iter()
+            .map(|&b| mutate_f84(b, &base_freqs, z1, z1zz, uniform(rng)))
+            .collect();
+    }
     parent
         .iter()
         .map(|&b| mutate(b, d, model, uniform(rng)))
@@ -209,6 +265,21 @@ fn sample_aa(probs: &[f64; 20], u: f64) -> u8 {
         }
     }
     PROTEIN_STATES[PROTEIN_STATES.len() - 1]
+}
+
+/// Draw one DNA base by cumulative comparison over `probs` in A/C/G/T
+/// order — the F84 root distribution (v1.4 spec §3.5). A draw landing
+/// past the last cumulative value (rounding) picks the final base
+/// rather than panicking.
+fn sample_base(probs: &[f64; 4], u: f64) -> u8 {
+    let mut cum = 0.0;
+    for (i, &p) in probs.iter().enumerate() {
+        cum += p;
+        if u < cum {
+            return BASES[i];
+        }
+    }
+    BASES[BASES.len() - 1]
 }
 
 /// One protein site on one branch: the outcome `u` lands in over the
@@ -256,6 +327,48 @@ fn outcomes(base: u8) -> [u8; 4] {
     ]
 }
 
+/// One F84 site on one branch (v1.4 spec §3.5). `z1 = e^(−xv·tt)` and
+/// `z1zz = e^(−tt)` are the branch's shared exponentials in dnadist's
+/// time parameter `tt = d/fracchange` — the same `tt` whose likelihood
+/// `makev` maximizes, so branch length `d` stays in expected
+/// substitutions per site. P(y|x) is `makev`'s pattern probability
+/// divided by πx:
+/// `πy·(1 − z1) + [same class]·(πy/fclass)·(z1 − z1zz) + δxy·z1zz`.
+/// The outcome order is the shared `[same, transition, transversions]`
+/// of `outcomes`, so draw consumption matches the other models.
+fn mutate_f84(base: u8, f: &[f64; 4], z1: f64, z1zz: f64, u: f64) -> u8 {
+    if !BASES.contains(&base) {
+        return base;
+    }
+    // Purines are A and G (indices 0 and 2), pyrimidines C and T.
+    let purine = matches!(base, b'A' | b'G');
+    let f_class = if purine { f[0] + f[2] } else { f[1] + f[3] };
+    let prob = |y: u8| -> f64 {
+        let (fy, same_class) = match y {
+            b'A' | b'G' => (f[if y == b'A' { 0 } else { 2 }], purine),
+            _ => (f[if y == b'C' { 1 } else { 3 }], !purine),
+        };
+        let mut q = fy * (1.0 - z1);
+        if same_class {
+            q += fy / f_class * (z1 - z1zz);
+        }
+        if y == base {
+            q += z1zz;
+        }
+        q
+    };
+    let outs = outcomes(base);
+    let probs = [prob(outs[0]), prob(outs[1]), prob(outs[2]), prob(outs[3])];
+    let mut cum = 0.0;
+    for (p, &t) in probs.iter().zip(outs.iter()) {
+        cum += p;
+        if u < cum {
+            return t;
+        }
+    }
+    outs[3]
+}
+
 /// One site on one branch: pick the outcome `u` lands in over the
 /// cumulative transition probabilities (spec §4.2). Bases outside
 /// A/C/G/T are never produced internally but are passed through
@@ -281,9 +394,9 @@ fn mutate(base: u8, d: f64, model: SimModel, u: f64) -> u8 {
             [1.0 - p_ti - 2.0 * p_tv, p_ti, p_tv, p_tv]
         }
         // Unreachable: `evolve` samples JTT branches through
-        // `mutate_protein` with a per-branch P(d). "Same" is the
-        // honest fallthrough.
-        SimModel::Jtt => [1.0, 0.0, 0.0, 0.0],
+        // `mutate_protein` with a per-branch P(d) and F84 branches
+        // through `mutate_f84`. "Same" is the honest fallthrough.
+        SimModel::Jtt | SimModel::F84 { .. } => [1.0, 0.0, 0.0, 0.0],
     };
     let outs = outcomes(base);
     let mut cum = 0.0;
