@@ -2159,7 +2159,7 @@ button,
   text-align: left;
   padding: var(--space-4) var(--space-8) var(--space-4) 0;
   border-bottom: 1px solid var(--color-border);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .branch-table th[scope="row"] {
@@ -2205,12 +2205,18 @@ button,
 }
 
 /* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
- * Constraints): the editor's text fields get the same floor as its
- * buttons. */
+ * Constraints): the editor's text fields and its "Back to NeoPhylo"
+ * link get the same floor as its buttons. */
 @media (pointer: coarse) {
   .editor-panel input,
   .editor-panel textarea {
     min-height: 40px;
     min-width: 40px;
+  }
+
+  .editor-home {
+    min-height: 40px;
+    min-width: 40px;
+    justify-content: center;
   }
 }

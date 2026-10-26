@@ -20,9 +20,23 @@ import type { EditorModel } from "../../editor/model";
 import { engine } from "../../engine/index";
 import type { NeoError } from "../../engine/generated/NeoError";
 import { errorMessage } from "../../explain/errors";
+import type { ErrorMessage } from "../../explain/errors";
 
 export interface NewickViewProps {
   model: EditorModel;
+}
+
+// A Newick-only field gets a Newick hint for syntax errors: the shared
+// `errorMessage` body points at FASTA records, which is meaningless
+// here. The engine's own detail (message + position) is kept verbatim;
+// every other refusal (duplicate name, missing length, unary node)
+// keeps the shared text.
+function newickErrorMessage(e: NeoError): ErrorMessage {
+  if (e.kind !== "Parse") return errorMessage(e);
+  return {
+    title: `Couldn't read line ${e.line}`,
+    body: `${e.msg} (line ${e.line}, column ${e.col}). Check that the brackets and commas pair up, each branch is written as "name:length", and the tree ends with ";".`,
+  };
 }
 
 export function NewickView({ model }: NewickViewProps) {
@@ -89,7 +103,7 @@ export function NewickView({ model }: NewickViewProps) {
     }
   };
 
-  const m = error === null ? null : errorMessage(error);
+  const m = error === null ? null : newickErrorMessage(error);
 
   return (
     <div className="editor-view newick-view">

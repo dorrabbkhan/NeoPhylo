@@ -86,13 +86,18 @@ describe("EditorPanel", () => {
     expect(newickBox().value).toBe("(A:0.1,B:0.9);");
   });
 
-  it("an invalid Newick shows the engine's message and keeps the last valid tree", () => {
+  it("an invalid Newick shows the engine's position detail, not a FASTA hint", () => {
     const model = renderPanel();
     const before = model.tree;
     fireEvent.change(newickBox(), { target: { value: "not a tree" } });
     fireEvent.blur(newickBox());
     const alert = screen.getByRole("alert");
+    // The engine's own detail comes through verbatim — `expected ';'
+    // (line 1, column 5)` — with a Newick hint, never the shared
+    // message's FASTA one (meaningless in a Newick-only field).
     expect(alert.textContent).toContain("expected");
+    expect(alert.textContent).toMatch(/\(line 1, column \d+\)/);
+    expect(alert.textContent).not.toContain("FASTA");
     // The model is untouched: same tree object, table still shows A and B.
     expect(model.tree).toBe(before);
     expect(branchInput("A").value).toBe("0.1");
@@ -106,14 +111,16 @@ describe("EditorPanel", () => {
     const model = renderPanel();
     const before = model.tree;
     fireEvent.change(newickBox(), {
-      target: { value: "(A:0.1,A:0.2,B:0.3);" },
+      target: { value: "(Homo:0.1,Homo:0.2,Pan:0.3);" },
     });
     fireEvent.keyDown(newickBox(), { key: "Enter" });
     const alert = screen.getByRole("alert");
-    expect(alert.textContent).toContain("A");
+    // The engine quotes the offending name: `duplicate taxon name
+    // 'Homo'` — a bare letter would pass on almost any message.
+    expect(alert.textContent).toContain("'Homo'");
     expect(alert.textContent).toMatch(/duplicate/i);
     expect(model.tree).toBe(before);
-    expect(newickBox().value).toBe("(A:0.1,A:0.2,B:0.3);");
+    expect(newickBox().value).toBe("(Homo:0.1,Homo:0.2,Pan:0.3);");
   });
 
   it("a negative length is refused with the reason, tree unchanged", () => {
@@ -134,6 +141,23 @@ describe("EditorPanel", () => {
     expect(screen.getByRole("alert")).toBeTruthy();
     expect(model.tree).toBe(before);
   });
+
+  it.each(["0x10", "0b1", "1e400"])(
+    'a length of "%s" is not plain decimal — refused, tree unchanged',
+    (typed) => {
+      const model = renderPanel();
+      const before = model.tree;
+      fireEvent.change(branchInput("B"), { target: { value: typed } });
+      fireEvent.keyDown(branchInput("B"), { key: "Enter" });
+      // Hex/binary fail the decimal syntax check; 1e400 parses but is
+      // non-finite — both get the "is not a number" refusal.
+      expect(screen.getByRole("alert").textContent).toContain(
+        "is not a number",
+      );
+      expect(model.tree).toBe(before);
+      expect(newickBox().value).toBe("(A:0.1,B:0.2);");
+    },
+  );
 
   it("a fresh valid Newick clears an earlier parse error", () => {
     renderPanel();

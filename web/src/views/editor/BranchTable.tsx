@@ -68,6 +68,11 @@ function leafList(tree: Tree, id: NodeId): string {
   return names.join(", ");
 }
 
+// Plain decimal or scientific notation only — `Number()` also accepts
+// hex ("0x10"), binary ("0b1") and octal-style strings, which the field
+// must refuse.
+const LENGTH_TEXT = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+
 function BranchRow({
   model,
   row,
@@ -93,11 +98,11 @@ function BranchRow({
 
   const commit = () => {
     const t = value.trim();
-    const v = Number(t);
     if (t === "") {
       setError("Enter a branch length.");
       return;
     }
+    const v = LENGTH_TEXT.test(t) ? Number(t) : NaN;
     if (!Number.isFinite(v)) {
       setError(`"${t}" is not a number.`);
       return;

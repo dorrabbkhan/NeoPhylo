@@ -72,6 +72,37 @@ test("a duplicate taxon name is refused with the name in the message", async ({
   await expect(alert).toContainText(/duplicate/i);
 });
 
+test('under (pointer: coarse) the "Back to NeoPhylo" link is ≥40×40', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+  const home = page.getByRole("link", { name: "Back to NeoPhylo" });
+  await expect(home).toBeVisible();
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  const box = await home.boundingBox();
+  if (box === null) throw new Error("the home link has no bounding box");
+  expect(
+    box.width,
+    `the home link is at least 40 px wide (got ${box.width}×${box.height})`,
+  ).toBeGreaterThanOrEqual(40);
+  expect(
+    box.height,
+    `the home link is at least 40 px tall (got ${box.width}×${box.height})`,
+  ).toBeGreaterThanOrEqual(40);
+  await context.close();
+});
+
 test("axe: the editor page has no serious violations", async ({ page }) => {
   await page.goto("/?editor");
   await expect(NEWICK(page)).toBeVisible();
