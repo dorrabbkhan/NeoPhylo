@@ -32,8 +32,13 @@ use crate::sim::{check_branch_lengths, check_spec, SimModel, SimSpec};
 /// Exercise-level site cap (spec §4.2): files allow `10..=10_000`.
 const MAX_EXERCISE_LEN: u32 = 10_000;
 
-/// A parsed, validated exercise (v1.1 spec §3.6). Always normalized to
-/// the v2 shape; `schema_version` reports the current version (2).
+/// The schema version every writer emits (v1.4 spec §4; Task 7's
+/// editor save). `load_exercise` accepts 1, 2 and 3.
+pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+
+/// A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4). Always
+/// normalized to the v2-or-later shape; `schema_version` reports 2 for
+/// v1 and v2 files and 3 for v3 files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Exercise {
@@ -110,6 +115,14 @@ pub struct Reference {
 pub struct Analysis {
     pub correction: DistModel,
     pub method: Method,
+    /// v1.4 spec §4: the transition/transversion ratio for
+    /// `K2P_PHYLIP`; always `Some` then (default 2.0 when the file
+    /// omits it) and `None` for every other correction — F84 uses
+    /// dnadist's fixed 2.0, so a stray kappa would mislead. Omitted
+    /// from the wire shape so v2 exercises serialize unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub kappa: Option<f64>,
 }
 
 /// What a prompt asks for at a join step.
@@ -184,8 +197,9 @@ pub struct Prompt {
     pub after: Option<NoteAfter>,
 }
 
-/// Parse and validate an exercise file. `schema_version` must be 1 or 2;
-/// v1 files are migrated to the v2 `Exercise` shape (v1.1 spec §3.6).
+/// Parse and validate an exercise file. `schema_version` must be 1, 2
+/// or 3; v1 files are migrated to the v2 `Exercise` shape (v1.1 spec
+/// §3.6) and v3 files follow the v2 rules plus the v1.4 fields (§4).
 /// `sim.length` is capped at `10_000` on top of the engine-level
 /// `SimSpec` checks.
 pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
@@ -196,10 +210,23 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
 
     match f.schema_version {
         1 => load_v1(f),
-        2 => load_v2(f),
+        2 => load_v2(f, 2),
+        3 => {
+            // A v3 file uses the v2 shape; a flat v1 body claiming 3 is
+            // a version mismatch, so the refusal names schema_version
+            // rather than a missing `alphabet`.
+            if f.data.is_none() && (f.true_tree.is_some() || f.sim.is_some()) {
+                Err(bad(
+                    "schema_version",
+                    "a file in the v1 shape must declare schema_version 1",
+                ))
+            } else {
+                load_v2(f, 3)
+            }
+        }
         v => Err(bad(
             "schema_version",
-            &format!("schema_version must be 1 or 2, got {v}"),
+            &format!("schema_version must be 1, 2 or 3, got {v}"),
         )),
     }
 }
@@ -214,7 +241,7 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
     let sim = f
         .sim
         .ok_or_else(|| bad("sim", "required for schema_version 1"))?;
-    let sim = checked_sim(&sim)?;
+    let sim = checked_sim(&sim, 1)?;
     // v1 exercises are always DNA; reject protein-only models at load
     // rather than leaving them to fail downstream.
     if matches!(sim.model, SimModel::Jtt) {
@@ -223,7 +250,7 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
             alphabet: Alphabet::Dna,
         });
     }
-    let analysis = analysis(&f.analysis)?;
+    let analysis = analysis(&f.analysis, 1)?;
     if !analysis.correction.supports(Alphabet::Dna) {
         return Err(NeoError::ModelAlphabetMismatch {
             model: analysis.correction.name().to_string(),
@@ -257,27 +284,36 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
     })
 }
 
-/// A v2 file: declared `alphabet`, `data.kind` choosing simulated vs
-/// embedded, and an optional `reference`.
-fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
+/// A v2 or v3 file: declared `alphabet`, `data.kind` choosing
+/// simulated vs embedded, and an optional `reference`. `v` is the
+/// declared version — v3 additionally accepts the v1.4 fields
+/// (`analysis.kappa`, `sim.base_freqs`, the F84 and K2P_PHYLIP
+/// identifiers); in a v2 file those are refused with a message naming
+/// the required version.
+fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
     let alphabet = match f.alphabet.as_deref() {
         Some("dna") => Alphabet::Dna,
         Some("protein") => Alphabet::Protein,
         Some(other) => {
             return Err(bad("alphabet", &format!("unknown alphabet '{other}'")));
         }
-        None => return Err(bad("alphabet", "alphabet is required for schema_version 2")),
+        None => {
+            return Err(bad(
+                "alphabet",
+                &format!("alphabet is required for schema_version {v}"),
+            ))
+        }
     };
     let data = f
         .data
-        .ok_or_else(|| bad("data", "data is required for schema_version 2"))?;
-    let analysis = analysis(&f.analysis)?;
+        .ok_or_else(|| bad("data", &format!("data is required for schema_version {v}")))?;
+    let analysis = analysis(&f.analysis, v)?;
 
     // Per-kind validation; `labels` are the alignment's leaf labels,
     // which the reference tree must match.
     let (data, labels) = match data {
         DataFile::Simulated { true_tree, sim } => {
-            let sim = checked_sim(&sim)?;
+            let sim = checked_sim(&sim, v)?;
             let sim_alphabet = match sim.model {
                 SimModel::Jtt => Alphabet::Protein,
                 _ => Alphabet::Dna,
@@ -319,7 +355,7 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
     let bootstrap = bootstrap(f.bootstrap)?;
 
     Ok(Exercise {
-        schema_version: 2,
+        schema_version: v,
         id: f.id,
         title: f.title,
         alphabet,
@@ -334,8 +370,8 @@ fn load_v2(f: ExerciseFile) -> Result<Exercise, NeoError> {
 
 /// Convert and validate a file `sim` block: `SimSpec` checks plus the
 /// exercise-level `10_000`-site cap.
-fn checked_sim(f: &SimFile) -> Result<SimSpec, NeoError> {
-    let sim = sim_spec(f)?;
+fn checked_sim(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
+    let sim = sim_spec(f, v)?;
     check_spec(&sim)?;
     if sim.length > MAX_EXERCISE_LEN {
         return Err(bad("sim.length", "length must be at most 10000"));
@@ -343,11 +379,33 @@ fn checked_sim(f: &SimFile) -> Result<SimSpec, NeoError> {
     Ok(sim)
 }
 
-/// The serde mirror of the `sim` object: `model` is a string and `kappa`
-/// rides along only for `"K80"`.
-fn sim_spec(f: &SimFile) -> Result<SimSpec, NeoError> {
+/// The serde mirror of the `sim` object: `model` is a string, `kappa`
+/// rides along for `"K80"` and `"F84"`, and `base_freqs` is the v3-only
+/// `{ "A", "C", "G", "T" }` object for `"F84"` (v1.4 spec §4).
+fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
     let length = u32::try_from(f.length)
         .map_err(|_| bad("sim.length", "length must be a non-negative integer"))?;
+    // `base_freqs` keeps absent, explicit `null` and a value distinct:
+    // presence alone trips the version gate (schema.json counts a null
+    // key as present), and a non-null value must be the {A, C, G, T}
+    // object — never null, and never the array serde would otherwise
+    // read into the struct.
+    let base_freqs = match &f.base_freqs {
+        None => None,
+        Some(_) if v < 3 => {
+            return Err(bad(
+                "sim.base_freqs",
+                "sim.base_freqs requires schema_version 3",
+            ));
+        }
+        Some(None) => {
+            return Err(bad(
+                "sim.base_freqs",
+                "base_freqs must be an object with A, C, G and T, not null",
+            ));
+        }
+        Some(Some(raw)) => Some(base_freqs(raw)?),
+    };
     let model = match f.model.as_str() {
         "JC69" => SimModel::Jc69,
         "K80" => SimModel::K80 {
@@ -356,8 +414,25 @@ fn sim_spec(f: &SimFile) -> Result<SimSpec, NeoError> {
                 .ok_or_else(|| bad("sim.kappa", "kappa is required for K80"))?,
         },
         "JTT" => SimModel::Jtt,
+        "F84" => {
+            if v < 3 {
+                return Err(bad(
+                    "sim.model",
+                    "sim.model 'F84' requires schema_version 3",
+                ));
+            }
+            SimModel::F84 {
+                kappa: f
+                    .kappa
+                    .ok_or_else(|| bad("sim.kappa", "kappa is required for F84"))?,
+                base_freqs: base_freqs.unwrap_or([0.25; 4]),
+            }
+        }
         other => return Err(bad("sim.model", &format!("unknown model '{other}'"))),
     };
+    if base_freqs.is_some() && !matches!(model, SimModel::F84 { .. }) {
+        return Err(bad("sim.base_freqs", "base_freqs applies only to F84"));
+    }
     Ok(SimSpec {
         model,
         length,
@@ -365,28 +440,70 @@ fn sim_spec(f: &SimFile) -> Result<SimSpec, NeoError> {
     })
 }
 
-/// The serde mirror of the `analysis` object (v1.1 spec §3.6):
-/// `"correction": "p"|"JC69"|"K80"|"Kimura"|"JTT"`.
-fn analysis(f: &AnalysisFile) -> Result<Analysis, NeoError> {
+/// The serde mirror of the `analysis` object (v1.1 spec §3.6, v1.4
+/// spec §4): `"correction": "p"|"JC69"|"K80"|"Kimura"|"JTT"|"F84"|
+/// "K2P_PHYLIP"`, the last two v3-only, with `kappa` the K2P_PHYLIP
+/// transition/transversion ratio (default 2.0).
+fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
+    // v3-only fields and identifiers are refused at their own path in
+    // older files so an editor never silently accepts them. Presence
+    // counts even for an explicit `null`: schema.json has no nullable
+    // kappa, so `"kappa": null` must not read as "absent".
+    if v < 3 {
+        if f.kappa.is_some() {
+            return Err(bad(
+                "analysis.kappa",
+                "analysis.kappa requires schema_version 3",
+            ));
+        }
+        if matches!(f.correction.as_str(), "F84" | "K2P_PHYLIP") {
+            return Err(bad(
+                "analysis.correction",
+                &format!("'{}' requires schema_version 3", f.correction),
+            ));
+        }
+    }
+    let file_kappa = match f.kappa {
+        Some(None) => {
+            return Err(bad("analysis.kappa", "kappa must be a number, not null"));
+        }
+        Some(Some(k)) => Some(k),
+        None => None,
+    };
+    if let Some(k) = file_kappa {
+        if !k.is_finite() || k <= 0.0 {
+            return Err(bad("analysis.kappa", "kappa must be positive and finite"));
+        }
+    }
+    let (correction, kappa) = match f.correction.as_str() {
+        "p" => (DistModel::P, None),
+        "JC69" => (DistModel::Jc69, None),
+        "K80" => (DistModel::K80, None),
+        "Kimura" => (DistModel::Kimura, None),
+        "JTT" => (DistModel::Jtt, None),
+        "F84" => (DistModel::F84, None),
+        "K2P_PHYLIP" => {
+            let k = file_kappa.unwrap_or(2.0);
+            (DistModel::K2pPhylip { ratio: k }, Some(k))
+        }
+        other => {
+            return Err(bad(
+                "analysis.correction",
+                &format!("unknown correction '{other}'"),
+            ))
+        }
+    };
+    if kappa.is_none() && file_kappa.is_some() {
+        return Err(bad("analysis.kappa", "kappa applies only to K2P_PHYLIP"));
+    }
     Ok(Analysis {
-        correction: match f.correction.as_str() {
-            "p" => DistModel::P,
-            "JC69" => DistModel::Jc69,
-            "K80" => DistModel::K80,
-            "Kimura" => DistModel::Kimura,
-            "JTT" => DistModel::Jtt,
-            other => {
-                return Err(bad(
-                    "analysis.correction",
-                    &format!("unknown correction '{other}'"),
-                ))
-            }
-        },
+        correction,
         method: match f.method.as_str() {
             "NJ" => Method::Nj,
             "UPGMA" => Method::Upgma,
             other => return Err(bad("analysis.method", &format!("unknown method '{other}'"))),
         },
+        kappa,
     })
 }
 
@@ -538,8 +655,6 @@ fn sim_model_name(m: &SimModel) -> &'static str {
         SimModel::Jc69 => "JC69",
         SimModel::K80 { .. } => "K80",
         SimModel::Jtt => "JTT",
-        // The JSON identifier (v1.4); `sim_spec` learns to parse it in
-        // the schema-3 task.
         SimModel::F84 { .. } => "F84",
     }
 }
@@ -549,6 +664,19 @@ fn bad(field: &str, msg: &str) -> NeoError {
         field: field.to_string(),
         msg: msg.to_string(),
     }
+}
+
+/// `deserialize_with` for `Option<Option<T>>` fields: absent gives
+/// `None` (via `#[serde(default)]`), an explicit `null` gives
+/// `Some(None)` and a value `Some(Some(_))` — so the v3-only keys can
+/// refuse a present `null` the way schema.json does instead of reading
+/// it as absent.
+fn present<'de, D, T>(d: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(d).map(Some)
 }
 
 /// serde_json reports missing fields as "missing field `x`"; lift `x`
@@ -614,16 +742,70 @@ struct SimFile {
     model: String,
     #[serde(default)]
     kappa: Option<f64>,
+    /// v1.4 spec §4: F84's instructor-set base frequencies; all four
+    /// keys are required when the object is present. Kept as a raw
+    /// value so an explicit `null` (`Some(None)`) or a non-object can
+    /// be refused the way schema.json refuses them.
+    #[serde(default, deserialize_with = "present")]
+    base_freqs: Option<Option<serde_json::Value>>,
     /// `i64` so negative or oversized values reach the range check and
     /// report `field: "sim.length"` instead of a generic JSON error.
     length: i64,
     seed: u64,
 }
 
+/// Convert a raw `sim.base_freqs` value to `[A, C, G, T]`. Only the
+/// JSON object is accepted — serde would also read a 4-element array
+/// into `BaseFreqsFile`, which schema.json refuses.
+fn base_freqs(raw: &serde_json::Value) -> Result<[f64; 4], NeoError> {
+    if !raw.is_object() {
+        return Err(bad(
+            "sim.base_freqs",
+            "base_freqs must be an object with A, C, G and T",
+        ));
+    }
+    let f: BaseFreqsFile =
+        serde_json::from_value(raw.clone()).map_err(|e| bad("sim.base_freqs", &e.to_string()))?;
+    f.array()
+}
+
+/// The serde mirror of `sim.base_freqs` (v1.4 spec §4): Option fields
+/// so a missing key reports `sim.base_freqs` instead of a bare serde
+/// error. Positivity and the sum-to-1 rule are engine checks in
+/// `check_spec`.
+#[derive(Deserialize)]
+struct BaseFreqsFile {
+    #[serde(rename = "A")]
+    a: Option<f64>,
+    #[serde(rename = "C")]
+    c: Option<f64>,
+    #[serde(rename = "G")]
+    g: Option<f64>,
+    #[serde(rename = "T")]
+    t: Option<f64>,
+}
+
+impl BaseFreqsFile {
+    /// The `[A, C, G, T]` array the engine expects; the object is
+    /// all-or-nothing (equal frequencies are the absent-key default).
+    fn array(&self) -> Result<[f64; 4], NeoError> {
+        match (self.a, self.c, self.g, self.t) {
+            (Some(a), Some(c), Some(g), Some(t)) => Ok([a, c, g, t]),
+            _ => Err(bad("sim.base_freqs", "base_freqs requires A, C, G and T")),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct AnalysisFile {
     correction: String,
     method: String,
+    /// v1.4 spec §4: the K2P_PHYLIP ratio; presence is checked against
+    /// `correction` and `schema_version` in `analysis`. `Option<Option>`
+    /// keeps an explicit `null` (`Some(None)`) distinct from absent —
+    /// a present null is refused, matching schema.json.
+    #[serde(default, deserialize_with = "present")]
+    kappa: Option<Option<f64>>,
 }
 
 /// The serde mirror of the `bootstrap` block: `f64` so a negative or

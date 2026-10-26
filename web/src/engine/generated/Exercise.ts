@@ -7,8 +7,9 @@ import type { Prompt } from "./Prompt";
 import type { Reference } from "./Reference";
 
 /**
- * A parsed, validated exercise (v1.1 spec §3.6). Always normalized to
- * the v2 shape; `schema_version` reports the current version (2).
+ * A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4). Always
+ * normalized to the v2-or-later shape; `schema_version` reports 2 for
+ * v1 and v2 files and 3 for v3 files.
  */
 export type Exercise = { schema_version: number, id: string, title: string, alphabet: Alphabet, data: ExerciseData, reference: Reference | null, analysis: Analysis, locked: Array<string>, prompts: Array<Prompt>, 
 /**
