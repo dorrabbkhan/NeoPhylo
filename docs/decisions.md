@@ -4135,3 +4135,39 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   any existing model; the menu does not offer the new models until
   Task 10); `docs/conductor/notes/v1.4/task10.md` (conductor note
   carrying the owner's decision to Task 10).
+
+## v1.4 Task 3: dnadist F84 and K2P fixtures and parity
+
+- **Inputs:** all four gap-free committed inputs (jc6, jc7_long, jc12,
+  k80_10) feed the new fixtures — the note's "at least jc6 and k80_10,
+  more if easy". jc8_gaps is excluded (its `-`/`N`s are a different
+  code path, not gap-free).
+- **Menu keystrokes (3.697, read off the menu):** F84 is `Y` alone —
+  F84, T 2.0 and F (empirical frequencies) are the shipped defaults.
+  Kimura 2-parameter is `D` once (F leaves the menu → equal
+  frequencies), then `T` `<ratio>` `Y`. Runs committed at T 2.0 and 4.0.
+- **Fixture shape:** mirrors `ref/*_phylip.json` minus trees, plus a
+  `model` field naming the `DistModel` replayed; the k2p `distances`
+  keys are the literal ratio (`"2.0"`, `"4.0"`) so the parity test
+  parses them into `K2pPhylip { ratio }`. `precision` is 6 — counted on
+  dnadist's raw outfile text (`output_matrix_d` `%*.6f`), not on R's
+  re-printed numbers where trailing zeros collapse.
+- **Files outside the Files block:** `fixtures/README.md` (the
+  precision/version note the task's step 1 requires, plus layout and
+  regenerating lines for the new `phylip/` directory).
+- **Fixture-guard conflict (owner decision needed):** the task requires
+  modifying `fixtures/generate_phylip.sh` and `fixtures/README.md` *and*
+  adding `crates/neophylo-core/tests/parity_phylip_v14.rs` in one PR.
+  `scripts/ci/fixture-guard.sh` diffs the whole PR (base..HEAD), treats
+  any modification under `fixtures/` as a fixture change and fails when
+  `crates/` also changed — so this PR cannot go green as specified even
+  though the commits are split fixtures-first as instructed. Options:
+  (a) make the guard per-commit (its own comment already says "in the
+  same commit as code"); (b) land the parity test in the next engine
+  PR; (c) owner override. Recommendation: (a) — it matches the guard's
+  documented contract and keeps this task self-contained.
+- **Local check status:** fmt/clippy/`cargo test -p neophylo-core` green
+  (parity tests pass at 0.5e-6). `scripts/ci/wasm.sh` cannot run in this
+  sandbox (`cargo install wasm-bindgen` needs a temp dir outside the
+  writable scope); the wasm pkg is unaffected — this task adds a test
+  file only, and `git diff web/src/engine/generated` is empty.

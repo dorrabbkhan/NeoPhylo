@@ -31,7 +31,22 @@ see `AGENTS.md` for the rules.
 "JTT")` and `ape::dist.aa(pairwise.deletion = TRUE, scaled = TRUE)`
   rounded to 8 decimals (dist.ml is an iterative optimizer; the last
   ~1e-14 differs between BLAS/R builds) — a cross-check, not a gate.
+- `phylip/f84/<name>.json` and `phylip/k2p/<name>.json` — PHYLIP
+  `dnadist` F84 (its default model, T = 2.0, empirical frequencies) and
+  "Kimura 2-parameter" at T = 2.0 and 4.0, on every gap-free input
+  (`jc6`, `jc7_long`, `jc12`, `k80_10`). Same shape as `ref/*_phylip.json`
+  minus the trees; `model` names the `DistModel` replayed and the k2p
+  `distances` keys are the ratio handed to `K2pPhylip { ratio }`.
+  `precision` is dnadist's printed precision (6 decimals,
+  `output_matrix_d` `%*.6f`), so compare within `0.5e-6`. They live in
+  their own directory because the corpus test flat-globs `ref/*.json`;
+  `tests/parity_phylip_v14.rs` owns them. A `-1.000000` cell is
+  dnadist's inestimable marker (`Cell::Saturated` in the engine).
 - `worked/*.json` — hand-entered textbook step traces (see below).
+- `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
+  3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed
+  precision, and the two-sequence worked example behind the inline
+  values in `tests/dist_v14.rs`.
 - `worked/protdist_doc_jtt.json` — the 5-sequence test data from PHYLIP's
   `protdist` documentation read as protein, with the published JTT matrix
   (6 decimals). `{"labels", "sequences", "alphabet": "protein", "jtt"}`.
@@ -90,8 +105,9 @@ Per-step textbook traces, same field names as `NjStep`/`UpgmaStep`
 
 ```sh
 python3 fixtures/make_protein_inputs.py  # regenerate inputs/protein/*.fasta
-bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json
-                                         #   then consense -> consensus/*.json + worked/consensus_hand.json
+bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json,
+                                         #   phylip/{f84,k2p}/*.json; then consense -> consensus/*.json
+                                         #   + worked/consensus_hand.json
 Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json;
                                          #   tree sets + prop_clades -> consensus/*.json
 ```
@@ -113,8 +129,12 @@ committed.
 ## Tool versions used
 
 ape 5.8.1, phangorn 2.12.1, jsonlite 2.0.0 on R 4.5.2; PHYLIP 3.697
-(`dnadist` JC69 via `D D`, Kimura 2-parameter via `D`; `protdist` JTT by
+(`dnadist` JC69 via `D D`, Kimura 2-parameter via `D`, F84 via `Y` —
+F84, T 2.0 and empirical frequencies are the shipped defaults — and
+Kimura at a chosen ratio via `D T <r> Y`; `protdist` JTT by
 default, Kimura after 3 `P` toggles — the count is read off the menu each
 run; `neighbor` NJ default, `N` toggles UPGMA; `consense` extended
 majority by default, strict after one `C`, plain majority rule after two
 — toggles are read off the menu each run — `R` for rooted sets).
+`dnadist`/`neighbor`/`protdist`/`consense` all report version 3.697;
+`dnadist` prints distances to 6 decimals (`output_matrix_d` `%*.6f`).

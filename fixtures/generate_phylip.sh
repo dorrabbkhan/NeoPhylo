@@ -23,6 +23,13 @@
 # and extended-majority runs plus the group tables) merged in by
 # fixtures/generate_consensus.sh, invoked at the end of this script.
 #
+# v1.4 path: dnadist's two ML distances — F84 (its default model) and
+# "Kimura 2-parameter" at a preset T ratio — on every gap-free input,
+# parsed into phylip/f84/<name>.json and phylip/k2p/<name>.json. These
+# live outside ref/ because the corpus test flat-globs ref/*.json and
+# replays every `distances` key against a DistModel of the same name;
+# the v1.4 parity test (tests/parity_phylip_v14.rs) owns these files.
+#
 # Usage: bash fixtures/generate_phylip.sh   (from anywhere)
 # Requires: dnadist, protdist, neighbor + consense (on PATH or
 # /usr/lib/phylip/bin), Rscript with jsonlite + ape.
@@ -246,6 +253,104 @@ dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
 writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA, pretty = TRUE), out)
 cat(sprintf("protein_%s: %d taxa, precision %d -> %s\n",
             name, length(d_jtt$labels), prec, out))
+RS
+done
+
+# --- v1.4: dnadist F84 and Kimura 2-parameter parity fixtures --------------
+# Menu keystrokes for PHYLIP 3.697 (read off the menu, not assumed):
+#   F84:            'Y'              — F84 is the default model, T=2.0
+#                                    and F=Yes (empirical frequencies)
+#                                    are the defaults dnadist ships.
+#   Kimura r:       'D' 'T' r 'Y'    — one 'D' toggles F84 -> "Kimura
+#                                    2-parameter" (the F option leaves
+#                                    the menu: equal frequencies); 'T'
+#                                    prompts for the ratio.
+# dnadist prints six decimals; the run for ratio 2.0 is committed even
+# though it duplicates the engine's default so the parity test also
+# exercises the K2P parameter at 4.0.
+
+V14_INPUTS="jc6 jc7_long jc12 k80_10"   # every gap-free committed input
+
+for name in $V14_INPUTS; do
+  fasta_to_phylip "$FIXDIR/inputs/$name.fasta"
+
+  rm -f outfile; printf 'Y\n' | timeout 120 "$DNADIST" > phylip.log 2>&1
+  [ -f outfile ] || { cat phylip.log; echo "dnadist F84 produced no outfile" >&2; exit 1; }
+  cp outfile "mat_${name}_f84.txt"
+  [ -n "$VER" ] || VER="$(grep -o 'version [0-9.]*' phylip.log | head -1 | awk '{print $2}')"
+
+  for ratio in 2.0 4.0; do
+    rm -f outfile
+    printf 'D\nT\n%s\nY\n' "$ratio" | timeout 120 "$DNADIST" > phylip.log 2>&1
+    [ -f outfile ] || { cat phylip.log; echo "dnadist Kimura T=$ratio produced no outfile" >&2; exit 1; }
+    cp outfile "mat_${name}_k2p_${ratio}.txt"
+  done
+
+  FIXDIR="$FIXDIR" NAME="$name" GEN="phylip $VER" Rscript - <<'RS'
+suppressPackageStartupMessages(library(jsonlite))
+name <- Sys.getenv("NAME"); fixdir <- Sys.getenv("FIXDIR")
+
+parse_dnadist <- function(path) {
+  lines <- readLines(path); lines <- lines[nzchar(trimws(lines))]
+  n <- as.integer(trimws(lines[1]))
+  labels <- character(n); vals <- vector("list", n); row <- 0
+  for (ln in lines[-1]) {
+    if (substr(ln, 1, 1) == " ") {
+      vals[[row]] <- c(vals[[row]], scan(text = ln, quiet = TRUE))
+    } else {
+      row <- row + 1
+      labels[row] <- trimws(substr(ln, 1, 10))
+      vals[[row]] <- scan(text = substring(ln, 11), quiet = TRUE)
+    }
+  }
+  stopifnot(row == n, all(lengths(vals) == n))
+  list(labels = labels, m = do.call(rbind, vals))
+}
+
+decimals <- function(txt, pat) {
+  m <- regmatches(txt, gregexpr(pat, txt))[[1]]
+  min(nchar(sub(".*\\.", "", m)))
+}
+
+d_f84 <- parse_dnadist(paste0("mat_", name, "_f84.txt"))
+d_k2 <- parse_dnadist(paste0("mat_", name, "_k2p_2.0.txt"))
+d_k4 <- parse_dnadist(paste0("mat_", name, "_k2p_4.0.txt"))
+stopifnot(identical(d_f84$labels, d_k2$labels),
+          identical(d_k2$labels, d_k4$labels))
+
+# Printed decimals are counted on dnadist's raw outfile text (every cell
+# is %9.6f), not on R's re-printed numbers, where trailing zeros vanish.
+prec <- min(
+  decimals(paste(readLines(paste0("mat_", name, "_f84.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+"),
+  decimals(paste(readLines(paste0("mat_", name, "_k2p_2.0.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+"),
+  decimals(paste(readLines(paste0("mat_", name, "_k2p_4.0.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+")
+)
+
+# Same shape as ref/*_phylip.json minus trees; `model` names the
+# DistModel the parity test replays and the k2p `distances` keys are
+# the T ratio handed to K2pPhylip { ratio }.
+shared <- list(
+  generator = Sys.getenv("GEN"),
+  labels = d_f84$labels,
+  input = file.path("inputs", paste0(name, ".fasta")),
+  precision = prec
+)
+f84 <- c(list(name = paste0(name, "_f84_phylip"), model = "F84"), shared,
+         list(distances = list(F84 = unname(d_f84$m))))
+k2p <- c(list(name = paste0(name, "_k2p_phylip"), model = "K2P_PHYLIP"), shared,
+         list(distances = list("2.0" = unname(d_k2$m), "4.0" = unname(d_k4$m))))
+
+out_f84 <- file.path(fixdir, "phylip", "f84", paste0(name, ".json"))
+out_k2p <- file.path(fixdir, "phylip", "k2p", paste0(name, ".json"))
+dir.create(dirname(out_f84), showWarnings = FALSE, recursive = TRUE)
+dir.create(dirname(out_k2p), showWarnings = FALSE, recursive = TRUE)
+writeLines(toJSON(f84, auto_unbox = TRUE, digits = NA, pretty = TRUE), out_f84)
+writeLines(toJSON(k2p, auto_unbox = TRUE, digits = NA, pretty = TRUE), out_k2p)
+cat(sprintf("%s: F84 + K2P(2.0,4.0), %d taxa, precision %d\n",
+            name, length(d_f84$labels), prec))
 RS
 done
 
