@@ -31,7 +31,14 @@ fn grow_tree(n: usize, picks: &[u32], lens: &[f64]) -> Tree {
             j += 1;
         }
         let (i, j) = (i.min(j), i.max(j));
+        // Some internal nodes carry a label: a spliced-out labelled
+        // parent must not keep it, or the husk could graft back as a
+        // phantom taxon.
         let u = tree.add_node(None);
+        if picks[pi % picks.len()].is_multiple_of(3) {
+            tree.nodes[u.0 as usize].label = Some(format!("i{}", u.0));
+        }
+        pi += 1;
         tree.attach(u, pool[i], Some(lens[li % lens.len()]));
         li += 1;
         tree.attach(u, pool[j], Some(lens[li % lens.len()]));

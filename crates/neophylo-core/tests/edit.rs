@@ -46,6 +46,18 @@ fn detach_leaves_parentless_component() {
 }
 
 #[test]
+fn detach_clears_edge_support() {
+    let mut tree = parse_newick("((a:0.1,b:0.2):0.3,c:0.4,d:0.5);").unwrap();
+    tree.branches[5].support = Some(0.9);
+    detach(&mut tree, NodeId(5)).unwrap();
+    assert_eq!(
+        tree.branches[5].support, None,
+        "a detached component keeps no stale support"
+    );
+    assert_eq!(tree.branches[5].length, None);
+}
+
+#[test]
 fn detach_then_join_back() {
     let mut tree = parse_newick("(a:0.1,b:0.2,c:0.3);").unwrap(); // root = 3
     detach(&mut tree, NodeId(0)).unwrap();
@@ -299,6 +311,57 @@ fn spliced_husk_is_not_an_edit_target() {
     // Naming the husk resurrects it as an ordinary detached leaf.
     rename_leaf(&mut tree, NodeId(6), "e2").unwrap();
     join(&mut tree, leaf, NodeId(6), (0.1, 0.1)).unwrap();
+}
+
+#[test]
+fn move_splice_clears_internal_label() {
+    // The splice must strip the old parent's label: kept, the husk
+    // looks like a named leaf component, and `join` would graft it
+    // back as a phantom taxon.
+    let mut tree = parse_newick("((A:1,B:1)anc:1,C:1);").unwrap();
+    // Leaves A=0,B=1,C=2; internals in preorder: root=3, anc=4.
+    move_subtree(&mut tree, NodeId(0), NodeId(2), (0.5, 1.0)).unwrap();
+    assert_eq!(tree.nodes[4].label, None, "the spliced husk keeps no label");
+
+    let root = tree.root;
+    let before = tree.clone();
+    let err = join(&mut tree, NodeId(4), root, (1.0, 1.0)).unwrap_err();
+    assert!(matches!(err, NeoError::InvalidEdit { .. }));
+    assert_eq!(tree, before);
+
+    // The stale label no longer counts as a duplicate taxon name.
+    rename_leaf(&mut tree, NodeId(2), "anc").unwrap();
+}
+
+#[test]
+fn malformed_arena_is_refused() {
+    // nodes.len() != branches.len() can only arrive from outside (a
+    // tree across the wasm boundary); every op must refuse with
+    // InvalidEdit and leave the tree unchanged rather than index past
+    // the shorter array.
+    let mut tree = parse_newick("((A:1,B:1):1,C:1,D:1);").unwrap();
+    tree.branches.pop();
+    let before = tree.clone();
+    let root = tree.root;
+    let last = NodeId(tree.nodes.len() as u32 - 1);
+
+    for res in [
+        set_length(&mut tree, last, 1.0),
+        move_subtree(&mut tree, NodeId(0), last, (0.5, 1.0)),
+        detach(&mut tree, last),
+        join(&mut tree, root, last, (1.0, 1.0)).map(|_| ()),
+        rename_leaf(&mut tree, NodeId(0), "z"),
+    ] {
+        assert!(
+            matches!(res, Err(NeoError::InvalidEdit { .. })),
+            "expected InvalidEdit, got {res:?}"
+        );
+    }
+    assert!(matches!(
+        validate_editable(&tree),
+        Err(NeoError::InvalidEdit { .. })
+    ));
+    assert_eq!(tree, before);
 }
 
 #[test]

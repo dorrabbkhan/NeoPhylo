@@ -20,6 +20,20 @@ fn exists(tree: &Tree, id: NodeId) -> bool {
     (id.0 as usize) < tree.nodes.len()
 }
 
+/// Refuse to touch an arena whose parallel arrays disagree. A tree can
+/// arrive malformed across the wasm boundary; without this guard every
+/// `tree.branches[id]` index below is a potential panic.
+fn check_arena(tree: &Tree) -> Result<(), NeoError> {
+    if tree.nodes.len() != tree.branches.len() {
+        return Err(invalid(format!(
+            "malformed arena: {} nodes but {} branch slots",
+            tree.nodes.len(),
+            tree.branches.len()
+        )));
+    }
+    Ok(())
+}
+
 /// A branch length an editor may write: finite and non-negative.
 fn check_length(length: f64) -> Result<(), NeoError> {
     if !length.is_finite() {
@@ -91,6 +105,7 @@ pub fn join(
     b: NodeId,
     lengths: (f64, f64),
 ) -> Result<NodeId, NeoError> {
+    check_arena(tree)?;
     if a == b {
         return Err(invalid(format!("cannot join node {} with itself", a.0)));
     }
@@ -125,6 +140,7 @@ pub fn join(
 /// would leave the parent with fewer than two children. A node that is
 /// already a detached component root detaches as a no-op.
 pub fn detach(tree: &mut Tree, node: NodeId) -> Result<(), NeoError> {
+    check_arena(tree)?;
     if !exists(tree, node) {
         return Err(invalid(format!("node {} does not exist", node.0)));
     }
@@ -145,6 +161,7 @@ pub fn detach(tree: &mut Tree, node: NodeId) -> Result<(), NeoError> {
     }
     unlink(tree, node);
     tree.branches[node.0 as usize].length = None;
+    tree.branches[node.0 as usize].support = None;
     refresh_rooted(tree);
     Ok(())
 }
@@ -163,6 +180,7 @@ pub fn move_subtree(
     new_parent_edge: NodeId,
     lengths: (f64, f64),
 ) -> Result<(), NeoError> {
+    check_arena(tree)?;
     let (l_split, l_node) = lengths;
     let x = new_parent_edge;
     for id in [node, x] {
@@ -313,10 +331,13 @@ pub fn move_subtree(
                     }
                 }
             }
-            // The spliced node becomes an inert husk: parentless and
-            // childless, with no edge attributes.
+            // The spliced node becomes an inert husk: parentless,
+            // childless, unlabeled, with no edge attributes — kept,
+            // the label would let join graft it back as a phantom
+            // taxon.
             tree.nodes[pi].children.clear();
             tree.nodes[pi].parent = None;
+            tree.nodes[pi].label = None;
             tree.branches[pi].length = None;
             tree.branches[pi].support = None;
         }
@@ -334,6 +355,7 @@ pub fn move_subtree(
 /// non-finite lengths, nonexistent nodes, and nodes with no parent edge
 /// (the root or a detached component root).
 pub fn set_length(tree: &mut Tree, child: NodeId, length: f64) -> Result<(), NeoError> {
+    check_arena(tree)?;
     if !exists(tree, child) {
         return Err(invalid(format!("node {} does not exist", child.0)));
     }
@@ -352,6 +374,7 @@ pub fn set_length(tree: &mut Tree, child: NodeId, length: f64) -> Result<(), Neo
 /// and names another leaf already carries — in any component, so a
 /// detached subtree cannot collide when grafted back.
 pub fn rename_leaf(tree: &mut Tree, leaf: NodeId, name: &str) -> Result<(), NeoError> {
+    check_arena(tree)?;
     if !exists(tree, leaf) {
         return Err(invalid(format!("node {} does not exist", leaf.0)));
     }
@@ -379,6 +402,7 @@ pub fn rename_leaf(tree: &mut Tree, leaf: NodeId, name: &str) -> Result<(), NeoE
 /// internal node with exactly one child, and a finite, non-negative
 /// length on every non-root edge. Detached components are not checked.
 pub fn validate_editable(tree: &Tree) -> Result<(), NeoError> {
+    check_arena(tree)?;
     let order = tree.preorder();
     let leaves = order
         .iter()
