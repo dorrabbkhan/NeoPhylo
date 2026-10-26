@@ -4121,7 +4121,9 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `NeoError::InvalidExercise { field: "ratio" }` (the existing
   parameter-error variant). A ratio in (0, 0.5] is "impossible" with
   equal frequencies; like dnadist it is reset to the feasible floor
-  (xi = 0) with no error. Open point for the owner.
+  (xi = 0) with no error. Decided by the owner on 2026-10-26: the
+  engine keeps dnadist's reset; the editor (Task 10) refuses or warns
+  on a ratio ≤ 0.5.
 - **`DistModel` lost its `Eq` derive** (it now carries an `f64`);
   `PartialEq` and `Copy` remain.
 - **Files outside the Files block:** `src/dist_phylip.rs` (keeps
@@ -4131,4 +4133,5 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `session.ts` and `web/src/views/Controls.tsx` (type-only adjustments
   so the web app typechecks against the new union; no runtime change for
   any existing model; the menu does not offer the new models until
-  Task 10).
+  Task 10); `docs/conductor/notes/v1.4/task10.md` (conductor note
+  carrying the owner's decision to Task 10).
