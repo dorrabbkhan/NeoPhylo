@@ -22,6 +22,7 @@ export type EditorTree = Tree;
  * maps to one `edit_*` engine function; `NodeId`s are the generated
  * `NodeId` type. */
 export type EditOp =
+  | { kind: "addLeaf"; name: string }
   | { kind: "join"; a: NodeId; b: NodeId; lengths: [number, number] }
   | { kind: "detach"; node: NodeId }
   | {
@@ -35,6 +36,8 @@ export type EditOp =
 
 function runOp(tree: Tree, op: EditOp): Result<Tree> {
   switch (op.kind) {
+    case "addLeaf":
+      return engine.editAddLeaf(tree, op.name);
     case "join":
       return engine.editJoin(tree, op.a, op.b, op.lengths);
     case "detach":

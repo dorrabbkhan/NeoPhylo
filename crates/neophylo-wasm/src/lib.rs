@@ -443,6 +443,17 @@ pub fn edit_rename_leaf(tree: JsValue, leaf: JsValue, name: JsValue) -> JsValue 
     }))
 }
 
+/// Create a new parentless leaf labelled `name` — a detached component
+/// `edit_join`/`edit_move_subtree` can graft (Task 9a). Same name rules
+/// as `edit_rename_leaf`. Returns the edited tree.
+#[wasm_bindgen]
+pub fn edit_add_leaf(tree: JsValue, name: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<String>(name, "name")
+            .and_then(|name| neophylo_core::edit::add_leaf(&mut t, &name).map(|_new| t))
+    }))
+}
+
 /// Check that the root component is an exercise-saveable tree
 /// (`edit::validate_editable`). Returns `()` — only `ok` matters.
 #[wasm_bindgen]
