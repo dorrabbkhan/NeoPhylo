@@ -4392,3 +4392,47 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   rebuild, wasm-pack parity tests and `git diff --exit-code
   web/src/engine/generated` are all clean.
 
+## v1.4 Task 8: editor Newick view and branch-length table
+
+- **Editor route:** `?editor` mounts the editor instead of the lesson
+  app — `web/src/Root.tsx` switches at the entry (`main.tsx` renders
+  `Root`). The plan never names an entry point; a URL param was chosen
+  over a header/menu control because every header change would alter
+  the owner-approved visual baselines, and the control belongs with
+  Task 10's full editor. `EditorPage` is a `React.lazy` chunk: the
+  initial-JS budget had 2.7 KB of headroom and `exerciseFile.ts`'s ajv
+  import must never ship eagerly (Task 7 decision). `App` is never
+  mounted on the route, so its `replaceState` sync can't strip the
+  param; `decode()` ignores unknown params, so `?editor` is inert for
+  any other link.
+- **`EditorModel.replace(tree)`:** the Newick view's parse path can't
+  be an `EditOp` — every op maps to one `edit_*` engine call and the
+  engine has no "replace tree" op (join/detach/move/setLength/rename
+  only). `replace` parses nothing itself; the view calls
+  `engine.parseNewick`, then `replace` gates the result on
+  `edit_validate` (the engine's saveable-tree check) before committing
+  through the same `commit` path as `apply`, so undo covers it and a
+  refused tree keeps the same object identity with no notification.
+  Consequence: pasted Newick must carry branch lengths — `(A,B);` is
+  refused with "node i has no branch length" — matching the "saveable
+  exercise" gate (spec §5.1).
+- **Duplicate taxon names are refused at `replace`, not at parse:** the
+  Newick parser accepts them; `edit_validate` names the duplicate
+  ("duplicate taxon name 'A'"), which the view shows inline.
+- **Starter tree:** the nj-basics example
+  `((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);` — a recognizable,
+  already-valid tree rather than an empty canvas.
+- **Internal-edge row names:** the branch table names a leaf row by its
+  taxon and an internal edge by its descendant leaf list, e.g.
+  "(A, B)" — display-only; the engine never sees the name.
+- **Files outside the Files block:** `web/src/editor/model.ts` (the
+  `replace` method above); `web/src/views/editor/EditorPage.tsx` (the
+  `?editor` page root: engine boot, starter tree, EditorHistory);
+  `web/src/Root.tsx` (the route switch — react-refresh's
+  only-export-components forbids defining it inside the export-less
+  `main.tsx`); `web/src/main.tsx` (renders `Root`);
+  `web/src/index.css` (editor styles, tokens only — the codebase's one
+  stylesheet); `docs/decisions.md` (this entry).
+- **Editor CSS lives in `index.css`,** not a per-feature stylesheet —
+  the repo keeps all view styles there (Task 11's `labs.css` is for the
+  lab pages' print view, a different mechanism).

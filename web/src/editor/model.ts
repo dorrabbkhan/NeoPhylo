@@ -81,6 +81,20 @@ export class EditorModel {
     return { ok: true, value: undefined };
   }
 
+  /** Replace the tree wholesale — the Newick view's parse path (spec
+   * §5.1). The candidate passes `edit_validate` (the engine's
+   * "saveable exercise tree" gate) before commit, so a parsed-but-
+   * uneditable tree (duplicate names, missing lengths, a unary node)
+   * is refused exactly like a structural edit: the SAME tree object is
+   * kept and subscribers are not notified. Through `commit`, so undo
+   * covers the replacement. */
+  replace(tree: EditorTree): Result<void> {
+    const v = engine.editValidate(tree);
+    if (!v.ok) return { ok: false, error: v.error };
+    this.commit(tree);
+    return { ok: true, value: undefined };
+  }
+
   /** Commit an accepted edit's tree: swap it in, then notify.
    * Subclasses (EditorHistory) override this to update their own state
    * before the notification runs — subscribers must already observe

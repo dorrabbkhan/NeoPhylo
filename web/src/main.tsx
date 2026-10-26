@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { BootstrapClient, bootstrapClient } from "./engine/bootstrapClient";
 import { engine } from "./engine";
-import { App } from "./views/App.tsx";
+import { Root } from "./Root.tsx";
 import { ErrorBoundary } from "./views/ErrorBoundary.tsx";
 
 // v1.2 Task 9: the `neophylo-e2e` localStorage flag exposes the engine
@@ -27,7 +27,7 @@ try {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <Root />
     </ErrorBoundary>
   </StrictMode>,
 );
