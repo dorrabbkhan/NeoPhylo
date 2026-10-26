@@ -6,14 +6,14 @@
 // A rejected edit adds no snapshot; a new edit after an undo clears the
 // redo stack; undo and redo notify subscribers like any other change.
 
-import { EditorModel, type EditOp, type EditorTree } from "./model";
-import type { Result } from "../engine/index";
+import { EditorModel, type EditorTree } from "./model";
 
 /**
- * An `EditorModel` with undo/redo stacks. Route every edit through
- * `apply` (inherited signature — calls the engine like the plain
- * model) so the history stays complete; `undo`/`redo` restore the
- * engine values recorded at each accepted edit.
+ * An `EditorModel` with undo/redo stacks. Every accepted edit goes
+ * through `commit` (called by the inherited `apply` only on `ok`), so
+ * the pre-edit snapshot is recorded BEFORE subscribers are notified —
+ * a listener already sees the updated `canUndo`/`canRedo`. `undo` and
+ * `redo` update the stacks themselves, then `restore` notifies.
  */
 export class EditorHistory extends EditorModel {
   private past: EditorTree[] = [];
@@ -27,13 +27,13 @@ export class EditorHistory extends EditorModel {
     return this.future.length > 0;
   }
 
-  override apply(op: EditOp): Result<void> {
-    const before = this.tree;
-    const r = super.apply(op);
-    if (!r.ok) return r;
-    this.past.push(before);
+  /** Record the outgoing tree on the undo stack and clear redo before
+   * the swap-and-notify in `super.commit`. Only reached for accepted
+   * edits — a refused edit never gets here. */
+  protected override commit(next: EditorTree): void {
+    this.past.push(this.tree);
     this.future = [];
-    return r;
+    super.commit(next);
   }
 
   /** Restore the tree from before the last accepted edit. A no-op —

@@ -77,9 +77,17 @@ export class EditorModel {
   apply(op: EditOp): Result<void> {
     const r = runOp(this.current, op);
     if (!r.ok) return { ok: false, error: r.error };
-    this.current = r.value;
-    this.notify();
+    this.commit(r.value);
     return { ok: true, value: undefined };
+  }
+
+  /** Commit an accepted edit's tree: swap it in, then notify.
+   * Subclasses (EditorHistory) override this to update their own state
+   * before the notification runs — subscribers must already observe
+   * the post-edit state. */
+  protected commit(next: Tree): void {
+    this.current = next;
+    this.notify();
   }
 
   /** Replace the tree directly (undo/redo) and notify subscribers. */

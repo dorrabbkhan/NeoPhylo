@@ -78,6 +78,62 @@ describe("EditorHistory", () => {
     expect(h.tree.nodes[a].label).toBe("A");
   });
 
+  it("a subscriber sees canUndo already true on the first accepted edit", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const a = nodeId(h.tree, "A");
+    let observed: { canUndo: boolean; canRedo: boolean } | undefined;
+    h.subscribe(() => {
+      observed = { canUndo: h.canUndo, canRedo: h.canRedo };
+    });
+
+    h.apply({ kind: "rename", leaf: a, name: "A2" });
+    expect(observed).toEqual({ canUndo: true, canRedo: false });
+  });
+
+  it("a subscriber sees canRedo already true on undo", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const a = nodeId(h.tree, "A");
+    h.apply({ kind: "rename", leaf: a, name: "A2" });
+    let observed: { canUndo: boolean; canRedo: boolean } | undefined;
+    h.subscribe(() => {
+      observed = { canUndo: h.canUndo, canRedo: h.canRedo };
+    });
+
+    h.undo();
+    expect(observed).toEqual({ canUndo: false, canRedo: true });
+  });
+
+  it("a subscriber sees canRedo already cleared by a new edit after undo", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const a = nodeId(h.tree, "A");
+    const b = nodeId(h.tree, "B");
+    h.apply({ kind: "rename", leaf: a, name: "A2" });
+    h.undo();
+    let observed: { canUndo: boolean; canRedo: boolean } | undefined;
+    h.subscribe(() => {
+      observed = { canUndo: h.canUndo, canRedo: h.canRedo };
+    });
+
+    h.apply({ kind: "setLength", child: b, length: 0.9 });
+    expect(observed).toEqual({ canUndo: true, canRedo: false });
+  });
+
+  it("a refused edit neither notifies nor touches the stacks", () => {
+    const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const a = nodeId(h.tree, "A");
+    h.apply({ kind: "rename", leaf: a, name: "A2" });
+    const t1 = h.tree;
+    let calls = 0;
+    h.subscribe(() => calls++);
+
+    const b = nodeId(h.tree, "B");
+    expect(h.apply({ kind: "rename", leaf: b, name: "A2" }).ok).toBe(false);
+    expect(calls).toBe(0);
+    expect(h.tree).toBe(t1);
+    expect(h.canUndo).toBe(true);
+    expect(h.canRedo).toBe(false);
+  });
+
   it("undo and redo notify subscribers", () => {
     const h = new EditorHistory(parseTree("(A:0.1,B:0.2,C:0.3);"));
     const a = nodeId(h.tree, "A");

@@ -229,15 +229,17 @@ function formatNeoError(e: NeoError): string {
 export function saveExercise(
   state: ExerciseState,
 ): { json: string } | { error: string } {
-  let file: Record<string, unknown>;
+  let json: string;
+  let parsed: unknown;
   try {
-    file = exerciseToFile(state);
+    const file = exerciseToFile(state);
+    json = JSON.stringify(file, null, 2) + "\n";
+    // Validate the parsed text — the exact bytes written, not the object.
+    parsed = JSON.parse(json);
   } catch {
     return { error: "the exercise could not be serialized" };
   }
-  const json = JSON.stringify(file, null, 2) + "\n";
-  // Validate the parsed text — the exact bytes written, not the object.
-  if (!validate(JSON.parse(json))) {
+  if (!validate(parsed)) {
     return { error: firstError(validate.errors) };
   }
   const r = engine.loadExercise(json);
