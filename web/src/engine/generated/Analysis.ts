@@ -5,4 +5,12 @@ import type { Method } from "./Method";
 /**
  * The analysis an exercise prescribes.
  */
-export type Analysis = { correction: DistModel, method: Method, };
+export type Analysis = { correction: DistModel, method: Method, 
+/**
+ * v1.4 spec §4: the transition/transversion ratio for
+ * `K2P_PHYLIP`; always `Some` then (default 2.0 when the file
+ * omits it) and `None` for every other correction — F84 uses
+ * dnadist's fixed 2.0, so a stray kappa would mislead. Omitted
+ * from the wire shape so v2 exercises serialize unchanged.
+ */
+kappa?: number, };

@@ -1,0 +1,13 @@
+{
+  "schema_version": 3,
+  "id": "v3-bad-kappa-jc69",
+  "title": "Kappa on JC69",
+  "summary": "Kappa on JC69",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ", "kappa": 2.0 }
+}

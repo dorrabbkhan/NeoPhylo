@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "id": "v2-bad-f84",
+  "title": "F84 in a v2 file",
+  "summary": "F84 in a v2 file",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2,C:0.3);",
+    "sim": { "model": "F84", "kappa": 2.0, "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" }
+}
