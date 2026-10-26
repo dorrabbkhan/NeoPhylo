@@ -473,3 +473,96 @@ fn bootstrap_exports_smoke() {
     ));
     assert!(!bad_rr.ok, "unknown outgroup label must be an error value");
 }
+
+// --- v1.4 edit exports (v1.4 plan Task 7, spec §5.1) --------------------
+
+/// Leaf id by label — the arena order is an implementation detail.
+fn leaf_id(t: &Tree, label: &str) -> u32 {
+    t.nodes
+        .iter()
+        .position(|n| n.children.is_empty() && n.label.as_deref() == Some(label))
+        .unwrap_or_else(|| panic!("no leaf labelled {label}")) as u32
+}
+
+fn node_id(v: u32) -> JsValue {
+    JsValue::from_f64(f64::from(v))
+}
+
+/// Every edit_* export forwards to neophylo_core::edit on a copy and
+/// returns the NEW tree in the envelope; a refused op is `ok: false`
+/// with the engine's error and malformed arguments are
+/// `InvalidExercise`, never a throw.
+#[wasm_bindgen_test]
+fn edit_exports_smoke() {
+    let tree: Tree = ok_value(neophylo_wasm::parse_newick("(a:0.1,b:0.2,c:0.3);"));
+    let tree_js = to_js(&tree);
+    let a = leaf_id(&tree, "a");
+
+    // set_length: the edge above `a` becomes 0.9 — same as native.
+    let mut want = tree.clone();
+    neophylo_core::edit::set_length(&mut want, neophylo_core::tree::NodeId(a), 0.9).unwrap();
+    let got: Tree = ok_value(neophylo_wasm::edit_set_length(
+        tree_js.clone(),
+        node_id(a),
+        JsValue::from_f64(0.9),
+    ));
+    assert_eq!(got, want);
+
+    // rename_leaf: duplicates are refused as InvalidEdit values.
+    let renamed: Tree = ok_value(neophylo_wasm::edit_rename_leaf(
+        tree_js.clone(),
+        node_id(a),
+        JsValue::from_str("z"),
+    ));
+    assert_eq!(
+        renamed.nodes[a as usize].label.as_deref(),
+        Some("z"),
+        "leaf label must update"
+    );
+    let dup: WasmResult<Tree> = unpack(neophylo_wasm::edit_rename_leaf(
+        tree_js.clone(),
+        node_id(a),
+        JsValue::from_str("b"),
+    ));
+    assert!(!dup.ok, "duplicate name must be an error value");
+    match dup.error.unwrap() {
+        NeoError::InvalidEdit { .. } => {}
+        other => panic!("expected InvalidEdit, got {other:?}"),
+    }
+
+    // detach + join: detach leaf `a`, then rejoin it with the root —
+    // the new node becomes the root and validation still passes.
+    let detached: Tree = ok_value(neophylo_wasm::edit_detach(tree_js.clone(), node_id(a)));
+    let detached_js = to_js(&detached);
+    let joined: Tree = ok_value(neophylo_wasm::edit_join(
+        detached_js.clone(),
+        node_id(a),
+        node_id(detached.root.0),
+        to_js(&(0.1_f64, 0.05_f64)),
+    ));
+    assert!(neophylo_core::edit::validate_editable(&joined).is_ok());
+
+    // move_subtree: move leaf `a` onto the edge above `b` on a tree
+    // where `a` hangs deeper than the target edge.
+    let tree2: Tree = ok_value(neophylo_wasm::parse_newick("(a:0.4,(b:0.2,c:0.3):0.4);"));
+    let (a2, b2) = (leaf_id(&tree2, "a"), leaf_id(&tree2, "b"));
+    let moved: Tree = ok_value(neophylo_wasm::edit_move_subtree(
+        to_js(&tree2),
+        node_id(a2),
+        node_id(b2),
+        to_js(&(0.05_f64, 0.1_f64)),
+    ));
+    assert!(neophylo_core::edit::validate_editable(&moved).is_ok());
+
+    // edit_validate: () on a valid tree; ok:false on a malformed arena.
+    let valid: WasmResult<()> = unpack(neophylo_wasm::edit_validate(to_js(&joined)));
+    assert!(valid.ok, "a valid tree must validate");
+    let malformed: WasmResult<()> = unpack(neophylo_wasm::edit_validate(JsValue::from_str(
+        "not a tree",
+    )));
+    assert!(!malformed.ok, "a malformed tree must be an error value");
+    match malformed.error.unwrap() {
+        NeoError::InvalidExercise { .. } => {}
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+}

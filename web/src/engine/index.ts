@@ -12,6 +12,12 @@ import init, {
   consensus_dropped,
   detect_alphabet,
   distances,
+  edit_detach,
+  edit_join,
+  edit_move_subtree,
+  edit_rename_leaf,
+  edit_set_length,
+  edit_validate,
   jtt_pair_detail,
   labels_need_quotes,
   load_exercise,
@@ -44,6 +50,7 @@ import type { Exercise } from "./generated/Exercise";
 import type { Method } from "./generated/Method";
 import type { NameMode } from "./generated/NameMode";
 import type { NeoError } from "./generated/NeoError";
+import type { NodeId } from "./generated/NodeId";
 import type { PairDetail } from "./generated/PairDetail";
 import type { PhylipParseResult } from "./generated/PhylipParseResult";
 import type { ReplicateDetail } from "./generated/ReplicateDetail";
@@ -225,5 +232,44 @@ export const engine = {
    * only (v1.2 spec §3.7, §4). */
   rerootOnOutgroup(tree: Tree, outgroup: string[]): Result<RerootResult> {
     return reroot_on_outgroup(tree, outgroup);
+  },
+  /** Join component roots `a` and `b` under a new internal node;
+   * `lengths` is `[lenToA, lenToB]`. Returns the edited tree (v1.4 spec
+   * §5.1). */
+  editJoin(
+    t: Tree,
+    a: NodeId,
+    b: NodeId,
+    lengths: [number, number],
+  ): Result<Tree> {
+    return edit_join(t, a, b, lengths);
+  },
+  /** Detach `node`'s subtree from its parent (v1.4 spec §5.1). */
+  editDetach(t: Tree, node: NodeId): Result<Tree> {
+    return edit_detach(t, node);
+  },
+  /** SPR: move `node` onto the edge above `newParentEdge`; `lengths` is
+   * `[splitPosition, lenToNode]` (v1.4 spec §5.1). */
+  editMoveSubtree(
+    t: Tree,
+    node: NodeId,
+    newParentEdge: NodeId,
+    lengths: [number, number],
+  ): Result<Tree> {
+    return edit_move_subtree(t, node, newParentEdge, lengths);
+  },
+  /** Set the length of the edge above `child` (v1.4 spec §5.1). */
+  editSetLength(t: Tree, child: NodeId, length: number): Result<Tree> {
+    return edit_set_length(t, child, length);
+  },
+  /** Rename a leaf; duplicates and empty names are refused (v1.4 spec
+   * §5.1). */
+  editRenameLeaf(t: Tree, leaf: NodeId, name: string): Result<Tree> {
+    return edit_rename_leaf(t, leaf, name);
+  },
+  /** True when the root component is a saveable exercise tree (v1.4
+   * spec §5.1; engine `edit::validate_editable`). */
+  editValidate(t: Tree): Result<void> {
+    return edit_validate(t);
   },
 };
