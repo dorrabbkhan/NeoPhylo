@@ -378,6 +378,134 @@ test("a keyboard-focused handle shows a visible focus ring", async ({
   ).toBeGreaterThanOrEqual(2);
 });
 
+test("N adds a detached leaf; selecting a branch and J grafts it (keyboard only)", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await newick.fill("(A:0.1,B:0.2,C:0.3);");
+  await newick.press("Enter");
+
+  await CANVAS(page).focus();
+  await page.keyboard.press("n");
+  const nameInput = page.getByRole("textbox", { name: "New taxon name" });
+  await expect(nameInput).toBeFocused();
+  // The shortcut's own letter never lands in the field.
+  await expect(nameInput).toHaveValue("");
+  await nameInput.fill("F");
+  await page.keyboard.press("Enter");
+
+  // The new leaf draws as a detached component, selected and focused.
+  await expect(page.getByText("Detached: F")).toBeVisible();
+  const leafF = page.getByRole("button", { name: "Leaf F" });
+  await expect(leafF).toBeFocused();
+  await expect(leafF).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("status")).toContainText(/Added leaf F/);
+
+  // F stays selected; add the branch to B and press J — the same move
+  // op a drag onto that branch performs.
+  await page.getByRole("button", { name: "Branch to B" }).focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("j");
+  await expect(newick).toHaveValue("(A:0.1,(B:0.1,F:0.1):0.1,C:0.3);");
+});
+
+test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", async ({
+  browser,
+  browserName,
+}) => {
+  // Implicit pointer capture makes a touch pointerup's target the
+  // dragged node regardless of where the finger lifts — only Chromium's
+  // CDP Input.dispatchTouchEvent reproduces a real touch.
+  test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await newick.fill("(A:0.1,B:0.2,C:0.3);");
+  await newick.press("Enter");
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  const newLeafBtn = page.getByRole("button", { name: "New leaf" });
+  await expect(newLeafBtn).toBeVisible();
+  const btnBox = await newLeafBtn.boundingBox();
+  if (btnBox === null) throw new Error("the New leaf button has no box");
+  expect(
+    btnBox.width,
+    `the New leaf button is at least 40 px wide (got ${btnBox.width}×${btnBox.height})`,
+  ).toBeGreaterThanOrEqual(40);
+  expect(
+    btnBox.height,
+    `the New leaf button is at least 40 px tall (got ${btnBox.width}×${btnBox.height})`,
+  ).toBeGreaterThanOrEqual(40);
+
+  const cdp = await context.newCDPSession(page);
+  const tap = async (x: number, y: number): Promise<void> => {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y, id: 1 }],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  };
+
+  // Tap "New leaf": the inline form opens with its input focused.
+  await tap(btnBox.x + btnBox.width / 2, btnBox.y + btnBox.height / 2);
+  const nameInput = page.getByRole("textbox", { name: "New taxon name" });
+  await expect(nameInput).toBeFocused();
+  await page.keyboard.insertText("F");
+  const submitBtn = page.getByRole("button", { name: "Add leaf" });
+  const submitBox = await submitBtn.boundingBox();
+  if (submitBox === null) throw new Error("the Add leaf button has no box");
+  await tap(submitBox.x + submitBox.width / 2, submitBox.y + submitBox.height / 2);
+  await expect(page.getByText("Detached: F")).toBeVisible();
+
+  // Touch-drag the new leaf onto the branch to B — the same move op
+  // the keyboard path produces.
+  const leafF = page.getByRole("button", { name: "Leaf F" });
+  const edgeB = page.getByRole("button", { name: "Branch to B" });
+  const a = await leafF.boundingBox();
+  const b = await edgeB.boundingBox();
+  if (a === null || b === null) throw new Error("no box");
+  const sx = a.x + a.width / 2;
+  const sy = a.y + a.height / 2;
+  const ex = b.x + b.width / 2;
+  const ey = b.y + b.height / 2;
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: sx, y: sy, id: 1 }],
+  });
+  const steps = 8;
+  for (let i = 1; i <= steps; i += 1) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        {
+          x: sx + ((ex - sx) * i) / steps,
+          y: sy + ((ey - sy) * i) / steps,
+          id: 1,
+        },
+      ],
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(newick).toHaveValue("(A:0.1,(B:0.1,F:0.1):0.1,C:0.3);");
+  await context.close();
+});
+
 test("under (pointer: coarse) the canvas's node and branch hit targets are ≥40×40", async ({
   browser,
 }) => {

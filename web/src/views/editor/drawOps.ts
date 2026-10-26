@@ -101,6 +101,8 @@ export function moveOp(tree: Tree, node: NodeId, edgeChild: NodeId): EditOp {
  * the op's own target ids read back through the display helpers. */
 function opTitle(tree: Tree, op: EditOp): string {
   switch (op.kind) {
+    case "addLeaf":
+      return `Can't add leaf '${op.name}'`;
     case "detach":
       return `Can't detach ${cladeName(tree, op.node)}`;
     case "move":

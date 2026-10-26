@@ -2315,6 +2315,41 @@ button,
   fill: var(--color-text-muted);
 }
 
+/* The "New leaf" button and its inline form sit in one row under the
+ * canvas — the touch path to the N shortcut (spec §5.2). */
+.new-leaf-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
+}
+
+.new-leaf-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.new-leaf-form label {
+  margin-bottom: 0;
+}
+
+.new-leaf-form input {
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.new-leaf-form input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
 /* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
  * Constraints): the editor's text fields and its "Back to NeoPhylo"
  * link get the same floor as its buttons. */
@@ -2337,5 +2372,12 @@ button,
   .draw-canvas .node-hit-pad,
   .draw-canvas .edge-hit-pad {
     display: block;
+  }
+
+  /* The New-leaf button and its form's submit get the same ≥40 px
+   * floor as the rest of the editor's controls. */
+  .new-leaf-row button {
+    min-height: 40px;
+    min-width: 40px;
   }
 }

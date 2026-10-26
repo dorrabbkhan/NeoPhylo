@@ -12,6 +12,7 @@
 // position (length pulls) are exercised in the e2e spec.
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -295,5 +296,122 @@ describe("DrawCanvas", () => {
     expect(screen.getByRole("status").textContent).toMatch(/select/i);
     expect(screen.queryByRole("alert")).toBeNull();
     expect(model.tree).toBe(before);
+  });
+
+  // The N key and the "New leaf" button (fix round 2, engine
+  // edit::add_leaf from PR #97): a labelled form asks for the taxon
+  // name; the engine creates a parentless leaf — a detached component
+  // that becomes the selected and focused node, ready for J or a drag.
+
+  it("N opens the new-leaf form; a name and Enter adds a detached, selected leaf", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    canvas().focus();
+    fireEvent.keyDown(canvas(), { key: "n" });
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    // The shortcut's own letter never lands in the field.
+    expect((input as HTMLInputElement).value).toBe("");
+    expect(document.activeElement).toBe(input);
+    fireEvent.change(input, { target: { value: "F" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // The engine added a parentless leaf labelled F: a detached
+    // component, drawn with its caption, selected and focused.
+    const f = model.tree.nodes.findIndex((n) => n.label === "F");
+    expect(f).toBeGreaterThanOrEqual(0);
+    expect(model.tree.nodes[f].parent).toBeNull();
+    expect(screen.getByText("Detached: F")).toBeTruthy();
+    expect(node("Leaf F").getAttribute("aria-pressed")).toBe("true");
+    expect(document.activeElement).toBe(node("Leaf F"));
+    expect(screen.getByRole("status").textContent).toMatch(
+      /Added leaf F/,
+    );
+  });
+
+  it("the New leaf button opens the same form and adds the leaf", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.click(screen.getByRole("button", { name: "New leaf" }));
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    expect(document.activeElement).toBe(input);
+    fireEvent.change(input, { target: { value: "G" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add leaf" }));
+    const g = model.tree.nodes.findIndex((n) => n.label === "G");
+    expect(g).toBeGreaterThanOrEqual(0);
+    expect(model.tree.nodes[g].parent).toBeNull();
+    expect(node("Leaf G").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a duplicate name is refused with the name in the message, keeps the form open and adds no history entry", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    // One accepted edit first, so undo has somewhere real to land.
+    select(node("Leaf B"));
+    fireEvent.keyDown(canvas(), { key: "ArrowRight" });
+    const afterEdit = model.tree;
+
+    fireEvent.keyDown(canvas(), { key: "n" });
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    fireEvent.change(input, { target: { value: "A" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toContain("Can't add leaf 'A'");
+    expect(alert).toMatch(/duplicate/i);
+    expect(model.tree).toBe(afterEdit);
+    // The form stays open and keeps the refused name.
+    expect((input as HTMLInputElement).value).toBe("A");
+    // No history entry: one undo lands on the starter tree.
+    model.undo();
+    expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.2,C:0.3);");
+  });
+
+  it("Escape closes the form with no op and returns focus to the canvas", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    const before = model.tree;
+    canvas().focus();
+    fireEvent.keyDown(canvas(), { key: "n" });
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    fireEvent.change(input, { target: { value: "F" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(
+      screen.queryByRole("textbox", { name: "New taxon name" }),
+    ).toBeNull();
+    expect(model.tree).toBe(before);
+    expect(document.activeElement).toBe(canvas());
+  });
+
+  it("undo removes the added leaf and redo restores it", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.keyDown(canvas(), { key: "n" });
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    fireEvent.change(input, { target: { value: "F" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    const hasF = () => model.tree.nodes.some((n) => n.label === "F");
+    expect(hasF()).toBe(true);
+    model.undo();
+    expect(hasF()).toBe(false);
+    model.redo();
+    expect(hasF()).toBe(true);
+  });
+
+  it("the full keyboard path — N, name, Enter, select a branch, J — matches dragging the leaf onto it", () => {
+    const keyed = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.keyDown(canvas(), { key: "n" });
+    const input = screen.getByRole("textbox", { name: "New taxon name" });
+    fireEvent.change(input, { target: { value: "F" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // F is already the selected node; selecting the branch to B makes
+    // J apply the shared moveOp — the same op the drag below performs.
+    fireEvent.click(edge("Branch to B"));
+    fireEvent.keyDown(canvas(), { key: "j" });
+    const byKeys = engine.writeNewick(keyed.tree);
+    expect(byKeys).toBe("(A:0.1,(B:0.1,F:0.1):0.1,C:0.3);");
+    cleanup();
+
+    const dragged = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    act(() => {
+      dragged.apply({ kind: "addLeaf", name: "F" });
+    });
+    fireEvent.pointerDown(node("Leaf F"), { clientX: 5, clientY: 5 });
+    fireEvent.pointerMove(node("Leaf F"), { clientX: 60, clientY: 40 });
+    fireEvent.pointerUp(edge("Branch to B"), { clientX: 60, clientY: 40 });
+    expect(engine.writeNewick(dragged.tree)).toBe(byKeys);
   });
 });

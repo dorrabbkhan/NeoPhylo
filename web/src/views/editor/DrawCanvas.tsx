@@ -17,18 +17,21 @@
 //   ←/→ nudge the selected branch lengths by a fixed step; Delete
 //   detaches the selection; Escape cancels a drag or clears the
 //   selection.
-//
-// "Create a leaf" (the plan's `N`) is deferred: the engine has no
-// create-leaf op and spec §5.1 requires node creation to be one — see
-// docs/decisions.md. New taxa are added through the Newick view.
+// - N or the "New leaf" button opens the new-taxon form; the engine's
+//   add_leaf op (PR #97) creates a parentless labelled leaf — a new
+//   detached component that becomes the selected and focused node,
+//   ready to graft with J or a drag onto a branch. Its name is
+//   engine-unique, so the leaf is found by name after apply — never
+//   by a predicted arena id.
 //
 // Detached components draw below the main tree, each laid out with the
 // same layout() call so they can be dragged back onto a branch.
 //
 // Split for the file-size rule: drawOps (gesture→op + names + refusal
 // text), drawLayout (geometry), useDrawDrag (pointer lifecycle),
-// DrawTree (svg content). This file keeps the state and the keyboard
-// path.
+// DrawTree (svg content), NewLeafForm + useNewLeaf (the new-taxon
+// form and its open/submit/focus flow). This file keeps the state and
+// the keyboard path.
 
 import {
   useCallback,
@@ -39,7 +42,8 @@ import {
 } from "react";
 import type { KeyboardEvent } from "react";
 
-import type { EditOp, EditorModel } from "../../editor/model";
+import type { EditOp, EditorModel, EditorTree } from "../../editor/model";
+import type { Result } from "../../engine/index";
 import type { NeoError } from "../../engine/generated/NeoError";
 import {
   labelRoomFor,
@@ -58,7 +62,9 @@ import {
 } from "./drawOps";
 import { layoutComps, PAD } from "./drawLayout";
 import { DrawTree } from "./DrawTree";
+import { NewLeafForm } from "./NewLeafForm";
 import { useDrawDrag } from "./useDrawDrag";
+import { useNewLeaf } from "./useNewLeaf";
 
 export interface DrawCanvasProps {
   model: EditorModel;
@@ -97,10 +103,18 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
     error: NeoError;
   } | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  // The "Added leaf …" announcement, kept with the tree it describes:
+  // the render-phase sweep below clears stale messages on a tree swap,
+  // but the announcement IS about that swap, so it survives exactly the
+  // change that produced it and is cleared by the next op or gesture.
+  const [announce, setAnnounce] = useState<{
+    text: string;
+    tree: EditorTree;
+  } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [boxRef, panelW] = usePanelWidth();
 
-  const apply = (op: EditOp): void => {
+  const apply = (op: EditOp): Result<void> => {
     const r = model.apply(op);
     if (!r.ok) {
       setRefusal({ op, error: r.error });
@@ -109,6 +123,8 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
       setRefusal(null);
       setHint(null);
     }
+    setAnnounce(null);
+    return r;
   };
 
   const toggleSel = (s: Sel): void => {
@@ -142,6 +158,7 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
     clearMessages: () => {
       setRefusal(null);
       setHint(null);
+      setAnnounce(null);
     },
   });
 
@@ -154,6 +171,7 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
     cancelDrag();
     setRefusal(null);
     setHint(null);
+    setAnnounce((a) => (a !== null && a.tree !== tree ? null : a));
     setSelected((sel) =>
       sel.filter((s) => {
         const n = tree.nodes[s.id];
@@ -163,6 +181,25 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
       }),
     );
   }
+
+  const { newLeafOpen, openNewLeaf, cancelNewLeaf, submitNewLeaf } =
+    useNewLeaf(svgRef, {
+      model,
+      apply,
+      clearMessages: () => {
+        setRefusal(null);
+        setHint(null);
+      },
+      onAdded: (id, name) => {
+        // The new leaf becomes the selected node so the next pick (a
+        // branch) plus J grafts it; the hook moves focus to its handle.
+        setSelected([{ kind: "node", id }]);
+        setAnnounce({
+          text: `Added leaf ${name} — select a branch and press J, or drag it onto a branch.`,
+          tree: model.tree,
+        });
+      },
+    });
 
   const joinSelection = (): void => {
     const nodes = selected
@@ -218,6 +255,13 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
       case "J":
         e.preventDefault();
         joinSelection();
+        return;
+      case "n":
+      case "N":
+        // preventDefault so the keypress never types an "n" into the
+        // field the shortcut opens.
+        e.preventDefault();
+        openNewLeaf();
         return;
       case "Delete":
       case "Backspace":
@@ -290,20 +334,38 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
           />
         </svg>
       </div>
+      <div className="new-leaf-row">
+        <button
+          type="button"
+          className="new-leaf-btn"
+          aria-label="New leaf"
+          aria-expanded={newLeafOpen}
+          aria-controls="new-leaf-form"
+          onClick={openNewLeaf}
+        >
+          New leaf
+        </button>
+        {newLeafOpen && (
+          <div id="new-leaf-form">
+            <NewLeafForm onSubmit={submitNewLeaf} onCancel={cancelNewLeaf} />
+          </div>
+        )}
+      </div>
       {err !== null && (
         <p role="alert" className="editor-error">
           <strong>{err.title}:</strong> {err.body}
         </p>
       )}
       <p role="status" className="editor-hint">
-        {hint ?? ""}
+        {announce?.text ?? hint ?? ""}
       </p>
       <p className="editor-hint" id="draw-canvas-hint">
         Drag a node onto a branch to move it, off the tree to detach it,
         or along its own branch to change its length. Select with a
-        click or Enter; J joins two nodes or moves a node onto the
-        selected branch; Delete detaches the selected nodes; ← and →
-        nudge the selected branches. Add taxa in the Newick view.
+        click or Enter; N or the New leaf button adds a taxon; J joins
+        two nodes or moves a node onto the selected branch; Delete
+        detaches the selected nodes; ← and → nudge the selected
+        branches.
       </p>
     </div>
   );

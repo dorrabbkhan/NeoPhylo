@@ -4439,13 +4439,21 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 
 ## v1.4 Task 9: drag-to-draw canvas and keyboard path
 
-- **`N` (create leaf) is deferred — not implemented.** The engine has no
-  create-leaf operation (`edit.rs` exposes join, detach, move_subtree,
-  set_length, rename_leaf, validate_editable only) and spec §5.1
-  requires node creation to be an engine op; building nodes or Newick
-  strings in TypeScript would duplicate tree logic. New taxa are added
-  through the Newick view (engine parser). Needs an owner decision on
-  adding an engine `create_leaf` op.
+- **`N` (create leaf) — implemented in fix round 2 via the engine
+  `add_leaf` op the owner chose on PR #96 (Option A, shipped as
+  Task 9a / PR #97).** The `N` key and the always-visible "New leaf"
+  button open the same inline form (`NewLeafForm`: a labelled "New
+  taxon name" field plus an Add-leaf submit); Enter/submit applies
+  `addLeaf`, Escape cancels and returns focus to the element that had
+  it. The op creates a parentless labelled leaf — a new detached
+  component — which is found by its engine-unique name after apply
+  (never a predicted arena id) and becomes the selected AND focused
+  node, announced in the canvas's status line. A refusal keeps the
+  form open with its value and shows `Can't add leaf '<name>'` plus
+  the engine's reason, with no history entry. The button is a ≥40×40
+  target under (pointer: coarse) like the rest of the editor's
+  controls; the announcement is keyed to the tree that produced it so
+  the tree-change message sweep can't wipe it before it is read.
 - **Gesture mapping:** dropping a node on a branch or another node is
   `move`; dropping it on its own edge/marker or on empty space within
   its row is `setLength` from the drop x; dropping it anywhere else on
@@ -4484,6 +4492,11 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   hook: drag state, window listeners, drop→op resolution) and
   `web/src/views/editor/DrawTree.tsx` (the svg content component) —
   the split that keeps DrawCanvas.tsx under the ~400-line rule.
+  **Fix round 2** added `web/src/views/editor/NewLeafForm.tsx` (the
+  new-taxon inline form the `N` key and the "New leaf" button share)
+  and `web/src/views/editor/useNewLeaf.ts` (its open/submit/focus
+  flow — the split that keeps DrawCanvas.tsx under the ~400-line
+  rule).
   Fix-round-1 behaviour changes: drop resolution hit-tests
   `elementFromPoint` (touch pointers implicitly capture `e.target`),
   `touch-action: none` + `user-select: none` on the canvas, refusals
