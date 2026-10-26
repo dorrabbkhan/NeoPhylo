@@ -2117,9 +2117,17 @@ button,
   }
 }
 
-.editor-view-label,
-.branch-table caption {
+.editor-view-label {
   display: block;
+  font-size: var(--size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+}
+
+/* display stays table-caption (its caption-side: top default) — a block
+ * caption would render between the header and the rows. */
+.branch-table caption {
   text-align: left;
   font-size: var(--size-sm);
   font-weight: 500;

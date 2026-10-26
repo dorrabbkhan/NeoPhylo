@@ -113,7 +113,7 @@ export function NewickView({ model }: NewickViewProps) {
       />
       {m !== null && (
         <p role="alert" className="editor-error" id="editor-newick-error">
-          <strong>{m.title}</strong> {m.body}
+          <strong>{m.title}:</strong> {m.body}
         </p>
       )}
       <p className="editor-hint">
