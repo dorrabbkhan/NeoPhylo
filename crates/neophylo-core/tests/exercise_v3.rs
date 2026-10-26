@@ -484,3 +484,88 @@ fn unknown_schema_version_reports_all_three() {
     assert_eq!(field, "schema_version");
     assert_eq!(msg, "schema_version must be 1, 2 or 3, got 4");
 }
+
+// --- an explicit null is not "absent" on the v3 keys --------------------
+// schema.json types them `number` / `object`, never nullable, so the
+// engine must refuse `key: null` in every schema version instead of
+// reading it as a missing key.
+
+#[test]
+fn v2_analysis_kappa_null_is_refused() {
+    // A v2 file carrying `"kappa": null` would otherwise read the key as
+    // absent and slip past the schema_version 3 gate.
+    let json = simulated(
+        "dna",
+        JC69_SIM,
+        r#"{ "correction": "JC69", "method": "NJ", "kappa": null }"#,
+    )
+    .replacen(r#""schema_version": 3"#, r#""schema_version": 2"#, 1);
+    let err = load_exercise(&json).unwrap_err();
+    let (field, _) = invalid(&err);
+    assert_eq!(field, "analysis.kappa");
+}
+
+#[test]
+fn v2_base_freqs_null_is_refused() {
+    let json = simulated(
+        "dna",
+        r#"{ "model": "JC69", "base_freqs": null, "length": 100, "seed": 1 }"#,
+        r#"{ "correction": "JC69", "method": "NJ" }"#,
+    )
+    .replacen(r#""schema_version": 3"#, r#""schema_version": 2"#, 1);
+    let err = load_exercise(&json).unwrap_err();
+    let (field, _) = invalid(&err);
+    assert_eq!(field, "sim.base_freqs");
+}
+
+#[test]
+fn v3_analysis_kappa_null_is_refused() {
+    let json = simulated(
+        "dna",
+        JC69_SIM,
+        r#"{ "correction": "K2P_PHYLIP", "method": "NJ", "kappa": null }"#,
+    );
+    let err = load_exercise(&json).unwrap_err();
+    let (field, _) = invalid(&err);
+    assert_eq!(field, "analysis.kappa");
+}
+
+#[test]
+fn v3_base_freqs_null_is_refused() {
+    let json = simulated(
+        "dna",
+        r#"{ "model": "F84", "kappa": 3.0, "base_freqs": null, "length": 100, "seed": 1 }"#,
+        r#"{ "correction": "F84", "method": "NJ" }"#,
+    );
+    let err = load_exercise(&json).unwrap_err();
+    let (field, _) = invalid(&err);
+    assert_eq!(field, "sim.base_freqs");
+}
+
+#[test]
+fn v3_base_freqs_array_is_refused() {
+    // serde would happily read a 4-element array into the struct, but
+    // schema.json accepts only the { "A", "C", "G", "T" } object.
+    let json = simulated(
+        "dna",
+        r#"{ "model": "F84", "kappa": 3.0, "base_freqs": [0.25, 0.25, 0.25, 0.25], "length": 100, "seed": 1 }"#,
+        r#"{ "correction": "F84", "method": "NJ" }"#,
+    );
+    let err = load_exercise(&json).unwrap_err();
+    let (field, _) = invalid(&err);
+    assert_eq!(field, "sim.base_freqs");
+}
+
+#[test]
+fn v3_k2p_exercise_serde_round_trips() {
+    let json = simulated(
+        "dna",
+        JC69_SIM,
+        r#"{ "correction": "K2P_PHYLIP", "method": "NJ", "kappa": 3.5 }"#,
+    );
+    let ex = load_exercise(&json).unwrap();
+    let s = serde_json::to_string(&ex).unwrap();
+    assert!(s.contains(r#""kappa":3.5"#), "serialized exercise: {s}");
+    let back: Exercise = serde_json::from_str(&s).unwrap();
+    assert_eq!(ex, back);
+}

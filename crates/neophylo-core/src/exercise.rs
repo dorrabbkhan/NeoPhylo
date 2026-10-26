@@ -385,13 +385,27 @@ fn checked_sim(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
 fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
     let length = u32::try_from(f.length)
         .map_err(|_| bad("sim.length", "length must be a non-negative integer"))?;
-    if f.base_freqs.is_some() && v < 3 {
-        return Err(bad(
-            "sim.base_freqs",
-            "sim.base_freqs requires schema_version 3",
-        ));
-    }
-    let base_freqs = f.base_freqs.as_ref().map(|b| b.array()).transpose()?;
+    // `base_freqs` keeps absent, explicit `null` and a value distinct:
+    // presence alone trips the version gate (schema.json counts a null
+    // key as present), and a non-null value must be the {A, C, G, T}
+    // object — never null, and never the array serde would otherwise
+    // read into the struct.
+    let base_freqs = match &f.base_freqs {
+        None => None,
+        Some(_) if v < 3 => {
+            return Err(bad(
+                "sim.base_freqs",
+                "sim.base_freqs requires schema_version 3",
+            ));
+        }
+        Some(None) => {
+            return Err(bad(
+                "sim.base_freqs",
+                "base_freqs must be an object with A, C, G and T, not null",
+            ));
+        }
+        Some(Some(raw)) => Some(base_freqs(raw)?),
+    };
     let model = match f.model.as_str() {
         "JC69" => SimModel::Jc69,
         "K80" => SimModel::K80 {
@@ -432,7 +446,9 @@ fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
 /// transition/transversion ratio (default 2.0).
 fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
     // v3-only fields and identifiers are refused at their own path in
-    // older files so an editor never silently accepts them.
+    // older files so an editor never silently accepts them. Presence
+    // counts even for an explicit `null`: schema.json has no nullable
+    // kappa, so `"kappa": null` must not read as "absent".
     if v < 3 {
         if f.kappa.is_some() {
             return Err(bad(
@@ -447,7 +463,14 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
             ));
         }
     }
-    if let Some(k) = f.kappa {
+    let file_kappa = match f.kappa {
+        Some(None) => {
+            return Err(bad("analysis.kappa", "kappa must be a number, not null"));
+        }
+        Some(Some(k)) => Some(k),
+        None => None,
+    };
+    if let Some(k) = file_kappa {
         if !k.is_finite() || k <= 0.0 {
             return Err(bad("analysis.kappa", "kappa must be positive and finite"));
         }
@@ -460,7 +483,7 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
         "JTT" => (DistModel::Jtt, None),
         "F84" => (DistModel::F84, None),
         "K2P_PHYLIP" => {
-            let k = f.kappa.unwrap_or(2.0);
+            let k = file_kappa.unwrap_or(2.0);
             (DistModel::K2pPhylip { ratio: k }, Some(k))
         }
         other => {
@@ -470,7 +493,7 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
             ))
         }
     };
-    if kappa.is_none() && f.kappa.is_some() {
+    if kappa.is_none() && file_kappa.is_some() {
         return Err(bad("analysis.kappa", "kappa applies only to K2P_PHYLIP"));
     }
     Ok(Analysis {
@@ -643,6 +666,19 @@ fn bad(field: &str, msg: &str) -> NeoError {
     }
 }
 
+/// `deserialize_with` for `Option<Option<T>>` fields: absent gives
+/// `None` (via `#[serde(default)]`), an explicit `null` gives
+/// `Some(None)` and a value `Some(Some(_))` — so the v3-only keys can
+/// refuse a present `null` the way schema.json does instead of reading
+/// it as absent.
+fn present<'de, D, T>(d: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(d).map(Some)
+}
+
 /// serde_json reports missing fields as "missing field `x`"; lift `x`
 /// into `field` when the message has that shape.
 fn missing_field(e: &serde_json::Error) -> Option<String> {
@@ -707,13 +743,30 @@ struct SimFile {
     #[serde(default)]
     kappa: Option<f64>,
     /// v1.4 spec §4: F84's instructor-set base frequencies; all four
-    /// keys are required when the object is present.
-    #[serde(default)]
-    base_freqs: Option<BaseFreqsFile>,
+    /// keys are required when the object is present. Kept as a raw
+    /// value so an explicit `null` (`Some(None)`) or a non-object can
+    /// be refused the way schema.json refuses them.
+    #[serde(default, deserialize_with = "present")]
+    base_freqs: Option<Option<serde_json::Value>>,
     /// `i64` so negative or oversized values reach the range check and
     /// report `field: "sim.length"` instead of a generic JSON error.
     length: i64,
     seed: u64,
+}
+
+/// Convert a raw `sim.base_freqs` value to `[A, C, G, T]`. Only the
+/// JSON object is accepted — serde would also read a 4-element array
+/// into `BaseFreqsFile`, which schema.json refuses.
+fn base_freqs(raw: &serde_json::Value) -> Result<[f64; 4], NeoError> {
+    if !raw.is_object() {
+        return Err(bad(
+            "sim.base_freqs",
+            "base_freqs must be an object with A, C, G and T",
+        ));
+    }
+    let f: BaseFreqsFile =
+        serde_json::from_value(raw.clone()).map_err(|e| bad("sim.base_freqs", &e.to_string()))?;
+    f.array()
 }
 
 /// The serde mirror of `sim.base_freqs` (v1.4 spec §4): Option fields
@@ -748,9 +801,11 @@ struct AnalysisFile {
     correction: String,
     method: String,
     /// v1.4 spec §4: the K2P_PHYLIP ratio; presence is checked against
-    /// `correction` and `schema_version` in `analysis`.
-    #[serde(default)]
-    kappa: Option<f64>,
+    /// `correction` and `schema_version` in `analysis`. `Option<Option>`
+    /// keeps an explicit `null` (`Some(None)`) distinct from absent —
+    /// a present null is refused, matching schema.json.
+    #[serde(default, deserialize_with = "present")]
+    kappa: Option<Option<f64>>,
 }
 
 /// The serde mirror of the `bootstrap` block: `f64` so a negative or

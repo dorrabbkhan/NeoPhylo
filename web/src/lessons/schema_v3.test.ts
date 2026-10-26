@@ -30,6 +30,9 @@ describe("exercises/schema.json schema v3", () => {
     "v3-bad-kappa-on-jc69.json",
     "v3-bad-basefreqs-zero.json",
     "v2-bad-f84.json",
+    "v2-bad-kappa-null.json",
+    "v3-bad-basefreqs-null.json",
+    "v3-bad-basefreqs-array.json",
   ])("schema and load_exercise agree on %s", (file) => {
     const text = readFileSync(resolve(FIXTURES, file), "utf8");
     const schemaOk = validate(JSON.parse(text));
