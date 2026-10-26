@@ -4320,3 +4320,75 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `WASM_PACK_CACHE=target/.wasm-pack-cache` in this sandbox (the
   default cache lookup misses the preinstalled wasm-bindgen 0.2.129);
   with it the pkg rebuild and the generated-types diff are clean.
+
+## v1.4 Task 7: editor model, history and exercise file
+
+- **Share-link limit — Owner decision pending:** the plan pins
+  `maxLength` to "the existing browser-safe limit already used by that
+  encoder", but `web/src/state/url.ts` defines no limit. Provisional
+  `SHARE_LINK_MAX_LENGTH = 8000` (RFC 9110 §4.1's recommended minimum
+  request-line length); every `exercises/*.json` encodes under it
+  (cytochrome-c ≈ 4,500 chars), pinned by a test. Tests derive their
+  sizes from the constant, never a literal.
+- **`shareLink` returns `{ url } | { tooLong: true; maxLength } |
+  { error: string }`:** the plan's signature is extended with
+  `{ error }` because the link is built from the SAVED content — an
+  unsaveable exercise has no link to return. The limit applies to the
+  full returned string (`base + "#x=" + payload`); over it the result
+  carries no `url` — never a truncated link.
+- **`ajv` moved devDependencies → dependencies** (same `^8.20.0`, no
+  lockfile version change): spec §5.4 save validation runs it in the
+  app, not just in tests. Not a new dependency. Nothing imports
+  `web/src/editor/` yet, so the main bundle is unchanged — the editor
+  must be lazy-loaded (Task 8/10) so ajv stays out of the initial
+  bundle.
+- **`saveExercise` validates twice:** the file object passes
+  `exercises/schema.json` via `ajv/dist/2020.js` (schema imported
+  statically) AND the serialized text passes `engine.loadExercise`.
+  `{ error }` names the first failing field — ajv's instancePath as a
+  dotted path (with `missingProperty` for `required` errors) plus the
+  message, or the engine's `InvalidExercise.field`.
+- **Wire → file translation (`exerciseToFile`):** `sim.model` enum →
+  the file's string + flat `kappa`/`base_freqs` (F84 always writes its
+  `base_freqs` object — the wire fills the equal-frequencies default at
+  load); `analysis.correction` `K2pPhylip { ratio }` → `"K2P_PHYLIP"` +
+  `kappa`; `predict_branch` prompts write `at: "bootstrap"` and drop
+  the load-resolved `at_step`. Optional keys are OMITTED, never written
+  as `null`, where the schema refuses `null` (`bootstrap`,
+  `prompts[].after`); `reference: null` is schema-valid but also
+  omitted for clean files.
+- **`ExerciseState = { exercise: Exercise; fileExtras?: Record<string,
+  unknown> }`:** no existing type fit (the session's `LessonState` is a
+  different concept). `fileExtras` preserves top-level file keys the
+  engine drops (`summary`, `lab`, author/description metadata, unknown
+  fields like `odd-valid`'s) so import → save round-trips them. The
+  schema-required `summary` falls back to `exercise.title` when no
+  fileExtra supplies one, so a bare `{ exercise }` state still saves.
+- **`schema_version` written on save is the exported constant
+  `CURRENT_SCHEMA_VERSION = 3`,** mirroring
+  `crates/neophylo-core/src/exercise.rs` (ts-rs exports types, not the
+  const).
+- **The tree type alias is `EditorTree`, not `TreeView`** — `TreeView`
+  is already the React tree component's name in this codebase.
+- **`EditorHistory extends EditorModel`:** undo/redo need to notify the
+  model's subscribers and replace its tree; subclassing keeps one
+  object with one `apply` path (no bypass), and `restore` is the
+  `protected` hook. Snapshots are the engine `Tree` values the wasm
+  calls returned — no recomputation, no cloning. A rejected edit adds
+  no entry; a new edit after undo clears redo; a no-op undo at the
+  bottom of the stack does not notify.
+- **Files outside the Files block:** `web/package.json` and
+  `web/package-lock.json` (the ajv move above);
+  `web/tsconfig.app.json` (`resolveJsonModule` — the schema.json static
+  import requires it); `crates/neophylo-wasm/tests/parity.rs` (the
+  `edit_exports_smoke` boundary test — the crate already has an export
+  test pattern, so the bindings are covered in Rust per the task
+  notes); `docs/decisions.md` (this entry).
+- **Sandbox note (same as Task 6):** `wasm-pack`'s `cargo install
+  wasm-bindgen` step is blocked (read-only `$CARGO_HOME`). The cached
+  0.2.129 binaries work when `~/.cache/.wasm-pack/wasm-bindgen-*` and
+  `wasm-opt-*/bin` are on `PATH` (equivalent to Task 6's
+  `WASM_PACK_CACHE=target/.wasm-pack-cache`); with that, the pkg
+  rebuild, wasm-pack parity tests and `git diff --exit-code
+  web/src/engine/generated` are all clean.
+

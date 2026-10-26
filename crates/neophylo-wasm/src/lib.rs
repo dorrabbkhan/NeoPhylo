@@ -27,7 +27,7 @@ use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
-use neophylo_core::tree::Tree;
+use neophylo_core::tree::{NodeId, Tree};
 
 /// The single envelope every export returns (spec §5, plan gap 3).
 /// Errors are values: a failure is `ok: false` with the `NeoError`,
@@ -366,4 +366,86 @@ pub fn reroot_on_outgroup(tree: JsValue, outgroup: JsValue) -> JsValue {
         arg::<Vec<String>>(outgroup, "outgroup")
             .and_then(|og| neophylo_core::reroot_on_outgroup(&t, &og))
     }))
+}
+
+// --- v1.4 editor exports (v1.4 spec §5.1) -----------------------------------
+//
+// Type conversion only — the operations live in neophylo_core::edit.
+// Each export works on a deserialized copy of the tree and returns the
+// NEW tree in the envelope, so a refused op leaves the caller's object
+// untouched and the editor can snapshot previous values for undo.
+
+/// Join component roots `a` and `b` under a new internal node; `lengths`
+/// is `[len_to_a, len_to_b]`. Returns the edited tree.
+#[wasm_bindgen]
+pub fn edit_join(tree: JsValue, a: JsValue, b: JsValue, lengths: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<NodeId>(a, "a").and_then(|a| {
+            arg::<NodeId>(b, "b").and_then(|b| {
+                arg::<(f64, f64)>(lengths, "lengths").and_then(|lengths| {
+                    neophylo_core::edit::join(&mut t, a, b, lengths).map(|_new| t)
+                })
+            })
+        })
+    }))
+}
+
+/// Detach `node`'s subtree from its parent. Returns the edited tree.
+#[wasm_bindgen]
+pub fn edit_detach(tree: JsValue, node: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<NodeId>(node, "node")
+            .and_then(|node| neophylo_core::edit::detach(&mut t, node).map(|()| t))
+    }))
+}
+
+/// SPR: move `node` onto the edge above `new_parent_edge`; `lengths` is
+/// `[split_position, len_to_node]`. Returns the edited tree.
+#[wasm_bindgen]
+pub fn edit_move_subtree(
+    tree: JsValue,
+    node: JsValue,
+    new_parent_edge: JsValue,
+    lengths: JsValue,
+) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<NodeId>(node, "node").and_then(|node| {
+            arg::<NodeId>(new_parent_edge, "new_parent_edge").and_then(|x| {
+                arg::<(f64, f64)>(lengths, "lengths").and_then(|lengths| {
+                    neophylo_core::edit::move_subtree(&mut t, node, x, lengths).map(|()| t)
+                })
+            })
+        })
+    }))
+}
+
+/// Set the length of the edge above `child`. Returns the edited tree.
+#[wasm_bindgen]
+pub fn edit_set_length(tree: JsValue, child: JsValue, length: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<NodeId>(child, "child").and_then(|child| {
+            arg::<f64>(length, "length").and_then(|length| {
+                neophylo_core::edit::set_length(&mut t, child, length).map(|()| t)
+            })
+        })
+    }))
+}
+
+/// Rename a leaf; duplicates and empty names are refused. Returns the
+/// edited tree.
+#[wasm_bindgen]
+pub fn edit_rename_leaf(tree: JsValue, leaf: JsValue, name: JsValue) -> JsValue {
+    to_js::<Tree>(arg::<Tree>(tree, "tree").and_then(|mut t| {
+        arg::<NodeId>(leaf, "leaf").and_then(|leaf| {
+            arg::<String>(name, "name")
+                .and_then(|name| neophylo_core::edit::rename_leaf(&mut t, leaf, &name).map(|()| t))
+        })
+    }))
+}
+
+/// Check that the root component is an exercise-saveable tree
+/// (`edit::validate_editable`). Returns `()` — only `ok` matters.
+#[wasm_bindgen]
+pub fn edit_validate(tree: JsValue) -> JsValue {
+    to_js::<()>(arg::<Tree>(tree, "tree").and_then(|t| neophylo_core::edit::validate_editable(&t)))
 }
