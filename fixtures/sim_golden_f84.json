@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "name": "f84_equal_seed5", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "F84", "kappa": 2, "base_freqs": [0.25, 0.25, 0.25, 0.25], "length": 1000, "seed": 5, "fnv1a64": "b2619e396aebdf15" },
+    { "name": "f84_unequal_seed6", "tree": "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);", "model": "F84", "kappa": 2, "base_freqs": [0.3, 0.2, 0.2, 0.3], "length": 1000, "seed": 6, "fnv1a64": "e01c351ea4d3bd74" }
+  ]
+}

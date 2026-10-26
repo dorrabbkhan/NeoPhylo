@@ -144,7 +144,7 @@ export function Controls({
   // shown — the menu renders a disabled empty placeholder.
   const modelName = sim === null ? null : simModelName(sim.model);
   const kappa =
-    sim === null || typeof sim.model === "string"
+    sim === null || typeof sim.model === "string" || !("K80" in sim.model)
       ? KAPPA_DEFAULT
       : sim.model.K80.kappa;
 
