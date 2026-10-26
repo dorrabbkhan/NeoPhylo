@@ -378,6 +378,160 @@ test("a keyboard-focused handle shows a visible focus ring", async ({
   ).toBeGreaterThanOrEqual(2);
 });
 
+// Fix round 3 (owner decision B): a leaf's label must clear the
+// largest decoration that can surround its dot — the selected dot,
+// the :focus-visible ring (2.5 px stroke), both at once — and a ring
+// around any node must stay inside the viewBox, even for a detached
+// leaf at the canvas's left edge.
+
+interface DecorBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const overlaps = (a: DecorBox, b: DecorBox): boolean =>
+  a.x < b.x + b.width &&
+  b.x < a.x + a.width &&
+  a.y < b.y + b.height &&
+  b.y < a.y + a.height;
+
+const inside = (b: DecorBox, view: DecorBox): boolean =>
+  b.x >= view.x &&
+  b.y >= view.y &&
+  b.x + b.width <= view.x + view.width &&
+  b.y + b.height <= view.y + view.height;
+
+/** Focus a canvas handle by real keyboard Tab presses so
+ * :focus-visible paints on every engine (a scripted .focus() is
+ * engine-dependent). */
+async function tabToHandle(
+  page: import("@playwright/test").Page,
+  name: string,
+): Promise<void> {
+  await CANVAS(page).focus();
+  for (let i = 0; i < 60; i += 1) {
+    const on = await page.evaluate(
+      (n) =>
+        document.activeElement instanceof Element &&
+        document.activeElement.getAttribute("aria-label") === n,
+      name,
+    );
+    if (on) return;
+    await page.keyboard.press("Tab");
+  }
+  throw new Error(`Tab never reached "${name}"`);
+}
+
+/** A canvas handle's painted focus-ring bounds (stroke included), its
+ * leaf label's bounds, and the svg's viewBox — all in svg user units,
+ * so the comparisons are exact regardless of display scaling. */
+async function decorBoxes(
+  page: import("@playwright/test").Page,
+  name: string,
+): Promise<{
+  focusVisible: boolean;
+  selected: boolean;
+  ring: DecorBox | null;
+  label: DecorBox | null;
+  view: DecorBox;
+} | null> {
+  return page.evaluate((n) => {
+    const handle = document.querySelector(
+      `.draw-canvas [aria-label="${n}"]`,
+    );
+    if (!(handle instanceof SVGElement)) return null;
+    const box = (el: SVGGraphicsElement | null): DecorBox | null => {
+      if (el === null) return null;
+      const b = el.getBBox();
+      const sw = parseFloat(getComputedStyle(el).strokeWidth) || 0;
+      return {
+        x: b.x - sw / 2,
+        y: b.y - sw / 2,
+        width: b.width + sw,
+        height: b.height + sw,
+      };
+    };
+    const svg = handle.ownerSVGElement;
+    if (svg === null) return null;
+    const vb = svg.viewBox.baseVal;
+    return {
+      focusVisible: handle.matches(":focus-visible"),
+      selected: handle.getAttribute("data-selected") === "true",
+      ring: box(
+        handle.querySelector<SVGGraphicsElement>("circle.focus-ring"),
+      ),
+      label: box(
+        handle.querySelector<SVGGraphicsElement>("text.leaf-name"),
+      ),
+      view: { x: vb.x, y: vb.y, width: vb.width, height: vb.height },
+    };
+  }, name);
+}
+
+/** (a) the label's box does not intersect the focus ring's box;
+ * (b) the ring's box lies inside the svg's box. */
+async function expectDecorClear(
+  page: import("@playwright/test").Page,
+  name: string,
+): Promise<void> {
+  const d = await decorBoxes(page, name);
+  if (d === null) throw new Error(`no canvas handle named "${name}"`);
+  expect(d.focusVisible, `${name} holds :focus-visible`).toBe(true);
+  expect(d.selected, `${name} is selected`).toBe(true);
+  if (d.ring === null) throw new Error(`${name} has no focus ring`);
+  if (d.label !== null) {
+    expect(
+      overlaps(d.label, d.ring),
+      `${name}'s label must not overlap its focus ring`,
+    ).toBe(false);
+  }
+  expect(
+    inside(d.ring, d.view),
+    `${name}'s focus ring must stay inside the svg`,
+  ).toBe(true);
+}
+
+test("a selected and focused node keeps its ring clear of its label and inside the canvas", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await newick.fill("(A:0.1,B:0.2,C:0.3);");
+  await newick.press("Enter");
+
+  // The main-tree root — an unlabeled node at the left edge; its
+  // ring alone must stay inside the canvas. (Checked before the add
+  // below: a new arena leaf renumbers the u-names.)
+  await tabToHandle(page, "Node u1 (A, B, C)");
+  await page.keyboard.press("Enter");
+  await expectDecorClear(page, "Node u1 (A, B, C)");
+
+  // The right-edge leaf of the main tree, selected+focused.
+  await tabToHandle(page, "Leaf C");
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Leaf C" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expectDecorClear(page, "Leaf C");
+
+  // The reported scene: a newly added detached leaf sits at the
+  // canvas's far left, selected and focused.
+  await CANVAS(page).focus();
+  await page.keyboard.press("n");
+  const nameInput = page.getByRole("textbox", { name: "New taxon name" });
+  await nameInput.fill("F");
+  await page.keyboard.press("Enter");
+  const leafF = page.getByRole("button", { name: "Leaf F" });
+  await expect(leafF).toBeFocused();
+  await expect(leafF).toHaveAttribute("aria-pressed", "true");
+  // Re-focus through real Tab presses so :focus-visible paints on
+  // every engine; the add flow's scripted focus is engine-dependent.
+  await tabToHandle(page, "Leaf F");
+  await expectDecorClear(page, "Leaf F");
+});
+
 test("N adds a detached leaf; selecting a branch and J grafts it (keyboard only)", async ({
   page,
 }) => {

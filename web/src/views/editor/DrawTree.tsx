@@ -22,15 +22,21 @@ import {
   nodeAria,
   type Sel,
 } from "./drawOps";
-import { CAPTION_H, PAD, type CompView, type NodePos } from "./drawLayout";
+import {
+  CAPTION_H,
+  EDGE_FOCUS_MIN,
+  EDGE_FOCUS_PAD,
+  FOCUS_RING_R,
+  LABEL_DX,
+  NODE_R,
+  NODE_SEL_R,
+  PAD,
+  type CompView,
+  type NodePos,
+} from "./drawLayout";
 import type { Drag } from "./useDrawDrag";
 
-const NODE_R = 3; // node marker radius (px, matches the tree panels)
-const LABEL_OFF = 4; // gap between marker and leaf label
 const NODE_HIT_R = 10; // always-on invisible node hit radius, px
-const NODE_FOCUS_R = 8; // focus ring radius around a node marker, px
-const EDGE_FOCUS_PAD = 8; // focus ring space above/below a branch, px
-const EDGE_FOCUS_MIN = 16; // smallest focus box an edge gets, px
 
 interface DrawTreeProps {
   tree: Tree;
@@ -170,19 +176,19 @@ export function DrawTree({
                     className="focus-ring"
                     cx={p.x}
                     cy={p.y}
-                    r={NODE_FOCUS_R}
+                    r={FOCUS_RING_R}
                   />
                   <circle
                     className="node-dot"
                     cx={p.x}
                     cy={p.y}
-                    r={nodeSel ? NODE_R + 1 : NODE_R}
+                    r={nodeSel ? NODE_SEL_R : NODE_R}
                     fill="currentColor"
                   />
                   {n.leaf && n.label !== null && (
                     <text
                       className="leaf-name"
-                      x={p.x + NODE_R + LABEL_OFF}
+                      x={p.x + LABEL_DX}
                       y={p.y}
                       fontSize={fontSize}
                       dominantBaseline="middle"

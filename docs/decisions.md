@@ -4497,6 +4497,15 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   and `web/src/views/editor/useNewLeaf.ts` (its open/submit/focus
   flow — the split that keeps DrawCanvas.tsx under the ~400-line
   rule).
+  **Fix round 3** (owner-authorized, one cosmetic issue): the leaf
+  label offset and the svg margin now derive from the painted
+  decorations' reach — named constants in `drawLayout.ts`
+  (`DECOR_R` = the larger of the selected dot and the focus ring's
+  outer stroke edge, `LABEL_DX`/`PAD` = `DECOR_R` + a gap) — so a
+  selected and/or keyboard-focused node's label clears its ring and
+  every ring stays inside the viewBox, including detached roots at
+  the canvas's left edge. No new files; all touched files were
+  already in the Files block or recorded above.
   Fix-round-1 behaviour changes: drop resolution hit-tests
   `elementFromPoint` (touch pointers implicitly capture `e.target`),
   `touch-action: none` + `user-select: none` on the canvas, refusals

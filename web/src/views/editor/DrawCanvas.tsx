@@ -60,7 +60,7 @@ import {
   round6,
   type Sel,
 } from "./drawOps";
-import { layoutComps, PAD } from "./drawLayout";
+import { LABEL_DX, layoutComps, PAD } from "./drawLayout";
 import { DrawTree } from "./DrawTree";
 import { NewLeafForm } from "./NewLeafForm";
 import { useDrawDrag } from "./useDrawDrag";
@@ -143,12 +143,15 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
     fontSize,
   );
   const panel = panelW > 0 ? panelW : FALLBACK_PANEL_W;
-  const drawWidth = Math.max(80, panel - labelRoom - PAD * 2);
+  // Right of the drawing: the label offset plus room for the longest
+  // label, so a focused right-edge leaf's ring and its whole label
+  // stay inside the viewBox.
+  const drawWidth = Math.max(80, panel - labelRoom - LABEL_DX - PAD * 2);
 
   // One layout() call per drawn component — detached subtrees stack
   // below the main tree with a caption, same coordinates pipeline.
   const { comps, pos, svgH } = layoutComps(tree, drawWidth);
-  const svgW = drawWidth + labelRoom + PAD * 2;
+  const svgW = drawWidth + labelRoom + LABEL_DX + PAD * 2;
 
   const { drag, beginDrag, cancelDrag } = useDrawDrag(svgRef, {
     tree,
