@@ -2,7 +2,8 @@
 
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
 rooting)**, **v1.3 (design system and polish)** and **v1.4 (instructor kit and PHYLIP lab packs)**
-released or releasing; **next: v1.4b** (MEGA companion and data library). Last revised 2026-10-27.
+released or releasing; **next: v1.4b** (MEGA companion and data library), then v1.4c (matrix input,
+accession fetch and lesson library). Last revised 2026-10-27.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -67,19 +68,30 @@ validation discipline: an independent oracle, property tests and fuzzing.
   each with a handout, the settings that match PHYLIP's defaults, and a "what PHYLIP's outfile showed
   you vs what NeoPhylo shows you" note.
 
-### v1.4b MEGA companion and data library · *new — gets its own spec*
+### v1.4b MEGA companion and data library (M–L) · *spec: `docs/superpowers/specs/2026-10-27-neophylo-v1.4b-mega-companion-design.md`*
 - **MEGA companion:**
-  - 3–4 ready-made lab handouts mirroring the standard MEGA assignments (JC69 vs K2P, NJ vs UPGMA,
+  - 4 ready-made lab handouts mirroring the standard MEGA assignments (JC69 vs K2P, NJ vs UPGMA,
     100 bootstrap replicates, interpreting support): understand each step in NeoPhylo, then reproduce
     it in MEGA.
   - A "Coming from MEGA?" guide next to "Coming from PHYLIP?".
-  - **MEGA file import** (`.meg`).
-  - **MEGA as a validation oracle:** fixtures generated with MEGA's command-line version (MEGA-CC),
-    so instructors can be told "same numbers as MEGA."
-- **Curated data library:** one-click datasets with provenance and licensing (globins, cytochrome c,
-  primate mtDNA, 16S rRNA, a small SARS-CoV-2 set); fetch by UniProt/NCBI accession.
-- Sandbox correction menu offers `F84` and `K2P_PHYLIP` (v1.4 shows them only in the editor and in
-  exercises that prescribe them); built-in lessons stay unchanged.
+  - **MEGA file import and export** (`.meg` sequence files).
+  - **MEGA as a validation oracle:** fixtures generated locally with MEGA's command-line version
+    (MEGA-CC) and frozen, so instructors can be told "same numbers as MEGA."
+- **MEGA's gap treatments:** pairwise (default, unchanged), complete and partial deletion with a
+  site-coverage cutoff; removed columns shown in the pair panel.
+- **Full protein parity with MEGA:** p-distance, Poisson (new) and JTT (a separate `JTT_MEGA` model only
+  if MEGA's JTT differs from `protdist`'s).
+- **Curated data library, bundled offline:** one-click datasets with provenance and licensing (globins,
+  cytochrome c, primate mtDNA, 16S rRNA, a small SARS-CoV-2 gene set), rebuilt from public accessions
+  by a committed script.
+- Sandbox correction menu offers `F84`, `K2P_PHYLIP` and the new models (v1.4 shows `F84` and
+  `K2P_PHYLIP` only in the editor and in exercises that prescribe them); built-in lessons stay unchanged.
+
+### v1.4c Matrix input, accession fetch and lesson library · *new — gets its own spec*
+- **Distance-matrix input:** start from a matrix (`.meg` and PHYLIP formats) and go straight to NJ/UPGMA,
+  for textbook-style "build the tree from this matrix" exercises.
+- **Fetch by UniProt/NCBI accession** in the browser (the app's first outside network request; privacy,
+  CORS and offline behavior are decided in its spec).
 - Lesson library page with learning objectives; printable worksheets with instructor answer keys;
   an instructor guide (50-minute and 3-hour lab plans).
 
