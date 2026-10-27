@@ -1,0 +1,127 @@
+{
+ "schema_version": 3,
+ "id": "protdist-neighbor",
+ "title": "protdist → neighbor lab",
+ "summary": "Reproduce the classic PHYLIP chain for proteins: protdist's default JTT distances on a 10-sequence protein alignment, then neighbor's Neighbor-Joining tree — matching PHYLIP 3.697's defaults end to end.",
+ "alphabet": "protein",
+ "data": {
+  "kind": "embedded",
+  "fasta": ">P01\nYTSMTSWCCWVYCCNPHPYFRTFPEGLDADRIREFHRLIEILGTDNELREYYDKHILGGKDQIDLHMTDSQNSGDGCNLEWPGIQSQTPEFAALHRKLNALPQWRTADDEMTTHEYVIQACWECWVCYWHYQRDFPGGASYFNMQRAIHVVFSKPVYPPWFRFWIAMKHLRTCQVFYAWQTWTNVCVQVGPQEEVPIVSLNITIWNRIQLMNQLQCRTYFPYIKYLGNPRRVVRDCGILWSYECIRQSWCDRTLCHHMYLFTTSKAHKDEYDFMSIKVYWHSHYMAKQQHPPSQRVSKHSVDWQCYQADVIVQYWPVIYSYLASTNPHPYPQRRNTDVLPECYKFETLPPSRAQGRTVEISTGVEIRFMMWAHPKCKNDFWKTFMNFIFWPQMGVNTHFV\n>P02\nDTVTYMEACKNYFEEPWTYDYAFDYFNDVAVDWNMPQCVETLGDRNNQRGMAFKHILEGWDVDIAHMCQIINSFDSCNWWPIGIWRCRPIFCHIHTELFQVMMWLNAMREMGFHLLVHRAECELWQCVSTEQSGGPCPALFCFAARDIIIEQFKDMYWPWKPIWRLEAHLPICQDNSSQPCAYMPCRQPKCFDTVYIMCLDITRSRHEILHSQNQDRKMAPEYKHMNINYGVQKDAWLEWSSILMRQCECMYMWCHHTYSLSTRQAHAETVPFIWIKCYAHSELDATRFHLPVIRAEKTMVMWKCVLAEVIMISWPVIGWYPAMTKPQVYYLHRVTPALDNCIRFETLVPSRWFQRTIKILYGAEFRFFYWDHQKQSKDKSRTYKWFMTTACRGVEKDYG\n>P03\nATYFTWPTQWFYRMINNPYCSTMPEILAMDRDRHPLTPIEGKEVPSEDMNMIWGLMLEMKDYCDLHMLHWQWAEDGCCNASPSTPEQTPIWARRNFACNAIGVNKNAFMFPPTHEYLCQPNDVSPSPHRDHQIITPFTFPYALMLEDISVYQCKNTARSAMSLKKHETHKMVGYVNYQMYTGENHCCMEVDTESDNHYTMQWAHWNQRTFYVQLHMRTYFPYINNVWNWPLVQDSCWKLLSAVTCRMALDTYMLPLHEYYMFSEIAHDDVASFCHSYYYYHMNCMAETGAGGSIQVYKEKFGIDEHFACRVTQYWYCITTYVMFVAPHPYREEHLKDAHGWRLKFPTPPPSQAQGWTEEFWYWAPTQHPRWDHPYFGNGKWITHGCDIGWHQMQVQMVGH\n>P04\nATSSTYPTMWVQRRPNHWYCLTFVLYLDMIRIRTFEYPIVISEMPMQDRNMRIGQYLETRDYCDLHMAHWKIHHPGMHNKIPSPSFQTPIAARRNIKYSAIPGKKNASMFFIIEEYVGQLTDSVHVWIRDDQGKAFETIDVWMMLEDIGEYQMDVKMGSAAILVCWHTAWMYMQVWYQVKTGYNMCAWWHGNESDTIYTFIITHWKDITFCIQLCSITAFPAEKWLGNTSRTPDACWHLRSVETGRQELCTGTEGLHTEKSFKAIVGDYFYSMLMSYYYYHCRMTSMQWHAGSIDGPKEKVAIKCMLKDRVTQFHYKIEIYVSKYAPDPMDEEHMKDALDLCLMFPLYPPSGAQRIDETFWQNYLNGHPPWDYPYCKADKWRTMMPDIALRTTGHCFVTE\n>P05\nDTEISMWCCKVYVEEPWTYMVYFDYINDVLVDWGEPQCVETLGDKTNQRECAFKHILEGWDVMIVHNCQIQNSFDSCNWWPIGTWRQTPIHAHLHHELFAVQMWRNHMREMSTHERVNGACWEVWVAVNHYQSGGTCPYLFVFVTRDIIKVQFKDMFFPWPMIWWCEAHLPYCQDNSSQPWWTNPCRQGKPDPTAPIIGLLITWSRHIILHSQNQMRKYFPEIKHCNCDLHVQQDAWLEWSSITTRQIWCLYTFCIHTYLSTSTQAHAEQYPFIHIKCYYHSELDATRFHLPVIRWEKTMVMWFCYDADQIVQSWPVIYWRLMMTKPQNYYLHRCWWALINCGRFETLVPSRWFGRTTKINYGAEPRFFSWDTDKCSNDFWRTINNFMTTPIRGVETHPY\n>P06\nDTETSLWCCSVKCCDPWVYQVYFPITCDVDSITGFHTYIEIIEDDTNGRDMYGKHILGGTDVNILHMICIQNAHYSFNELWPLIQIQTPIFAYLHYYKNAVMPWKNAMREMSPHEYVIGACWENWHCVRHYQRLFPCPASYNNVTDDICKWHPKWVKKPWFYFWWICKQLPTCQDISAWITWTTVCRLGVPDEANPTICILIACSNDIRLESQNQIRTFFPDFKHLGNTIFVQKDAWICAFSGTGRQIWCNYTTCHATYLSTSDLAHKKDCWFIMITYTLHSSYCAGRFHSPHIRWSKTIVDGCCYLADVITQSWPVIKSQLMSIFMHFYPEQRCTDALIICYKFETLSPSRWQGRTVKIVYMYHIRFSRWMHNKCQNKFWRTFMNFIFWPQDGVETHFH\n>P07\nATSSTYPTMWVQRRPNAYYCLTFVLYLDMIPIRTIEYPIVISEMPEQDRNMRIGQYFETRDYCDLHMAHWQIHHDGMHNKIPSPSLQTTHAARRIIKYSAIPGKKNASMCFIIEEYVGQLTDSVHVWIRDDQGKAFETIDVWWHLFDIGEYQMIVKMPSAAILDCWHTAWMYMQVWYQVKTGYNMCAEWHGNESDTIYTFIITHWKDITFCIQLCMITKFPAEFWLGNTSDTPNHTWHLMPVEVGRQEFVTNTEGLHTYKSFKAIVGDYEYSMLMSYYYYHKRLHSMQGHAGSIDGPKIKVAIKCMLKDRVTQFHYCIEIYVVKNAPDPMDEEHMKDALDWCLMFPEPPPSQAQGITETFWQWYLNGHPLWDYPYCKGDKWATHMPDIALWYTGHQSVTE\n>P08\nDTAFTWSTTWVYQCENHPYEPTIPLDLQADRIRGFEFQIEISETDSLDRNMILPQMAKLGIYDDLHDNHWQKAADGCCAKSPGIGEETPNEARWHYYLNDIPGKKNCMMFMGPHLKVIQPNWEVESYPCLDQILFPIYASYNNMLERIIYVIFKPTREWAHSLWFAYNDYTYTQQAYQVPTGSNSCTIGVWNESDKIYFLLITCWNQRALCSQMQERTYEPYIKLLCNTRNVQLCCWTTWSAETIRLNKCTHTLGDHTRLSTSSIAWKVEYSWCMSYYCYHKQMFFRTGHSPEIELVKQKVHQQCYIADRIVQYIPCIYSYVMINAWHPIREERNKFALIWEKKVPTVMPPRAGWFTGKNLYDALIQFRRLDHTKCGPDVWATHMSFIFWPQMGVMFHGH\n>P09\nYTSRTMLCDWGYCCNPHRYFQTFEEGLDACRCRGFHILIEILEYCREERPVIKKHILGGKKQIDLCMTDCPNKGDGCIIEWPGWQSQDPEFRRTHYYLNALNKDRTAMREETTHLYVIQACKEVMVCYWHMQRDIIGGAKYNNMQQAIHVDQFKPNLEHWFRFWIAHTHLFYEQVADACHTWTIVCVQGGPPEEVPMISLTITEWNNISLNVQLWCQLYFPYDKYLGNARRVFDSCEHLWSYETYRQIWCMYDLGHHTYLSTSSLAHQDEYDFMMYIYYWNSSGYTKLQHPASNRNGNHNVDAQQYQADDITQYWPEIYKYLMSIPARPTRQRRGTDVSWTCYKFWWLPPSRAQLRQVKGSEVHYIRVPNWDHPVCKNDFRKTFANRFFGSQFGVETHFV\n>P10\nDTSFTWDTTWIYNCENHPYEPTFPLDLRADRKFGCETLIVIGETESLTRNTILPRMAYMGIYDDLHDNHTPNAHDGVCVKQPGIGEQTPHEARWHYYLNTIPGKKFAMMFMTKHEYKIQPNWKVAAEPRDDQILFPVYCSYTNLLRRIIWVDFKPTREPGSSAWIFEHDPMYTQVAYQVWTGHNHCTIMKWNESDQIYTLLITHWRRRPLYIWLQMRTYHPHIKLLCNTRNHQICCWKTWSAEMIWQSWCTHQLGDHTRLKESAIAHKVEYSYCEWFYYYHKQMMARTGHSPSTRMSKGKVHQLCAIADRATQYIPCIYEYVMSNAWIPIRLERNGFKLIWYYWFPTLRPSRAPCRTGKNLYFAKIQFPSWDHVKHKNVFWATHMSFIFWPKMGMQFHGH\n",
+  "source": {
+   "citation": "Simulated in-house for NeoPhylo by fixtures/make_protein_inputs.py (numpy PCG64, seed 2026): sequences evolved down a random binary tree under equal-rate replacement among the 20 standard amino acids — not under JTT — and committed as fixtures/inputs/protein/p10_400.fasta",
+   "license": "AGPL-3.0-only",
+   "accessions": []
+  }
+ },
+ "analysis": {
+  "correction": "JTT",
+  "method": "NJ"
+ },
+ "prompts": [
+  {
+   "at_step": 1,
+   "type": "predict_pair",
+   "concept": "Neighbor-Joining scores every pair by Q before it joins. The smallest distance in the matrix is a tempting first pick — does NJ join that pair first? Pick a cell in the matrix, or click two leaves.",
+   "math": "NJ joins the pair minimizing Q(i,j) = (n-2)·d(i,j) - R_i - R_j. Each cluster's total distance to everything else counts, not just the pair's own distance.",
+   "reveal": "This time they agree: P04 and P07 — the matrix's closest pair — also win the first Q, and PHYLIP's neighbor reports the same first join, species 4 joining species 7, in its progress log. Agreement is not the rule, though: on the dnadist lab's DNA data the closest pair lost to a better Q score."
+  },
+  {
+   "at_step": 9,
+   "type": "note",
+   "concept": "The tree is complete — the same unrooted tree neighbor writes to outtree, down to P05's pendant edge, which estimates at a small negative length. NJ's length formula splits each join's distance by how much farther each partner sits from the rest on average, and P02 sits much farther out than P05, so P05's share came out negative; PHYLIP prints the value and marks its table 'Negative branch lengths allowed'. Read the tree by its splits, not by where the drawing happens to start: PHYLIP lays it out with species 1 (P01) as the outgroup purely for readability, and nothing in the data placed a root there.",
+   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match."
+  }
+ ],
+ "lab": {
+  "id": "protdist-neighbor",
+  "title": "protdist → neighbor (JTT)",
+  "objectives": [
+   "Run protdist's JTT distances and neighbor's NJ on a 10-sequence protein alignment",
+   "Match each PHYLIP menu option to the NeoPhylo setting that reproduces it",
+   "Read a Neighbor-Joining tree as unrooted — including a negative estimated branch — and compare its splits with PHYLIP's outtree"
+  ],
+  "handout_md": "## What this lab reproduces\n\nThe classic PHYLIP chain for protein sequences: `protdist` computes a distance matrix under its default model — the Jones-Taylor-Thornton (JTT) likelihood distance — and `neighbor` builds a Neighbor-Joining tree from it. NeoPhylo runs the same chain — the matrix and the tree here are the numbers PHYLIP 3.697 prints for this dataset.\n\n## The data\n\nTen protein sequences of 400 amino acids, simulated in-house for this lab (provenance and license are in the pack's data note). The generator used plain equal-rate replacement among the 20 amino acids — not JTT — so the correction here is an estimation choice, not a claim that the data was evolved under JTT.\n\n## Before you start\n\nRead the settings table below. In a real PHYLIP session you would page through each program's menu and check every option; the table does that for you — the PHYLIP default on the left, the NeoPhylo setting that reproduces it on the right.\n\n## Steps\n\n1. Load this lab. NeoPhylo loads the alignment and computes the distance matrix with the correction the table names.\n2. Look at the matrix before building the tree. Which pair looks closest? Write down your prediction — whether NJ joins it first is a separate question.\n3. Step through the joins (or jump to the end) and read the completed tree as an unrooted tree: which splits does it contain? Watch for a branch that estimates at a negative length.\n4. Compare with what PHYLIP's programs printed — the note below maps each piece of PHYLIP's output to what is on screen.\n\n## Questions\n\n- protdist's default is JTT — a likelihood distance under a fixed 20×20 amino-acid replacement matrix — not the simpler protein Kimura count of differences. Switch the correction to Kimura afterward: do the same splits survive?\n- NJ minimizes a Q score, not raw distance. Was the closest pair in the matrix the first to join — and would that always be so?\n- One pendant branch estimates at a negative length. What would a negative length mean, and why do both PHYLIP and NeoPhylo print it rather than hide it?\n- PHYLIP draws its tree with species 1 as the outgroup. Where would you place a root, and does placing one change the tree's splits?",
+  "settings": [
+   {
+    "option": "protdist P — Use JTT, PMB, PAM, Kimura, categories model?",
+    "phylip_default": "Jones-Taylor-Thornton matrix (the shipped default; P cycles six models)",
+    "neophylo": "Correction: JTT — the menu also lists the protein Kimura correction, matching protdist's \"Kimura formula\"; PMB, PAM, the similarity table and the categories model have no NeoPhylo equivalent"
+   },
+   {
+    "option": "protdist G — Gamma distributed rates among positions",
+    "phylip_default": "No",
+    "neophylo": "no equivalent (NeoPhylo has no gamma option)"
+   },
+   {
+    "option": "protdist C — One category of substitution rates",
+    "phylip_default": "Yes",
+    "neophylo": "a single rate — the only model offered"
+   },
+   {
+    "option": "protdist W — Use weights for positions",
+    "phylip_default": "No",
+    "neophylo": "no equivalent (all sites count equally)"
+   },
+   {
+    "option": "protdist M — Analyze multiple data sets",
+    "phylip_default": "No",
+    "neophylo": "no equivalent — one alignment per exercise"
+   },
+   {
+    "option": "protdist I — Input sequences interleaved",
+    "phylip_default": "Yes",
+    "neophylo": "n/a — the pack embeds a FASTA alignment"
+   },
+   {
+    "option": "protdist 0/1/2 — terminal type and printouts",
+    "phylip_default": "ANSI / No / Yes",
+    "neophylo": "n/a — not a data option"
+   },
+   {
+    "option": "neighbor N — Neighbor-joining or UPGMA tree",
+    "phylip_default": "Neighbor-joining",
+    "neophylo": "Method: Neighbor-Joining"
+   },
+   {
+    "option": "neighbor O — Outgroup root",
+    "phylip_default": "No, use as outgroup species 1",
+    "neophylo": "no equivalent — the tree is drawn unrooted, as computed"
+   },
+   {
+    "option": "neighbor J — Randomize input order of species",
+    "phylip_default": "No. Use input order",
+    "neophylo": "no equivalent — NJ always runs in alignment order"
+   },
+   {
+    "option": "neighbor L/R — lower/upper-triangular input",
+    "phylip_default": "No / No",
+    "neophylo": "n/a — the square matrix carries over from the distance step"
+   },
+   {
+    "option": "neighbor S — Subreplicates",
+    "phylip_default": "No",
+    "neophylo": "no equivalent"
+   },
+   {
+    "option": "neighbor M — Analyze multiple data sets",
+    "phylip_default": "No",
+    "neophylo": "no equivalent"
+   },
+   {
+    "option": "neighbor 3/4 — print tree / write tree file",
+    "phylip_default": "Yes / Yes",
+    "neophylo": "the drawn tree plus the Newick export"
+   },
+   {
+    "option": "neighbor 0/1/2 — terminal type and printouts",
+    "phylip_default": "ANSI / No / Yes",
+    "neophylo": "n/a — not a data option"
+   }
+  ],
+  "phylip_note_md": "protdist's `outfile` is a square text matrix — one row per species, wrapping onto continuation lines when a row runs long (6 cells per line at this lab's 10 species), every cell printed to 6 decimals, with `-1.000000` where a distance could not be estimated. NeoPhylo draws the same square matrix as a heatmap: cells read to 3 decimals on screen, and a cell that cannot be estimated shows ∞.\n\n`neighbor` reports its unrooted NJ tree twice: as a text drawing in `outfile` — laid out with species 1 as the outgroup purely for readability under a \"Negative branch lengths allowed\" notice, followed by a Between/And/Length table of every branch's length — and as a Newick `outtree` with branch lengths to 5 decimals, the form tree viewers read. NeoPhylo draws the same unrooted tree as computed, with no outgroup implied; its computed branch lengths — the values the Newick export writes — match `neighbor`'s outtree to its 5 printed decimals, a small negative pendant edge included. Compare the splits, not the direction the drawing happens to grow from.\n\nprotdist's `P` option cycles six models — JTT, the Henikoff/Tillier PMB matrix, the Dayhoff PAM matrix, the Kimura formula, a similarity table and a categories model — and JTT is the shipped default. NeoPhylo's JTT correction is the same JTT estimate, and its protein `Correction: Kimura` option is the same Kimura formula — a protein correction, unrelated to dnadist's DNA \"Kimura 2-parameter\". Both tools count only sites where both sequences carry a standard amino acid, and this dataset has no gaps or ambiguity codes. The sequences were simulated under equal-rate replacement, not under JTT — the correction is an estimation model, not a claim about how the data evolved.",
+  "chain": [
+   "protdist",
+   "neighbor"
+  ]
+ }
+}

@@ -34,6 +34,7 @@ import type { Exercise } from "../engine/generated/Exercise";
 import type { Tree } from "../engine/generated/Tree";
 
 import { loadLab } from "./registry";
+import type { DistModel } from "../engine/generated/DistModel";
 
 const FIXTURES = resolve("..", "fixtures");
 
@@ -53,6 +54,16 @@ interface PhylipFixture {
 function loadFixture(sub: string, name: string): PhylipFixture {
   const text = readFileSync(
     resolve(FIXTURES, "phylip", sub, `${name}.json`),
+    "utf8",
+  );
+  return JSON.parse(text) as PhylipFixture;
+}
+
+/** The protdist corpus files live in ref/protein/ (protein_dist.rs
+ * owns that glob), not under phylip/ — same JSON shape otherwise. */
+function loadProteinFixture(name: string): PhylipFixture {
+  const text = readFileSync(
+    resolve(FIXTURES, "ref", "protein", `${name}.json`),
     "utf8",
   );
   return JSON.parse(text) as PhylipFixture;
@@ -84,13 +95,17 @@ function packAlignment(ex: Exercise): Alignment {
 
 /** The fixture's printed matrix as the DistanceMatrix the reference
  * tool's tree program consumed — cells exactly as printed. */
-function printedMatrix(fx: PhylipFixture, run: string): DistanceMatrix {
+function printedMatrix(
+  fx: PhylipFixture,
+  run: string,
+  model: DistModel,
+): DistanceMatrix {
   const want = fx.distances[run];
   const cells: Cell[] = [];
   for (const row of want) {
     for (const v of row) cells.push({ Value: v });
   }
-  return { labels: fx.labels, model: "F84", cells };
+  return { labels: fx.labels, model, cells };
 }
 
 function nj(m: DistanceMatrix): Tree {
@@ -183,7 +198,7 @@ describe("lab pack dnadist-neighbor", () => {
   });
 
   it("NJ on PHYLIP's printed F84 matrix gives nj.F84's splits and lengths", () => {
-    const got = nj(printedMatrix(fx, "F84"));
+    const got = nj(printedMatrix(fx, "F84", "F84"));
     const want = parse(fx.nj.F84);
     // Unrooted RF = 0 pins every split; the sorted edge-length
     // multiset then agrees elementwise within neighbor's printed
@@ -249,7 +264,7 @@ describe("lab pack dnadist-neighbor", () => {
     expect([labels[best.i], labels[best.j]].sort()).toEqual(["t06", "t07"]);
 
     // First join of the engine's NJ trace on PHYLIP's printed matrix.
-    const tr = engine.buildTree(printedMatrix(fx, "F84"), "Nj", {
+    const tr = engine.buildTree(printedMatrix(fx, "F84", "F84"), "Nj", {
       trace: true,
     });
     if (!tr.ok) throw new Error(`buildTree failed`);
@@ -265,5 +280,237 @@ describe("lab pack dnadist-neighbor", () => {
       })
       .sort();
     expect(pair).toEqual(["t04", "t05"]);
+  });
+});
+
+/** The length of the edge above `label`'s leaf — branches are indexed
+ * by node id. */
+function pendantLength(t: Tree, label: string): number {
+  const idx = t.nodes.findIndex((n) => n.label === label);
+  if (idx < 0) throw new Error(`${label} is not a leaf in this tree`);
+  const len = t.branches[idx].length;
+  if (len === null) throw new Error(`${label}'s edge carries no length`);
+  return len;
+}
+
+describe("lab pack protdist-neighbor", () => {
+  const loaded = loadLab("protdist-neighbor");
+  if (!loaded.ok) throw new Error(`pack must load: ${JSON.stringify(loaded.error)}`);
+  const pack = loaded.value;
+  const fx = loadProteinFixture("p10_400");
+  const inputText = readFileSync(resolve(FIXTURES, fx.input), "utf8");
+
+  it("loads through loadLab and its lab block validates", () => {
+    expect(pack.lab.id).toBe("protdist-neighbor");
+    expect(pack.lab.chain).toEqual(["protdist", "neighbor"]);
+    expect(pack.exercise.schema_version).toBe(3);
+    expect(pack.exercise.alphabet).toBe("protein");
+    expect(pack.exercise.analysis.correction).toBe("Jtt");
+    expect(pack.exercise.analysis.method).toBe("Nj");
+    expect(pack.exercise.data.kind).toBe("embedded");
+    expect(pack.lab.settings.length).toBeGreaterThan(0);
+    expect(pack.lab.objectives.length).toBeGreaterThan(0);
+  });
+
+  it("embeds fixtures/inputs/protein/p10_400.fasta byte for byte (names and residues)", () => {
+    if (pack.exercise.data.kind !== "embedded") throw new Error("unreachable");
+    const embedded = fastaRecords(pack.exercise.data.fasta);
+    const committed = fastaRecords(inputText);
+    expect(embedded).toEqual(committed);
+    expect(embedded.length).toBe(fx.labels.length);
+    expect(embedded.map(([name]) => name)).toEqual(fx.labels);
+  });
+
+  it("settings-table rows naming a NeoPhylo setting agree with the exercise", () => {
+    // Same pin as pack 1: rows asserting a real app control open with
+    // the control's name, and each must agree with the exercise field
+    // that control loads. The JTT row shows the menu label "JTT"
+    // while the wire correction is the DistModel variant "Jtt" — the
+    // test pins both spellings so neither can drift.
+    let sawCorrection = false;
+    let sawMethod = false;
+    for (const row of pack.lab.settings) {
+      if (row.neophylo.startsWith("Correction:")) {
+        sawCorrection = true;
+        expect(row.neophylo).toContain("JTT");
+        expect(pack.exercise.analysis.correction).toBe("Jtt");
+      }
+      if (row.neophylo.startsWith("Method:")) {
+        sawMethod = true;
+        expect(row.neophylo).toMatch(/Neighbor-Joining|NJ/);
+        expect(pack.exercise.analysis.method).toBe("Nj");
+      }
+    }
+    expect(sawCorrection, "a settings row must name the Correction control").toBe(true);
+    expect(sawMethod, "a settings row must name the Method control").toBe(true);
+  });
+
+  it("reproduces protdist's printed JTT matrix within its precision", () => {
+    const aln = packAlignment(pack.exercise);
+    const r = engine.distances(aln, "Jtt");
+    if (!r.ok) throw new Error(`distances failed: ${JSON.stringify(r.error)}`);
+    const got = r.value;
+    expect(got.labels).toEqual(fx.labels);
+    const n = fx.labels.length;
+    // protdist 3.697 prints 6 decimals in outfile (`0.722200`), so the
+    // honest bound is half a unit of the last printed decimal: 0.5e-6.
+    // The fixture's `precision` field reads 4 only because the
+    // generator counts decimals after JSON drops trailing zeros — it
+    // under-reports what protdist actually printed. Correcting the
+    // fixture field is an owner decision outside this PR. Measured max
+    // engine-vs-fixture diff is 4.95e-7, so the bound passes honestly.
+    const tol = 0.5e-6;
+    const want = fx.distances.JTT;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const cell = got.cells[i * n + j];
+        expect(cell === "Saturated" ? Infinity : Math.abs(cell.Value - want[i][j]),
+          `cell ${fx.labels[i]}/${fx.labels[j]}`).toBeLessThanOrEqual(tol);
+      }
+    }
+  });
+
+  it("NJ on PHYLIP's printed JTT matrix gives nj.JTT's splits and lengths", () => {
+    const got = nj(printedMatrix(fx, "JTT", "Jtt"));
+    const want = parse(fx.nj.JTT);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error(`compare failed: ${JSON.stringify(r.error)}`);
+    expect(r.value.rf).toBe(0);
+    const gl = branchLengths(got);
+    const wl = branchLengths(want);
+    expect(gl.length).toBe(wl.length);
+    const tol = 0.5e-5; // neighbor's outtree prints 5 decimals
+    gl.forEach((g, k) =>
+      expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
+  });
+
+  it("NJ on the engine's own JTT matrix gives the same splits", () => {
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "Jtt");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const got = nj(dm.value);
+    const want = parse(fx.nj.JTT);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error(`compare failed`);
+    expect(r.value.rf).toBe(0);
+  });
+
+  it("NJ on the engine's own JTT matrix gives nj.JTT's lengths within 0.5e-5", () => {
+    // Same pin as pack 1: neighbor ran on protdist's PRINTED matrix
+    // while the engine keeps full precision; this pins that the
+    // difference never shows at neighbor's own printed precision
+    // (5 decimals → 0.5e-5). Measured headroom: ~4.5e-6.
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "Jtt");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const got = nj(dm.value);
+    const want = parse(fx.nj.JTT);
+    const gl = branchLengths(got);
+    const wl = branchLengths(want);
+    expect(gl.length).toBe(wl.length);
+    const tol = 0.5e-5;
+    gl.forEach((g, k) =>
+      expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
+  });
+
+  it("pins the prompt's teaching claims to the computed trace and matrix", () => {
+    // The predict_pair reveal names P04–P07 as the first join — here
+    // also the matrix's closest pair — and the closing note names
+    // P05's negative pendant edge. All three claims come from the
+    // engine on PHYLIP's printed matrix, never from fixture text.
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "Jtt");
+    if (!dm.ok) throw new Error(`distances failed`);
+
+    // Closest pair in the engine's own matrix.
+    let best = { d: Infinity, i: -1, j: -1 };
+    const labels = dm.value.labels;
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        const c = dm.value.cells[i * labels.length + j];
+        if (c !== "Saturated" && c.Value < best.d) {
+          best = { d: c.Value, i, j };
+        }
+      }
+    }
+    expect([labels[best.i], labels[best.j]].sort()).toEqual(["P04", "P07"]);
+
+    // First join of the engine's NJ trace on PHYLIP's printed matrix —
+    // the pair neighbor's progress log reports joining first.
+    const tr = engine.buildTree(printedMatrix(fx, "JTT", "Jtt"), "Nj", {
+      trace: true,
+    });
+    if (!tr.ok) throw new Error(`buildTree failed`);
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) {
+      throw new Error("NJ trace missing");
+    }
+    const first = trace.Nj.steps[0];
+    const pair = [first.chosen[0], first.chosen[1]]
+      .map((pos) => {
+        const node = first.active[pos];
+        return dm.value.labels[node];
+      })
+      .sort();
+    expect(pair).toEqual(["P04", "P07"]);
+
+    // The negative branch the note claims: P05's pendant edge is
+    // negative in both the computed tree and PHYLIP's outtree, and
+    // the two agree within neighbor's 5 printed decimals.
+    const want = parse(fx.nj.JTT);
+    const gotLen = pendantLength(tr.value.tree, "P05");
+    const wantLen = pendantLength(want, "P05");
+    expect(wantLen).toBeLessThan(0);
+    expect(gotLen).toBeLessThan(0);
+    expect(Math.abs(gotLen - wantLen)).toBeLessThanOrEqual(0.5e-5);
+  });
+
+  it("pins the note's mechanism: R(P02) > R(P05) at their join makes P05's share negative", () => {
+    // The closing note says P05's pendant edge estimated negative
+    // because "P02 sits much farther out than P05". NJ's limb formula
+    // splits a join's distance by net divergence:
+    //   len(x) = d(x,y)/2 + (R_x - R_y) / (2(k-2)),
+    // so P05's share goes negative exactly when R(P02) exceeds R(P05)
+    // by more than (k-2)·d. Both claims are read off the engine's own
+    // trace on the pack's matrix — the run the student steps through.
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "Jtt");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const tr = engine.buildTree(dm.value, "Nj", { trace: true });
+    if (!tr.ok) throw new Error(`buildTree failed`);
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) {
+      throw new Error("NJ trace missing");
+    }
+    const labelOf = (id: number) => tr.value.tree.nodes[id].label;
+
+    // The step whose chosen pair is P02 and P05 (a cherry in the tree).
+    const step = trace.Nj.steps.find(
+      (s) =>
+        s.chosen
+          .map((p) => labelOf(s.active[p]))
+          .sort()
+          .join("+") === "P02+P05",
+    );
+    if (!step) throw new Error("no NJ step joins P02 and P05");
+    const [i, j] = step.chosen;
+    const iIsP02 = labelOf(step.active[i]) === "P02";
+    const [p02, p05] = iIsP02 ? [i, j] : [j, i];
+    const lenP05 = iIsP02 ? step.len_j : step.len_i;
+
+    // The premise the note states: P02's net divergence (row sum)
+    // exceeds P05's at the join.
+    expect(step.r[p02]).toBeGreaterThan(step.r[p05]);
+
+    // The mechanism: the limb formula on the step's own distance and
+    // row sums reproduces the negative share the trace records for
+    // P05, which is the pendant length the tree carries for it.
+    const k = step.active.length;
+    const dij = step.distance.data[p02 * k + p05];
+    const share = dij / 2 + (step.r[p05] - step.r[p02]) / (2 * (k - 2));
+    expect(share).toBeLessThan(0);
+    expect(Math.abs(share - lenP05)).toBeLessThanOrEqual(1e-12);
+    expect(Math.abs(pendantLength(tr.value.tree, "P05") - share))
+      .toBeLessThanOrEqual(1e-12);
   });
 });

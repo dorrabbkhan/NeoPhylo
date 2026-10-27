@@ -61,8 +61,8 @@ function openLabsSheet(): HTMLElement {
 }
 
 function clickLoadThisLab(sheet: HTMLElement) {
-  // Scope to the test lab's row — Task 12's shipped dnadist-neighbor
-  // pack lists its own "Load this lab" button alongside it.
+  // Scope to the test lab's row — Task 12's shipped packs list their
+  // own "Load this lab" buttons alongside it.
   const row = within(sheet)
     .getByText("Test lab: dnadist → neighbor")
     .closest("li");
@@ -96,10 +96,11 @@ describe("lab index and lab page", () => {
     expect(link.getAttribute("href")).toBe("?lab=test-lab");
   });
 
-  it("with the e2e flag off only shipped labs list — the dnadist-neighbor pack", () => {
+  it("with the e2e flag off only shipped labs list — packs 1 and 2", () => {
     window.localStorage.removeItem("neophylo-e2e");
     render(<LabIndex />);
     expect(screen.getByText("dnadist → neighbor (F84)")).toBeTruthy();
+    expect(screen.getByText("protdist → neighbor (JTT)")).toBeTruthy();
     expect(screen.queryByText("Test lab: dnadist → neighbor")).toBeNull();
     expect(screen.queryByText(/no lab packs/i)).toBeNull();
   });
