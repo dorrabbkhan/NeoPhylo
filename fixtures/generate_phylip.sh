@@ -136,11 +136,18 @@ nwks <- c(read_nwk(paste0("nj_", name, "_jc.nwk")),
           read_nwk(paste0("nj_", name, "_k80.nwk")),
           read_nwk(paste0("upgma_", name, "_jc.nwk")))
 
-prec <- min(
-  decimals(paste(d_jc$m, collapse = " "), "[0-9]+\\.[0-9]+"),
-  decimals(paste(d_k80$m, collapse = " "), "[0-9]+\\.[0-9]+"),
-  decimals(paste(nwks, collapse = " "), ":[0-9]+\\.[0-9]+")
+# Printed decimals are counted on the raw outfile/outtree text (every
+# matrix cell is %9.6f), not on R's re-printed numbers, where trailing
+# zeros vanish. `nwks` is the raw outtree text with whitespace stripped;
+# the numbers are never parsed.
+dist_prec <- min(
+  decimals(paste(readLines(paste0("mat_", name, "_jc.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+"),
+  decimals(paste(readLines(paste0("mat_", name, "_k80.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+")
 )
+tree_prec <- decimals(paste(nwks, collapse = " "), ":[0-9]+\\.[0-9]+")
+prec <- min(dist_prec, tree_prec)
 
 fixture <- list(
   name = paste0(name, "_phylip"),
@@ -150,7 +157,9 @@ fixture <- list(
   distances = list(JC69 = unname(d_jc$m), K80 = unname(d_k80$m)),
   nj = list(JC69 = nwks[1], K80 = nwks[2]),
   upgma = list(JC69 = nwks[3]),
-  precision = prec
+  precision = prec,
+  dist_precision = dist_prec,
+  tree_precision = tree_prec
 )
 out <- file.path(fixdir, "ref", paste0(name, "_phylip.json"))
 writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA, pretty = TRUE), out)
@@ -232,11 +241,18 @@ d_kim <- parse_dnadist(paste0("mat_", name, "_kimura.txt"))
 stopifnot(identical(d_jtt$labels, d_kim$labels))
 nwk <- read_nwk(paste0("nj_", name, "_jtt.nwk"))
 
-prec <- min(
-  decimals(paste(d_jtt$m, collapse = " "), "[0-9]+\\.[0-9]+"),
-  decimals(paste(d_kim$m, collapse = " "), "[0-9]+\\.[0-9]+"),
-  decimals(nwk, ":[0-9]+\\.[0-9]+")
+# Printed decimals are counted on the raw outfile/outtree text (every
+# matrix cell is %9.6f), not on R's re-printed numbers, where trailing
+# zeros vanish. `nwk` is the raw outtree text with whitespace stripped;
+# the numbers are never parsed.
+dist_prec <- min(
+  decimals(paste(readLines(paste0("mat_", name, "_jtt.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+"),
+  decimals(paste(readLines(paste0("mat_", name, "_kimura.txt")), collapse = " "),
+           "[0-9]+\\.[0-9]+")
 )
+tree_prec <- decimals(nwk, ":[0-9]+\\.[0-9]+")
+prec <- min(dist_prec, tree_prec)
 
 fixture <- list(
   name = paste0("protein_", name),
@@ -246,7 +262,9 @@ fixture <- list(
   input = file.path("inputs", "protein", paste0(name, ".fasta")),
   distances = list(JTT = unname(d_jtt$m), Kimura = unname(d_kim$m)),
   nj = list(JTT = nwk),
-  precision = prec
+  precision = prec,
+  dist_precision = dist_prec,
+  tree_precision = tree_prec
   # second_opinion is merged in by fixtures/generate.R (runs after this
   # script; see scripts/ci/fixture-guard.sh).
 )
