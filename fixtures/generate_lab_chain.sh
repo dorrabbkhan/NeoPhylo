@@ -4,7 +4,7 @@
 #
 # NeoPhylo's own resampling cannot reproduce seqboot's replicates (its RNG
 # differs), so pack 3's oracle is PHYLIP's whole chain committed verbatim:
-# seqboot bootstraps inputs/k80_10.fasta (J Bootstrap and R = 100 are the
+# seqboot bootstraps inputs/jc12.fasta (J Bootstrap and R = 100 are the
 # menu defaults; after Y it asks "Random number seed (must be odd)?"),
 # dnadist computes F84 distances for the 100 data sets (M -> D -> 100, all
 # other options default), neighbor builds the 100 NJ trees (M -> 100 —
@@ -26,8 +26,7 @@
 # phylip/{f84,k2p}/*.json, consensus/*.json) picks it up. Nothing in
 # crates/ reads it yet; the pack 3 PR adds the reader.
 #
-# Not wired into generate_phylip.sh yet (PR #103 edits that file); add the
-# call there in a later PR, like generate_consensus.sh is invoked today.
+# Invoked at the end of generate_phylip.sh, like generate_consensus.sh.
 #
 # Usage: bash fixtures/generate_lab_chain.sh   (from anywhere)
 # Requires: seqboot, dnadist, neighbor, consense (on PATH or
@@ -36,7 +35,7 @@
 set -euo pipefail
 
 FIXDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INPUT="k80_10"            # same alignment lab pack 1 uses (phylip/f84)
+INPUT="jc12"              # owner-chosen committed input (phylip/f84 has its NJ tree)
 REPS=100                  # seqboot's menu default for R
 SEED_START=8675309        # first odd seed tried
 SEED_MAX=8675499          # give up if every candidate ties
@@ -58,8 +57,8 @@ cd "$TMPD"
 phylip_version() { grep -o 'version [0-9.]*' "$1" | head -1 | awk '{print $2}'; }
 
 # FASTA -> strict PHYLIP: first line "n sites", then 10-char name + sequence.
-# Same conversion generate_phylip.sh uses; duplicated because that file is
-# edited by another open PR.
+# Same conversion generate_phylip.sh uses; duplicated to keep this script
+# self-contained.
 fasta_to_phylip() {
   Rscript - "$1" "$TMPD/infile" <<'RS'
 a <- commandArgs(trailingOnly = TRUE)

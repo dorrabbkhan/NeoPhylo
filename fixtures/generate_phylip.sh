@@ -23,6 +23,11 @@
 # and extended-majority runs plus the group tables) merged in by
 # fixtures/generate_consensus.sh, invoked at the end of this script.
 #
+# Chain path (v1.4 lab pack 3): fixtures/generate_lab_chain.sh runs the
+# real seqboot -> dnadist -> neighbor -> consense chain on one committed
+# input (jc12) into phylip/chain/jc12_boot100.json; it is invoked at the
+# end of this script too, right after generate_consensus.sh.
+#
 # v1.4 path: dnadist's two ML distances — F84 (its default model) and
 # "Kimura 2-parameter" at a preset T ratio — on every gap-free input,
 # parsed into phylip/f84/<name>.json and phylip/k2p/<name>.json; the f84
@@ -33,7 +38,7 @@
 # (tests/parity_phylip_v14.rs) owns these files.
 #
 # Usage: bash fixtures/generate_phylip.sh   (from anywhere)
-# Requires: dnadist, protdist, neighbor + consense (on PATH or
+# Requires: dnadist, protdist, neighbor, consense + seqboot (on PATH or
 # /usr/lib/phylip/bin), Rscript with jsonlite + ape.
 
 set -euo pipefail
@@ -393,3 +398,9 @@ done
 # consense merges live in their own script so this file stays single-purpose;
 # see fixtures/generate_consensus.sh for the driver and the R assertions.
 bash "$FIXDIR/generate_consensus.sh"
+
+# --- lab pack 3 chain (v1.4) -----------------------------------------------
+# The seqboot -> dnadist -> neighbor -> consense chain is its own script
+# for the same reason; see fixtures/generate_lab_chain.sh for the driver
+# and fixtures/lab_chain_checks.R for the assertions and the JSON write.
+bash "$FIXDIR/generate_lab_chain.sh"
