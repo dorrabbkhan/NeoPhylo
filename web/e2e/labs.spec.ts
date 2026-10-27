@@ -1,8 +1,9 @@
 // PHYLIP lab pages end to end (v1.4 plan Task 11, spec §6.2/§6.5/§7,
-// Review Focus 5). The shipped registry (exercises/labs/) is empty
-// until Task 12; the test lab lives in web/src/labs/__fixtures__/ and
-// joins the registry only under the neophylo-e2e flag, so the shipped
-// index correctly shows its empty state for everyone else.
+// Review Focus 5; Task 12 pack 1 adds the shipped dnadist-neighbor
+// checks). The test lab lives in web/src/labs/__fixtures__/ and joins
+// the registry only under the neophylo-e2e flag; the shipped pack is
+// listed for every visitor, so every test-lab locator below is scoped
+// to the test lab's own card or row.
 //
 // Covered here: the index listing and its link, the lab page's
 // objectives/settings/handout and axe cleanliness, "load this lab"
@@ -10,6 +11,8 @@
 // ask → replace, and no question on a clean editor), and the print
 // view hiding the controls while keeping the handout and settings
 // table.
+
+import { readFileSync } from "node:fs";
 
 import { test, expect } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
@@ -31,6 +34,11 @@ test.beforeEach(async ({ context }) => {
 const NEWICK = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Newick tree" });
 
+/** The test lab's row in the editor's lab sheet — the shipped
+ * dnadist-neighbor pack carries its own "Load this lab" button. */
+const testLabRow = (sheet: import("@playwright/test").Locator) =>
+  sheet.locator("li").filter({ hasText: "Test lab: dnadist → neighbor" });
+
 test("the lab index lists the test lab and links to its page; both pages are axe-clean", async ({
   page,
 }) => {
@@ -48,7 +56,8 @@ test("the lab index lists the test lab and links to its page; both pages are axe
     await new AxeBuilder({ page }).analyze().then((r) => r.violations),
   ).toEqual([]);
 
-  await page.getByRole("link", { name: /open lab/i }).click();
+  const testCard = page.locator(".lab-card", { hasText: "Test lab:" });
+  await testCard.getByRole("link", { name: /open lab/i }).click();
   await expect(
     page.getByRole("heading", { name: "Test lab: dnadist → neighbor" }),
   ).toBeVisible();
@@ -81,6 +90,56 @@ test("the lab page shows the chain, objectives, settings table and handout; Load
   );
 });
 
+// Task 12 pack 1 (conductor note 5): "Load this lab" on the shipped
+// dnadist-neighbor pack really loads — the exercise travels in the
+// unbounded #x= fragment, so this replays the real link end to end:
+// model F84 and method NJ on the loaded exercise, and a matrix cell
+// equal to the dnadist fixture's printed value at the displayed
+// precision (cells render toFixed(3)). The expected value is read
+// from the fixture, never hard-coded.
+test("the shipped dnadist-neighbor pack loads through its lab page into the app", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/phylip/f84/k80_10.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    labels: string[];
+    distances: Record<string, number[][]>;
+  };
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=dnadist-neighbor");
+  await expect(
+    page.getByRole("heading", { name: "dnadist → neighbor (F84)" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.locator(".app-header h1")).toContainText(
+    "dnadist → neighbor lab",
+  );
+  await expect(page.getByLabel("Distance correction")).toHaveValue("F84");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+
+  // One whole row of cells at the displayed 3-decimal precision — the
+  // grid's per-cell aria-labels carry the value.
+  const n = fx.labels.length;
+  for (let j = 0; j < n; j++) {
+    const shown =
+      j === 0 ? "0.000" : fx.distances.F84[0][j].toFixed(3);
+    await expect(
+      page.locator(
+        `g[role="gridcell"][aria-label="${fx.labels[0]}, ${fx.labels[j]}: ${shown}"]`,
+      ),
+      `cell ${fx.labels[0]}/${fx.labels[j]} shows ${shown}`,
+    ).toBeVisible();
+  }
+});
+
 test("the print view hides the controls and keeps the handout and settings table", async ({
   page,
 }) => {
@@ -107,7 +166,9 @@ test("a clean editor loads the lab without asking", async ({ page }) => {
   await expect(
     sheet.getByText("Test lab: dnadist → neighbor"),
   ).toBeVisible();
-  await sheet.getByRole("button", { name: "Load this lab" }).click();
+  await testLabRow(sheet)
+    .getByRole("button", { name: "Load this lab" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Replace your unsaved work?" }),
   ).toHaveCount(0);
@@ -129,7 +190,9 @@ test("with unsaved editor work Load this lab asks first; keep declines, replace 
 
   await page.getByRole("button", { name: "PHYLIP labs" }).click();
   const sheet = page.getByRole("dialog", { name: "PHYLIP labs" });
-  await sheet.getByRole("button", { name: "Load this lab" }).click();
+  await testLabRow(sheet)
+    .getByRole("button", { name: "Load this lab" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Replace your unsaved work?" }),
   ).toBeVisible();
@@ -142,7 +205,9 @@ test("with unsaved editor work Load this lab asks first; keep declines, replace 
   await expect(page.getByLabel("Title")).toHaveValue("My draft");
 
   // Asking again and accepting replaces it.
-  await sheet.getByRole("button", { name: "Load this lab" }).click();
+  await testLabRow(sheet)
+    .getByRole("button", { name: "Load this lab" })
+    .click();
   await page.getByRole("button", { name: /replace/i }).click();
   await expect(newick).toHaveValue(LAB_NEWICK);
   await expect(page.getByLabel("Title")).toHaveValue(
@@ -246,7 +311,7 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   await context.close();
 });
 
-test("without the e2e flag the shipped registry is empty and the index says so", async ({
+test("without the e2e flag the index lists only the shipped pack", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -257,6 +322,10 @@ test("without the e2e flag the shipped registry is empty and the index says so",
   await expect(
     page.getByRole("heading", { name: "PHYLIP labs" }),
   ).toBeVisible();
-  await expect(page.getByText(/no lab packs/i)).toBeVisible();
+  await expect(page.getByText("dnadist → neighbor (F84)")).toBeVisible();
+  await expect(
+    page.getByText("Test lab: dnadist → neighbor"),
+  ).toHaveCount(0);
+  await expect(page.getByText(/no lab packs/i)).toHaveCount(0);
   await context.close();
 });
