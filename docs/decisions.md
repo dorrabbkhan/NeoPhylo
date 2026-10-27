@@ -5050,3 +5050,33 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   text and unchanged. The 4 `lab-protdist-neighbor-print` baselines
   regenerated in the pinned Playwright image (`--grep
   lab-protdist-neighbor-print`); no other baseline touched.
+
+## v1.4 follow-up P1: fixture precision counted on raw PHYLIP output
+
+- **Finding (owner decision 2026-10-27 on PR #102, option A):** PHYLIP
+  3.697 prints distance matrices to 6 decimals (`dnadist`, `protdist`)
+  and `neighbor` branch lengths to 5, but the v1 DNA and v1.1 protein
+  sections of `fixtures/generate_phylip.sh` counted decimals on R's
+  re-printed parsed numbers, where trailing zeros vanish (`0.722200`
+  → 4). `ref/protein/{p10_400,p8_250,p12_100}.json` therefore recorded
+  `precision: 4` and the protein parity tolerance was 0.5e-4 instead of
+  0.5e-5. The v1.4 section already counted on raw outfile text.
+- **What changed:** both sections now count decimals on the raw
+  printed text — matrix outfiles for `dist_precision`, the raw
+  (whitespace-stripped) outtree Newick for `tree_precision` — and write
+  both keys alongside `precision = min(dist_precision, tree_precision)`.
+  Regenerated through `generate_phylip.sh` then `generate.R` per the
+  README order: protein `precision` 4 → 5 (p6_150 stays 5), DNA
+  `precision` unchanged at 5, `dist_precision` 6 and `tree_precision`
+  5 everywhere. Every distance, tree, label and other fixture byte is
+  identical. No test, tolerance or code changed; the tighter protein
+  bound (0.5e-5) applies automatically and `protein_dist`/`corpus`/
+  wasm `parity` all pass.
+- **Follow-up:** PR P2 will switch the tests to `dist_precision` for
+  distance comparisons and `tree_precision` for branch lengths, so
+  `precision` is no longer the single tolerance source.
+- **Files touched:** `fixtures/generate_phylip.sh` (v1 DNA and v1.1
+  protein decimal counting), the six `ref/*_phylip.json` /
+  `ref/protein/*.json` fixtures, `fixtures/README.md` (precision key
+  meanings), `docs/decisions.md` (this entry). No changes under
+  `crates/`, `web/`, `exercises/` or `scripts/` — fixture-only PR.
