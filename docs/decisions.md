@@ -5412,5 +5412,13 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     `web/src/state/lesson.ts`, `web/src/state/session.test.ts`,
     `web/e2e/bootstrap-lesson.spec.ts`, `exercises/saturation.json`,
     `exercises/bootstrap-basics.json`,
-    `docs/conductor/standing-notes.md` — plus the checkpoint doc
-    itself, which is part of the original Files block.
+    `docs/conductor/standing-notes.md`,
+    `crates/neophylo-core/tests/exercise_v2.rs` — plus the checkpoint
+    doc itself, which is part of the original Files block.
+    `exercise_v2.rs` is a test file, not engine code: its
+    `V1_SATURATION` constant mirrors the exercise file verbatim so v1
+    and v2 load identically; the saturation note reword forced a
+    one-line text sync — no engine logic, tolerance or fixture touched.
+    The snapshot baselines `web/e2e/__screenshots__/bootstrap-basics-*`
+    (7 files) were regenerated in the pinned Playwright image for the
+    reworded note — owner approval required as always.
