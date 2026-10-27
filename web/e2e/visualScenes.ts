@@ -428,6 +428,29 @@ export const SCENES: {
     },
   },
   {
+    // Task 12 pack 2: the protdist → neighbor lab's print view — same
+    // fullPage treatment as pack 1's scene.
+    name: "lab-protdist-neighbor-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?lab=protdist-neighbor");
+      await expect(
+        page.getByRole("heading", {
+          name: "protdist → neighbor (JTT)",
+        }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await expect(page.locator(".lab-controls")).toBeHidden();
+      await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
     // The exported SVG rendered back as a document (spec §8.3) — the
     // Task-15 blocked-fonts render (§4.3, spec §8.2): every font
     // request is aborted and the document's text is restricted to the

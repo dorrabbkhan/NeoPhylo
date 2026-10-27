@@ -4950,3 +4950,70 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   now claims only that — plus dnadist's row wrapping (7 cells per
   line at 10 species) and neighbor's Between/And/Length outfile
   table.
+
+## v1.4 Task 12 pack 2: protdist → neighbor lab pack (JTT)
+
+- **Scope:** plan Task 12 Steps 3 and 5 for pack 2 only — packs 1
+  (merged, #101) and 3 (later PR) untouched. Owner gate: `[OWNER
+  REVIEW]` content check of the handout and the PHYLIP-vs-NeoPhylo note
+  before merge (Step 2's gate applies per pack).
+- **Dataset (conductor note 1 / spec §6.3):** the pack embeds
+  `fixtures/inputs/protein/p10_400.fasta` verbatim (10 × 400), the
+  preferred `p10_400` input. Expected numbers come from
+  `fixtures/ref/protein/p10_400.json` (`distances.JTT`, `nj.JTT`,
+  `precision` 4) — never from NeoPhylo's own output. The protein
+  fixtures live in `ref/protein/`, not `phylip/`, so `packs.test.ts`
+  gained a `loadProteinFixture` reader beside the existing
+  `loadFixture`. Provenance (numpy PCG64 seed 2026, equal-rate
+  replacement, NOT JTT) is recorded in `exercises/labs/README.md`;
+  the pack's handout and note say so plainly and never call JTT the
+  true model. License = the repo's AGPL-3.0-only; no
+  `THIRD_PARTY_NOTICES.md` entry — original in-house data.
+- **Menus read off the installed 3.697 binaries, not assumed**
+  (conductor note 2): protdist's `P` cycles six models — JTT (the
+  shipped default) → Henikoff/Tillier PMB → Dayhoff PAM → Kimura
+  formula → similarity table → categories model — confirmed by running
+  `/usr/lib/phylip/bin/protdist` (transcript in the PR comments).
+  neighbor's menu is identical to pack 1's run. The settings table's
+  protein-Kimura row names the PROTEIN Kimura correction explicitly and
+  disambiguates it from dnadist's DNA "Kimura 2-parameter".
+- **Precision (conductor note 3):** protdist prints 6 decimals on its
+  outfile (6 cells per line at 10 species — one fewer than dnadist's
+  7), but the fixture's `precision` field is 4, the smallest decimal
+  count surviving the JSON round-trip (`0.722200` → `0.7222`). Tests
+  compare distances within `0.5·10^-precision` = 0.5e-4 as the note
+  requires; measured engine-vs-fixture max diff is 4.9e-7. The
+  outtree prints 5 decimals, so all length pins use 0.5e-5 — and the
+  engine's own full-precision matrix passes it honestly (measured
+  4.5e-6), so the branch-length claim is pinned, not weakened.
+- **Prompts:** a `predict_pair` at join 1 whose reveal names P04–P07 —
+  here the matrix's closest pair AND NJ's first join (neighbor's
+  progress log prints "species 4 joins species 7" at cycle 7; the
+  reveal says the agreement is not the rule) — and a closing `note` at
+  the completed-tree step (at_step = 9 for 10 taxa NJ) naming P05's
+  negative pendant edge. Both claims are pinned to the engine's trace
+  and matrix in `packs.test.ts`; no prompt quotes a number.
+- **"Load this lab" (conductor note 4):** a new e2e in
+  `web/e2e/labs.spec.ts` — `?lab=protdist-neighbor` → "Load this lab"
+  → the app shows `Distance correction` = `Jtt` (the select's value is
+  the DistModel variant name) + method NJ, and a full matrix row equal
+  to the fixture at the displayed 3-decimal precision. The `#x=` link
+  length is reported in the PR body.
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts`, `web/src/labs/labs.test.tsx`
+    (modified): the flag-off shipped-listing assertions now expect both
+    shipped packs — scoped expectations, not weakened ones (conductor
+    note 7).
+  - `web/e2e/labs.spec.ts` (modified): the new shipped-pack-2 load test
+    above, and the without-flag index test now expects both packs.
+  - `web/e2e/visualScenes.ts` (modified): one new scene
+    `lab-protdist-neighbor-print` (conductor note 6) — `fullPage`,
+    1920×1080 and 768×1024 in both themes under
+    `emulateMedia("print")`, same treatment as pack 1's scene.
+  - `web/e2e/__screenshots__/lab-protdist-neighbor-print-*.png` (4 new
+    baselines): additive only, generated in the pinned Playwright
+    image with a targeted `--grep`; no existing baseline changed.
+    Owner gate on baselines stands.
+  - `docs/decisions.md` (this entry).
+- **Bundle:** the pack lives in the lazy `labs` chunk; initial JS
+  measurement vs main is reported in the PR body.

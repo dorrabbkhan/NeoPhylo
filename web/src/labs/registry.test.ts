@@ -1,6 +1,6 @@
 // Lab registry tests (v1.4 plan Task 11, spec §6.2/§6.5). The shipped
-// registry is exercises/labs/*.json — Task 12 pack 1 lands
-// dnadist-neighbor there — plus the e2e-only files in __fixtures__/
+// registry is exercises/labs/*.json — Task 12's packs land
+// dnadist-neighbor and protdist-neighbor there — plus the e2e-only files in __fixtures__/
 // that join only under the `neophylo-e2e` localStorage flag. A lab file is an
 // exercise with a `lab` block: loadLab validates the whole file
 // against exercises/schema.json and through engine.loadExercise, and
@@ -32,9 +32,12 @@ describe("lab registry", () => {
     expect(lab?.settings.length).toBe(3);
   });
 
-  it("with the e2e flag off only shipped labs list — the dnadist-neighbor pack", () => {
+  it("with the e2e flag off only shipped labs list — packs 1 and 2", () => {
     window.localStorage.removeItem("neophylo-e2e");
-    expect(listLabs().map((l) => l.id)).toEqual(["dnadist-neighbor"]);
+    expect(listLabs().map((l) => l.id)).toEqual([
+      "dnadist-neighbor",
+      "protdist-neighbor",
+    ]);
   });
 
   it("loadLab returns the exercise and the lab block for a valid lab file", () => {
