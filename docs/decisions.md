@@ -5170,3 +5170,45 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `fixtures/phylip/chain/k80_10_boot100.json` (new), `fixtures/README.md`
   (`phylip/chain/` bullet + regenerate line), `docs/decisions.md` (this
   entry). No changes under `crates/`, `web/`, `exercises/` or `scripts/`.
+
+## v1.4 Task 12 pack 3a-2: pack 3 chain fixture switched to jc12 (owner command on #104)
+
+- **Owner command (2026-10-27, `conductor: fix use jc12` on #104):** #104
+  was already merged, so this is a new fixture-only PR from main. The
+  pack 3 chain fixture moves from `k80_10` to `jc12`.
+- **Why (owner decision, from the conductor's survey with the same chain
+  and the same seed search):** on `k80_10` every consense
+  extended-majority group is 100 except one at 98. On `jc12` (12 taxa,
+  250 sites, committed and gap-free, already in `fixtures/phylip/f84/`
+  with a neighbor tree since #100) the extended groups are
+  100 100 100 99 96 95 92 90 72 and the best rejected set is 11 — a real
+  bootstrap lesson with a stable majority tree.
+- **Seed:** 8675309 — the unchanged deterministic odd-seed search
+  (8675309 upward, step 2) accepted the first candidate again; its
+  consense extended-majority run on the 100 trees has no tied decision.
+  Result: 12 taxa, 100 trees, 23 groupings in
+  `fixtures/phylip/chain/jc12_boot100.json`, matching the survey.
+- **Deletion:** `fixtures/phylip/chain/k80_10_boot100.json` is removed;
+  a repo-wide grep confirmed nothing references it (only the historical
+  decisions.md entry above, which stays as the record of #104).
+- **Wiring:** `generate_lab_chain.sh` is now invoked at the end of
+  `generate_phylip.sh`, right after `generate_consensus.sh`, so
+  `FIXTURES=1` reproduces it. Stale comments fixed at the same time:
+  `INPUT="jc12"` with an owner-chosen note, the header names
+  `inputs/jc12.fasta`, the "not wired yet (PR #103)" note is gone, and
+  the FASTA conversion no longer claims the other file is edited by an
+  open PR. `fixtures/README.md`'s `phylip/chain/` bullet and the
+  regenerate block were updated to match.
+- **CI coverage gap (deliberately not fixed here):** the `r-and-fixtures`
+  job regenerates via `FIXTURES=1 scripts/ci/fixture-guard.sh`, whose
+  drift check greps only `fixtures/ref`, `fixtures/consensus` and
+  `fixtures/worked` — `fixtures/phylip/` (f84, k2p and now chain) is
+  regenerated but not diffed. Covering it needs a change to
+  `scripts/ci/fixture-guard.sh`, which this fixture-only PR must not
+  touch; flagged for a follow-up scripts PR.
+- **Files touched:** `fixtures/generate_lab_chain.sh`,
+  `fixtures/generate_phylip.sh`,
+  `fixtures/phylip/chain/k80_10_boot100.json` (deleted),
+  `fixtures/phylip/chain/jc12_boot100.json` (new), `fixtures/README.md`,
+  `docs/decisions.md` (this entry). No changes under `crates/`, `web/`,
+  `exercises/`, `scripts/` or `.github/`.

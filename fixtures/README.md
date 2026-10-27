@@ -54,7 +54,7 @@ see `AGENTS.md` for the rules.
   owns them. A `-1.000000` cell is dnadist's inestimable marker
   (`Cell::Saturated` in the engine).
 - `phylip/chain/<name>_boot<R>.json` — PHYLIP's whole pack-3 chain on one
-  input (v1.4 spec §6.1): `seqboot` bootstraps `k80_10.fasta` (menu
+  input (v1.4 spec §6.1): `seqboot` bootstraps `jc12.fasta` (menu
   defaults `J` Bootstrap, `R` = 100; keystrokes `Y <seed>` — after `Y` it
   asks "Random number seed (must be odd)?"), `dnadist` F84 defaults with
   `M D 100` (M asks "Multiple data sets or multiple weights?", then the
@@ -143,8 +143,8 @@ Per-step textbook traces, same field names as `NjStep`/`UpgmaStep`
 python3 fixtures/make_protein_inputs.py  # regenerate inputs/protein/*.fasta
 bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json,
                                          #   phylip/{f84,k2p}/*.json; then consense -> consensus/*.json
-                                         #   + worked/consensus_hand.json
-bash fixtures/generate_lab_chain.sh      # seqboot -> dnadist -> neighbor -> consense -> phylip/chain/*.json
+                                         #   + worked/consensus_hand.json; then the pack-3 chain
+                                         #   (generate_lab_chain.sh) -> phylip/chain/*.json
 Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json;
                                          #   tree sets + prop_clades -> consensus/*.json
 ```
