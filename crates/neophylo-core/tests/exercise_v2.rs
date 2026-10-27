@@ -77,7 +77,7 @@ const V1_SATURATION: &str = r#"{
     {
       "at_step": 1,
       "type": "note",
-      "concept": "This example starts broken: at just 50 sites, JC69 already pushes several pairs past its p < 0.75 limit, so no tree can be built until you apply one of the fixes below.",
+      "concept": "This example starts broken: at just 50 sites, JC69 pushes several pairs past its p < 0.75 limit, so no tree can be built until one of the fixes below is applied. Once a fix works, the tree appears and you can step on.",
       "math": "JC69 needs p < 3/4. Once observed differences reach 0.75 the correction's logarithm has no finite answer."
     },
     {

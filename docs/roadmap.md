@@ -78,6 +78,8 @@ validation discipline: an independent oracle, property tests and fuzzing.
     so instructors can be told "same numbers as MEGA."
 - **Curated data library:** one-click datasets with provenance and licensing (globins, cytochrome c,
   primate mtDNA, 16S rRNA, a small SARS-CoV-2 set); fetch by UniProt/NCBI accession.
+- Sandbox correction menu offers `F84` and `K2P_PHYLIP` (v1.4 shows them only in the editor and in
+  exercises that prescribe them); built-in lessons stay unchanged.
 - Lesson library page with learning objectives; printable worksheets with instructor answer keys;
   an instructor guide (50-minute and 3-hour lab plans).
 

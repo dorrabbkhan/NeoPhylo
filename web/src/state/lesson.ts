@@ -223,6 +223,41 @@ export function applyEnterSandbox(s: Session): Session {
   return reconcileModels({ ...s, source: "sandbox" });
 }
 
+/** True once a bootstrap-block lesson's student has reached the
+ * bootstrap stage — a completed run exists (v1.4 Task 13 owner fix,
+ * 2026-10-27). From then on a settings rebuild lands on the new tree's
+ * final position, where the bootstrap panel and the closing notes
+ * live — see `resumeBootstrapStage`. */
+function bootstrapStageReached(s: Session): boolean {
+  return (
+    s.exercise.bootstrap !== null &&
+    s.exercise.bootstrap !== undefined &&
+    s.bootstrap.completedRuns > 0
+  );
+}
+
+/** `next` is a session just rebuilt by `recompute` (step 0) over
+ * `clearBootstrap`'d state. When `s` had reached the bootstrap stage,
+ * the run counters that drive the notes' `after` triggers
+ * (completedRuns, maxRunSites) are restored and the stepper lands on
+ * `next`'s final position; otherwise `next` returns untouched and the
+ * recompute reset stands — lessons without a `bootstrap` block keep
+ * the reset-to-step-0 behaviour exactly. Results stay cleared either
+ * way: support and consensus belong to the old data. */
+function resumeBootstrapStage(s: Session, next: Session): Session {
+  if (!bootstrapStageReached(s)) return next;
+  const restored: Session = {
+    ...next,
+    bootstrap: {
+      ...next.bootstrap,
+      completedRuns: s.bootstrap.completedRuns,
+      maxRunSites: s.bootstrap.maxRunSites,
+    },
+  };
+  const max = next.result?.trace ? traceLength(next.result.trace) : 0;
+  return max === 0 ? restored : { ...restored, step: max };
+}
+
 /** `setSim`: simulation controls are inert unless the alignment is
  * re-simulatable — an imported alignment keeps the user's data and an
  * embedded alignment is fixed lesson data; otherwise the patch is
@@ -230,18 +265,21 @@ export function applyEnterSandbox(s: Session): Session {
 export function applySetSim(s: Session, patch: Partial<SimSpec>): Session {
   if (s.alignmentOrigin !== "simulated") return s;
   if (s.exercise.data.kind !== "simulated") return s;
-  return recompute(
-    clearBootstrap({
-      ...s,
-      notice: null,
-      exercise: {
-        ...s.exercise,
-        data: {
-          ...s.exercise.data,
-          sim: { ...s.exercise.data.sim, ...patch },
+  return resumeBootstrapStage(
+    s,
+    recompute(
+      clearBootstrap({
+        ...s,
+        notice: null,
+        exercise: {
+          ...s.exercise,
+          data: {
+            ...s.exercise.data,
+            sim: { ...s.exercise.data.sim, ...patch },
+          },
         },
-      },
-    }),
+      }),
+    ),
   );
 }
 
@@ -249,24 +287,32 @@ export function applySetSim(s: Session, patch: Partial<SimSpec>): Session {
  * the alignment. Checkpoint 11: a stepper sitting at its final
  * position lands on the new tree's final position — re-analyzing at
  * the end shows the finished new tree (and its bootstrap panel)
- * immediately. Any earlier position still resets to step 0, and
- * bootstrap results clear either way (clearBootstrap → status idle). */
+ * immediately. Any earlier position still resets to step 0 — unless
+ * the student already reached the bootstrap stage, when
+ * `resumeBootstrapStage` lands the new tree at its final position and
+ * keeps the run counters — and bootstrap results clear either way
+ * (clearBootstrap → status idle). */
 export function applySetAnalysis(
   s: Session,
   patch: Partial<Exercise["analysis"]>,
 ): Session {
   const prevMax = s.result?.trace ? traceLength(s.result.trace) : 0;
   const wasAtFinal = s.result !== null && s.step === prevMax;
-  const next = recompute(
-    clearBootstrap({
-      ...s,
-      notice: null,
-      exercise: {
-        ...s.exercise,
-        analysis: { ...s.exercise.analysis, ...patch },
-      },
-    }),
+  const stage = bootstrapStageReached(s);
+  const next = resumeBootstrapStage(
+    s,
+    recompute(
+      clearBootstrap({
+        ...s,
+        notice: null,
+        exercise: {
+          ...s.exercise,
+          analysis: { ...s.exercise.analysis, ...patch },
+        },
+      }),
+    ),
   );
+  if (stage) return next; // resumeBootstrapStage landed it at final
   if (!wasAtFinal) return next;
   // A traceless result (>50 taxa) is always at its final position.
   const nextMax = next.result?.trace ? traceLength(next.result.trace) : 0;
@@ -293,7 +339,10 @@ export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
     // reinterpreting the current sequences via withAlphabet would
     // either be discarded or fail on real protein letters.
     if (exercise === s.exercise) return s;
-    return recompute(clearBootstrap({ ...s, exercise, notice }));
+    return resumeBootstrapStage(
+      s,
+      recompute(clearBootstrap({ ...s, exercise, notice })),
+    );
   }
   // Imported or embedded data is reinterpreted in place. A
   // successful override turns the alignment into user data — for
@@ -302,7 +351,10 @@ export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
   if (s.alignment === null) {
     return exercise === s.exercise
       ? s
-      : recompute(clearBootstrap({ ...s, exercise, notice }));
+      : resumeBootstrapStage(
+          s,
+          recompute(clearBootstrap({ ...s, exercise, notice })),
+        );
   }
   if (s.alignment.alphabet === target && exercise === s.exercise) {
     return s;
@@ -313,14 +365,17 @@ export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
     // and show the error — never a stuck state.
     return { ...s, error: tagged.error, notice: null };
   }
-  return recompute(
-    clearBootstrap({
-      ...s,
-      exercise,
-      notice,
-      alignment: tagged.value,
-      alignmentOrigin: "imported",
-    }),
+  return resumeBootstrapStage(
+    s,
+    recompute(
+      clearBootstrap({
+        ...s,
+        exercise,
+        notice,
+        alignment: tagged.value,
+        alignmentOrigin: "imported",
+      }),
+    ),
   );
 }
 
@@ -386,7 +441,10 @@ export function applyImportTree(s: Session, tree: Tree): Session {
  * inert while the alignment is imported or embedded. */
 export function applyBranchScale(s: Session, scale: number): Session {
   if (s.alignmentOrigin !== "simulated") return s;
-  return recompute(clearBootstrap({ ...s, branchScale: scale }));
+  return resumeBootstrapStage(
+    s,
+    recompute(clearBootstrap({ ...s, branchScale: scale })),
+  );
 }
 
 /** True when the session holds user-imported data (an alignment or a
