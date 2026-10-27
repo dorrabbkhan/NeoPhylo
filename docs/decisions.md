@@ -5081,6 +5081,48 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   meanings), `docs/decisions.md` (this entry). No changes under
   `crates/`, `web/`, `exercises/` or `scripts/` — fixture-only PR.
 
+## v1.4 follow-up P2: tests compare at PHYLIP's split printed precision
+
+- **PR #103 follow-up (owner decision A on PR #102):** tests that
+  compare PHYLIP output now read `dist_precision` for matrix cells and
+  `tree_precision` for branch lengths instead of the single
+  `precision` (= min of the two). On ref files both keys are required:
+  a missing key fails loudly, never a silent fallback to `precision`.
+- **What changed (old → new tolerance per family):**
+  - `tests/corpus.rs` — `ref/*_phylip.json` distances 0.5e-5 → 0.5e-6
+    (`dist_precision` 6); NJ branch lengths and UPGMA cluster heights
+    stay at 0.5e-5·depth (`tree_precision` 5). ape/phangorn fixtures
+    keep 1e-9. Load also asserts `precision == min(dist, tree)` on
+    PHYLIP files.
+  - `tests/protein_dist.rs` — `ref/protein/*.json` distances 0.5e-5 →
+    0.5e-6; NJ branch lengths unchanged at 0.5e-5. Both keys are
+    required serde fields.
+  - `tests/parity_phylip_v14.rs` — `phylip/{f84,k2p}` fixtures record
+    only `precision` (dnadist's matrix decimals); matrices stay at
+    0.5e-6, now via `dist_precision.unwrap_or(precision)`. The file
+    has no tree comparisons.
+  - `web/src/labs/packs.test.ts` — pack 2's matrix bound reads
+    `dist_precision` (was the hard-coded 0.5e-6 workaround; the
+    "under-reports" comment is gone) and its three branch-length
+    checks read `tree_precision` (were literal 0.5e-5). Pack 1 keeps
+    the same numbers: the f84 fixture records only `precision` (the
+    matrix decimals), so its matrix check reads it and its outtree
+    bound stays the literal 0.5e-5 (comment notes why).
+  - `neophylo-wasm/tests/parity.rs` — audited, unchanged: its corpus
+    subset replays only the two ape/phangorn fixtures at 1e-12.
+  - `web/e2e/labs.spec.ts` and `web/src/explain/math.test.ts` —
+    audited, unchanged: they read matrices/`input` only, never the
+    precision fields.
+- **Result:** the tightened 0.5e-6 distance bound passes on all six
+  ref PHYLIP fixtures — max |err| 4.98e-7 (DNA, `jc6_phylip/JC69`),
+  4.95e-7 (protein, `p10_400/JTT`); tree bounds unchanged (max NJ
+  branch |err| 4.88e-6 ref DNA, 4.75e-6 protein, 4.999999999977e-6
+  f84 `jc6`). No parity finding; no expected value or tolerance
+  changed beyond the split-field switch.
+- **Files touched:** `crates/neophylo-core/tests/{corpus,protein_dist,
+  parity_phylip_v14}.rs`, `web/src/labs/packs.test.ts`, this entry.
+  Test-only PR — no engine code, no fixtures.
+
 ## v1.4 Task 12 pack 3a: seqboot → dnadist → neighbor → consense chain fixture
 
 - **Owner decision (2026-10-27, in chat: "Real PHYLIP chain fixture"):**
