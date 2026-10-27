@@ -130,6 +130,15 @@ export function Header({
           Settings
         </button>
       )}
+      {/* The lab index (v1.4 Task 11, spec §6.5): a link, not a
+          button — the e2e header-controls count pins buttons only.
+          Below 1024 px it lives in the More menu like "Coming from
+          PHYLIP?" (§6.3). */}
+      {!belowMedium && (
+        <a className="labs-link" href="?labs">
+          PHYLIP labs
+        </a>
+      )}
       {!belowMedium && (
         <button
           type="button"

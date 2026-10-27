@@ -1500,7 +1500,8 @@ button:disabled {
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
-.phylip-help-open {
+.phylip-help-open,
+.labs-link {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1510,8 +1511,18 @@ button:disabled {
   cursor: pointer;
 }
 
+/* The "PHYLIP labs" header entry is a link, not a button — it shares
+ * the chip styling above (v1.4 Task 11, spec §6.5). */
+a.labs-link {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
 .phylip-help-open:hover,
-.phylip-help-open:focus-visible {
+.phylip-help-open:focus-visible,
+.labs-link:hover,
+.labs-link:focus-visible {
   border-color: var(--color-accent-border);
 }
 
@@ -1546,6 +1557,10 @@ button:disabled {
 
 .phylip-note p {
   margin: 4px 0 0;
+}
+
+.phylip-note a {
+  color: var(--color-accent-contrast);
 }
 
 /* "Match screen theme" (v1.3 spec §7.3): figure exports print the

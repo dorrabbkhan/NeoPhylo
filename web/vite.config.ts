@@ -51,8 +51,10 @@ function exercisesPlugin(): Plugin {
       /^\/+/,
       "",
     );
-    // Only serve flat .json names — anything else falls through.
-    if (!/^[\w.-]+\.json$/.test(name)) {
+    // Flat .json names plus the labs/ subdirectory the lab pages'
+    // exercise-file link serves (v1.4 Task 11) — anything else falls
+    // through.
+    if (!/^(labs\/)?[\w.-]+\.json$/.test(name)) {
       next();
       return;
     }
@@ -79,6 +81,18 @@ function exercisesPlugin(): Plugin {
       for (const f of readdirSync(EXERCISES_DIR)) {
         if (extname(f) === ".json") {
           cpSync(join(EXERCISES_DIR, f), join(dest, f), { recursive: true });
+        }
+      }
+      // The lab packs (v1.4 Task 11): exercises/labs/*.json →
+      // dist/exercises/labs/, matching the dev-server prefix above.
+      const labsDir = join(EXERCISES_DIR, "labs");
+      if (existsSync(labsDir)) {
+        for (const f of readdirSync(labsDir)) {
+          if (extname(f) === ".json") {
+            cpSync(join(labsDir, f), join(dest, "labs", f), {
+              recursive: true,
+            });
+          }
         }
       }
     },

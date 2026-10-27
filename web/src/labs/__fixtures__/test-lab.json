@@ -1,0 +1,30 @@
+{
+  "schema_version": 3,
+  "id": "test-lab",
+  "title": "Test lab: dnadist chain",
+  "summary": "E2E-only lab pack used by the lab framework tests.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 60, "seed": 7 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "bootstrap": { "replicates": 100, "seed": 7 },
+  "lab": {
+    "id": "test-lab",
+    "title": "Test lab: dnadist → neighbor",
+    "objectives": [
+      "Run the dnadist → neighbor chain end to end",
+      "Read the settings table and match each PHYLIP option"
+    ],
+    "handout_md": "## Goal\n\nRun the dnadist → neighbor chain on the dataset, then answer the questions.\n\n## Steps\n\n1. Load the lab.\n2. Set the model the table lists.\n3. Record the tree.\n\n## Questions\n\n- Which pair joins first?\n- Where is the root placed?",
+    "settings": [
+      { "option": "Distance model", "phylip_default": "F84", "neophylo": "JC69" },
+      { "option": "Replicates", "phylip_default": "100", "neophylo": "100" },
+      { "option": "Seed", "phylip_default": "odd integer", "neophylo": "7" }
+    ],
+    "phylip_note_md": "PHYLIP's outfile lists the matrix and the tree as text; NeoPhylo draws both and keeps the settings on screen.",
+    "chain": ["dnadist", "neighbor"]
+  }
+}

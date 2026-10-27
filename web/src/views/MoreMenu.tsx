@@ -28,6 +28,9 @@ interface Item {
 export function MoreMenu({ onOpenPhylipHelp, onTakeTour }: MoreMenuProps) {
   const ITEMS: Item[] = [
     { label: "Coming from PHYLIP?", action: onOpenPhylipHelp },
+    // v1.4 Task 11 (§6.5): the lab index's <1024 px path — the header
+    // link's mirror, like the PHYLIP help above.
+    { label: "PHYLIP labs", href: "?labs" },
     // §6.7: the tour's only reopen path.
     { label: "Take the tour", action: onTakeTour },
     {

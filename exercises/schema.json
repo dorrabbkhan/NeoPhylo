@@ -49,7 +49,51 @@
     },
     "lab": {
       "type": "object",
-      "description": "v1.4 spec 6: optional lab-pack block; its shape is defined by the lab-pack task. Absent on ordinary exercises."
+      "required": [
+        "id",
+        "title",
+        "objectives",
+        "handout_md",
+        "settings",
+        "phylip_note_md",
+        "chain"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "objectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The lab's learning objectives, listed on the index and the lab page."
+        },
+        "handout_md": {
+          "type": "string",
+          "description": "The student handout in markdown, rendered by the lab page (never as raw HTML)."
+        },
+        "settings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["option", "phylip_default", "neophylo"],
+            "properties": {
+              "option": { "type": "string" },
+              "phylip_default": { "type": "string" },
+              "neophylo": { "type": "string" }
+            }
+          },
+          "description": "One row per PHYLIP option: its PHYLIP default and the matching NeoPhylo setting."
+        },
+        "phylip_note_md": {
+          "type": "string",
+          "description": "The \"what PHYLIP's outfile showed you vs what NeoPhylo shows you\" note, in markdown."
+        },
+        "chain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The PHYLIP programs the lab reproduces, in order (e.g. dnadist → neighbor)."
+        }
+      },
+      "description": "v1.4 spec 6.2: optional lab-pack block. Absent on ordinary exercises; a file under exercises/labs/ without it is refused at load by the lab registry."
     }
   },
   "allOf": [{ "$ref": "#/$defs/v3Identifiers" }],

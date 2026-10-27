@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "id": "bad-lab",
+  "title": "Lab file missing its chain",
+  "summary": "A lab file whose lab block fails schema validation.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "bad-lab",
+    "title": "Bad lab",
+    "objectives": ["This lab block has no chain"],
+    "handout_md": "Text.",
+    "settings": [
+      { "option": "Model", "phylip_default": "F84", "neophylo": "JC69" }
+    ],
+    "phylip_note_md": "Note."
+  }
+}

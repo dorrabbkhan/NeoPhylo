@@ -31,6 +31,7 @@ describe("MoreMenu", () => {
     );
     expect(labels).toEqual([
       "Coming from PHYLIP?",
+      "PHYLIP labs",
       "Take the tour",
       "Licenses",
       "Source code",

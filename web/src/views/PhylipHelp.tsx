@@ -55,6 +55,11 @@ export function PhylipHelp({ onClose }: PhylipHelpProps) {
           exports are downloads, imports take pasted text.
         </li>
       </ul>
+      <p className="phylip-note">
+        The <a href="?labs">PHYLIP labs</a> walk through the classic
+        chains — each lab's settings table maps every PHYLIP default to
+        its NeoPhylo setting.
+      </p>
     </Sheet>
   );
 }
