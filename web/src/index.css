@@ -1500,7 +1500,8 @@ button:disabled {
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
-.phylip-help-open {
+.phylip-help-open,
+.labs-link {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1510,8 +1511,18 @@ button:disabled {
   cursor: pointer;
 }
 
+/* The "PHYLIP labs" header entry is a link, not a button — it shares
+ * the chip styling above (v1.4 Task 11, spec §6.5). */
+a.labs-link {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
 .phylip-help-open:hover,
-.phylip-help-open:focus-visible {
+.phylip-help-open:focus-visible,
+.labs-link:hover,
+.labs-link:focus-visible {
   border-color: var(--color-accent-border);
 }
 
@@ -1521,6 +1532,27 @@ button:disabled {
 .settings-drawer-tour {
   width: 100%;
   margin-top: var(--space-16);
+}
+
+/* The drawer's "PHYLIP labs" link (v1.4 Task 11, §6.5): the medium-
+ * breakpoint path for the header link — same box styling as the
+ * header chip (.labs-link), full-width at the drawer's foot like
+ * the tour item. */
+.settings-drawer-labs {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  display: block;
+  font-size: var(--size-sm);
+  margin-top: var(--space-16);
+  padding: 8px 10px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.settings-drawer-labs:hover,
+.settings-drawer-labs:focus-visible {
+  border-color: var(--color-accent-border);
 }
 
 .phylip-help .phylip-help-map {
@@ -1546,6 +1578,10 @@ button:disabled {
 
 .phylip-note p {
   margin: 4px 0 0;
+}
+
+.phylip-note a {
+  color: var(--color-accent-contrast);
 }
 
 /* "Match screen theme" (v1.3 spec §7.3): figure exports print the
@@ -1936,6 +1972,22 @@ button:disabled {
   }
 
   .export-theme-match {
+    min-height: 40px;
+  }
+
+  /* v1.4 Task 11 fix: the header's "PHYLIP labs" entry and its
+   * Settings-drawer mirror are links, so the button/rule selectors
+   * above miss them — same ≥40×40 floor (the More-menu item is a
+   * [role="menuitem"], already covered). */
+  a.labs-link {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .settings-drawer-labs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 40px;
   }
 

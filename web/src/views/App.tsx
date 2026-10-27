@@ -1140,6 +1140,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
               ? () => dispatch({ type: "tourStart" })
               : undefined
           }
+          // §6.5 (v1.4 Task 11): the lab index's 1024–1279 path —
+          // the header link overflows the row there; the More menu
+          // owns it below 1024.
+          labsHref={
+            breakpoint === "medium" ? "?labs" : undefined
+          }
         >
           {controlsSections}
         </SettingsDrawer>

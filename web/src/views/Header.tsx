@@ -130,6 +130,17 @@ export function Header({
           Settings
         </button>
       )}
+      {/* The lab index (v1.4 Task 11, spec §6.5): a link, not a
+          button — the e2e header-controls count pins buttons only.
+          Direct only at ≥ 1280: at 1024–1279 the row already over-
+          flows ~27 px with it, so the Settings drawer holds it there
+          and the More menu owns it below 1024 — the same one-path-
+          per-width pattern as "Take the tour" (§6.7). */}
+      {!belowWide && (
+        <a className="labs-link" href="?labs">
+          PHYLIP labs
+        </a>
+      )}
       {!belowMedium && (
         <button
           type="button"

@@ -389,6 +389,7 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
   const items = menu.locator('[role="menuitem"]');
   await expect(items).toHaveText([
     "Coming from PHYLIP?",
+    "PHYLIP labs",
     "Take the tour",
     "Licenses",
     "Source code",

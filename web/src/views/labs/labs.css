@@ -1,0 +1,298 @@
+/* Lab pages (v1.4 plan Task 11, spec §6.2/§6.5): the `?labs` index,
+ * `?lab=<id>` page and the editor's lab pick list. Tokens only —
+ * every color, type size, space and radius is a var(); the print
+ * palette comes from LabPrintStyles' light-token remap, and the
+ * `@media print` block below hides the controls and shows the
+ * print-only masthead/footer. */
+
+.lab-page {
+  min-height: 100%;
+  padding: var(--space-24);
+}
+
+.lab-page-head {
+  max-width: 1100px;
+  margin: 0 auto var(--space-16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.lab-nav-link {
+  color: var(--color-text);
+  font-size: var(--size-sm);
+}
+
+.lab-main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.lab-main > h1,
+.lab-mast h1 {
+  margin: 0 0 var(--space-8);
+}
+
+.lab-intro {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-16);
+  max-width: 70ch;
+}
+
+.labs-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  padding: var(--space-24);
+}
+
+.labs-empty a {
+  color: var(--color-accent-contrast);
+}
+
+.lab-loading {
+  color: var(--color-text-muted);
+}
+
+/* ---- index cards ---- */
+
+.lab-list {
+  display: grid;
+  gap: var(--space-16);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lab-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-16);
+}
+
+.lab-card-head h2 {
+  margin: 0 0 var(--space-4);
+}
+
+.lab-chain {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-8);
+}
+
+.lab-chain code,
+.lab-md code {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+}
+
+.lab-objectives {
+  margin: 0 0 var(--space-12);
+  padding-left: var(--space-24);
+}
+
+.lab-objectives li {
+  margin-bottom: var(--space-4);
+}
+
+.lab-settings {
+  border-collapse: collapse;
+  font-size: var(--size-sm);
+  margin-bottom: var(--space-12);
+  width: 100%;
+}
+
+.lab-settings th,
+.lab-settings td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-8);
+  text-align: left;
+}
+
+.lab-settings th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.lab-card-actions {
+  margin: 0;
+}
+
+.lab-card-actions a {
+  color: var(--color-accent-contrast);
+}
+
+/* ---- lab page ---- */
+
+.lab-mast {
+  margin-bottom: var(--space-16);
+}
+
+.lab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-bottom: var(--space-24);
+}
+
+.lab-controls a,
+.lab-controls button {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  display: inline-flex;
+  font-size: var(--size-sm);
+  padding: var(--space-4) var(--space-12);
+  text-decoration: none;
+}
+
+.lab-controls .lab-load {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-contrast);
+}
+
+.lab-controls a:hover,
+.lab-controls a:focus-visible,
+.lab-controls button:hover,
+.lab-controls button:focus-visible {
+  border-color: var(--color-accent-border);
+}
+
+.lab-page section {
+  margin-bottom: var(--space-24);
+}
+
+.lab-page section > h2 {
+  margin: 0 0 var(--space-8);
+}
+
+.lab-md p,
+.lab-md ul,
+.lab-md ol {
+  margin: 0 0 var(--space-12);
+  max-width: 70ch;
+}
+
+.lab-md ul,
+.lab-md ol {
+  padding-left: var(--space-24);
+}
+
+.lab-md li {
+  margin-bottom: var(--space-4);
+}
+
+/* ---- the editor's pick list (LabPickList) ---- */
+
+.lab-pick {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lab-pick li {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--space-16);
+  justify-content: space-between;
+  padding: var(--space-8) 0;
+}
+
+.lab-pick li:last-child {
+  border-bottom: 0;
+}
+
+.lab-pick-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lab-pick-chain {
+  color: var(--color-text-muted);
+  font-size: var(--size-xs);
+}
+
+/* The unsaved-work question inside the editor's lab sheet (Review
+ * Focus 5). */
+.lab-confirm h3 {
+  margin: 0 0 var(--space-8);
+}
+
+.lab-confirm p {
+  margin: 0 0 var(--space-16);
+  max-width: 60ch;
+}
+
+.lab-confirm-actions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+/* The ≥40×40 touch floor every other action row carries (§5.2).
+ * The nav/card/empty-state entries are inline links — inline-flex
+ * keeps them in the text flow while the box reaches the floor. The
+ * wordmark's .editor-home rule lives in index.css (initial bundle). */
+@media (pointer: coarse) {
+  .lab-nav-link,
+  .lab-card-actions a,
+  .labs-empty a {
+    align-items: center;
+    display: inline-flex;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .lab-controls a,
+  .lab-controls button,
+  .lab-pick button,
+  .lab-confirm-actions button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* ---- print ----
+ * Light colors come from LabPrintStyles' scoped light-token remap;
+ * this block only hides the interactive chrome and shows the
+ * print-only masthead and footer. */
+
+.lab-print-head,
+.lab-print-foot {
+  display: none;
+}
+
+@media print {
+  .lab-nav,
+  .lab-controls {
+    display: none;
+  }
+
+  .lab-print-head {
+    color: var(--color-text-muted);
+    display: block;
+    font-size: var(--size-sm);
+    margin: 0 0 var(--space-4);
+  }
+
+  .lab-print-foot {
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    display: block;
+    font-size: var(--size-xs);
+    margin-top: var(--space-24);
+    padding-top: var(--space-8);
+  }
+
+  .lab-page {
+    padding: 0;
+  }
+}

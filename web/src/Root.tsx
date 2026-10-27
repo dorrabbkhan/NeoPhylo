@@ -27,9 +27,20 @@ const PreviewPage = lazy(() =>
   })),
 );
 
+// Task 11: the lab pages are lazy chunks for the same reason — the
+// registry's ajv import must stay out of the initial bundle (§8.2).
+const LabIndex = lazy(() =>
+  import("./views/labs/LabIndex").then((m) => ({ default: m.LabIndex })),
+);
+const LabPage = lazy(() =>
+  import("./views/labs/LabPage").then((m) => ({ default: m.LabPage })),
+);
+
 const params = new URLSearchParams(window.location.search);
 const editorRoute = params.has("editor");
 const previewRoute = params.has("preview");
+const labsRoute = params.has("labs");
+const labRoute = params.get("lab");
 
 const LOADING = (
   <div className="app-loading">
@@ -55,6 +66,20 @@ export function Root() {
         }
       >
         <EditorPage />
+      </Suspense>
+    );
+  }
+  if (labRoute !== null && labRoute !== "") {
+    return (
+      <Suspense fallback={LOADING}>
+        <LabPage id={labRoute} />
+      </Suspense>
+    );
+  }
+  if (labsRoute) {
+    return (
+      <Suspense fallback={LOADING}>
+        <LabIndex />
       </Suspense>
     );
   }

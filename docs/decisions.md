@@ -4732,3 +4732,124 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   (`loadWireExercise`, shared by `importExercise`'s link branch);
   `web/src/views/editor/EditorPanel.tsx`; `web/e2e/editor.spec.ts`;
   this file.
+
+## v1.4 Task 11: lab page framework
+
+- **"Load this lab" — where it lands (Review Focus 5 design):** the
+  plan pins LabPage's "load this lab" to replace the *editor's*
+  exercise after asking, while spec §6.2 describes it loading "the
+  dataset and the matching model, seed and replicate settings" — and
+  real packs embed datasets the simulated-only editor cannot hold
+  (`settingsFromExercise` refuses `kind: "embedded"`). Reconciled by
+  context: on the standalone `?lab=<id>` page the button opens the
+  exercise in the app through the standard `#x=` link (the same
+  payload the editor's Share writes — dataset, model, seed and
+  bootstrap settings all travel), satisfying §6.2 for embedded and
+  simulated packs alike; inside the editor, the new "PHYLIP labs"
+  sheet offers the same-named action and THAT is where the
+  unsaved-work question lives — the only place a dirty draft can
+  exist while "load this lab" is clicked, per the conductor's
+  reachable-state requirement. Declining keeps the exact
+  tree/settings; accepting runs the ordinary import path
+  (settingsFromExercise → editable-tree gate → model.replace).
+- **"Unsaved changes" is a diff, not a flag:** `draftSnapshot`
+  serializes {writeNewick(tree), settings, prompts, fileExtras,
+  preserved}; the baseline is set at mount and re-set after every
+  accepted load (import or lab) and every successful save — "saved"
+  work is no longer unsaved. No edits → no question; any deviation →
+  the confirm appears. No timers, no per-keystroke bookkeeping.
+- **Registry is bundled, not fetched:** lab files join the bundle via
+  `import.meta.glob(...?raw)` — offline-safe and unit-testable like
+  the lesson catalog; the exercises plugin still serves
+  `/exercises/labs/<file>.json` for the page's exercise-file link.
+  Registry key = file-name stem (= the `?lab=` id); `loadLab` also
+  refuses when the block's own `lab.id` disagrees with the file name
+  — a readable refusal instead of a silently mismatched link.
+- **e2e-only labs:** `web/src/labs/__fixtures__/*.json` joins the
+  registry only under the standard `neophylo-e2e` localStorage flag
+  (checked per call), so tests exercise the real registry with zero
+  shipped packs; the shipped index shows its empty state.
+- **listLabs needs no engine** (JSON parse + the schema's ajv check,
+  skipping files without a valid lab block); `loadLab` adds
+  `engine.loadExercise` — the same double gate `saveExercise` uses.
+- **The header entry is an `<a>`, not a `<button>`:** layout.spec.ts
+  pins `.app-header button` at 6/7; the link keeps the count while
+  landing the §6.5 header path at ≥1024 px. Below 1024 it is the More
+  menu's second item — the pinned item lists in MoreMenu.test.tsx and
+  sheets.spec.ts now name "PHYLIP labs" (updated expectations, not
+  loosened).
+- **LabPrintStyles.tsx is the print-palette component:** it emits a
+  scoped `@media print` rule re-mapping every token var to
+  `cssVariables("light")` inside `.lab-print` — light colors with
+  zero literals (token discipline). labs.css's own `@media print`
+  block hides `.lab-nav`/`.lab-controls` and shows the print-only
+  masthead/footer; the lab page's handout_md/phylip_note_md render
+  through a markdown subset producing React elements — no
+  dangerouslySetInnerHTML.
+- **§6.5 "time estimates":** the pinned lab block carries no time
+  field, so the index shows objectives, chain and the settings each
+  lab uses; a per-pack estimate is a Task-12 content decision (an
+  optional `lab.time` field would need a schema tweak then).
+- **Files outside the Files block:** `web/src/Root.tsx` (the `?labs`
+  and `?lab=<id>` lazy routes — ajv stays out of the initial bundle);
+  `web/src/views/editor/EditorPanel.tsx` (the lab sheet, the dirty
+  baseline and the applyLoaded refactor — Review Focus 5's only
+  reachable home); `web/src/views/MoreMenu.tsx` + its test and
+  `web/e2e/sheets.spec.ts` (the <1024 px menu item and its pinned
+  lists); `web/src/index.css` (`.labs-link` chip styling and
+  `.phylip-note a` — header/footer styles must live in the initial
+  bundle, not the lazy labs.css); `web/vite.config.ts` (serves and
+  ships `exercises/labs/*.json` for the exercise-file link);
+  `web/src/labs/labs.test.tsx` (JSX can't live in registry.test.ts —
+  the index/page/dirty-flow tests sit here);
+  `web/src/labs/__fixtures__/` (the three e2e-only lab files);
+  `exercises/labs/.gitkeep` (the registry directory itself);
+  `docs/decisions.md` (this entry).
+- **Initial-JS budget:** 118285 → 119248 gz (limit 120168): the header
+  link, More-menu item and PHYLIP-help line are the only initial-
+  bundle additions; registry + ajv + pages are lazy chunks.
+
+### Task 11 — fix round 1 (PR #99)
+
+- **Header link placement corrected:** at 1024–1279 px the direct
+  "PHYLIP labs" header link overflowed the row by ~27 px (measured
+  `scrollWidth` 1051 vs the 1024 viewport in the pinned image; the
+  failing visual frames caught it as a 3 px card edge violation).
+  The link is now direct in the header only at ≥ 1280, an item in
+  the Settings drawer at 1024–1279, and the More menu's second item
+  below 1024 — the same one-path-per-width pattern as "Take the
+  tour" (§6.7, owner decision B). The conductor note's "≥1024 in
+  header, <1024 in More menu" is satisfied through the drawer: the
+  link is reachable at every width without breaking the one-row/no-
+  overflow contract.
+- **Baselines:** only the 1920×1080 frames change (13 files — every
+  app scene × both themes plus the presenter frame); the link is
+  absent at 1024 and 768, so those frames stay byte-identical to
+  main's (three initially-regenerated 1024 frames were pixel noise —
+  main's bytes pass). `--update-snapshots=all --grep` scoped to the
+  app scenes at 1920×1080 in the pinned Playwright image.
+- **Files outside the Files block, this round:**
+  `web/src/views/SettingsDrawer.tsx` (the medium-breakpoint link),
+  `web/src/views/App.tsx` (passes `labsHref` at medium only), this
+  file.
+
+### Task 11 — fix round 2 (PR #99)
+
+- **"Load this lab" is navigation, not a share link:** the lab page's
+  load control builds an unbounded `#x=` app link straight in the
+  `href` — it never goes through the editor's Share path, so
+  `SHARE_LINK_MAX_LENGTH` (exerciseFile.ts) does not apply. A real
+  pack's dataset can push the link past 8000 chars; follow-up for
+  Task 12: check each shipped pack's load link actually opens.
+- **The e2e fixture labs ride the lazy labs chunk:**
+  `web/src/labs/__fixtures__/*.json` is bundled by the same
+  `import.meta.glob` as the shipped packs (registry.ts) but joins the
+  listing only under the `neophylo-e2e` localStorage flag — they cost
+  a few KB in the lazy chunk, never the initial bundle, and are never
+  listed for a real visitor.
+- **Coarse-pointer floor for the new links:** the generic
+  `(pointer: coarse)` rule covers `button`/`[role]` targets but not
+  plain `<a>`s, so `a.labs-link`, `.settings-drawer-labs`,
+  `.lab-nav-link`, `.lab-card-actions a` and `.labs-empty a` now get
+  the ≥40×40 floor under coarse pointers only — fine-pointer layout
+  (and every snapshot baseline) is unchanged.

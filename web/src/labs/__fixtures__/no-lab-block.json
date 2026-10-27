@@ -1,0 +1,13 @@
+{
+  "schema_version": 3,
+  "id": "no-lab-block",
+  "title": "Plain exercise without a lab block",
+  "summary": "A valid exercise file that is not a lab pack.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" }
+}
