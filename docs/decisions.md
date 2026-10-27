@@ -5212,3 +5212,111 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `fixtures/phylip/chain/jc12_boot100.json` (new), `fixtures/README.md`,
   `docs/decisions.md` (this entry). No changes under `crates/`, `web/`,
   `exercises/`, `scripts/` or `.github/`.
+
+## v1.4 Task 12 pack 3: seqboot → dnadist → neighbor → consense lab pack
+
+- **Scope:** plan Task 12 Steps 4 and 5 for pack 3 only — packs 1 and 2
+  are merged and untouched. Owner gate: `[OWNER REVIEW]` content check
+  of the handout and the PHYLIP-vs-NeoPhylo note before merge.
+- **Dataset (conductor note 1 / spec §6.3):** the pack embeds
+  `fixtures/inputs/jc12.fasta` verbatim (12 × 250). Expected numbers
+  come from `fixtures/phylip/chain/jc12_boot100.json` — PHYLIP's whole
+  chain (seqboot seed 8675309, 100 replicates through dnadist M = 100,
+  neighbor M = 100 with the forced jumble seed, consense three ways) —
+  plus `fixtures/phylip/f84/jc12.json` for the full-data F84 matrix and
+  neighbor tree. Provenance is recorded in `exercises/labs/README.md`.
+  License = the repo's AGPL-3.0-only; no `THIRD_PARTY_NOTICES.md`
+  entry — original in-house data.
+- **Bootstrap settings:** `bootstrap: { replicates: 100, seed:
+  8675309 }` — 100 is seqboot's menu default (recorded in
+  `fixtures/README.md`) and 8675309 is the odd seed the chain ran.
+  NeoPhylo's resamples are different random draws than seqboot's, so
+  the pack pins groupings and PHYLIP's counts, never NeoPhylo's counts.
+- **The plan's assertion (`packs.test.ts`):** the engine's consensus
+  computed from PHYLIP's own 100 replicate trees equals `consense` for
+  strict, majority and extended — the same groupings with the same
+  counts — and the tally holds consense's whole set inventory,
+  including the 14 "Sets NOT included" counts. The tally is assembled
+  from the fixture's `trees` via `splitKeys` (the existing display
+  helper whose canonicalization mirrors `bootstrap::split`), never a
+  drawn view. NeoPhylo's own bootstrap (the lab's seed, 100
+  replicates) reproduces all 9 majority groupings honestly — its
+  counts differ (79/81/93/95/98/100s vs PHYLIP's 72/90/92/95/96/99/100s).
+- **Menus read off the installed 3.697 binaries** (conductor note 2,
+  transcripts in the PR comments): seqboot's `J` Bootstrap / `R` = 100
+  defaults and the post-`Y` odd-seed prompt; dnadist's `M` → `D` → 100;
+  neighbor's `M` → 100 → odd seed flipping `J` to "Yes (random number
+  seed = 8675309)"; consense's extended-majority default and
+  strict/majority toggles. Neighbor's full-matrix run confirms the
+  first join the `predict_pair` reveal names (species 11 joins 12).
+- **Prompts:** a `predict_pair` at join 1 (reveal: t11–t12 join first
+  under Q though t01–t02 is the closest pair — both pinned to the
+  engine's trace and matrix), a completed-tree `note` at at_step 11
+  (12 taxa → steps+2), a `predict_branch` at the bootstrap panel
+  (reveal: the least-supported internal branch unites t05–t12 — the
+  minimum on the engine's own support tree, pinned), and a
+  first-run-`after` note stating support is a count of replicates,
+  never a probability. No prompt quotes a number.
+- **"Load this lab" (conductor note 4):** a new e2e in
+  `web/e2e/labs.spec.ts` — `?lab=seqboot-consense` → "Load this lab" →
+  F84 + NJ, a matrix row equal to the f84 fixture at the displayed
+  precision, and after stepping to the end the bootstrap panel shows
+  Replicates 100 and Seed 8675309 (read from the chain fixture). The
+  `#x=` link is 4,038 chars (reported in the PR body).
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts`, `web/src/labs/labs.test.tsx`
+    (modified): the flag-off shipped-listing assertions now expect all
+    three packs — scoped expectations, not weakened ones.
+  - `web/e2e/labs.spec.ts` (modified): the new shipped-pack-3 load test
+    above, and the without-flag index test now expects all three packs
+    (heading-scoped — the pack's title equals its chain text).
+  - `web/e2e/visualScenes.ts` (modified): one new scene
+    `lab-seqboot-consense-print` — `fullPage`, 1920×1080 and 768×1024
+    in both themes under `emulateMedia("print")`, same treatment as
+    packs 1–2.
+  - `web/e2e/__screenshots__/lab-seqboot-consense-print-*.png` (4 new
+    baselines): additive only, generated in the pinned Playwright
+    image with a targeted `--grep`; no existing baseline changed.
+    Owner gate on baselines stands.
+  - `docs/decisions.md` (this entry).
+- **Bundle:** the pack lives in the lazy `labs` chunk; initial JS
+  measurement vs main is reported in the PR body.
+
+### Task 12 pack 3 — fix round 1 (PR #108)
+
+- **The `predict_branch` reveal claims only the weakest grouping**
+  (owner command): it now says the same grouping is weakest in
+  PHYLIP's run and in the student's, while counts differ — the
+  "the ranking is what carries" claim is gone. `packs.test.ts` reads
+  PHYLIP's weakest grouping from `jc12_boot100.consense.majority`
+  (its minimum-count row, t05–t12 at 72) instead of a hard-coded
+  literal and asserts NeoPhylo's weakest branch equals it.
+- **Bootstrap settings locked** (owner decision): the pack's `locked`
+  lists `bootstrap.replicates` and `bootstrap.seed`, so the static
+  reveal can't be contradicted by a student's own seed or replicate
+  count. `BootstrapPanel` gained a `locked` prop honouring the same
+  `disabled` + "Fixed for this lesson." tooltip pattern Controls
+  uses (`LOCKED_TOOLTIP` is now exported); App passes the same
+  `source === "sandbox" ? [] : exercise.locked` expression it already
+  passes Controls — sandbox stays unlocked. Pins: a
+  `BootstrapPanel.test.tsx` describe (locked → both inputs disabled
+  with the tooltip, unlocked unchanged) and a named `labs.spec.ts`
+  test (the loaded pack shows Replicates 100 and the fixture's seed,
+  both disabled).
+- **The `first_run` note's "Sets included" pointer** now reads "in
+  the lab page's PHYLIP note" — the app shows no note below.
+- **Baselines:** the 4 `lab-seqboot-consense-print` frames were
+  regenerated in the pinned Playwright image with a targeted
+  `--grep`; they came back byte-identical (the lock and prompt text
+  never reach the lab print view) and `git diff --name-status
+  origin/main -- web/e2e/__screenshots__/` stays A-only. The full
+  `--project visual` run in the same image passed all 89 scenes —
+  no existing baseline changed. Locked-panel screenshots (1920 and
+  768, both themes) are posted as a PR comment, not committed.
+- **Files outside the Files block, this round:**
+  `web/src/views/BootstrapPanel.tsx` + `BootstrapPanel.test.tsx`
+  (the `locked` prop and its pins), `web/src/views/Controls.tsx`
+  (`LOCKED_TOOLTIP` exported), `web/src/views/App.tsx` (passes
+  `locked` to the panel), `web/e2e/labs.spec.ts` (the named lock
+  test), `web/e2e/__screenshots__/` (the 4 regenerated frames), this
+  file.

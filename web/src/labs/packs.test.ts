@@ -34,6 +34,9 @@ import type { Exercise } from "../engine/generated/Exercise";
 import type { Tree } from "../engine/generated/Tree";
 
 import { loadLab } from "./registry";
+import { splitKeys } from "../layout/splitKeys";
+import type { BootstrapTally } from "../engine/generated/BootstrapTally";
+import type { ConsensusKind } from "../engine/generated/ConsensusKind";
 import type { DistModel } from "../engine/generated/DistModel";
 
 const FIXTURES = resolve("..", "fixtures");
@@ -537,5 +540,407 @@ describe("lab pack protdist-neighbor", () => {
     expect(Math.abs(share - lenP05)).toBeLessThanOrEqual(1e-12);
     expect(Math.abs(pendantLength(tr.value.tree, "P05") - share))
       .toBeLessThanOrEqual(1e-12);
+  });
+});
+
+/** A phylip/chain/ fixture — PHYLIP's whole pack-3 chain on one input:
+ * seqboot's replicates ran through dnadist (M = 100), neighbor (M =
+ * 100, J forced on by its seed prompt) and consense three ways.
+ * `trees` are neighbor's 100 outtree Newicks, in order. */
+interface ChainFixture {
+  name: string;
+  generator: string;
+  /** Path to the FASTA input, relative to fixtures/. */
+  input: string;
+  seed: number;
+  replicates: number;
+  labels: string[];
+  trees: string[];
+  consense: Record<
+    "extended" | "strict" | "majority",
+    {
+      groups: { labels: string[]; count: number }[];
+      not_included: { labels: string[]; count: number }[];
+      newick: string;
+    }
+  >;
+  tree_precision: number;
+}
+
+function loadChainFixture(name: string): ChainFixture {
+  const text = readFileSync(
+    resolve(FIXTURES, "phylip", "chain", `${name}.json`),
+    "utf8",
+  );
+  return JSON.parse(text) as ChainFixture;
+}
+
+/** The canonical unrooted grouping keys of `tree`'s internal edges —
+ * the side not containing labels[0], kept when both sides hold ≥ 2
+ * taxa. This is `splitKeys`' display convention, which mirrors
+ * `bootstrap::split::tree_splits` exactly (its header documents the
+ * shared canonicalization); a degenerate tree's repeated grouping is
+ * deduplicated per tree, as the engine's tally does. */
+function treeGroupingKeys(tree: Tree, labels: string[]): Set<string> {
+  const keys = splitKeys(tree, labels, false);
+  const n = labels.length;
+  const out = new Set<string>();
+  for (const [id, key] of keys) {
+    if (id === tree.root || tree.nodes[id].children.length === 0) continue;
+    const size = key.split("|").filter((s) => s !== "").length;
+    if (size >= 2 && size <= n - 2) out.add(key);
+  }
+  return out;
+}
+
+/** A BootstrapTally over an external set of replicate trees — the
+ * wire form `bootstrap_batch` emits, assembled from PHYLIP's own
+ * neighbor outtrees so `engine.consensus` can run on them. Split
+ * extraction reuses `splitKeys` (an existing display helper that
+ * documents the engine's convention); the tally itself is never drawn
+ * from a rendered view. */
+function tallyFromTrees(trees: string[], labels: string[]): BootstrapTally {
+  const counts = new Map<string, number>();
+  for (const newick of trees) {
+    const r = engine.parseNewick(newick);
+    if (!r.ok) throw new Error(`a fixture tree must parse: ${newick}`);
+    for (const key of treeGroupingKeys(r.value, labels)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return {
+    method: "Nj",
+    labels,
+    successful: trees.length,
+    failed: 0,
+    counts: [...counts.entries()].map(([key, count]) => ({
+      labels: key.split("|"),
+      count,
+    })),
+  };
+}
+
+/** The leaf sets under every node (iterative post-order; mirrors the
+ * engine trees' arena order). */
+function leafSetsOf(tree: Tree): Map<number, Set<string>> {
+  const sets = new Map<number, Set<string>>();
+  const seen = new Array<boolean>(tree.nodes.length).fill(false);
+  const stack: number[] = [tree.root];
+  while (stack.length > 0) {
+    const id = stack[stack.length - 1];
+    const node = tree.nodes[id];
+    if (node.children.every((c) => seen[c])) {
+      seen[id] = true;
+      stack.pop();
+      if (node.children.length === 0) {
+        sets.set(id, new Set(node.label === null ? [] : [node.label]));
+      } else {
+        const under = new Set<string>();
+        for (const c of node.children) {
+          for (const l of sets.get(c) ?? []) under.add(l);
+        }
+        sets.set(id, under);
+      }
+      continue;
+    }
+    for (const c of node.children) if (!seen[c]) stack.push(c);
+  }
+  return sets;
+}
+
+/** A consensus tree's groupings with their replicate counts — read off
+ * the COMPUTED tree (internal nodes' leaf sets and support fractions),
+ * never a drawn view. `successful` scales support back to a count. */
+function consensusGroupings(
+  tree: Tree,
+  successful: number,
+): { key: string; count: number }[] {
+  const sets = leafSetsOf(tree);
+  const out: { key: string; count: number }[] = [];
+  for (let id = 0; id < tree.nodes.length; id++) {
+    const node = tree.nodes[id];
+    if (id === tree.root || node.children.length === 0) continue;
+    const support = tree.branches[id].support;
+    if (support === null) throw new Error("consensus node without support");
+    out.push({
+      key: [...(sets.get(id) ?? [])].sort().join("|"),
+      count: Math.round(support * successful),
+    });
+  }
+  return out;
+}
+
+describe("lab pack seqboot-consense", () => {
+  const loaded = loadLab("seqboot-consense");
+  if (!loaded.ok) throw new Error(`pack must load: ${JSON.stringify(loaded.error)}`);
+  const pack = loaded.value;
+  const fx = loadChainFixture("jc12_boot100");
+  const fxFull = loadFixture("f84", "jc12");
+  const inputText = readFileSync(resolve(FIXTURES, fx.input), "utf8");
+  const phylipTally = tallyFromTrees(fx.trees, fx.labels);
+
+  it("loads through loadLab and its lab block validates", () => {
+    expect(pack.lab.id).toBe("seqboot-consense");
+    expect(pack.lab.chain).toEqual([
+      "seqboot",
+      "dnadist",
+      "neighbor",
+      "consense",
+    ]);
+    expect(pack.exercise.schema_version).toBe(3);
+    expect(pack.exercise.analysis.correction).toBe("F84");
+    expect(pack.exercise.analysis.method).toBe("Nj");
+    expect(pack.exercise.data.kind).toBe("embedded");
+    expect(pack.lab.settings.length).toBeGreaterThan(0);
+    expect(pack.lab.objectives.length).toBeGreaterThan(0);
+  });
+
+  it("embeds fixtures/inputs/jc12.fasta byte for byte (names and residues)", () => {
+    if (pack.exercise.data.kind !== "embedded") throw new Error("unreachable");
+    const embedded = fastaRecords(pack.exercise.data.fasta);
+    const committed = fastaRecords(inputText);
+    expect(embedded).toEqual(committed);
+    expect(embedded.length).toBe(fx.labels.length);
+    expect(embedded.map(([name]) => name)).toEqual(fx.labels);
+  });
+
+  it("settings-table rows naming a NeoPhylo setting agree with the exercise", () => {
+    // Same pin as packs 1–2, plus the two bootstrap controls: rows
+    // asserting a real app control open with the control's name
+    // ("Correction:", "Method:", "Replicates:", "Seed:") and each must
+    // agree with the exercise field that control loads. The replicates
+    // row must also show 100 — seqboot's own default, recorded in
+    // fixtures/README.md ("defaults are J Bootstrap resampling and
+    // R = 100 replicates") — and the seed row must be the odd value the
+    // PHYLIP chain ran.
+    let sawCorrection = false;
+    let sawMethod = false;
+    let sawReplicates = false;
+    let sawSeed = false;
+    if (pack.exercise.bootstrap === null) {
+      throw new Error("the pack must set bootstrap.replicates and .seed");
+    }
+    const boot = pack.exercise.bootstrap;
+    expect(boot.replicates).toBe(fx.replicates); // 100, seqboot's R default
+    expect(boot.seed).toBe(fx.seed); // the odd seed the chain used
+    expect(boot.seed % 2).toBe(1);
+    for (const row of pack.lab.settings) {
+      if (row.neophylo.startsWith("Correction:")) {
+        sawCorrection = true;
+        expect(row.neophylo).toContain("F84");
+        expect(pack.exercise.analysis.correction).toBe("F84");
+      }
+      if (row.neophylo.startsWith("Method:")) {
+        sawMethod = true;
+        expect(row.neophylo).toMatch(/Neighbor-Joining|NJ/);
+        expect(pack.exercise.analysis.method).toBe("Nj");
+      }
+      if (row.neophylo.startsWith("Replicates:")) {
+        sawReplicates = true;
+        expect(row.neophylo).toContain(String(boot.replicates));
+      }
+      if (row.neophylo.startsWith("Seed:")) {
+        sawSeed = true;
+        expect(row.neophylo).toContain(String(boot.seed));
+      }
+    }
+    expect(sawCorrection, "a settings row must name the Correction control").toBe(true);
+    expect(sawMethod, "a settings row must name the Method control").toBe(true);
+    expect(sawReplicates, "a settings row must name the Replicates control").toBe(true);
+    expect(sawSeed, "a settings row must name the Seed control").toBe(true);
+  });
+
+  it("reproduces dnadist's printed F84 matrix within its precision", () => {
+    const aln = packAlignment(pack.exercise);
+    const r = engine.distances(aln, "F84");
+    if (!r.ok) throw new Error(`distances failed: ${JSON.stringify(r.error)}`);
+    const got = r.value;
+    expect(got.labels).toEqual(fx.labels);
+    const n = fx.labels.length;
+    const tol = 0.5 * Math.pow(10, -fxFull.precision); // 6 decimals → 0.5e-6
+    const want = fxFull.distances.F84;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const cell = got.cells[i * n + j];
+        expect(cell === "Saturated" ? Infinity : Math.abs(cell.Value - want[i][j]),
+          `cell ${fx.labels[i]}/${fx.labels[j]}`).toBeLessThanOrEqual(tol);
+      }
+    }
+  });
+
+  it("NJ on PHYLIP's printed F84 matrix gives nj.F84's splits and lengths", () => {
+    const got = nj(printedMatrix(fxFull, "F84", "F84"));
+    const want = parse(fxFull.nj.F84);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error(`compare failed: ${JSON.stringify(r.error)}`);
+    expect(r.value.rf).toBe(0);
+    const gl = branchLengths(got);
+    const wl = branchLengths(want);
+    expect(gl.length).toBe(wl.length);
+    // neighbor's outtree prints 5 decimals → 0.5e-5.
+    const tol = 0.5 * Math.pow(10, -fx.tree_precision);
+    gl.forEach((g, k) =>
+      expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
+  });
+
+  it("NJ on the engine's own F84 matrix gives the same splits and lengths", () => {
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "F84");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const got = nj(dm.value);
+    const want = parse(fxFull.nj.F84);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error(`compare failed`);
+    expect(r.value.rf).toBe(0);
+    const gl = branchLengths(got);
+    const wl = branchLengths(want);
+    expect(gl.length).toBe(wl.length);
+    const tol = 0.5e-5;
+    gl.forEach((g, k) =>
+      expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
+  });
+
+  it("the tally of PHYLIP's own replicate trees is consense's whole set inventory", () => {
+    // The engine-convention tally over neighbor's 100 outtrees must
+    // hold exactly the groupings consense reports: every "Sets
+    // included" row plus every "Sets NOT included" row (extended is
+    // the only run that lists rejected sets — strict and majority
+    // print "NONE"), each with the same count. This is where NeoPhylo
+    // exposes the not_included counts: the tally the consensus tabs
+    // draw from.
+    const got = new Map(
+      phylipTally.counts.map((c) => [c.labels.join("|"), c.count]),
+    );
+    const want = new Map<string, number>();
+    for (const g of [
+      ...fx.consense.extended.groups,
+      ...fx.consense.extended.not_included,
+    ]) {
+      want.set([...g.labels].sort().join("|"), g.count);
+    }
+    expect(got.size).toBe(want.size);
+    for (const [key, count] of want) {
+      expect(got.get(key), `grouping ${key}`).toBe(count);
+    }
+  });
+
+  it.each(["Strict", "Majority", "Extended"] as const)(
+    "engine consensus of PHYLIP's replicate trees equals consense %s",
+    (kind: ConsensusKind) => {
+      // The plan's pack-3 assertion: NeoPhylo's consensus computed
+      // from PHYLIP's own 100 replicate trees equals consense for
+      // strict, majority and extended — the same groupings with the
+      // same counts.
+      const r = engine.consensus(phylipTally, kind, fx.labels);
+      if (!r.ok) throw new Error(`consensus failed: ${JSON.stringify(r.error)}`);
+      const got = consensusGroupings(r.value, phylipTally.successful)
+        .map((g) => `${g.count}:${g.key}`)
+        .sort();
+      const key =
+        kind === "Strict" ? "strict" : kind === "Majority" ? "majority" : "extended";
+      const want = fx.consense[key].groups
+        .map((g) => `${g.count}:${[...g.labels].sort().join("|")}`)
+        .sort();
+      expect(got).toEqual(want);
+    },
+  );
+
+  it("NeoPhylo's own bootstrap majority-rule groupings equal consense's", () => {
+    // The lab's own run — the exercise's bootstrap block (the chain's
+    // odd seed, 100 replicates) through the engine exactly as the app
+    // runs it. A different RNG draws different resamples, so the counts
+    // honestly differ; what is pinned is the SET of majority-rule
+    // groupings, which must equal consense's majority "Sets included".
+    if (pack.exercise.bootstrap === null) throw new Error("unreachable");
+    const aln = packAlignment(pack.exercise);
+    const r = engine.bootstrapBatch(
+      aln,
+      "F84",
+      "Nj",
+      pack.exercise.bootstrap.seed,
+      0,
+      pack.exercise.bootstrap.replicates,
+    );
+    if (!r.ok) throw new Error(`bootstrap failed: ${JSON.stringify(r.error)}`);
+    const cr = engine.consensus(r.value, "Majority", r.value.labels);
+    if (!cr.ok) throw new Error(`consensus failed`);
+    const got = new Set(
+      consensusGroupings(cr.value, r.value.successful).map((g) => g.key),
+    );
+    const want = new Set(
+      fx.consense.majority.groups.map((g) => [...g.labels].sort().join("|")),
+    );
+    expect(got).toEqual(want);
+  });
+
+  it("pins the prompts' teaching claims to the computed trace, matrix and tally", () => {
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "F84");
+    if (!dm.ok) throw new Error(`distances failed`);
+
+    // Closest pair in the engine's own matrix — the tempting first pick.
+    let best = { d: Infinity, i: -1, j: -1 };
+    const labels = dm.value.labels;
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        const c = dm.value.cells[i * labels.length + j];
+        if (c !== "Saturated" && c.Value < best.d) {
+          best = { d: c.Value, i, j };
+        }
+      }
+    }
+    expect([labels[best.i], labels[best.j]].sort()).toEqual(["t01", "t02"]);
+
+    // First join of the engine's NJ trace on PHYLIP's printed matrix —
+    // the pair the predict_pair reveal names.
+    const tr = engine.buildTree(printedMatrix(fxFull, "F84", "F84"), "Nj", {
+      trace: true,
+    });
+    if (!tr.ok) throw new Error(`buildTree failed`);
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) {
+      throw new Error("NJ trace missing");
+    }
+    const first = trace.Nj.steps[0];
+    const pair = [first.chosen[0], first.chosen[1]]
+      .map((pos) => dm.value.labels[first.active[pos]])
+      .sort();
+    expect(pair).toEqual(["t11", "t12"]);
+
+    // The predict_branch reveal names the least-supported internal
+    // branch of the inferred tree in the lab's own run, and claims it
+    // is the same grouping PHYLIP's chain found weakest — the
+    // minimum-count row of consense's majority "Sets included", read
+    // from the fixture rather than hard-coded. The whole original
+    // tree's groupings must sit in the tally so support lands on real
+    // branches.
+    if (pack.exercise.bootstrap === null) throw new Error("unreachable");
+    const ownTree = nj(dm.value);
+    const own = engine.bootstrapBatch(
+      aln,
+      "F84",
+      "Nj",
+      pack.exercise.bootstrap.seed,
+      0,
+      pack.exercise.bootstrap.replicates,
+    );
+    if (!own.ok) throw new Error(`bootstrap failed`);
+    const st = engine.supportOnTree(ownTree, own.value);
+    if (!st.ok) throw new Error(`supportOnTree failed`);
+    const keys = splitKeys(st.value, fx.labels, false);
+    let weakest = { support: Infinity, key: "" };
+    for (let i = 0; i < st.value.nodes.length; i++) {
+      const node = st.value.nodes[i];
+      const s = st.value.branches[i].support;
+      if (i !== st.value.root && node.children.length > 0 && s !== null) {
+        if (s < weakest.support) {
+          weakest = { support: s, key: keys.get(i) ?? "" };
+        }
+      }
+    }
+    const phylipWeakest = fx.consense.majority.groups.reduce((a, g) =>
+      g.count < a.count ? g : a,
+    );
+    expect(weakest.key).toBe([...phylipWeakest.labels].sort().join("|"));
   });
 });

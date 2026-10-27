@@ -349,6 +349,44 @@ describe("BootstrapPanel", () => {
   });
 });
 
+describe("locked bootstrap settings (v1.4 Task 12 pack 3, fix round 1)", () => {
+  // The panel honours exercise.locked the way Controls does: a listed
+  // path renders its input disabled with the "Fixed for this lesson."
+  // tooltip. App passes [] in the sandbox, so unlocked stays as today.
+  it("locked bootstrap.replicates and bootstrap.seed render both inputs non-editable", () => {
+    const dispatch = vi.fn();
+    render(
+      <BootstrapPanel
+        session={loaded()}
+        dispatch={dispatch}
+        locked={["bootstrap.replicates", "bootstrap.seed"]}
+      />,
+    );
+    for (const name of ["Replicates", "Seed"]) {
+      const field = screen.getByLabelText(name);
+      expect(field).toHaveProperty("disabled", true);
+      expect(field.getAttribute("title")).toBe("Fixed for this lesson.");
+    }
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("an unlocked lesson leaves both inputs editable, unchanged", () => {
+    render(<Harness initial={loaded()} />);
+    for (const name of ["Replicates", "Seed"]) {
+      const field = screen.getByLabelText(name);
+      expect(field).toHaveProperty("disabled", false);
+      expect(field.getAttribute("title")).toBeNull();
+    }
+    fireEvent.change(screen.getByLabelText("Replicates"), {
+      target: { value: "250" },
+    });
+    expect(screen.getByLabelText("Replicates")).toHaveProperty(
+      "value",
+      "250",
+    );
+  });
+});
+
 describe("predict_branch gating (v1.2 Task 14)", () => {
   it("Run is disabled while an unanswered predict_branch prompt gates it", () => {
     render(<Harness initial={loaded()} runGated />);

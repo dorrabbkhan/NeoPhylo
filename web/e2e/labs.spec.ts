@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 
-import { waitForApp } from "./helpers";
+import { stepToEnd, waitForApp } from "./helpers";
 
 const LAB_NEWICK = "((A:0.1,B:0.2):0.05,C:0.3);";
 
@@ -188,6 +188,112 @@ test("the shipped protdist-neighbor pack loads through its lab page into the app
       `cell ${fx.labels[0]}/${fx.labels[j]} shows ${shown}`,
     ).toBeVisible();
   }
+});
+
+// Task 12 pack 3 (conductor note 4): the shipped seqboot-consense
+// pack loads the same way — F84 + NJ, and the bootstrap panel shows
+// the exercise's own settings: 100 replicates (seqboot's menu default,
+// recorded in fixtures/README.md) and the chain's odd seed. The
+// expected values are read from the chain fixture, never hard-coded.
+test("the shipped seqboot-consense pack loads through its lab page into the app", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/phylip/chain/jc12_boot100.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    seed: number;
+    replicates: number;
+  };
+  const f84 = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/phylip/f84/jc12.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    labels: string[];
+    distances: Record<string, number[][]>;
+  };
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=seqboot-consense");
+  await expect(
+    page.getByRole("heading", {
+      name: "seqboot → dnadist → neighbor → consense",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.locator(".app-header h1")).toContainText(
+    "seqboot → consense lab",
+  );
+  await expect(page.getByLabel("Distance correction")).toHaveValue("F84");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+
+  // One whole row of cells at the displayed 3-decimal precision — the
+  // grid's per-cell aria-labels carry the value.
+  const n = f84.labels.length;
+  for (let j = 0; j < n; j++) {
+    const shown =
+      j === 0 ? "0.000" : f84.distances.F84[0][j].toFixed(3);
+    await expect(
+      page.locator(
+        `g[role="gridcell"][aria-label="${f84.labels[0]}, ${f84.labels[j]}: ${shown}"]`,
+      ),
+      `cell ${f84.labels[0]}/${f84.labels[j]} shows ${shown}`,
+    ).toBeVisible();
+  }
+
+  // The bootstrap panel renders at the final step; the exercise's own
+  // replicates and seed populate its fields.
+  await stepToEnd(page);
+  await expect(page.getByLabel("Replicates")).toHaveValue(
+    String(fx.replicates),
+  );
+  await expect(page.getByLabel("Seed")).toHaveValue(String(fx.seed));
+});
+
+// Fix round 1 (owner decision): the pack's `locked` list names
+// bootstrap.replicates and bootstrap.seed so the static reveal can't
+// be contradicted by a student's own settings — the loaded lesson
+// shows both fields disabled, still holding the pack's values.
+test("the shipped seqboot-consense pack locks its bootstrap settings", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/phylip/chain/jc12_boot100.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    seed: number;
+    replicates: number;
+  };
+  await page.goto("/?lab=seqboot-consense");
+  await expect(
+    page.getByRole("heading", {
+      name: "seqboot → dnadist → neighbor → consense",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await stepToEnd(page);
+  await expect(page.getByLabel("Replicates")).toHaveValue(
+    String(fx.replicates),
+  );
+  await expect(page.getByLabel("Replicates")).toBeDisabled();
+  await expect(page.getByLabel("Seed")).toHaveValue(String(fx.seed));
+  await expect(page.getByLabel("Seed")).toBeDisabled();
 });
 
 test("the print view hides the controls and keeps the handout and settings table", async ({
@@ -374,6 +480,11 @@ test("without the e2e flag the index lists only the shipped packs", async ({
   ).toBeVisible();
   await expect(page.getByText("dnadist → neighbor (F84)")).toBeVisible();
   await expect(page.getByText("protdist → neighbor (JTT)")).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "seqboot → dnadist → neighbor → consense",
+    }),
+  ).toBeVisible();
   await expect(
     page.getByText("Test lab: dnadist → neighbor"),
   ).toHaveCount(0);
