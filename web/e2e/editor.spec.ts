@@ -965,12 +965,16 @@ test("F84 base frequencies show their sum and block save until it is 1", async (
   await expect(
     page.getByRole("textbox", { name: "Base frequency A" }),
   ).toHaveValue("0.25");
-  await expect(page.getByText(/Sum: 1 — must be 1\./)).toBeVisible();
+  await expect(
+    page.getByText(/Sum: 1 — must be 1 to save\./),
+  ).toBeVisible();
 
   await page
     .getByRole("textbox", { name: "Base frequency A" })
     .fill("0.9");
-  await expect(page.getByText(/Sum: 1\.65 — must be 1\./)).toBeVisible();
+  await expect(
+    page.getByText(/Sum: 1\.65 — must be 1 to save\./),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Save file" }),
   ).toBeDisabled();

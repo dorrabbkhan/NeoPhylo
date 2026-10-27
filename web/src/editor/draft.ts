@@ -144,7 +144,7 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
         out.push({
           field: "baseFreqs",
           level: "error",
-          msg: `the base frequencies sum to ${roundTo(sum, 6)}, not 1.`,
+          msg: `Sum: ${roundTo(sum, 6)} — must be 1 to save.`,
         });
       }
     }

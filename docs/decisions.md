@@ -4672,3 +4672,31 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   (import control styles); `web/e2e/{editor.spec.ts,
   visualScenes.ts}`; `web/e2e/__screenshots__/` (8 new
   `editor-prompts` baselines + regenerated editor frames).
+
+### Task 10 — fix round 2 (PR #98)
+
+- **One base-frequency sum message** (review): the F84 fieldset showed
+  the readout "Sum: 1.65 — must be 1." AND the save-path complaint
+  "the base frequencies sum to 1.65, not 1." for the same problem.
+  `settingsProblems`' message is now the single line's text —
+  `Sum: 1.65 — must be 1 to save.` — so the displayed message is the
+  same validation object the save gate sees (the line falls back to
+  the live readout only while no problem exists). A new Vitest pin
+  asserts exactly one `/sum/i` element renders on a bad sum; the named
+  agreement tests are unchanged.
+- **"Import file…" matches its row** (review): the shared
+  `.import-file` wrapper shrinks its contents to `--size-sm` for
+  ImportPanel's field label; scoped `.editor-actions .import-file`
+  back to the inherited `--size-md` so the control carries the same
+  type size as the row's real buttons. Padding (3px 6px), radius,
+  colours and the coarse-pointer ≥40×40 floor already matched.
+- **Baselines:** `--update-snapshots=all --grep editor-` in the
+  pinned Playwright image; 16 files changed (all 8 `editor-default`
+  and all 8 `editor-f84` frames — the action row and the fieldset
+  respectively). `editor-prompts`/`editor-preview` regenerated
+  byte-identical; `editor-sheet` untouched. `git diff --name-status
+  origin/main -- web/e2e/__screenshots__/` stays A-only (34 files).
+- **Files outside the Files block, this round:** none new — the same
+  `web/src/editor/draft.ts`, `SettingsForm.tsx` + test,
+  `web/src/index.css` and `web/e2e/{editor.spec.ts,visualScenes.ts}`
+  already recorded for this task, plus the baseline PNGs; this file.

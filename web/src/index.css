@@ -2458,6 +2458,17 @@ button,
   border: 0;
 }
 
+/* The editor action row's Import file… control must read at the same
+ * size as the row's real buttons: `.import-file` (shared with
+ * ImportPanel's small field label) shrinks its contents to --size-sm,
+ * so inside .editor-actions the wrapper inherits the row's --size-md
+ * again. Padding (3px 6px), radius and colours already match the
+ * `button` rule, and the coarse-pointer ≥40×40 floor below covers it
+ * (fix round 2). */
+.editor-actions .import-file {
+  font-size: inherit;
+}
+
 .import-file-btn {
   display: inline-flex;
   align-items: center;

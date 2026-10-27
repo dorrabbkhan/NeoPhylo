@@ -316,7 +316,7 @@ export const SCENES: {
       await expect(freqA).toBeVisible();
       await freqA.fill("0.9");
       await expect(
-        page.getByText(/Sum: 1\.65 — must be 1\./),
+        page.getByText(/Sum: 1\.65 — must be 1 to save\./),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save file" }),

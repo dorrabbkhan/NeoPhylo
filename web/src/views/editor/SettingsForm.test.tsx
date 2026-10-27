@@ -71,17 +71,27 @@ describe("SettingsForm", () => {
     for (const b of ["A", "C", "G", "T"]) {
       expect((freqField(b) as HTMLInputElement).value).toBe("0.25");
     }
-    expect(screen.getByText(/Sum: 1 — must be 1\./)).toBeTruthy();
+    expect(
+      screen.getByText(/Sum: 1 — must be 1 to save\./),
+    ).toBeTruthy();
   });
 
   it("shows the current sum and flags it when it is not 1", () => {
     renderForm({ model: "F84" });
     fireEvent.change(freqField("A")!, { target: { value: "0.4" } });
-    const sum = screen.getByText(/Sum: 1\.15 — must be 1\./);
+    const sum = screen.getByText(/Sum: 1\.15 — must be 1 to save\./);
     expect(sum).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(
-      /sum to 1\.15, not 1/i,
+      /Sum: 1\.15 — must be 1 to save\./,
     );
+  });
+
+  // Fix round 2: the fieldset used to render the sum readout AND the
+  // validation's own sum complaint — two messages for one problem.
+  it("renders exactly one sum message when the sum is wrong", () => {
+    renderForm({ model: "F84" });
+    fireEvent.change(freqField("A")!, { target: { value: "0.4" } });
+    expect(screen.getAllByText(/sum/i)).toHaveLength(1);
   });
 
   it("switching to F84 shows its own settings; K2P shows κ but no frequencies", () => {

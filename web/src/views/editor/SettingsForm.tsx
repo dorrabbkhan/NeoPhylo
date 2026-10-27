@@ -70,6 +70,7 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
     onChange({ ...settings, ...p });
   const hasError = (field: string) =>
     problems.some((p) => p.field === field && p.level === "error");
+  const freqProblem = problems.find((p) => p.field === "baseFreqs");
 
   const freqSum = settings.baseFreqs.reduce((a, t) => {
     const v = Number(t);
@@ -203,14 +204,30 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
                 </label>
               ))}
             </div>
+            {/* Exactly one verdict line (fix round 2): when
+              * settingsProblems — the same validation the save gate
+              * calls — reports a base-frequency problem, its own
+              * message is the line's text; rendering FieldProblems
+              * too would duplicate the sum complaint. With no
+              * problem the line is the live sum readout.
+              * settingsProblems emits at most one baseFreqs problem
+              * (a bad value else-branches the sum check), so find()
+              * can never hide a second one. */}
             <p
+              role={
+                freqProblem?.level === "error" ? "alert" : undefined
+              }
               className={
-                hasError("baseFreqs") ? "editor-error" : "editor-hint"
+                freqProblem === undefined
+                  ? "editor-hint"
+                  : freqProblem.level === "error"
+                    ? "editor-error"
+                    : "editor-warning"
               }
             >
-              Sum: {freqSumText} — must be 1.
+              {freqProblem?.msg ??
+                `Sum: ${freqSumText} — must be 1 to save.`}
             </p>
-            <FieldProblems problems={problems} field="baseFreqs" />
           </fieldset>
           <p className="editor-hint">
             The frequencies apply to simulation; distance estimation
