@@ -4853,3 +4853,34 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `.lab-nav-link`, `.lab-card-actions a` and `.labs-empty a` now get
   the ≥40×40 floor under coarse pointers only — fine-pointer layout
   (and every snapshot baseline) is unchanged.
+
+## v1.4 Task 12a: neighbor NJ trees for the dnadist F84 fixtures (PR A, fixture-only)
+
+- **Owner decision (2026-10-27, in chat):** lab pack 1 (`dnadist` →
+  `neighbor`) teaches dnadist's DEFAULT model, F84. Task 3's
+  `fixtures/phylip/f84/<name>.json` held only the dnadist matrices, so
+  this PR adds the `neighbor` NJ tree (`"nj": {"F84": "<outtree>"}`,
+  same shape as `ref/*_phylip.json`) built on PHYLIP's printed F84
+  matrix (spec §3.2), split into its own fixture-only PR so the pack
+  PR's `packs.test.ts` can check distances and tree against PHYLIP
+  without tripping the CI fixture guard. The k2p files and every other
+  fixture are unchanged; `generate.R` re-ran per the documented order
+  and every regenerated file outside `phylip/f84/` is byte-identical.
+- **`seqboot` defaults for pack 3 (spec §6.1/§9), read off the
+  installed 3.697 menu, not assumed:** `J` Bootstrap resampling, `R` =
+  100 replicates; no seed default — the run prompts "Random number seed
+  (must be odd)?" and rejects 0 or even input until a valid odd seed is
+  given. Recorded in `fixtures/README.md`; seqboot output is not
+  committed.
+- **`generator` stays `"phylip 3.697"`** — `neighbor` ships in the same
+  package as `dnadist`; the script now asserts the two reported
+  versions match each run.
+- **Files touched:** `fixtures/generate_phylip.sh` (v1.4 section:
+  `run_neighbor N` on each `mat_<name>_f84.txt`, ordered after the
+  dnadist runs because it overwrites `infile`; `nj` merged into the f84
+  JSON; version assert), `fixtures/phylip/f84/{jc6,jc7_long,jc12,k80_10}.json`
+  (`nj` key only — `distances`, `precision`, `generator` byte-identical),
+  `fixtures/README.md` (f84 bullet: trees, version, how to compare;
+  seqboot defaults), `docs/decisions.md` (this entry). No changes under
+  `crates/`, `web/`, `exercises/` or `scripts/`; the parity/pack tests
+  that consume `nj` land in the next PR.

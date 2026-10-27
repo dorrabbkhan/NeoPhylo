@@ -35,13 +35,19 @@ see `AGENTS.md` for the rules.
   `dnadist` F84 (its default model, T = 2.0, empirical frequencies) and
   "Kimura 2-parameter" at T = 2.0 and 4.0, on every gap-free input
   (`jc6`, `jc7_long`, `jc12`, `k80_10`). Same shape as `ref/*_phylip.json`
-  minus the trees; `model` names the `DistModel` replayed and the k2p
-  `distances` keys are the ratio handed to `K2pPhylip { ratio }`.
-  `precision` is dnadist's printed precision (6 decimals,
-  `output_matrix_d` `%*.6f`), so compare within `0.5e-6`. They live in
-  their own directory because the corpus test flat-globs `ref/*.json`;
-  `tests/parity_phylip_v14.rs` owns them. A `-1.000000` cell is
-  dnadist's inestimable marker (`Cell::Saturated` in the engine).
+  (f84 has no `upgma`, k2p has no trees); `model` names the `DistModel`
+  replayed and the k2p `distances` keys are the ratio handed to
+  `K2pPhylip { ratio }`. Each f84 file's `nj.F84` is `neighbor`'s
+  unrooted NJ tree on dnadist's printed F84 matrix — the lab pack 1
+  chain (v1.4 spec §3.2); `neighbor` reports the same 3.697 recorded in
+  `generator` (the script asserts this). Compare trees as unrooted
+  topologies, then branch lengths within half an ulp of `neighbor`'s
+  printed precision (5 decimals). `precision` is dnadist's printed
+  precision (6 decimals, `output_matrix_d` `%*.6f`), so compare
+  distances within `0.5e-6`. They live in their own directory because
+  the corpus test flat-globs `ref/*.json`; `tests/parity_phylip_v14.rs`
+  owns them. A `-1.000000` cell is dnadist's inestimable marker
+  (`Cell::Saturated` in the engine).
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
   3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed
@@ -138,3 +144,9 @@ majority by default, strict after one `C`, plain majority rule after two
 — toggles are read off the menu each run — `R` for rooted sets).
 `dnadist`/`neighbor`/`protdist`/`consense` all report version 3.697;
 `dnadist` prints distances to 6 decimals (`output_matrix_d` `%*.6f`).
+
+`seqboot` 3.697 (lab pack 3, v1.4 spec §6.1/§9 — read off the installed
+menu 2026-10-27; its output is not committed): defaults are `J`
+Bootstrap resampling and `R` = **100 replicates**. There is no seed
+default — after `Y` it prompts "Random number seed (must be odd)?" and
+rejects 0 or even input until a valid odd seed is given.
