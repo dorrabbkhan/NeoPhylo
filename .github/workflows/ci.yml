@@ -529,9 +529,11 @@ jobs:
         # while the mounted checkout is owned by the host uid, so every
         # later git call would die with "detected dubious ownership".
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: Regenerate fixtures and diff against committed ref/
-        # FIXTURES=1 reruns generate.R + generate_phylip.sh, then
-        # git diff --exit-code fixtures/ref (plus an untracked-file check).
+      - name: Regenerate fixtures and diff against committed ref/ + phylip/
+        # FIXTURES=1 reruns generate.R + generate_phylip.sh (which also runs
+        # generate_consensus.sh and generate_lab_chain.sh), then
+        # git diff --exit-code fixtures/ref fixtures/consensus
+        # fixtures/worked fixtures/phylip (plus an untracked-file check).
         env:
           FIXTURES: "1"
         run: scripts/ci/fixture-guard.sh

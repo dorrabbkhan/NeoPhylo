@@ -5212,3 +5212,29 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `fixtures/phylip/chain/jc12_boot100.json` (new), `fixtures/README.md`,
   `docs/decisions.md` (this entry). No changes under `crates/`, `web/`,
   `exercises/`, `scripts/` or `.github/`.
+
+## v1.4 follow-up: fixture guard covers fixtures/phylip (owner approved on #106)
+
+- **Gap closed:** `FIXTURES=1 scripts/ci/fixture-guard.sh` regenerates
+  `fixtures/phylip/` (f84, k2p via `generate_phylip.sh`; chain via
+  `generate_lab_chain.sh`) but its drift check only diffed
+  `fixtures/ref fixtures/consensus fixtures/worked`, so drift under
+  `phylip/` regenerated silently. `fixtures/phylip` is now in both the
+  `git diff --exit-code` pathspec and the `git status --porcelain`
+  stray-file check. The `r-and-fixtures` step name/comment in
+  `.github/workflows/ci.yml` updated to match (comment-only).
+- **Local proof:** `FIXTURES=1 ./scripts/ci/fixture-guard.sh` passes on a
+  clean tree — `fixtures/phylip/` is byte-stable under regeneration,
+  seqboot chain included (jc12_boot100: 12 taxa, 100 trees, 23
+  groupings). With a perturbed value staged in
+  `phylip/f84/jc6.json` the same run exits 1 at the git-diff check
+  (staging stands in for committed drift since regeneration overwrites
+  the worktree copy first); the file was then restored untouched.
+- **CI coverage:** the `changes` job's `fixtures` filter already lists
+  `scripts/ci/fixture-guard.sh` and `.github/workflows/ci.yml`, and
+  `r-and-fixtures` runs when `fixtures` matches — so this PR's own
+  checks exercise the new diff. No filter change needed.
+- **Files touched:** `scripts/ci/fixture-guard.sh`,
+  `.github/workflows/ci.yml` (step name + comment only),
+  `docs/decisions.md` (this entry). No changes under `fixtures/`,
+  `crates/`, `web/` or `exercises/`.

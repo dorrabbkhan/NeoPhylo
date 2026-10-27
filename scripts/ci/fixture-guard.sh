@@ -31,12 +31,16 @@ if [ -f fixtures/generate.R ] && [ "${FIXTURES:-0}" = "1" ]; then
   # (generate_phylip.sh also invokes generate_consensus.sh, which merges
   # consense into fixtures/consensus/*.json and worked/consensus_hand.json;
   # generate.R then regenerates those files and preserves the consense
-  # block while the trees are identical, so committed output is stable.)
+  # block while the trees are identical, so committed output is stable.
+  # generate_phylip.sh ends with generate_lab_chain.sh, which writes
+  # phylip/chain/*_boot*.json.)
   bash fixtures/generate_phylip.sh
   Rscript fixtures/generate.R
-  git diff --exit-code fixtures/ref fixtures/consensus fixtures/worked
+  # fixtures/phylip (f84, k2p, chain) is diffed too: everything the
+  # regeneration writes must be byte-stable.
+  git diff --exit-code fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip
   # also catch new/stray files under the regenerated dirs
-  if [ -n "$(git status --porcelain fixtures/ref fixtures/consensus fixtures/worked)" ]; then
-    echo "FAIL: fixtures changed after regeneration"; git status --porcelain fixtures/ref fixtures/consensus fixtures/worked; exit 1
+  if [ -n "$(git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip)" ]; then
+    echo "FAIL: fixtures changed after regeneration"; git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip; exit 1
   fi
 fi
