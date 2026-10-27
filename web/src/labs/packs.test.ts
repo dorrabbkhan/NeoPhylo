@@ -210,6 +210,23 @@ describe("lab pack dnadist-neighbor", () => {
     expect(r.value.rf).toBe(0);
   });
 
+  it("NJ on the engine's own F84 matrix gives nj.F84's lengths within 0.5e-5", () => {
+    // neighbor ran on dnadist's PRINTED (6-decimal) matrix while the
+    // engine keeps full precision; this pins that the difference never
+    // shows at neighbor's own printed precision (5 decimals → 0.5e-5).
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "F84");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const got = nj(dm.value);
+    const want = parse(fx.nj.F84);
+    const gl = branchLengths(got);
+    const wl = branchLengths(want);
+    expect(gl.length).toBe(wl.length);
+    const tol = 0.5e-5;
+    gl.forEach((g, k) =>
+      expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
+  });
+
   it("pins the prompt's teaching claims to the computed trace and matrix", () => {
     // The predict_pair reveal names t04–t05 as the first join and
     // t06–t07 as the closest pair. Both claims come from the engine on

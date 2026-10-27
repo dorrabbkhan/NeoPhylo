@@ -65,7 +65,12 @@ for (const scene of SCENES) {
         const target = (await scene.setup(page)) ?? page;
         await expect(target).toHaveScreenshot(
           `${scene.name}-${vp.w}x${vp.h}-${theme}.png`,
-          { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" },
+          {
+            maxDiffPixelRatio: 0.001,
+            animations: "disabled",
+            caret: "hide",
+            fullPage: scene.fullPage === true,
+          },
         );
       });
     }

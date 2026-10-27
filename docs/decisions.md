@@ -4940,3 +4940,13 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   119,299 B gz vs main's 119,297 B — the +2 B is filename-hash churn
   in the preload map (identical chunk content, verified byte-for-byte
   except hash names), not new code in the initial bundle.
+- **Fix round 1 (PR #101, owner review):** the 4
+  `lab-dnadist-neighbor-print` baselines now capture the full page
+  (a `fullPage` flag on the scene, threaded through
+  `toHaveScreenshot` in `web/e2e/visual.spec.ts` — outside the Files
+  block), regenerated in the pinned image; `packs.test.ts` gained the
+  named pin that NJ on the engine's own F84 matrix matches `nj.F84`'s
+  lengths within 0.5e-5 (it passes honestly), and `phylip_note_md`
+  now claims only that — plus dnadist's row wrapping (7 cells per
+  line at 10 species) and neighbor's Between/And/Length outfile
+  table.

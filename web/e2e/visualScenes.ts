@@ -185,6 +185,9 @@ export const SCENES: {
   /** Restrict the scene to one viewport × theme (Task 11's
    * presenter variant records a single 1920×1080 light frame). */
   only?: { viewport: { w: number; h: number }; theme: "light" | "dark" };
+  /** Shoot the whole scrollable page, not just the viewport (the lab
+   * print scene — the handout and PHYLIP note run below the fold). */
+  fullPage?: boolean;
 }[] = [
   {
     // Rooted on the reference's outgroup (the default view).
@@ -402,8 +405,10 @@ export const SCENES: {
     // v1.4 Task 12 pack 1 (spec §7): the lab page's print view — the
     // handout as it prints. emulateMedia(print) applies the print
     // stylesheet: controls and nav hide, and the colors come out light
-    // in both screen themes.
+    // in both screen themes. fullPage so the whole handout — questions
+    // and PHYLIP note included — is in frame (fix round 1).
     name: "lab-dnadist-neighbor-print",
+    fullPage: true,
     viewports: [
       { w: 1920, h: 1080 },
       { w: 768, h: 1024 },
