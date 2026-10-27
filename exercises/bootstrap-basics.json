@@ -34,7 +34,7 @@
       "at_step": 7,
       "type": "note",
       "after": "first_run",
-      "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. With 1,000 replicates instead of 100, they settle down. So don't read much into small differences like 52 versus 57.",
+      "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. (With 1,000 replicates instead of 100 they settle down — so don't read much into small differences like 52 versus 57.)",
       "math": null
     },
     {

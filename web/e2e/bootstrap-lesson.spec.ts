@@ -96,7 +96,12 @@ test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 
   // prompt stays answered across the re-sim (answers live on the
   // prompt, not the data), so Run is immediately enabled.
   await page.getByLabel("Length").fill("3000");
-  await stepToEnd(page);
+  // Task 13 owner fix (2026-10-27): with a completed run behind it the
+  // rebuild lands on the final step — tree built, bootstrap panel and
+  // step-7 notes visible — no stepping through again.
+  await expect(async () => {
+    expect(await readStep(page)).toMatchObject({ k: 6, max: 6 });
+  }).toPass();
   const run = page.getByRole("button", { name: /Run bootstrap/ });
   await expect(run).toBeEnabled();
   await run.click();
@@ -109,6 +114,10 @@ test("bootstrap-basics: at 3,000 sites the weak grouping's support rises ≥ 20 
       "premise: support on (E,F,G,H) rises ≥ 20 points at length 3000",
     ).toBeGreaterThanOrEqual(87);
   }).toPass({ timeout: 60_000 });
+  // The run at 3,000 satisfies `longer_run` — the closing note shows.
+  await expect(
+    page.getByText(/Read the numbers carefully/),
+  ).toBeVisible();
 });
 
 test("bootstrap-basics: seeds vary and reproduce; the lesson applies its own seed", async ({

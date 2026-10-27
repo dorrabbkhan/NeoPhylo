@@ -909,3 +909,81 @@ describe("exercise-prescribed v1.4 models survive load", () => {
     ).toEqual({ K80: { kappa: 4 } });
   });
 });
+
+// v1.4 Task 13 owner fix (2026-10-27): in a lesson with a `bootstrap`
+// block, once a completed run exists a settings rebuild lands on the
+// new tree's final position — the bootstrap panel and the step-7
+// notes live there — and keeps the run counters that drive the notes'
+// `after` triggers. Lessons without a `bootstrap` block keep the
+// reset-to-step-0 behaviour exactly.
+describe("settings rebuild after the bootstrap stage (Task 13 owner fix)", () => {
+  const BOOTSTRAP_BASICS = readFileSync(
+    resolve("..", "exercises", "bootstrap-basics.json"),
+    "utf8",
+  );
+
+  function loadedExercise(json: string): Session {
+    const ex = exercise(json);
+    return reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+  }
+  const traceMax = (s: Session) => {
+    const t = s.result!.trace!;
+    return "Nj" in t ? t.Nj.steps.length + 1 : t.Upgma.steps.length;
+  };
+  /** A finished-run session: status done, one completed run recorded. */
+  function withCompletedRun(s: Session): Session {
+    return {
+      ...s,
+      bootstrap: {
+        ...s.bootstrap,
+        status: "done",
+        completedRuns: 1,
+        maxRunSites: 300,
+        support: s.result!.tree,
+        settingsUsed: { replicates: 100, seed: 39 },
+      },
+    };
+  }
+
+  it("a Length change lands on the final step and keeps the run history", () => {
+    let s = withCompletedRun(loadedExercise(BOOTSTRAP_BASICS));
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    const next = reducer(s, { type: "setSim", patch: { length: 3000 } });
+    expect(next.result).not.toBeNull();
+    expect(next.step).toBe(traceMax(next));
+    expect(next.step).toBe(6); // 8-taxon NJ: 5 joins + final three-way join
+    // Results belong to the old data and clear; the run history the
+    // `after` triggers read survives the rebuild.
+    expect(next.bootstrap.status).toBe("idle");
+    expect(next.bootstrap.support).toBeNull();
+    expect(next.bootstrap.completedRuns).toBe(1);
+    expect(next.bootstrap.maxRunSites).toBe(300);
+  });
+
+  it("lands on the final step even from a middle position", () => {
+    let s = withCompletedRun(loadedExercise(BOOTSTRAP_BASICS));
+    s = reducer(s, { type: "step", to: 2 });
+    const next = reducer(s, { type: "setSim", patch: { length: 3000 } });
+    expect(next.step).toBe(traceMax(next));
+  });
+
+  it("a bootstrap lesson with no completed run still resets to step 0", () => {
+    let s = loadedExercise(BOOTSTRAP_BASICS);
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    const next = reducer(s, { type: "setSim", patch: { length: 3000 } });
+    expect(next.step).toBe(0);
+  });
+
+  it("nj-basics (no bootstrap block) resets to step 0 even with a completed run", () => {
+    let s = withCompletedRun(loadedExercise(EXERCISE_JSON));
+    s = reducer(s, { type: "step", to: traceMax(s) });
+    const next = reducer(s, { type: "setSim", patch: { length: 500 } });
+    expect(next.step).toBe(0);
+    // The counters are cleared like any non-bootstrap lesson.
+    expect(next.bootstrap.completedRuns).toBe(0);
+  });
+});
