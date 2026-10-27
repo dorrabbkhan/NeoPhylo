@@ -5080,3 +5080,51 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `ref/protein/*.json` fixtures, `fixtures/README.md` (precision key
   meanings), `docs/decisions.md` (this entry). No changes under
   `crates/`, `web/`, `exercises/` or `scripts/` — fixture-only PR.
+
+## v1.4 Task 12 pack 3a: seqboot → dnadist → neighbor → consense chain fixture
+
+- **Owner decision (2026-10-27, in chat: "Real PHYLIP chain fixture"):**
+  NeoPhylo's bootstrap cannot reproduce seqboot's random replicates, so
+  pack 3's oracle is PHYLIP's whole `seqboot` → `dnadist` → `neighbor` →
+  `consense` chain on `inputs/k80_10.fasta` (the pack 1 dataset),
+  committed verbatim as `fixtures/phylip/chain/k80_10_boot100.json`. The
+  pack PR can check that NeoPhylo's consensus of PHYLIP's own replicate
+  trees equals `consense`, and claims nothing more about NeoPhylo's own
+  replicates than the splits it pins.
+- **Seed:** 8675309 — the first candidate of a deterministic odd-seed
+  search (odd values from 8675309 upward, step 2) whose consense
+  extended-majority run on the 100 trees has no tied decision; it was
+  tie-free on the first try, so no later seed was needed. The same value
+  is handed to neighbor's `M` seed prompt.
+- **Menu reads (all asserted off the installed 3.697 menus, not
+  assumed):** `seqboot` defaults `J` Bootstrap and `R` = 100, then asks
+  "Random number seed (must be odd)?" after `Y`. `dnadist` `M` asks
+  "Multiple data sets or multiple weights?" (`D`), then "How many data
+  sets?" (`100`); F84, T = 2.0 and empirical frequencies are the shipped
+  defaults. `neighbor` `M` asks "How many data sets?" then also demands
+  an odd random seed — answering it flips `J` to "Yes (random number
+  seed = <seed>)", i.e. PHYLIP jumbles input order once per data set;
+  the run asserts the menu says exactly that. `consense` runs are the
+  same `Y` / `C Y` / `C C Y` keystrokes as `generate_consensus.sh`,
+  toggles read off the menu; all four programs report version 3.697 and
+  the script asserts they match.
+- **Why a new script:** PR #103 is open on `generate_phylip.sh`, so the
+  chain generator is the standalone `fixtures/generate_lab_chain.sh`
+  (same style and the same consense driver as `generate_consensus.sh`;
+  its parser and assertions live in `fixtures/lab_chain_checks.R`, kept
+  separate so both files stay single-purpose and under the ~400-line
+  rule). Wiring it into `generate_phylip.sh` — or the CI fixture guard —
+  is left for a later PR.
+- **Fixture shape:** `name`, `generator`, `input`, `seed`, `replicates`,
+  `labels`, `trees` (the 100 neighbor outtree Newicks in order,
+  whitespace collapsed), `consense.{extended,strict,majority}` in the
+  same `newick`/`groups`/`not_included` shape as `consensus/*.json`, and
+  `tree_precision` counted on the raw outtree text (5 decimals). New
+  directory `phylip/chain/` so no existing glob picks it up; the R step
+  asserts consense's group inventory equals `ape::prop.part` on `trees`.
+  No NeoPhylo output is pinned.
+- **Files touched:** `fixtures/generate_lab_chain.sh` (new),
+  `fixtures/lab_chain_checks.R` (new — the parser/assertions/JSON write),
+  `fixtures/phylip/chain/k80_10_boot100.json` (new), `fixtures/README.md`
+  (`phylip/chain/` bullet + regenerate line), `docs/decisions.md` (this
+  entry). No changes under `crates/`, `web/`, `exercises/` or `scripts/`.

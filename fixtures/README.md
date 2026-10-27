@@ -53,6 +53,28 @@ see `AGENTS.md` for the rules.
   the corpus test flat-globs `ref/*.json`; `tests/parity_phylip_v14.rs`
   owns them. A `-1.000000` cell is dnadist's inestimable marker
   (`Cell::Saturated` in the engine).
+- `phylip/chain/<name>_boot<R>.json` — PHYLIP's whole pack-3 chain on one
+  input (v1.4 spec §6.1): `seqboot` bootstraps `k80_10.fasta` (menu
+  defaults `J` Bootstrap, `R` = 100; keystrokes `Y <seed>` — after `Y` it
+  asks "Random number seed (must be odd)?"), `dnadist` F84 defaults with
+  `M D 100` (M asks "Multiple data sets or multiple weights?", then the
+  count), `neighbor` NJ defaults with `M 100 <seed>` — neighbor's M asks
+  the count then an odd random seed, which turns `J` on ("Yes (random
+  number seed = <seed>)", one jumble per data set) — then `consense`
+  three ways exactly as `generate_consensus.sh` does (unrooted;
+  keystrokes `Y`, `C Y`, `C C Y`, toggles read off the menu). Kept in its
+  own directory so no existing glob picks it up; nothing in `crates/`
+  reads it yet — the pack 3 PR adds the reader and checks NeoPhylo's
+  consensus of these PHYLIP trees against `consense`, claiming nothing
+  about NeoPhylo's own replicates. `seed` is the seqboot seed (the same
+  value is handed to neighbor's M seed prompt); `trees` are neighbor's
+  100 outtree Newicks in order, whitespace collapsed; `consense.<kind>`
+  has the same `newick`/`groups`/`not_included` shape as
+  `consensus/*.json`; `tree_precision` is counted on the raw outtree
+  text (5 decimals). The seed is the first odd value from a deterministic
+  search (8675309 upward, step 2) whose extended-majority run has no tied
+  decision — asserted in R against `ape::prop.part` on `trees` exactly as
+  `generate_consensus.sh` does.
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
   3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed
@@ -122,6 +144,7 @@ python3 fixtures/make_protein_inputs.py  # regenerate inputs/protein/*.fasta
 bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json,
                                          #   phylip/{f84,k2p}/*.json; then consense -> consensus/*.json
                                          #   + worked/consensus_hand.json
+bash fixtures/generate_lab_chain.sh      # seqboot -> dnadist -> neighbor -> consense -> phylip/chain/*.json
 Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json;
                                          #   tree sets + prop_clades -> consensus/*.json
 ```
