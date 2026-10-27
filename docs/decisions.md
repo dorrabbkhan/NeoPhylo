@@ -5427,3 +5427,33 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     The snapshot baselines `web/e2e/__screenshots__/bootstrap-basics-*`
     (7 files) were regenerated in the pinned Playwright image for the
     reworded note — owner approval required as always.
+
+## v1.4b Task 1: spec, roadmap split into v1.4b and v1.4c
+
+- **Spec:** `docs/superpowers/specs/2026-10-27-neophylo-v1.4b-mega-companion-design.md`;
+  plan `docs/superpowers/plans/2026-10-28-neophylo-v1.4b-plan.md`.
+- **Roadmap split:** the old v1.4b section was narrowed to the MEGA companion and data
+  library (`.meg` import/export, MEGA's gap treatments, protein parity with MEGA-CC
+  fixtures, four handouts, a bundled dataset library). A new **v1.4c** section now
+  carries accession fetch in the browser, distance-matrix input (`.meg` and PHYLIP),
+  and the lesson library/printable worksheets/instructor guide; the Status line names
+  v1.4c as following v1.4b.
+- **Why the split:** accession fetch is the app's first outside network request and
+  matrix input is a new pipeline entry point; both pair naturally with the lesson
+  library, so they ship together in v1.4c instead of diluting the MEGA companion work.
+- **Decided in this plan** (spec §10 open items that need no oracle output; verbatim
+  from the plan):
+  - **JSON identifiers:** `"Poisson"` (matches the existing `"Kimura"`, a named protein
+    correction) and, only if Task 2 shows it is needed, `"JTT_MEGA"` (matches
+    `"K2P_PHYLIP"`). Rust: `DistModel::Poisson`, `DistModel::JttMega`.
+  - **Site filter wire shape:** `{ "kind": "pairwise" | "complete" | "partial",
+    "cutoff_pct": <integer 0–100> }`; `cutoff_pct` is present only for `partial`.
+    Rust: `SiteFilter::{Pairwise, Complete, Partial { cutoff_pct: u8 }}`.
+  - **Partial coverage is integer arithmetic:** a column is kept when
+    `present * 100 >= cutoff_pct * n` (no floats), unless Task 2's boundary fixture
+    shows MEGA uses strict `>`; then the comparison flips and the fixture note says why.
+  - **Library datasets in links:** a library dataset is linked as `ds=<id>`, not
+    embedded as `d=` data; an unknown `ds` id is a restore error with a message, like
+    the existing `d=` failures.
+  - **The pair panel** is where removed columns are shown (NeoPhylo has no
+    whole-alignment view; spec §6.2).
