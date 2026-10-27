@@ -5035,3 +5035,18 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `pair_counts` in `protein_dist.rs`, which skips any site where
   either character is non-standard. No pack text changed, so no
   baseline regeneration.
+- **Fix round 2 (PR #102, owner review):** the handout's second
+  question answered itself before the student's step-1
+  `predict_pair` ("Was the closest pair in the matrix the first to
+  join? Here it was — is that a rule?") — now asks without telling:
+  "Was the closest pair in the matrix the first to join — and would
+  that always be so?" The pre-action scan also caught the PHYLIP
+  note naming the negative pendant's leaf (`P05's small negative
+  edge included` → `a small negative pendant edge included`) —
+  the note renders on the lab page before the student acts, and
+  pack 1's note names no leaves. Steps 2–3's and Q3's
+  negative-branch hints stay unnamed, per the round's rule; the
+  step-1 reveal (P04–P07) and the step-9 note (P05) are post-action
+  text and unchanged. The 4 `lab-protdist-neighbor-print` baselines
+  regenerated in the pinned Playwright image (`--grep
+  lab-protdist-neighbor-print`); no other baseline touched.
