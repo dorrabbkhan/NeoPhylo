@@ -399,6 +399,30 @@ export const SCENES: {
     },
   },
   {
+    // v1.4 Task 12 pack 1 (spec §7): the lab page's print view — the
+    // handout as it prints. emulateMedia(print) applies the print
+    // stylesheet: controls and nav hide, and the colors come out light
+    // in both screen themes.
+    name: "lab-dnadist-neighbor-print",
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?lab=dnadist-neighbor");
+      await expect(
+        page.getByRole("heading", {
+          name: "dnadist → neighbor (F84)",
+        }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await expect(page.locator(".lab-controls")).toBeHidden();
+      await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
     // The exported SVG rendered back as a document (spec §8.3) — the
     // Task-15 blocked-fonts render (§4.3, spec §8.2): every font
     // request is aborted and the document's text is restricted to the

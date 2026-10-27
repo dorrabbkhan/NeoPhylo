@@ -4884,3 +4884,59 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   seqboot defaults), `docs/decisions.md` (this entry). No changes under
   `crates/`, `web/`, `exercises/` or `scripts/`; the parity/pack tests
   that consume `nj` land in the next PR.
+
+## v1.4 Task 12 pack 1: dnadist → neighbor lab pack (F84)
+
+- **Scope:** plan Task 12 Steps 1, 2 and 5 for pack 1 only — packs 2
+  and 3 are later PRs. Owner gate: `[OWNER REVIEW]` content check of
+  the handout and the PHYLIP-vs-NeoPhylo note before merge (Step 2).
+- **Dataset (conductor note 2 / spec §6.3):** the pack embeds
+  `fixtures/inputs/k80_10.fasta` verbatim (10 × 800, simulated in-house
+  under K80 κ = 6 so F84 matters), license = the repo's AGPL-3.0-only;
+  provenance is recorded in `exercises/labs/README.md`. No
+  `THIRD_PARTY_NOTICES.md` entry — original in-house data, nothing
+  redistributed.
+- **Settings table (conductor note 3):** every row was read off the
+  installed PHYLIP 3.697 menus of `/usr/lib/phylip/bin/dnadist` and
+  `neighbor` (transcripts in the PR comments). Rows whose NeoPhylo
+  column asserts a real control open with `Correction:` / `Method:` so
+  `packs.test.ts` pins them to the exercise's `analysis` fields; rows
+  with no NeoPhylo equivalent (gamma, jumble, outgroup drawing,
+  interleaved input, multiple data sets, terminal/progress printouts)
+  say so plainly.
+- **Prompts:** one `predict_pair` at join 1 whose reveal names t04–t05
+  (the pair `neighbor` actually joins first — the engine's NJ trace on
+  the fixture agrees) versus the closer pair t06–t07; and a closing
+  `note` at the completed-tree step (at_step = 9 for 10 taxa NJ).
+  No `reveal_pair` — its "Show a vs b" pair-detail only renders in
+  protein mode (`jttPairDetail`), so on DNA it would be a dead button.
+  No prompt quotes a number.
+- **"Load this lab" (conductor note 5):** the shipped pack is covered
+  by a new e2e in `web/e2e/labs.spec.ts` — `?lab=dnadist-neighbor` →
+  "Load this lab" → the app shows F84 + NJ and a full row of matrix
+  cells equal to the fixture at the displayed precision (value read
+  from the fixture in the test). The `#x=` link is 5,045 chars
+  (reported in the PR body).
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts`, `web/src/labs/labs.test.tsx`
+    (modified): both assumed an empty shipped registry and unscoped
+    lab locators; the first shipped pack means two "Load this lab" /
+    "Open lab" targets exist whenever the e2e flag is on, so the
+    tests are scoped to the test lab's own card/row and the
+    shipped-only listing now expects `dnadist-neighbor`.
+  - `web/e2e/labs.spec.ts` (modified): the same scoping for the
+    index and editor-sheet locators, the without-flag index test
+    updated to expect the shipped pack, plus the new shipped-pack
+    load test above.
+  - `web/e2e/visualScenes.ts` (modified): one new scene
+    `lab-dnadist-neighbor-print` (conductor note 7) at 1920×1080 and
+    768×1024 in both themes under `emulateMedia("print")`.
+  - `web/e2e/__screenshots__/lab-dnadist-neighbor-print-*.png` (4 new
+    baselines): additive only, generated in the pinned Playwright
+    image with a targeted `--grep`; no existing baseline changed.
+    Owner gate on baselines stands.
+  - `docs/decisions.md` (this entry).
+- **Bundle:** the pack lives in the lazy `labs` chunk; initial JS is
+  119,299 B gz vs main's 119,297 B — the +2 B is filename-hash churn
+  in the preload map (identical chunk content, verified byte-for-byte
+  except hash names), not new code in the initial bundle.

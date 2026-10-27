@@ -61,8 +61,16 @@ function openLabsSheet(): HTMLElement {
 }
 
 function clickLoadThisLab(sheet: HTMLElement) {
+  // Scope to the test lab's row — Task 12's shipped dnadist-neighbor
+  // pack lists its own "Load this lab" button alongside it.
+  const row = within(sheet)
+    .getByText("Test lab: dnadist → neighbor")
+    .closest("li");
+  if (row === null) throw new Error("test-lab row missing from the sheet");
   fireEvent.click(
-    within(sheet).getByRole("button", { name: "Load this lab" }),
+    within(row as HTMLElement).getByRole("button", {
+      name: "Load this lab",
+    }),
   );
 }
 
@@ -78,14 +86,22 @@ describe("lab index and lab page", () => {
     expect(
       screen.getByText(/Run the dnadist → neighbor chain end to end/),
     ).toBeTruthy();
-    const link = screen.getByRole("link", { name: /open lab/i });
+    const card = screen
+      .getByText("Test lab: dnadist → neighbor")
+      .closest("li");
+    if (card === null) throw new Error("test-lab card missing");
+    const link = within(card as HTMLElement).getByRole("link", {
+      name: /open lab/i,
+    });
     expect(link.getAttribute("href")).toBe("?lab=test-lab");
   });
 
-  it("the empty registry shows the empty state", () => {
+  it("with the e2e flag off only shipped labs list — the dnadist-neighbor pack", () => {
     window.localStorage.removeItem("neophylo-e2e");
     render(<LabIndex />);
-    expect(screen.getByText(/no lab packs/i)).toBeTruthy();
+    expect(screen.getByText("dnadist → neighbor (F84)")).toBeTruthy();
+    expect(screen.queryByText("Test lab: dnadist → neighbor")).toBeNull();
+    expect(screen.queryByText(/no lab packs/i)).toBeNull();
   });
 
   it("the lab page renders the chain, objectives, settings table and handout", async () => {
