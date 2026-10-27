@@ -140,6 +140,56 @@ test("the shipped dnadist-neighbor pack loads through its lab page into the app"
   }
 });
 
+// Task 12 pack 2 (conductor note 4): the shipped protdist-neighbor
+// pack loads the same way — the exercise travels in the #x= fragment,
+// and the app must show JTT + NJ on the loaded protein alignment with
+// a row of matrix cells equal to protdist's fixture at the displayed
+// precision (cells render toFixed(3)). The correction <select>'s
+// value is the DistModel variant name, "Jtt". Expected values are
+// read from the fixture, never hard-coded.
+test("the shipped protdist-neighbor pack loads through its lab page into the app", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/ref/protein/p10_400.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    labels: string[];
+    distances: Record<string, number[][]>;
+  };
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=protdist-neighbor");
+  await expect(
+    page.getByRole("heading", { name: "protdist → neighbor (JTT)" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.locator(".app-header h1")).toContainText(
+    "protdist → neighbor lab",
+  );
+  await expect(page.getByLabel("Distance correction")).toHaveValue("Jtt");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+
+  // One whole row of cells at the displayed 3-decimal precision — the
+  // grid's per-cell aria-labels carry the value.
+  const n = fx.labels.length;
+  for (let j = 0; j < n; j++) {
+    const shown =
+      j === 0 ? "0.000" : fx.distances.JTT[0][j].toFixed(3);
+    await expect(
+      page.locator(
+        `g[role="gridcell"][aria-label="${fx.labels[0]}, ${fx.labels[j]}: ${shown}"]`,
+      ),
+      `cell ${fx.labels[0]}/${fx.labels[j]} shows ${shown}`,
+    ).toBeVisible();
+  }
+});
+
 test("the print view hides the controls and keeps the handout and settings table", async ({
   page,
 }) => {
@@ -311,7 +361,7 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   await context.close();
 });
 
-test("without the e2e flag the index lists only the shipped pack", async ({
+test("without the e2e flag the index lists only the shipped packs", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -323,6 +373,7 @@ test("without the e2e flag the index lists only the shipped pack", async ({
     page.getByRole("heading", { name: "PHYLIP labs" }),
   ).toBeVisible();
   await expect(page.getByText("dnadist → neighbor (F84)")).toBeVisible();
+  await expect(page.getByText("protdist → neighbor (JTT)")).toBeVisible();
   await expect(
     page.getByText("Test lab: dnadist → neighbor"),
   ).toHaveCount(0);
