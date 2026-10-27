@@ -5346,3 +5346,29 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `locked` to the panel), `web/e2e/labs.spec.ts` (the named lock
   test), `web/e2e/__screenshots__/` (the 4 regenerated frames), this
   file.
+
+## v1.4 Task 13: release checkpoint, roadmap, CITATION
+
+- **Files outside the Files block:** this entry (`docs/decisions.md`),
+  as every task records.
+- **`docs/roadmap.md`:** the Status line — v1.4 joins the "released or
+  releasing" list the way v1.3 was written, next becomes v1.4b, and
+  the revision date moves to today. The v1.4 section keeps the editor,
+  the parity models and the PHYLIP lab packs and drops "and MEGA
+  companion" from its heading; the MEGA companion bullets, the curated
+  data library and the trailing lesson-library/worksheets bullet move
+  verbatim into a new "### v1.4b MEGA companion and data library"
+  section right after it (v1.4b gets its own spec, per spec §1). The
+  lesson-library bullet moved because a released section should list
+  only shipped work; worksheets and the instructor guide are a spec
+  §2.2 non-goal for v1.4.
+- **`CITATION.cff`:** `version: 1.4.0` only; `date-released` stays as
+  the owner left it — to be set at tag time (same arrangement as the
+  v1.3 release). The abstract still describes the tool accurately —
+  it makes no exhaustive claim about the model menu — so it is
+  unchanged.
+- **Step 3 scope:** `./scripts/check.sh` with `E2E=1` can't run inside
+  the agent sandbox (docker and the Playwright image are unreliable
+  here). `./scripts/check.sh quick` was run — fmt + clippy, no
+  `crates/` changes so the wasm pkg was skipped; docs-only. The
+  conductor verifies main's full-matrix CI.
