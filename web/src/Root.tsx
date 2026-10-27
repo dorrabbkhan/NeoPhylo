@@ -18,9 +18,33 @@ const EditorPage = lazy(() =>
   })),
 );
 
-const editorRoute = new URLSearchParams(window.location.search).has("editor");
+// Fix round 3: `?preview=<nonce>` is the preview tab the editor opens —
+// the exercise arrives over postMessage, so the receiver (and its ajv
+// import) is a lazy chunk like the editor, never the initial bundle.
+const PreviewPage = lazy(() =>
+  import("./views/PreviewPage").then((m) => ({
+    default: m.PreviewPage,
+  })),
+);
+
+const params = new URLSearchParams(window.location.search);
+const editorRoute = params.has("editor");
+const previewRoute = params.has("preview");
+
+const LOADING = (
+  <div className="app-loading">
+    <p>Loading the NeoPhylo engine…</p>
+  </div>
+);
 
 export function Root() {
+  if (previewRoute) {
+    return (
+      <Suspense fallback={LOADING}>
+        <PreviewPage />
+      </Suspense>
+    );
+  }
   if (editorRoute) {
     return (
       <Suspense

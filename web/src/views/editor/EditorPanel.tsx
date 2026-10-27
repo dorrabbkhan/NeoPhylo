@@ -9,12 +9,21 @@
 // component and its focus contract — focus moves in on open, Esc
 // closes, focus returns to the button that opened it.
 //
-// The preview opens the exercise's `#x=` share link in a new tab — the
-// REAL lesson player a student sees, unchanged (spec §5.3). Save and
-// preview gate on the same `settingsProblems` the form displays, so a
-// value the form accepts can never fail the save path (Review Focus 1).
+// The preview opens a bare `?preview=<nonce>` tab — the REAL lesson
+// player a student sees, unchanged (spec §5.3) — and the draft crosses
+// to it over a same-origin postMessage handshake (editor/preview.ts,
+// fix round 3), so it works at any exercise size, link limit or not.
+// Save and preview gate on the same `settingsProblems` the form
+// displays, so a value the form accepts can never fail the save path
+// (Review Focus 1).
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { ChangeEvent } from "react";
 
 import { useBreakpoint } from "../../design/breakpoints";
@@ -35,6 +44,11 @@ import {
   SHARE_LINK_MAX_LENGTH,
 } from "../../editor/exerciseFile";
 import type { EditorModel } from "../../editor/model";
+import {
+  answerPreviewRequests,
+  previewNonce,
+  previewUrl,
+} from "../../editor/preview";
 import { engine } from "../../engine/index";
 import type { Prompt } from "../../engine/generated/Prompt";
 import { errorMessage } from "../../explain/errors";
@@ -91,6 +105,17 @@ export function EditorPanel({ model }: EditorPanelProps) {
   );
   const [notice, setNotice] = useState<Notice | null>(null);
 
+  // One handshake listener per open preview tab — pruned as tabs
+  // close, all disarmed when the panel unmounts (fix round 3).
+  const previewTabs = useRef<{ win: Window; disarm: () => void }[]>([]);
+  useEffect(
+    () => () => {
+      for (const t of previewTabs.current) t.disarm();
+      previewTabs.current = [];
+    },
+    [],
+  );
+
   const problems = settingsProblems(settings);
   const canSave = !problems.some((p) => p.level === "error");
   const buildState = () =>
@@ -142,31 +167,44 @@ export function EditorPanel({ model }: EditorPanelProps) {
   };
 
   const onPreview = () => {
-    const r = shareLink(buildState());
-    if ("error" in r) {
-      setNotice({ level: "error", text: `No preview — ${r.error}.` });
+    // Any size, unsaved draft: save-validate first (the same gate the
+    // Share button faces), then send the reloaded exercise over
+    // postMessage — never a length-limited link (fix round 3).
+    const saved = saveExercise(buildState());
+    if ("error" in saved) {
+      setNotice({ level: "error", text: `No preview — ${saved.error}.` });
       return;
     }
-    if ("tooLong" in r) {
+    const loaded = engine.loadExercise(saved.json);
+    if (!loaded.ok) {
       setNotice({
         level: "error",
-        text: `The exercise is too large to preview as a link (over ${SHARE_LINK_MAX_LENGTH} characters) — save the file and open it instead.`,
+        text: "No preview — the exercise could not be reloaded.",
       });
       return;
     }
-    const win = window.open(r.url, "_blank", "noopener");
-    setNotice(
-      win === null
-        ? {
-            level: "link",
-            text: "The browser blocked the new tab — open the preview link manually:",
-            url: r.url,
-          }
-        : {
-            level: "status",
-            text: "Preview opened in a new tab — exactly what a student sees.",
-          },
-    );
+    const nonce = previewNonce();
+    const win = window.open(previewUrl(nonce), "_blank");
+    if (win === null) {
+      setNotice({
+        level: "error",
+        text: "The browser blocked the preview tab — allow popups for this site and press Preview again.",
+      });
+      return;
+    }
+    previewTabs.current = previewTabs.current.filter((t) => !t.win.closed);
+    previewTabs.current.push({
+      win,
+      disarm: answerPreviewRequests({
+        win,
+        nonce,
+        exercise: loaded.value,
+      }),
+    });
+    setNotice({
+      level: "status",
+      text: "Preview opened in a new tab — exactly what a student sees.",
+    });
   };
 
   const onImport = (text: string) => {

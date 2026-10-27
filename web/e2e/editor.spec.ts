@@ -896,7 +896,8 @@ test("a prompt added in the list appears in the preview with its gate", async ({
     .fill("1");
 
   // Preview opens the exercise through the real lesson player — a new
-  // tab on the #x= link, unchanged.
+  // tab on the ?preview=<nonce> handshake route (fix round 3), the
+  // same player the #x= link ran, unchanged.
   const [popup] = await Promise.all([
     context.waitForEvent("page"),
     page.getByRole("button", { name: "Preview" }).click(),
@@ -908,6 +909,58 @@ test("a prompt added in the list appears in the preview with its gate", async ({
     popup.locator(".prompt-card", { hasText: "Watch the first join" }),
   ).toBeVisible();
   await popup.close();
+});
+
+test("an exercise too large for a share link still previews (fix round 3 handshake)", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/?editor");
+  await page.getByRole("textbox", { name: "Title" }).fill("Big preview");
+  await page.getByRole("button", { name: "Add note" }).click();
+  // Deterministic, poorly compressible padding (Math.random is banned)
+  // — the prompt alone pushes the #x= link past SHARE_LINK_MAX_LENGTH.
+  let pad = "";
+  for (let i = 0; pad.length < 9000; i++) {
+    pad += i.toString(36) + "-";
+  }
+  await page
+    .getByRole("textbox", { name: "Prompt 1 concept" })
+    .fill(`Prompt padding ${pad}`);
+  await page
+    .getByRole("spinbutton", { name: "Prompt 1 join step" })
+    .fill("1");
+
+  // The share link is over the limit — the message stays.
+  await page.getByRole("button", { name: "Share link" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    /over \d+ characters/i,
+  );
+
+  // Preview is not a link: the handshake carries the draft, and the
+  // player shows the exercise's title and its prompt with the gate.
+  const [popup] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("button", { name: "Preview" }).click(),
+  ]);
+  await popup.waitForLoadState();
+  await expect(popup.locator(".app")).toBeVisible();
+  await expect(
+    popup.getByRole("heading", { name: "Big preview" }),
+  ).toBeVisible();
+  await expect(
+    popup.locator(".prompt-card", { hasText: "Prompt padding" }),
+  ).toBeVisible();
+  await popup.close();
+});
+
+test("the preview URL opened directly says to open Preview from the editor", async ({
+  page,
+}) => {
+  await page.goto("/?preview=0123456789abcdef0123456789abcdef");
+  await expect(page.getByRole("alert")).toContainText(
+    /open Preview again from the editor/i,
+  );
 });
 
 test("a share link too long for the limit says so and offers the file (Review Focus 4)", async ({

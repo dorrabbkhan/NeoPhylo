@@ -4700,3 +4700,35 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `web/src/editor/draft.ts`, `SettingsForm.tsx` + test,
   `web/src/index.css` and `web/e2e/{editor.spec.ts,visualScenes.ts}`
   already recorded for this task, plus the baseline PNGs; this file.
+
+### Task 10 — fix round 3 (PR #98)
+
+- **Owner decision:** the preview-at-any-size follow-up lands in this
+  PR. Preview no longer opens the `#x=` share link — an exercise whose
+  link would exceed `SHARE_LINK_MAX_LENGTH` (8000) got an error and no
+  preview.
+- **Handshake design:** Preview opens a same-origin tab on
+  `?preview=<nonce>` (URL carries no exercise data; the nonce comes
+  from `crypto.getRandomValues`, never `Math.random`). The tab posts
+  `{type:"neophylo-preview-ready", nonce}` to `window.opener`; the
+  editor answers `{type:"neophylo-preview-exercise", nonce, exercise}`
+  — the unsaved draft reloaded through the save path, like the old
+  `#x=` preview sent — with `targetOrigin = location.origin`. Both
+  sides check origin, `event.source` (opener / the opened window),
+  type and nonce, and ignore anything else. No localStorage,
+  sessionStorage or IndexedDB — the size limit disappears because the
+  URL carries only the nonce. The received exercise is re-validated
+  through `loadWireExercise` — the same file-shape reload an `#x=`
+  import uses (now shared with `importExercise`'s link branch) —
+  then the ordinary lesson player runs unchanged. Failure modes are
+  readable messages in the tab: no opener ("open Preview again from
+  the editor"), no reply within 5 s, invalid exercise; a blocked
+  popup is named by the editor.
+- **Files outside the Files block, this round:** `web/src/Root.tsx`
+  (the `?preview` route — the receiver is a lazy chunk so ajv stays
+  out of the initial bundle); new `web/src/editor/preview.ts` +
+  `preview.test.ts` and `web/src/views/PreviewPage.tsx` (the
+  handshake and the preview receiver); `web/src/editor/exerciseFile.ts`
+  (`loadWireExercise`, shared by `importExercise`'s link branch);
+  `web/src/views/editor/EditorPanel.tsx`; `web/e2e/editor.spec.ts`;
+  this file.
