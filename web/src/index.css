@@ -1534,6 +1534,27 @@ a.labs-link {
   margin-top: var(--space-16);
 }
 
+/* The drawer's "PHYLIP labs" link (v1.4 Task 11, §6.5): the medium-
+ * breakpoint path for the header link — same box styling as the
+ * header chip (.labs-link), full-width at the drawer's foot like
+ * the tour item. */
+.settings-drawer-labs {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  display: block;
+  font-size: var(--size-sm);
+  margin-top: var(--space-16);
+  padding: 8px 10px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.settings-drawer-labs:hover,
+.settings-drawer-labs:focus-visible {
+  border-color: var(--color-accent-border);
+}
+
 .phylip-help .phylip-help-map {
   margin: 8px 0 0;
   padding-left: 18px;

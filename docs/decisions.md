@@ -4808,3 +4808,27 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **Initial-JS budget:** 118285 → 119248 gz (limit 120168): the header
   link, More-menu item and PHYLIP-help line are the only initial-
   bundle additions; registry + ajv + pages are lazy chunks.
+
+### Task 11 — fix round 1 (PR #99)
+
+- **Header link placement corrected:** at 1024–1279 px the direct
+  "PHYLIP labs" header link overflowed the row by ~27 px (measured
+  `scrollWidth` 1051 vs the 1024 viewport in the pinned image; the
+  failing visual frames caught it as a 3 px card edge violation).
+  The link is now direct in the header only at ≥ 1280, an item in
+  the Settings drawer at 1024–1279, and the More menu's second item
+  below 1024 — the same one-path-per-width pattern as "Take the
+  tour" (§6.7, owner decision B). The conductor note's "≥1024 in
+  header, <1024 in More menu" is satisfied through the drawer: the
+  link is reachable at every width without breaking the one-row/no-
+  overflow contract.
+- **Baselines:** only the 1920×1080 frames change (13 files — every
+  app scene × both themes plus the presenter frame); the link is
+  absent at 1024 and 768, so those frames stay byte-identical to
+  main's (three initially-regenerated 1024 frames were pixel noise —
+  main's bytes pass). `--update-snapshots=all --grep` scoped to the
+  app scenes at 1920×1080 in the pinned Playwright image.
+- **Files outside the Files block, this round:**
+  `web/src/views/SettingsDrawer.tsx` (the medium-breakpoint link),
+  `web/src/views/App.tsx` (passes `labsHref` at medium only), this
+  file.

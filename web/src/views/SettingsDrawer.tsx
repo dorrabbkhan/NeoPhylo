@@ -16,6 +16,10 @@ export interface SettingsDrawerProps {
    * and calls back. Undefined below 1024 — the More menu owns the
    * reopen there — and the drawer itself never opens at ≥ 1280. */
   onTakeTour?: () => void;
+  /** §6.5 lab-index link at the medium breakpoint (v1.4 Task 11):
+   * the header's "PHYLIP labs" link fits only at ≥ 1280, so the
+   * drawer carries it at 1024–1279 and the More menu below 1024. */
+  labsHref?: string;
   /** The controls sections (App passes the same children the wide
    * layout's `.col-controls` aside shows). */
   children: ReactNode;
@@ -24,6 +28,7 @@ export interface SettingsDrawerProps {
 export function SettingsDrawer({
   onClose,
   onTakeTour,
+  labsHref,
   children,
 }: SettingsDrawerProps) {
   return (
@@ -46,6 +51,11 @@ export function SettingsDrawer({
         </button>
       </header>
       {children}
+      {labsHref !== undefined && (
+        <a className="settings-drawer-labs" href={labsHref}>
+          PHYLIP labs
+        </a>
+      )}
       {onTakeTour !== undefined && (
         <button
           type="button"
