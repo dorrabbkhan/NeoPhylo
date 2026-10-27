@@ -260,6 +260,42 @@ test("the shipped seqboot-consense pack loads through its lab page into the app"
   await expect(page.getByLabel("Seed")).toHaveValue(String(fx.seed));
 });
 
+// Fix round 1 (owner decision): the pack's `locked` list names
+// bootstrap.replicates and bootstrap.seed so the static reveal can't
+// be contradicted by a student's own settings — the loaded lesson
+// shows both fields disabled, still holding the pack's values.
+test("the shipped seqboot-consense pack locks its bootstrap settings", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/phylip/chain/jc12_boot100.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    seed: number;
+    replicates: number;
+  };
+  await page.goto("/?lab=seqboot-consense");
+  await expect(
+    page.getByRole("heading", {
+      name: "seqboot → dnadist → neighbor → consense",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await stepToEnd(page);
+  await expect(page.getByLabel("Replicates")).toHaveValue(
+    String(fx.replicates),
+  );
+  await expect(page.getByLabel("Replicates")).toBeDisabled();
+  await expect(page.getByLabel("Seed")).toHaveValue(String(fx.seed));
+  await expect(page.getByLabel("Seed")).toBeDisabled();
+});
+
 test("the print view hides the controls and keeps the handout and settings table", async ({
   page,
 }) => {

@@ -17,6 +17,7 @@
   "correction": "F84",
   "method": "NJ"
  },
+ "locked": ["bootstrap.replicates", "bootstrap.seed"],
  "bootstrap": {
   "replicates": 100,
   "seed": 8675309
@@ -40,13 +41,13 @@
    "at": "bootstrap",
    "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
    "math": "Each replicate resamples the alignment's columns with replacement and rebuilds the NJ tree under F84; a grouping's support is the share of successful replicate trees that contain it.",
-   "reveal": "The least-supported internal branch is the one uniting t05 through t12 — the grouping that joins the (t05,t06),t07 subtree to the t08–t12 block. PHYLIP's chain found the same grouping weakest; NeoPhylo draws different resamples, so your count will differ from PHYLIP's — the ranking is what carries."
+   "reveal": "The least-supported internal branch is the one uniting t05 through t12 — the grouping that joins the (t05,t06),t07 subtree to the t08–t12 block. The same grouping is weakest in PHYLIP's run and in this one; the two chains draw different resamples, so your count will differ from PHYLIP's."
   },
   {
    "at_step": 11,
    "type": "note",
    "after": "first_run",
-   "concept": "The number on a branch is a count — of the resampled datasets that rebuilt that grouping — never a probability that the grouping is true. PHYLIP's chain ran its own resamples through seqboot, so its consense counts differ from yours wherever support is short of total; the strong groupings should agree either way. Now flip through the consensus tabs — Majority-rule, Extended majority, Strict — and compare them with consense's \"Sets included\" table in the note below.",
+   "concept": "The number on a branch is a count — of the resampled datasets that rebuilt that grouping — never a probability that the grouping is true. PHYLIP's chain ran its own resamples through seqboot, so its consense counts differ from yours wherever support is short of total; the strong groupings should agree either way. Now flip through the consensus tabs — Majority-rule, Extended majority, Strict — and compare them with consense's \"Sets included\" table in the lab page's PHYLIP note.",
    "math": null
   }
  ],

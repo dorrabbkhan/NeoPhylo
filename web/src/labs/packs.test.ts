@@ -908,9 +908,12 @@ describe("lab pack seqboot-consense", () => {
     expect(pair).toEqual(["t11", "t12"]);
 
     // The predict_branch reveal names the least-supported internal
-    // branch of the inferred tree in the lab's own run — the
-    // (t05..t12) grouping — and the whole original tree's groupings
-    // must sit in the tally so support lands on real branches.
+    // branch of the inferred tree in the lab's own run, and claims it
+    // is the same grouping PHYLIP's chain found weakest — the
+    // minimum-count row of consense's majority "Sets included", read
+    // from the fixture rather than hard-coded. The whole original
+    // tree's groupings must sit in the tally so support lands on real
+    // branches.
     if (pack.exercise.bootstrap === null) throw new Error("unreachable");
     const ownTree = nj(dm.value);
     const own = engine.bootstrapBatch(
@@ -935,8 +938,9 @@ describe("lab pack seqboot-consense", () => {
         }
       }
     }
-    expect(weakest.key).toBe(
-      "t05|t06|t07|t08|t09|t10|t11|t12",
+    const phylipWeakest = fx.consense.majority.groups.reduce((a, g) =>
+      g.count < a.count ? g : a,
     );
+    expect(weakest.key).toBe([...phylipWeakest.labels].sort().join("|"));
   });
 });

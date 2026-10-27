@@ -5281,3 +5281,42 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   - `docs/decisions.md` (this entry).
 - **Bundle:** the pack lives in the lazy `labs` chunk; initial JS
   measurement vs main is reported in the PR body.
+
+### Task 12 pack 3 — fix round 1 (PR #108)
+
+- **The `predict_branch` reveal claims only the weakest grouping**
+  (owner command): it now says the same grouping is weakest in
+  PHYLIP's run and in the student's, while counts differ — the
+  "the ranking is what carries" claim is gone. `packs.test.ts` reads
+  PHYLIP's weakest grouping from `jc12_boot100.consense.majority`
+  (its minimum-count row, t05–t12 at 72) instead of a hard-coded
+  literal and asserts NeoPhylo's weakest branch equals it.
+- **Bootstrap settings locked** (owner decision): the pack's `locked`
+  lists `bootstrap.replicates` and `bootstrap.seed`, so the static
+  reveal can't be contradicted by a student's own seed or replicate
+  count. `BootstrapPanel` gained a `locked` prop honouring the same
+  `disabled` + "Fixed for this lesson." tooltip pattern Controls
+  uses (`LOCKED_TOOLTIP` is now exported); App passes the same
+  `source === "sandbox" ? [] : exercise.locked` expression it already
+  passes Controls — sandbox stays unlocked. Pins: a
+  `BootstrapPanel.test.tsx` describe (locked → both inputs disabled
+  with the tooltip, unlocked unchanged) and a named `labs.spec.ts`
+  test (the loaded pack shows Replicates 100 and the fixture's seed,
+  both disabled).
+- **The `first_run` note's "Sets included" pointer** now reads "in
+  the lab page's PHYLIP note" — the app shows no note below.
+- **Baselines:** the 4 `lab-seqboot-consense-print` frames were
+  regenerated in the pinned Playwright image with a targeted
+  `--grep`; they came back byte-identical (the lock and prompt text
+  never reach the lab print view) and `git diff --name-status
+  origin/main -- web/e2e/__screenshots__/` stays A-only. The full
+  `--project visual` run in the same image passed all 89 scenes —
+  no existing baseline changed. Locked-panel screenshots (1920 and
+  768, both themes) are posted as a PR comment, not committed.
+- **Files outside the Files block, this round:**
+  `web/src/views/BootstrapPanel.tsx` + `BootstrapPanel.test.tsx`
+  (the `locked` prop and its pins), `web/src/views/Controls.tsx`
+  (`LOCKED_TOOLTIP` exported), `web/src/views/App.tsx` (passes
+  `locked` to the panel), `web/e2e/labs.spec.ts` (the named lock
+  test), `web/e2e/__screenshots__/` (the 4 regenerated frames), this
+  file.
