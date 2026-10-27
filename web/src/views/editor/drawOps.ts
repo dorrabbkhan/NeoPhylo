@@ -121,19 +121,49 @@ function opTitle(tree: Tree, op: EditOp): string {
   }
 }
 
+/** A refused detach whose parent joins only two branches gets a
+ * canvas-specific body (owner checkpoint 2026-10-27): the engine's
+ * "would leave (E, D, G) with fewer than two children" reads as three
+ * children — the parenthetical is the parent's clade name, and on a
+ * drawn tree every internal node has exactly two children so the
+ * detach is always refused. The replacement names the node and its
+ * sibling and says what to do instead. The parent's child list is
+ * read from the tree for the message only — legality stays the
+ * engine's call. */
+function detachBody(tree: Tree, node: NodeId): string | null {
+  const parentId = tree.nodes[node]?.parent;
+  const parent =
+    parentId === null || parentId === undefined
+      ? undefined
+      : tree.nodes[parentId];
+  if (parent === undefined || parent.children.length > 2) return null;
+  const sibling = parent.children.find((c) => c !== node);
+  if (sibling === undefined) return null;
+  const x = cladeName(tree, node);
+  const y = cladeName(tree, sibling);
+  return `Its parent joins only two branches — ${x} and ${y} — and every node needs at least two. To move ${x}, drag it onto another branch, or select it and a branch and press J.`;
+}
+
 /** A refusal shown on the canvas: the engine keeps the last word on
  * legality, but its messages name arena ids an instructor never sees.
  * The title says what was tried in tree terms; the body is the
  * engine's reason with each `node <id>` shown as that node's clade
- * name (an id that isn't in the arena is left as written). */
+ * name (an id that isn't in the arena is left as written) — except a
+ * detach refused for the parent's child count, which `detachBody`
+ * rewrites. */
 export function refusalMessage(
   tree: Tree,
   op: EditOp,
   e: NeoError,
 ): ErrorMessage {
   if (e.kind !== "InvalidEdit") return errorMessage(e);
+  const title = opTitle(tree, op);
+  if (op.kind === "detach") {
+    const body = detachBody(tree, op.node);
+    if (body !== null) return { title, body };
+  }
   return {
-    title: opTitle(tree, op),
+    title,
     body: e.msg.replace(/node (\d+)/g, (raw, digits: string) => {
       const id = Number(digits);
       return tree.nodes[id] === undefined ? raw : cladeName(tree, id);

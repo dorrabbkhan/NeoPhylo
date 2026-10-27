@@ -100,7 +100,7 @@ describe("DrawCanvas", () => {
     fireEvent.pointerMove(node("Leaf A"), { clientX: 80, clientY: 500 });
     fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
     expect(screen.getByRole("alert").textContent).toMatch(
-      /fewer than two children/,
+      /joins only two branches/,
     );
     expect(model.tree).toBe(before);
   });
@@ -112,10 +112,52 @@ describe("DrawCanvas", () => {
     fireEvent.pointerMove(node("Leaf A"), { clientX: 80, clientY: 500 });
     fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
     const alert = screen.getByRole("alert").textContent ?? "";
-    // The title says what was tried in tree terms; the engine's reason
-    // is the detail with `node <id>` shown as clade names.
+    // The title says what was tried in tree terms; the body names the
+    // leaf and its sibling, not arena ids.
     expect(alert).toContain("Can't detach A");
-    expect(alert).toMatch(/fewer than two children/);
+    expect(alert).toContain(
+      "Its parent joins only two branches — A and B — and every node needs at least two. To move A, drag it onto another branch, or select it and a branch and press J.",
+    );
+    expect(alert).not.toMatch(/node \d/);
+    expect(model.tree).toBe(before);
+  });
+
+  // Owner checkpoint 2026-10-27: a refused detach's body names the
+  // node and its sibling and says what to do instead — the engine's
+  // "(E, D, G) with fewer than two children" phrasing (the parent's
+  // clade name, not three children) never reaches the screen.
+  it("a refused cherry detach names the cherry and its sibling", () => {
+    const model = renderCanvas("((A:0.1,B:0.2):0.05,C:0.3);");
+    const before = model.tree;
+    // Detaching the (A,B) cherry would unseat the root — refused.
+    fireEvent.pointerDown(node("Node (A, B)"), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(node("Node (A, B)"), { clientX: 80, clientY: 500 });
+    fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toContain("Can't detach (A, B)");
+    expect(alert).toContain(
+      "Its parent joins only two branches — (A, B) and C — and every node needs at least two. To move (A, B), drag it onto another branch, or select it and a branch and press J.",
+    );
+    expect(alert).not.toMatch(/fewer than two children/);
+    expect(alert).not.toMatch(/node \d/);
+    expect(model.tree).toBe(before);
+  });
+
+  it("a refused nested-clade detach names the clade and its leaf sibling — the (E, D) / G case", () => {
+    const model = renderCanvas("((E:0.1,D:0.1):0.1,G:0.1);");
+    const before = model.tree;
+    // The old message read "removing (E, D) would leave (E, D, G) with
+    // fewer than two children" — (E, D, G) is the parent's clade name;
+    // its children are (E, D) and G.
+    fireEvent.pointerDown(node("Node (E, D)"), { clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(node("Node (E, D)"), { clientX: 80, clientY: 500 });
+    fireEvent.pointerUp(canvas(), { clientX: 80, clientY: 500 });
+    const alert = screen.getByRole("alert").textContent ?? "";
+    expect(alert).toContain("Can't detach (E, D)");
+    expect(alert).toContain(
+      "Its parent joins only two branches — (E, D) and G — and every node needs at least two. To move (E, D), drag it onto another branch, or select it and a branch and press J.",
+    );
+    expect(alert).not.toMatch(/fewer than two children/);
     expect(alert).not.toMatch(/node \d/);
     expect(model.tree).toBe(before);
   });
