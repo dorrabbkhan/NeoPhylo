@@ -4,14 +4,24 @@
 // JTT. The defaults themselves are exercised through the session
 // reducer (setAlphabet) in state/session.test.ts.
 
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Alphabet } from "../engine/generated/Alphabet";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
+import { engine } from "../engine/index";
 import type { Action } from "../state/session";
-import { simModelName } from "../state/session";
+import {
+  CORRECTIONS,
+  exerciseSim,
+  k2pLabel,
+  SIM_MODEL_NAMES,
+  simModelName,
+} from "../state/session";
 
 import { Controls } from "./Controls";
 import type { ControlsProps } from "./Controls";
@@ -113,6 +123,7 @@ describe("Controls — sim model round-trip (label ↔ SimModel)", () => {
   it.each([
     ["dna", "Jc69", "Jc69"],
     ["dna", { K80: { kappa: 3.5 } }, "K80"],
+    ["dna", { F84: { kappa: 2, base_freqs: [0.25, 0.25, 0.25, 0.25] } }, "F84"],
     ["protein", "Jtt", "Jtt"],
   ] as [Alphabet, SimModel, string][])(
     "shows %s on the %s alphabet for model %j",
@@ -284,5 +295,182 @@ describe("Controls — non-simulatable data", () => {
       (screen.getByRole("button", { name: "New seed" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
+  });
+});
+
+// v1.4 (Task 10 fix round 1): an exercise file can prescribe models
+// the menu never offers — F84 simulation, F84 and K2P_PHYLIP
+// corrections. Controls displays each as a conditional option, so the
+// loaded lesson no longer crashes or renders an unmatched select. The
+// menus for every exercise that doesn't prescribe them are unchanged.
+describe("Controls — exercise-prescribed v1.4 models", () => {
+  const F84: SimModel = {
+    F84: { kappa: 2, base_freqs: [0.25, 0.25, 0.25, 0.25] },
+  };
+
+  it("shows F84 in the sim menu only when the exercise prescribes it", () => {
+    render(<Controls {...props({ sim: { ...SIM, model: F84 } })} />);
+    const select = screen.getByLabelText(
+      "Simulation model",
+    ) as HTMLSelectElement;
+    expect(optionValues("Simulation model")).toEqual([
+      "Jc69",
+      "K80",
+      "F84",
+    ]);
+    expect(select.value).toBe("F84");
+    cleanup();
+
+    render(<Controls {...props()} />);
+    expect(optionValues("Simulation model")).toEqual(["Jc69", "K80"]);
+  });
+
+  it("shows the F84 correction only when the exercise prescribes it", () => {
+    render(
+      <Controls
+        {...props({
+          analysis: { correction: "F84", method: "Nj" },
+        })}
+      />,
+    );
+    const select = screen.getByLabelText(
+      "Distance correction",
+    ) as HTMLSelectElement;
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+      "F84",
+    ]);
+    expect(select.value).toBe("F84");
+    cleanup();
+
+    render(<Controls {...props()} />);
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+    ]);
+  });
+
+  it("shows the prescribed K2P ratio in the correction option's label", () => {
+    render(
+      <Controls
+        {...props({
+          analysis: {
+            correction: { K2pPhylip: { ratio: 2 } },
+            method: "Nj",
+          },
+        })}
+      />,
+    );
+    const select = screen.getByLabelText(
+      "Distance correction",
+    ) as HTMLSelectElement;
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+      "K2P_PHYLIP",
+    ]);
+    expect(select.value).toBe("K2P_PHYLIP");
+    expect(optionTexts("Distance correction")).toContain(
+      "K2P (dnadist, κ = 2.0)",
+    );
+    cleanup();
+
+    // The label shows the exercise's actual ratio, not a fixed 2.0.
+    render(
+      <Controls
+        {...props({
+          analysis: {
+            correction: { K2pPhylip: { ratio: 4 } },
+            method: "Nj",
+          },
+        })}
+      />,
+    );
+    expect(optionTexts("Distance correction")).toContain(
+      "K2P (dnadist, κ = 4.0)",
+    );
+    cleanup();
+
+    render(<Controls {...props()} />);
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+    ]);
+  });
+
+  it("formats the K2P label like the plan's pinned wording", () => {
+    expect(k2pLabel(2)).toBe("K2P (dnadist, κ = 2.0)");
+    expect(k2pLabel(4)).toBe("K2P (dnadist, κ = 4.0)");
+    expect(k2pLabel(2.5)).toBe("K2P (dnadist, κ = 2.5)");
+  });
+
+  it("selecting the display-only K2P_PHYLIP option is a no-op", () => {
+    const actions: Action[] = [];
+    render(
+      <Controls
+        {...props({
+          analysis: {
+            correction: { K2pPhylip: { ratio: 2 } },
+            method: "Nj",
+          },
+          dispatch: (a) => actions.push(a),
+        })}
+      />,
+    );
+    const select = screen.getByLabelText(
+      "Distance correction",
+    ) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "K2P_PHYLIP" } });
+    expect(actions).toEqual([]);
+    // The displayed correction is unchanged — the select still shows
+    // the exercise's value.
+    expect(select.value).toBe("K2P_PHYLIP");
+  });
+
+  it("keeps every built-in exercise's model menus unchanged", () => {
+    const dir = resolve("..", "exercises");
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".json") && f !== "schema.json")
+      .sort();
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) {
+      const r = engine.loadExercise(
+        readFileSync(resolve(dir, f), "utf8"),
+      );
+      if (!r.ok) throw new Error(`${f}: ${JSON.stringify(r.error)}`);
+      const ex = r.value;
+      cleanup();
+      render(
+        <Controls
+          {...props({
+            sim: exerciseSim(ex),
+            analysis: ex.analysis,
+            locked: ex.locked,
+            alignmentOrigin:
+              ex.data.kind === "embedded" ? "embedded" : "simulated",
+            alphabet: ex.alphabet,
+          })}
+        />,
+      );
+      // No built-in prescribes F84/K2P_PHYLIP, so the menus are the
+      // same option lists as before the v1.4 display fix.
+      const simSelect = screen.queryByLabelText("Simulation model");
+      if (simSelect !== null) {
+        expect(
+          Array.from(
+            (simSelect as HTMLSelectElement).options,
+          ).map((o) => o.value),
+          `${f}: sim menu`,
+        ).toEqual(SIM_MODEL_NAMES[ex.alphabet]);
+      }
+      expect(optionValues("Distance correction"), `${f}: correction menu`).toEqual(
+        CORRECTIONS[ex.alphabet],
+      );
+    }
   });
 });

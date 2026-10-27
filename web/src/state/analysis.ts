@@ -197,7 +197,9 @@ export function distModelName(m: DistModel): string {
 }
 
 /** Corrections valid for each alphabet, in menu order (v1.1 spec
- * §5.1). The first non-`P` entry is the alphabet's default. */
+ * §5.1). The first non-`P` entry is the alphabet's default. The v1.4
+ * models (F84, K2P_PHYLIP) arrive only via an exercise file — the menu
+ * itself is unchanged. */
 export const CORRECTIONS: Record<Alphabet, DistModelName[]> = {
   dna: ["P", "Jc69", "K80"],
   protein: ["P", "Kimura", "Jtt"],
@@ -213,10 +215,22 @@ export const DIST_LABEL: Record<DistModelName, string> = {
   F84: "F84",
 };
 
-/** The simple name of a `SimModel` (the K80 parameter is a detail). */
-export type SimModelName = "Jc69" | "K80" | "Jtt";
+/** The menu label for a K2P_PHYLIP correction: the plan's pinned
+ * wording shows the prescribed ratio — "K2P (dnadist, κ = 2.0)".
+ * Integers keep the ".0"; any other ratio prints in full so the
+ * exercise's actual value is never misstated. */
+export function k2pLabel(ratio: number): string {
+  const r = Number.isInteger(ratio) ? ratio.toFixed(1) : String(ratio);
+  return `K2P (dnadist, κ = ${r})`;
+}
 
-/** Sim models valid for each alphabet, in menu order (v1.1 spec §5.1). */
+/** The simple name of a `SimModel` (the K80/F84 parameters are
+ * details). */
+export type SimModelName = "Jc69" | "K80" | "F84" | "Jtt";
+
+/** Sim models valid for each alphabet, in menu order (v1.1 spec §5.1).
+ * The v1.4 F84 arrives only via an exercise file — the menu itself is
+ * unchanged; Controls displays it as a conditional option. */
 export const SIM_MODEL_NAMES: Record<Alphabet, SimModelName[]> = {
   dna: ["Jc69", "K80"],
   protein: ["Jtt"],
@@ -226,6 +240,7 @@ export const SIM_MODEL_NAMES: Record<Alphabet, SimModelName[]> = {
 export const SIM_LABEL: Record<SimModelName, string> = {
   Jc69: "JC69",
   K80: "K80",
+  F84: "F84",
   Jtt: "JTT",
 };
 
@@ -246,9 +261,7 @@ export function simModelName(m: SimModel): SimModelName {
     }
   }
   if ("K80" in m) return "K80";
-  // F84 has no menu name yet (the editor task adds it); refuse rather
-  // than guessing one.
-  if ("F84" in m) throw new Error("SimModel F84 has no SimModelName yet");
+  if ("F84" in m) return "F84";
   const _exhaustive: never = m;
   throw new Error(`unhandled SimModel variant: ${JSON.stringify(_exhaustive)}`);
 }

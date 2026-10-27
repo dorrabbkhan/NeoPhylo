@@ -21,6 +21,7 @@ import {
   SIM_LABEL,
   SIM_MODEL_NAMES,
   distModelName,
+  k2pLabel,
   simModelName,
 } from "../state/session";
 import type { SimModelName } from "../state/session";
@@ -157,6 +158,12 @@ export function Controls({
       case "K80":
         model = { K80: { kappa } };
         break;
+      case "F84":
+        // Unreachable from the menu (SIM_MODEL_NAMES lists it for no
+        // alphabet) but SimModelName is exhaustive — dnadist's fixed
+        // ratio and equal frequencies.
+        model = { F84: { kappa: 2, base_freqs: [0.25, 0.25, 0.25, 0.25] } };
+        break;
       case "Jtt":
         model = "Jtt";
         break;
@@ -194,6 +201,9 @@ export function Controls({
               {SIM_LABEL[m]}
             </option>
           ))}
+          {/* v1.4: an exercise's F84 sim model displays as a
+            * conditional option — the menu itself is unchanged. */}
+          {modelName === "F84" && <option value="F84">F84</option>}
         </select>
       </label>
       {modelName === "K80" && (
@@ -259,20 +269,35 @@ export function Controls({
           value={distModelName(analysis.correction)}
           disabled={isLocked("analysis.correction")}
           title={isLocked("analysis.correction") ? LOCKED_TOOLTIP : undefined}
-          onChange={(e) =>
+          onChange={(e) => {
+            // The K2P_PHYLIP option exists only to DISPLAY the current
+            // correction — selecting it is a no-op (its ratio lives in
+            // the exercise, not in this menu).
+            if (e.target.value === "K2P_PHYLIP") return;
             dispatch({
               type: "setAnalysis",
               patch: {
                 correction: e.target.value as Analysis["correction"],
               },
-            })
-          }
+            });
+          }}
         >
           {CORRECTIONS[alphabet].map((c) => (
             <option key={c} value={c}>
               {c === "P" ? "p (uncorrected)" : DIST_LABEL[c]}
             </option>
           ))}
+          {/* v1.4 models that only an exercise file can prescribe:
+            * displayed as the current value, never menu-selectable
+            * (K2P_PHYLIP's ratio lives in the exercise). */}
+          {analysis.correction === "F84" && (
+            <option value="F84">F84</option>
+          )}
+          {typeof analysis.correction === "object" && (
+            <option value="K2P_PHYLIP">
+              {k2pLabel(analysis.correction.K2pPhylip.ratio)}
+            </option>
+          )}
         </select>
       </label>
       <label className="field">

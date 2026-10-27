@@ -278,6 +278,33 @@ export function shareLink(
   return { url };
 }
 
+/**
+ * Validate an in-memory (wire-shape) exercise the same way an `#x=`
+ * link's `x` is: re-serialize it to the file shape and run
+ * `engine.loadExercise` — schema 1/2/3 migration included. Anything the
+ * file shape can't represent or the engine refuses is a readable
+ * `InvalidExercise`/`NeoError` value, never a throw. `importExercise`'s
+ * link branch and the preview handshake share this path (fix round 3).
+ */
+export function loadWireExercise(raw: unknown): Result<Exercise> {
+  let file: Record<string, unknown>;
+  try {
+    file = exerciseToFile({ exercise: raw as Exercise });
+  } catch {
+    return {
+      ok: false,
+      error: {
+        kind: "InvalidExercise",
+        field: "exercise",
+        msg: "the exercise could not be read",
+      },
+    };
+  }
+  const r = engine.loadExercise(JSON.stringify(file));
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, value: r.value };
+}
+
 function extrasFrom(parsed: unknown): Record<string, unknown> | undefined {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return undefined;
@@ -318,16 +345,10 @@ export function importExercise(text: string): Result<ExerciseState> {
   if (d.state.x === undefined) {
     return linkError("the link does not contain a custom exercise");
   }
-  // The decoded `x` is the wire shape; re-serialize it to the file
-  // shape so it goes through the same engine.loadExercise validation
-  // and migration as a file import.
-  let file: Record<string, unknown>;
-  try {
-    file = exerciseToFile({ exercise: d.state.x });
-  } catch {
-    return linkError("the linked exercise could not be read");
-  }
-  const r = engine.loadExercise(JSON.stringify(file));
-  if (!r.ok) return { ok: false, error: r.error };
-  return { ok: true, value: { exercise: r.value } };
+  // The decoded `x` is the wire shape; loadWireExercise re-serializes
+  // it to the file shape so it goes through the same engine.loadExercise
+  // validation and migration as a file import.
+  const loaded = loadWireExercise(d.state.x);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  return { ok: true, value: { exercise: loaded.value } };
 }

@@ -860,3 +860,52 @@ describe("lesson load resets state (checkpoint 13)", () => {
     }
   });
 });
+
+// v1.4 Task 10 fix round 1: an exercise that prescribes the F84 or
+// K2P_PHYLIP models keeps them through `load` — reconcileModels used
+// to treat menu membership as validity and silently rewrite both to
+// the alphabet default (Jc69), so a shared/previewed exercise played
+// under the wrong model.
+describe("exercise-prescribed v1.4 models survive load", () => {
+  it("keeps an F84 sim model and correction", () => {
+    const ex = exercise(`{
+      "schema_version": 3, "id": "f84", "title": "f", "summary": "s",
+      "alphabet": "dna",
+      "data": { "kind": "simulated", "true_tree": "(A:0.1,B:0.2,C:0.3);",
+        "sim": { "model": "F84", "kappa": 2,
+          "base_freqs": { "A": 0.3, "C": 0.2, "G": 0.2, "T": 0.3 },
+          "length": 100, "seed": 1 } },
+      "analysis": { "correction": "F84", "method": "NJ" }
+    }`);
+    const s = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(s.exercise.analysis.correction).toBe("F84");
+    expect(
+      s.exercise.data.kind === "simulated" && s.exercise.data.sim.model,
+    ).toEqual({ F84: { kappa: 2, base_freqs: [0.3, 0.2, 0.2, 0.3] } });
+  });
+
+  it("keeps a K2P_PHYLIP correction and its K80 sim model", () => {
+    const ex = exercise(`{
+      "schema_version": 3, "id": "k2p", "title": "k", "summary": "s",
+      "alphabet": "dna",
+      "data": { "kind": "simulated", "true_tree": "(A:0.1,B:0.2,C:0.3);",
+        "sim": { "model": "K80", "kappa": 4, "length": 100, "seed": 1 } },
+      "analysis": { "correction": "K2P_PHYLIP", "kappa": 4, "method": "NJ" }
+    }`);
+    const s = reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+    expect(s.exercise.analysis.correction).toEqual({
+      K2pPhylip: { ratio: 4 },
+    });
+    expect(
+      s.exercise.data.kind === "simulated" && s.exercise.data.sim.model,
+    ).toEqual({ K80: { kappa: 4 } });
+  });
+});

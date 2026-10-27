@@ -24,6 +24,10 @@ import type { ErrorMessage } from "../../explain/errors";
 
 export interface NewickViewProps {
   model: EditorModel;
+  /** Set inside a sheet: the sheet's title shows the "Newick tree"
+   * heading once, and the field takes its name from it instead of a
+   * second visible label (fix round 1). */
+  labelledBy?: string;
 }
 
 // A Newick-only field gets a Newick hint for syntax errors: the shared
@@ -39,7 +43,7 @@ function newickErrorMessage(e: NeoError): ErrorMessage {
   };
 }
 
-export function NewickView({ model }: NewickViewProps) {
+export function NewickView({ model, labelledBy }: NewickViewProps) {
   const subscribe = useCallback(
     (fn: () => void) => model.subscribe(fn),
     [model],
@@ -107,14 +111,17 @@ export function NewickView({ model }: NewickViewProps) {
 
   return (
     <div className="editor-view newick-view">
-      <label className="editor-view-label" htmlFor="editor-newick">
-        Newick tree
-      </label>
+      {labelledBy === undefined ? (
+        <label className="editor-view-label" htmlFor="editor-newick">
+          Newick tree
+        </label>
+      ) : null}
       <textarea
         id="editor-newick"
         className="newick-input"
         value={text}
         spellCheck={false}
+        aria-labelledby={labelledBy}
         aria-invalid={error !== null || undefined}
         aria-describedby={error !== null ? "editor-newick-error" : undefined}
         onChange={(e) => {

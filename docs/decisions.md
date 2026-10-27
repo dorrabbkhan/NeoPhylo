@@ -4555,3 +4555,180 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   runner) the full `./scripts/check.sh` gate runs green here,
   including `wasm-pack test --node`, the pkg rebuild, the
   generated-types diff and all 684 vitest tests.
+
+## v1.4 Task 10: editor settings, prompts, preview, sheets, snapshots
+
+- **Viewport ruling (conductor):** the plan's Step 4 says editor
+  snapshots at 768/1,024/1,280 px but Global Constraints and
+  `visual.spec.ts` pin 1920×1080, 1024×768 and 768×1024. The editor
+  scenes use the standard three PLUS an extra 1280×800 frame (the
+  `viewports` field added to `SCENES` — 1280 is not added to the
+  global VIEWPORTS). New scenes: `editor-default`, `editor-f84`,
+  `editor-preview` (the Preview button's popup — the real player,
+  unchanged), `editor-sheet` (768×1024 only — sheets exist only below
+  1024). Baselines are ADD-only; the owner approves.
+- **One Model select, six presets.** `EditorModelChoice` maps each
+  choice to a matched (sim model, correction, alphabet) triple
+  following the lesson convention; `p` (uncorrected) is not offered
+  (the conductor list names JC69, K80, F84, K2P_PHYLIP and the
+  protein models Kimura/JTT). K80 keeps the dnadist/app default
+  κ = 2 with no field — κ shows only for K2P_PHYLIP, where it sets
+  BOTH `analysis.kappa` and the K80 sim's κ (spec §2.1). An imported
+  exercise outside these presets is refused with a reason rather than
+  silently rewritten (e.g. K80 at κ ≠ 2, a p correction, embedded
+  data).
+- **κ ≤ 0.5 warns, never refuses** ("dnadist treats ratios ≤ 0.5 as
+  0.5", owner decision PR #88): the engine accepts it, and the named
+  tests pin that the form's verdict always equals `saveExercise`'s.
+- **Preview = `window.open` on the share link.** The popup IS the
+  existing lesson player — no player code is embedded in the editor.
+- **Player display fixes (additive, not player changes):** an F84 or
+  K2P_PHYLIP exercise in an `#x=` link previously crashed Controls
+  (`simModelName` threw on `{F84:…}`; the correction select had no
+  matching option). `simModelName` now returns `"F84"` (the file's own
+  comment deferred this to the editor task), and Controls shows
+  exercise-prescribed F84/K2P_PHYLIP as conditional display options —
+  the menus themselves are unchanged.
+- **Task 9 carry-overs (REQUIRED per conductor notes):** (1) the touch
+  scroll trap — `touch-action: manipulation` on the svg plus
+  coarse-pointer HTML `.node-touch` overlays carrying `none`
+  (Chromium ignores touch-action on inner svg nodes), pinned by a CDP
+  touch test: a swipe over empty canvas scrolls, a handle drag still
+  drags. (2) detached/new leaves corrupted internal-node accessible
+  names into "#<id>" via `state/names.ts`'s leaf count — `nodeAria`
+  now names internal nodes by their clade ("Node (A, B)"), editor-side
+  only; `names.ts` untouched.
+- **Files outside the Files block:**
+  `web/src/editor/draft.ts` + `draft.test.ts` (the settings→Exercise
+  assembly and single validation source — view files would exceed the
+  ~400-line rule); `web/src/views/editor/SettingsForm.test.tsx` and
+  `PromptList.test.tsx` (the block lists e2e tests only; Review
+  Focus 1's agreement pin and per-field behaviour are cheaper in
+  Vitest); `web/e2e/visualScenes.ts` (new scenes + `viewports` +
+  popup-target support); `web/src/index.css` (new-component styles +
+  the touch-action change); `web/src/state/analysis.ts` and
+  `web/src/views/Controls.tsx` (the display fixes above);
+  `web/src/views/editor/DrawCanvas.tsx`, `drawOps.ts`,
+  `DrawCanvas.test.tsx` (the carry-overs); this file.
+
+### Task 10 — fix round 1 (PR #98)
+
+- **Touch drop resolution sees through `.node-touch`** (review).
+  `finishDrag` now hits-tests with `document.elementsFromPoint` and
+  skips `.node-touch` layers until a `data-node`/`data-edge` element
+  is found; the overlays also carry `data-node` so the
+  `elementFromPoint` fallback resolves them. The overlays stay up —
+  the Task-9-carry-over swipe scroll split is untouched. A CDP
+  real-touch test at 768×1024 (Chromium-only) drags a leaf onto a
+  node and onto a branch and compares the Newick with the keyboard
+  path.
+- **Imported `reference`, `locked`, `bootstrap` ride through to
+  save** (review). `buildExerciseState` previously hardcoded all
+  three away. They're `Exercise` fields the editor has no UI for, so
+  `settingsFromExercise` now returns a `PreservedFields` record
+  alongside `fileExtras` (which only ever held top-level unknown
+  keys); `buildExerciseState` writes them back into the rebuilt
+  exercise, `saveExercise` re-validates them (a tree edit that breaks
+  a `reference` fails naming the field — nothing is dropped), and
+  Settings shows a read-only "Kept from the imported file" notice.
+  Import → save untouched is deep-equal to the migrated file for
+  every importable `exercises/*.json` (pin: `draft.test.ts`); the
+  cytochrome-c / protein-models refusals stay.
+- **K2P label shows the prescribed ratio** (plan decision). Shared
+  `k2pLabel(ratio)` in `state/analysis.ts` renders
+  `K2P (dnadist, κ = 2.0)`; the player's conditional correction option
+  uses the exercise's actual ratio, the editor's model select uses 2.
+- **Exercise-prescribed F84/K2P survive `load`** (found while
+  capturing the K2P evidence shot). `reconcileExercise` treated the
+  menu lists as the validity set, so a prescribed F84 or K2P_PHYLIP
+  silently became the alphabet default on load — an #x= or previewed
+  exercise played under JC69. `correctionValidFor`/`simModelValidFor`
+  now treat the v1.4 models as valid for DNA (invalid for protein —
+  a protein import still switches with its notice), and
+  `simModelAlphabet` maps F84 to DNA. Pins in `session.test.ts`.
+- **Styled file-import control** (conductor): a visually hidden
+  `<input type="file">` behind a token-styled "Import file…" label
+  (≥40×40 under coarse pointer, focus ring forwarded to the label,
+  chosen file name in token type); `ImportPanel.tsx`'s separate
+  "Choose a file" picker is out of scope for this fix round.
+- **Sheet fields take `aria-labelledby` from the sheet title**
+  (conductor): `NewickView`/`BranchTable` gained an optional
+  `labelledBy`; inside sheets their own "Newick tree" label / "Branch
+  lengths" caption is omitted so the heading appears once — desktop
+  is unchanged.
+- **Editor scenes show their subjects** (conductor): `editor-f84`
+  scrolls Settings into view with the broken 1.65 sum and blocked
+  save; new `editor-prompts` shows a note prompt with its join gate.
+  `--update-snapshots=all --grep editor-` regenerated only editor
+  baselines; `git diff --name-status origin/main` stays A-only.
+- **Files outside the Files block, this round:**
+  `web/src/state/lesson.ts` + `session.test.ts` (the load-time
+  validity fix above); `web/src/editor/draft.ts` + `draft.test.ts`
+  (preserved fields); `web/src/state/analysis.ts`, `session.ts`,
+  `web/src/views/Controls.tsx` + `Controls.test.tsx`
+  (`k2pLabel` + pins); `web/src/views/editor/{useDrawDrag,
+  DrawCanvas,EditorPanel,NewickView,BranchTable,SettingsForm}.tsx/ts`
+  (drop fix, notice, sheet labels, K2P option); `web/src/index.css`
+  (import control styles); `web/e2e/{editor.spec.ts,
+  visualScenes.ts}`; `web/e2e/__screenshots__/` (8 new
+  `editor-prompts` baselines + regenerated editor frames).
+
+### Task 10 — fix round 2 (PR #98)
+
+- **One base-frequency sum message** (review): the F84 fieldset showed
+  the readout "Sum: 1.65 — must be 1." AND the save-path complaint
+  "the base frequencies sum to 1.65, not 1." for the same problem.
+  `settingsProblems`' message is now the single line's text —
+  `Sum: 1.65 — must be 1 to save.` — so the displayed message is the
+  same validation object the save gate sees (the line falls back to
+  the live readout only while no problem exists). A new Vitest pin
+  asserts exactly one `/sum/i` element renders on a bad sum; the named
+  agreement tests are unchanged.
+- **"Import file…" matches its row** (review): the shared
+  `.import-file` wrapper shrinks its contents to `--size-sm` for
+  ImportPanel's field label; scoped `.editor-actions .import-file`
+  back to the inherited `--size-md` so the control carries the same
+  type size as the row's real buttons. Padding (3px 6px), radius,
+  colours and the coarse-pointer ≥40×40 floor already matched.
+- **Baselines:** `--update-snapshots=all --grep editor-` in the
+  pinned Playwright image; 16 files changed (all 8 `editor-default`
+  and all 8 `editor-f84` frames — the action row and the fieldset
+  respectively). `editor-prompts`/`editor-preview` regenerated
+  byte-identical; `editor-sheet` untouched. `git diff --name-status
+  origin/main -- web/e2e/__screenshots__/` stays A-only (34 files).
+- **Files outside the Files block, this round:** none new — the same
+  `web/src/editor/draft.ts`, `SettingsForm.tsx` + test,
+  `web/src/index.css` and `web/e2e/{editor.spec.ts,visualScenes.ts}`
+  already recorded for this task, plus the baseline PNGs; this file.
+
+### Task 10 — fix round 3 (PR #98)
+
+- **Owner decision:** the preview-at-any-size follow-up lands in this
+  PR. Preview no longer opens the `#x=` share link — an exercise whose
+  link would exceed `SHARE_LINK_MAX_LENGTH` (8000) got an error and no
+  preview.
+- **Handshake design:** Preview opens a same-origin tab on
+  `?preview=<nonce>` (URL carries no exercise data; the nonce comes
+  from `crypto.getRandomValues`, never `Math.random`). The tab posts
+  `{type:"neophylo-preview-ready", nonce}` to `window.opener`; the
+  editor answers `{type:"neophylo-preview-exercise", nonce, exercise}`
+  — the unsaved draft reloaded through the save path, like the old
+  `#x=` preview sent — with `targetOrigin = location.origin`. Both
+  sides check origin, `event.source` (opener / the opened window),
+  type and nonce, and ignore anything else. No localStorage,
+  sessionStorage or IndexedDB — the size limit disappears because the
+  URL carries only the nonce. The received exercise is re-validated
+  through `loadWireExercise` — the same file-shape reload an `#x=`
+  import uses (now shared with `importExercise`'s link branch) —
+  then the ordinary lesson player runs unchanged. Failure modes are
+  readable messages in the tab: no opener ("open Preview again from
+  the editor"), no reply within 5 s, invalid exercise; a blocked
+  popup is named by the editor.
+- **Files outside the Files block, this round:** `web/src/Root.tsx`
+  (the `?preview` route — the receiver is a lazy chunk so ajv stays
+  out of the initial bundle); new `web/src/editor/preview.ts` +
+  `preview.test.ts` and `web/src/views/PreviewPage.tsx` (the
+  handshake and the preview receiver); `web/src/editor/exerciseFile.ts`
+  (`loadWireExercise`, shared by `importExercise`'s link branch);
+  `web/src/views/editor/EditorPanel.tsx`; `web/e2e/editor.spec.ts`;
+  this file.
