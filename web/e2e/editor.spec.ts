@@ -367,7 +367,7 @@ test("detach and re-join through the canvas (keyboard only)", async ({
   );
 });
 
-test("a drag that would create a unary node is refused with the engine's message", async ({
+test("a drag that would create a unary node is refused with the reason and what to do instead", async ({
   page,
 }) => {
   await page.goto("/?editor");
@@ -390,9 +390,13 @@ test("a drag that would create a unary node is refused with the engine's message
     steps: 8,
   });
   await page.mouse.up();
-  await expect(page.getByRole("alert")).toContainText(
-    /fewer than two children/,
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("Can't detach A");
+  await expect(alert).toContainText(
+    "Its parent joins only two branches — A and B",
   );
+  await expect(alert).toContainText("drag it onto another branch");
+  await expect(alert).not.toContainText("fewer than two children");
   await expect(newick).toHaveValue("((A:0.1,B:0.2):0.05,C:0.3);");
 });
 

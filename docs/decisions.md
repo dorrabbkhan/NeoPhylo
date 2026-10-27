@@ -5390,6 +5390,11 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     refused-detach test) had their message assertions updated — the
     instruction's "existing test must pass unmodified" could not hold
     for the leaf-detach scenario it exercises; flagged for the owner.
+  - The unary-drag e2e test (`web/e2e/editor.spec.ts`) still asserted
+    the old "fewer than two children" canvas text; it now follows the
+    owner-approved message change — title, the two-branch body naming
+    A and B, and what to do instead — and checks the old phrasing is
+    gone.
   - `saturation.json` step-1 note reworded so it stays true after a
     fix works (text only).
   - `bootstrap-basics.json`: the step-7 `first_run` note now asks for
