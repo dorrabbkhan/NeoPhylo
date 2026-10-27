@@ -1,0 +1,243 @@
+{
+ "schema_version": 3,
+ "id": "seqboot-consense",
+ "title": "seqboot → consense lab",
+ "summary": "Reproduce PHYLIP's full bootstrap chain: seqboot resamples a 12-taxon DNA alignment 100 times, dnadist and neighbor build a matrix and NJ tree per replicate, and consense tallies the groupings — matching PHYLIP 3.697's defaults end to end.",
+ "alphabet": "dna",
+ "data": {
+  "kind": "embedded",
+  "fasta": ">t01\nTGTTCCGCCGCCTCGCCGCGCGGCCTCAGATAACCTAGAGTGTGCGGGGGTCATATAGTCGGTTAACGAGTCAGTTGCAACTGGGCATAAGGGTGTAACGCCTAATCTCCGGTCCTGCCTACATCGACAGCGGCTGGCACAACACCGAGAAGGGGGCAAATATACATTAGTGCGGTTTTACCAGCATGCAGTCGGGTATAGAACCCTTCCATTTGTTAATGGGGCTGCTGGTGTAAGCATGTTATGATGC\n>t02\nTGTTCAGCCGCCACGCCGAGTGGGCGTAGATAACCTAGAGTGTGCGGAGGTCATATAGTCGGTGAACGAGTCTGTTGCACCTGGGCATAATGGTGGAACACTTACTGTACAGGCCAGCCTACACCGAGAGCGGCTGGCACTACACATAGTGGCGGTGAAATCTACATTAGTGTGGTTTGAACAGCATGCAGTATGGTATAGAACCCTTCCATTAGTCAATGGGGCTGCTGGTGGAAGCATGTTTTGATGC\n>t03\nTGTACCTCCACCACGCCGCAGGGGCGCAGGTAACCTAGGGTGTGCGCGGGTCATATAGTCCGCGAACGTTAATATTCCAACTGGCCTTAGGGGTGGAACGCTTATTCAACAATCCTGCCTAGCTCGAAAGCGGCTGGCACTACAGCCGGAAGGGGTGAAGTGTACACTAGTGTCGTTTTGACAGCATGAACTCTGGTAGAGCAACCTTCCACTAGTGGAGGGGGCAGCTAGTGTAAGCATGTTACGAAAC\n>t04\nTGTGCCGCCGTCACGCCGCCCGGGCGCAGATAACCGAGAGTGTGCGGGGGTCATCTAGTCGTCAAACGTGACTGTTCCGACTGGCCTTAAGGGTGGAACGCATATTGTACACTCCTGCCTACCTCGAAAGCGGCTGGCAGTACACCTGGATGGGGTCAAGTGTACACTACTGCGGTTTTGACAACATGAACTCTGCTAGAGCATCTTTCCATTAGTGAATGCGGCTGCTATTGTAGGCATGTTACAATAC\n>t05\nTGTTGCGCCACCACACCTTGTGGGCGCACACTAACTACAGTGTGCTGCGGGCCTAAGGCCGGAGTTCGTATCTGATGCGACTGAGCTTAAGGGTGGCGCGCGTACACTCCGCTGCTGCCATCCTCAAAAGCGGCTGGCATTACACCTCGAAGGTGTCAAAACTAGAATAGTGCGCTTTTAACAGCTTGGAGTCTGTGAGATTCAACGTCCAGTAGTTAATAAGGCAGCTGGTGTAACGCGGTTATGTGTC\n>t06\nTGTTCCGCCGCCACGCCTGGTGGGCGCACATAACCTAGAGTGAGTTGCGACCGAATGGTCGGAGATCGTATCTGTAGCGACTGAGCATACGGTTGGCACGCGTACTCTTCAGTCCTGCCACCCTCGAAAGCGTCTTGCATTACACCTTGAAGGTGTCATATCTAGACTAGTGCGGTTTTGACAGCTTGGACTCTGGGAGATTAAACTTCCAGTAGTTAATGAGGCTGCTGCTGTAACGGTGTTATGTGCC\n>t07\nTCTTCTACATCCACGTTTTGTGAGCGCAGGTAACCTAGAGTGTGCGGGGGCGGTATCGTGGGAAATCGGAACCGCTGCGACTGCTCAAAAGTGTGGAACGCTTAGTCTACAGTCGTTGCAACTTGGATACTGGCTGGCCTTACACCCAGAAGCTATCAAATCTAGACTAGTGCGGTTTGGATAGCCCCCAGTGTGAGATAGCAACCTCCCAGTAGTTGATGAGGCTGCTGGTTTACCCATGTAATGAGGC\n>t08\nTGGTACGCCTCCACGCCGCGTGGGCTCAGACAGCCTGTAGTACGCCGCGCCCGTATTGTTAGAAAACAAATCTGTTGCGATGGGGCATAAGGGTTGAAGAGATACTCTTCAGTCCTTCCTACCGCGAAAGCGGCTGGCATTACACCTAAAGGGCATCTACTCTACACTCGGGCGGTATTTACAGCAAGTAGTATGGTATAGCTCCGTTCTAGCATTGAATGGGGCTGCCGGTGTAAGGATTTTATAAGGC\n>t09\nTGGTCCGCCGGCGGGCCGCGTGGGCGCAGAGAGCTTATGGTGTGCCCCGCCCGTATTTTCGGGAAACATAGATGCTGAGTCGGGGCATAAGGCTGCAAGGGATATTATTCAGTCCTGTCTACCGCGAAATCGGCGGGTATTACATATCAAGGGAGTTTACTCTTCACTTCTGGGGTTTTTTCAGTATGCCGTATGGTATAGCTCACTTGTAGCATTGAAAGCGGCTGCTCGCGTACGGATTTTATAAGGC\n>t10\nTGTTCCGCCGCCACACCTCGTGGGGGCAAATCGATTATAGTATGCGGGCCCCGTATTGTCCGAGACTATATGTCCTGCGAGTGTGTATACGCGTGCAAGGGATACTACACAGTCCTACCTACCGCGAAAGCGACTGGCATTACCCCTAAAGGCGGTCTACTCTAAATTAGTGCGGTATTTACATCATCCAGTATGGTAGAGCCTCCTTCACGGAGTGATCGGCGCTGCAGCTATAACGTTTTCATCAGGC\n>t11\nTGTTCCGGCGACACGCTGCGTGGGTGCAGACCCAATATAGTGGGCGGGGCCAGTATAGTAGCAGAACCTATCTTATGCTAGAGGCCATAAGGGTGTAAGTAACACAATACAGTCCTGCCTAATGCGCAAAAGGCTGGCATTACACCTAAATGCGGTCTACTGTACCTTAGTGCGGTTTGTAACGCATGCTGTATGGTAGAGCTTCCATCTAAGACCGAACGGAGCTACTGGTATAATCATTTAATATGCG\n>t12\nCGTGCCTCCGGCACGCCGCGTGGGCGCAGACCGTAAGTAGTATGCGGGGCCGGTATTGTAGTAGAACCTATTTCATACGAGAGGGCATAAGGGAGGAAGGGAGATAATACAGTCCTGCCTAATGCGAGGAAGCCTGTCATTACAACTAAATGAGGTCTACTATACATTAGTCCGGTTTTTAATTCATGCAGGATGATATAGCTTCCTTCTAATAGTGAGCCGAGCTGCTGGTATAATGAAATAATAAGGG",
+  "source": {
+   "citation": "Simulated in-house by this repository's fixture generators and committed as fixtures/inputs/jc12.fasta",
+   "license": "AGPL-3.0-only",
+   "accessions": []
+  }
+ },
+ "analysis": {
+  "correction": "F84",
+  "method": "NJ"
+ },
+ "bootstrap": {
+  "replicates": 100,
+  "seed": 8675309
+ },
+ "prompts": [
+  {
+   "at_step": 1,
+   "type": "predict_pair",
+   "concept": "Neighbor-Joining scores every pair by Q before it joins. The smallest distance in the matrix is a tempting first pick — does NJ join that pair first? Pick a cell in the matrix, or click two leaves.",
+   "math": "NJ joins the pair minimizing Q(i,j) = (n-2)·d(i,j) - R_i - R_j. Each cluster's total distance to everything else counts, not just the pair's own distance.",
+   "reveal": "t11 and t12 join first under Q even though t01–t02 is the closest pair in the matrix: t11 and t12 sit far enough from everything else that their Q wins. PHYLIP's neighbor reports the same first join — species 11 joins species 12 — in its progress log."
+  },
+  {
+   "at_step": 11,
+   "type": "note",
+   "concept": "The tree is complete — the same unrooted tree neighbor writes to outtree. Read it by its splits, not by where it happens to be drawn from: PHYLIP prints its tree drawing with species 1 (t01) as the outgroup, but nothing in the data places a root there.",
+   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match."
+  },
+  {
+   "type": "predict_branch",
+   "at": "bootstrap",
+   "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
+   "math": "Each replicate resamples the alignment's columns with replacement and rebuilds the NJ tree under F84; a grouping's support is the share of successful replicate trees that contain it.",
+   "reveal": "The least-supported internal branch is the one uniting t05 through t12 — the grouping that joins the (t05,t06),t07 subtree to the t08–t12 block. PHYLIP's chain found the same grouping weakest; NeoPhylo draws different resamples, so your count will differ from PHYLIP's — the ranking is what carries."
+  },
+  {
+   "at_step": 11,
+   "type": "note",
+   "after": "first_run",
+   "concept": "The number on a branch is a count — of the resampled datasets that rebuilt that grouping — never a probability that the grouping is true. PHYLIP's chain ran its own resamples through seqboot, so its consense counts differ from yours wherever support is short of total; the strong groupings should agree either way. Now flip through the consensus tabs — Majority-rule, Extended majority, Strict — and compare them with consense's \"Sets included\" table in the note below.",
+   "math": null
+  }
+ ],
+ "lab": {
+  "id": "seqboot-consense",
+  "title": "seqboot → dnadist → neighbor → consense",
+  "objectives": [
+   "Run PHYLIP's bootstrap chain — seqboot's resampling, dnadist F84 and neighbor NJ per replicate, then consense — on a 12-taxon DNA alignment",
+   "Read bootstrap support as a count of replicate trees, never a probability",
+   "Match each program's menu options to the NeoPhylo settings that reproduce them, including the M options the chain needs",
+   "Compare NeoPhylo's consensus tabs with consense's \"Sets included\" and \"Sets NOT included\" tables"
+  ],
+  "handout_md": "## What this lab reproduces\n\nThe full PHYLIP bootstrap chain: `seqboot` makes resampled copies of the alignment, `dnadist` computes an F84 matrix for each, `neighbor` builds a Neighbor-Joining tree for each, and `consense` counts how often each grouping appears across the replicate trees. NeoPhylo runs the same chain — one bootstrap run resamples the columns, rebuilds the tree each time, and tallies the groupings.\n\n## The data\n\nTwelve DNA sequences of 250 sites, simulated in-house for this lab (provenance and license are in the pack's data note).\n\n## Before you start\n\nRead the settings table below. A real PHYLIP run of this chain needs every program's menu checked — and two options you might not expect: `dnadist` and `neighbor` both need their `M` option set so they read all the resampled data sets, and answering `neighbor`'s seed prompt switches its `J` option on, so it jumbles input order once per set. The table lists each program's shipped default and the NeoPhylo setting that reproduces it.\n\n## Steps\n\n1. Load this lab. NeoPhylo loads the alignment and computes the distance matrix with the correction the table names.\n2. Look at the matrix before building the tree. Which pair looks closest? Write down your prediction — it may not be the pair NJ joins.\n3. Step through the joins (or jump to the end) and read the completed tree as an unrooted tree: which splits does it contain?\n4. Open the \"How sure are we?\" panel. Predict which internal branch the data will support least, then run the bootstrap with the settings the table names.\n5. Compare the consensus tabs with what `consense` prints — the note below maps each piece of PHYLIP's output to what is on screen.\n\n## Questions\n\n- `seqboot` resamples the alignment's columns with replacement, so a replicate can reuse or drop whole columns. Why does a replicate's distance matrix still come out close to the original's — and why does a short internal branch's grouping sometimes vanish?\n- Support is a count of replicate trees, not a probability. What would raise your confidence in a grouping — more replicates, or a longer alignment?\n- `consense` defaults to extended majority: it starts from the groupings over half the trees share and adds compatible ones. When does the extended tree gain a grouping the plain majority-rule tree lacks?\n- `neighbor` jumbles input order once per data set in this chain; NeoPhylo builds every replicate in alignment order. When could input order change a neighbor result at all?",
+  "settings": [
+   {
+    "option": "seqboot D — Sequence, Morph, Rest., Gene Freqs?",
+    "phylip_default": "Molecular sequences",
+    "neophylo": "the embedded DNA alignment — dnadist and neighbor run on it, as in the PHYLIP chain"
+   },
+   {
+    "option": "seqboot J — Bootstrap, Jackknife, Permute, Rewrite?",
+    "phylip_default": "Bootstrap",
+    "neophylo": "bootstrap resampling — NeoPhylo's only mode; no jackknife, permute or rewrite equivalents"
+   },
+   {
+    "option": "seqboot % — Regular or altered sampling fraction?",
+    "phylip_default": "regular",
+    "neophylo": "regular — each replicate resamples the full alignment length with replacement"
+   },
+   {
+    "option": "seqboot B — Block size for block-bootstrapping?",
+    "phylip_default": "1 (regular bootstrap)",
+    "neophylo": "no equivalent — sites resample independently"
+   },
+   {
+    "option": "seqboot R — How many replicates?",
+    "phylip_default": "100",
+    "neophylo": "Replicates: 100"
+   },
+   {
+    "option": "seqboot W/C — Read weights of characters / categories of sites?",
+    "phylip_default": "No / No",
+    "neophylo": "no equivalent — all sites count equally"
+   },
+   {
+    "option": "seqboot S — Write out data sets or just weights?",
+    "phylip_default": "Data sets",
+    "neophylo": "n/a — NeoPhylo tallies groupings in memory; replicate alignments are never written"
+   },
+   {
+    "option": "seqboot I — Input sequences interleaved?",
+    "phylip_default": "Yes",
+    "neophylo": "n/a — the pack embeds a FASTA alignment"
+   },
+   {
+    "option": "seqboot — Random number seed (asked after Y)",
+    "phylip_default": "no default — must be odd",
+    "neophylo": "Seed: 8675309 — NeoPhylo takes any non-negative integer; the odd-seed rule is seqboot's own"
+   },
+   {
+    "option": "seqboot 0/1/2 — terminal type and printouts",
+    "phylip_default": "ANSI / No / Yes",
+    "neophylo": "n/a — not a data option"
+   },
+   {
+    "option": "dnadist D — Distance (F84, Kimura, Jukes-Cantor, LogDet)",
+    "phylip_default": "F84",
+    "neophylo": "Correction: F84"
+   },
+   {
+    "option": "dnadist T — Transition/transversion ratio",
+    "phylip_default": "2.0",
+    "neophylo": "fixed at dnadist's 2.0 inside the F84 correction — not a user setting"
+   },
+   {
+    "option": "dnadist G — Gamma distributed rates across sites",
+    "phylip_default": "No",
+    "neophylo": "no equivalent (NeoPhylo has no gamma option)"
+   },
+   {
+    "option": "dnadist C — One category of substitution rates",
+    "phylip_default": "Yes",
+    "neophylo": "a single rate — the only model offered"
+   },
+   {
+    "option": "dnadist W — Use weights for sites",
+    "phylip_default": "No",
+    "neophylo": "no equivalent (all sites count equally)"
+   },
+   {
+    "option": "dnadist F — Use empirical base frequencies",
+    "phylip_default": "Yes",
+    "neophylo": "yes — the F84 correction estimates base frequencies from the alignment"
+   },
+   {
+    "option": "dnadist L — Form of distance matrix",
+    "phylip_default": "Square",
+    "neophylo": "square — the on-screen matrix and the PHYLIP export"
+   },
+   {
+    "option": "dnadist M — Analyze multiple data sets",
+    "phylip_default": "No — the chain sets Yes, 100 data sets (via M → D)",
+    "neophylo": "the bootstrap run itself — 100 replicates is PHYLIP's 100 data sets"
+   },
+   {
+    "option": "dnadist I — Input sequences interleaved",
+    "phylip_default": "Yes",
+    "neophylo": "n/a — replicate alignments stay in memory"
+   },
+   {
+    "option": "dnadist 0/1/2 — terminal type and printouts",
+    "phylip_default": "ANSI / No / Yes",
+    "neophylo": "n/a — not a data option"
+   },
+   {
+    "option": "neighbor N — Neighbor-joining or UPGMA tree",
+    "phylip_default": "Neighbor-joining",
+    "neophylo": "Method: Neighbor-Joining"
+   },
+   {
+    "option": "neighbor O — Outgroup root",
+    "phylip_default": "No, use as outgroup species 1",
+    "neophylo": "no equivalent — the tree is drawn unrooted, as computed"
+   },
+   {
+    "option": "neighbor J — Randomize input order of species",
+    "phylip_default": "No. Use input order — answering M's seed prompt turns it on: \"Yes (random number seed = 8675309)\", one jumble per data set",
+    "neophylo": "no equivalent — every replicate builds in alignment order"
+   },
+   {
+    "option": "neighbor L/R — lower/upper-triangular input",
+    "phylip_default": "No / No",
+    "neophylo": "n/a — square matrices carry over from the distance step"
+   },
+   {
+    "option": "neighbor S — Subreplicates",
+    "phylip_default": "No",
+    "neophylo": "no equivalent"
+   },
+   {
+    "option": "neighbor M — Analyze multiple data sets",
+    "phylip_default": "No — the chain sets Yes, 100 sets",
+    "neophylo": "the 100 replicate trees feeding the tally"
+   },
+   {
+    "option": "neighbor 3/4 — print tree / write tree file",
+    "phylip_default": "Yes / Yes",
+    "neophylo": "the drawn tree plus the Newick export"
+   },
+   {
+    "option": "neighbor 0/1/2 — terminal type and printouts",
+    "phylip_default": "ANSI / No / Yes",
+    "neophylo": "n/a — not a data option"
+   },
+   {
+    "option": "consense C — Consensus type (MRe, strict, MR, Ml)",
+    "phylip_default": "Majority rule (extended)",
+    "neophylo": "the consensus tabs after a run: Majority-rule, Extended majority, Strict"
+   },
+   {
+    "option": "consense O — Outgroup root",
+    "phylip_default": "No, use as outgroup species 1",
+    "neophylo": "no equivalent — the consensus draws unrooted, as computed"
+   },
+   {
+    "option": "consense R — Trees to be treated as Rooted",
+    "phylip_default": "No",
+    "neophylo": "n/a — NJ replicate tallies are unrooted splits"
+   },
+   {
+    "option": "consense 1 — Print out the sets of species",
+    "phylip_default": "Yes",
+    "neophylo": "no sets table — counts sit on the consensus tree's branches; \"Dropped from this consensus\" lists what a consensus lacks"
+   },
+   {
+    "option": "consense 3/4 — print tree / write tree file",
+    "phylip_default": "Yes / Yes",
+    "neophylo": "the consensus tabs' drawn trees plus the Newick export"
+   },
+   {
+    "option": "consense T/2 — terminal type and printouts",
+    "phylip_default": "ANSI / Yes",
+    "neophylo": "n/a — not a data option"
+   }
+  ],
+  "phylip_note_md": "`seqboot` writes all one hundred resampled alignments into a single `outfile` — one hundred PHYLIP-format data sets back to back, each starting with its own species-and-sites header — and after `Y` it demands \"Random number seed (must be odd)?\", rejecting anything else. NeoPhylo's bootstrap panel does the same procedure in memory: it resamples the alignment's columns with replacement under your Replicates and Seed, with no files in between. The seed is not shared state — NeoPhylo's generator draws different resamples than seqboot's, so the counts come out different while the strongly supported groupings agree.\n\n`dnadist` with `M` set to 100 data sets reads seqboot's whole file and appends one hundred square matrices to its `outfile`; `neighbor` with `M` reads them back and — because its `M` option also asks for an odd seed — jumbles the species order once per data set, then writes all one hundred trees to `outtree`. NeoPhylo runs that same per-replicate loop — resample, F84 matrix, NJ tree — in one Run and tallies each replicate's groupings as it finishes. PHYLIP jumbles; NeoPhylo builds in alignment order. A jumble only matters when two pairs tie exactly, which is why it is a menu option and not a requirement.\n\n`consense` reads the replicate trees and prints two tallies in its `outfile`: \"Sets included in the consensus tree\" — each accepted grouping with its count out of 100 — and \"Sets NOT included in consensus tree\", the rejected candidates with theirs. Its default consensus is \"Majority rule (extended)\": start from groupings in more than half the trees, then add the rest while they stay compatible. NeoPhylo's consensus tabs offer the same choices — \"Your tree with support\", \"Majority-rule\", \"Extended majority\", \"Strict\" — and put the counts on the tree's own branches instead of in a sets table; the \"Dropped from this consensus\" line names the inferred tree's groupings a consensus leaves out. One display difference to read past: `consense` draws its consensus tree rooted for layout, then reminds you \"this is an unrooted tree!\" — NeoPhylo draws it unrooted, as computed.\n\nAnd the numbers: `consense` counted PHYLIP's own one hundred replicate trees. NeoPhylo's run draws different resamples, so its support counts differ — on this dataset every grouping consense's majority rule includes is also a majority grouping in NeoPhylo's run, at its own counts. Compare groupings, not counts, when the two runs differ.",
+  "chain": [
+   "seqboot",
+   "dnadist",
+   "neighbor",
+   "consense"
+  ]
+ }
+}

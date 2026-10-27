@@ -32,11 +32,12 @@ describe("lab registry", () => {
     expect(lab?.settings.length).toBe(3);
   });
 
-  it("with the e2e flag off only shipped labs list — packs 1 and 2", () => {
+  it("with the e2e flag off only shipped labs list — packs 1, 2 and 3", () => {
     window.localStorage.removeItem("neophylo-e2e");
     expect(listLabs().map((l) => l.id)).toEqual([
       "dnadist-neighbor",
       "protdist-neighbor",
+      "seqboot-consense",
     ]);
   });
 
