@@ -7,6 +7,9 @@
 // dnadist itself accepts the ratio and clamps it (owner decision,
 // PR #88).
 
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { engine } from "../engine/index";
@@ -16,11 +19,13 @@ import type { Tree } from "../engine/generated/Tree";
 import {
   buildExerciseState,
   DEFAULT_SETTINGS,
+  EMPTY_PRESERVED,
+  preservedFieldNames,
   settingsFromExercise,
   settingsProblems,
   type EditorSettings,
 } from "./draft";
-import { saveExercise } from "./exerciseFile";
+import { importExercise, saveExercise } from "./exerciseFile";
 
 const STARTER = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
 
@@ -329,5 +334,125 @@ describe("settingsFromExercise (import)", () => {
     );
     const back = settingsFromExercise(ex);
     expect("error" in back).toBe(true);
+  });
+});
+
+// Fix round 1: an imported exercise's uneditable fields (reference,
+// locked, bootstrap) ride through the draft to the saved file —
+// earlier they were hardcoded away, so import → save silently lost
+// them. For every importable built-in, import then save with no edits
+// must give an exercise deep-equal to the migrated original.
+describe("import → save preserves uneditable fields", () => {
+  const dir = resolve("..", "exercises");
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .sort();
+
+  function load(json: string): Exercise {
+    const r = engine.loadExercise(json);
+    if (!r.ok) throw new Error(JSON.stringify(r.error));
+    return r.value;
+  }
+
+  /** The Exercise normalized for comparison: its true_tree
+   * re-serialized to the canonical writeNewick form (a textually
+   * different-but-equal Newick never falsifies the comparison) and
+   * schema_version set to the current one — saving a v2 file writes
+   * v3, the migration the comparison is "after". */
+  function canonical(ex: Exercise): Exercise {
+    if (ex.data.kind !== "simulated") {
+      return { ...ex, schema_version: 3 };
+    }
+    const t = parseTree(ex.data.true_tree);
+    return {
+      ...ex,
+      schema_version: 3,
+      data: { ...ex.data, true_tree: engine.writeNewick(t) },
+    };
+  }
+
+  const IMPORTABLE = files.filter(
+    (f) => !["cytochrome-c.json", "protein-models.json"].includes(f),
+  );
+
+  it.each(IMPORTABLE)(
+    "importing %s then saving untouched is deep-equal to the migrated file",
+    (f) => {
+      const imp = importExercise(readFileSync(resolve(dir, f), "utf8"));
+      if (!imp.ok) throw new Error(`${f} must import: ${JSON.stringify(imp.error)}`);
+      const original = imp.value.exercise;
+      const conv = settingsFromExercise(original, imp.value.fileExtras);
+      if ("error" in conv) throw new Error(`${f}: ${conv.error}`);
+      expect(
+        preservedFieldNames(conv.preserved).length,
+        `${f} carries at least one uneditable field`,
+      ).toBeGreaterThan(0);
+      const t = parseTree(
+        original.data.kind === "simulated" ? original.data.true_tree : "",
+      );
+      const saved = saveExercise(
+        buildExerciseState(
+          t,
+          conv.settings,
+          conv.prompts,
+          imp.value.fileExtras,
+          conv.preserved,
+        ),
+      );
+      if (!("json" in saved)) throw new Error(`${f}: ${saved.error}`);
+      expect(canonical(load(saved.json))).toEqual(canonical(original));
+    },
+  );
+
+  it("the two unimportable built-ins stay refused with their reasons", () => {
+    for (const [f, reason] of [
+      ["cytochrome-c.json", /embeds fixed sequences/],
+      ["protein-models.json", /can't represent/],
+    ] as const) {
+      const imp = importExercise(readFileSync(resolve(dir, f), "utf8"));
+      if (!imp.ok) throw new Error(`${f} must load`);
+      const conv = settingsFromExercise(imp.value.exercise, imp.value.fileExtras);
+      expect("error" in conv, `${f} is refused`).toBe(true);
+      if ("error" in conv) expect(conv.error).toMatch(reason);
+    }
+  });
+
+  it("a preserved reference the tree no longer matches is refused by name, not dropped", () => {
+    // nj-basics' reference names A–F; a draft tree with different
+    // taxa must fail saveExercise's engine reload with the field's
+    // error — never silently pass because the field was dropped.
+    const imp = importExercise(
+      readFileSync(resolve(dir, "nj-basics.json"), "utf8"),
+    );
+    if (!imp.ok) throw new Error("nj-basics must import");
+    const conv = settingsFromExercise(imp.value.exercise, imp.value.fileExtras);
+    if ("error" in conv) throw new Error(conv.error);
+    const mismatched = parseTree("(A:0.1,B:0.2,C:0.3);");
+    const saved = saveExercise(
+      buildExerciseState(
+        mismatched,
+        conv.settings,
+        conv.prompts,
+        imp.value.fileExtras,
+        conv.preserved,
+      ),
+    );
+    expect("error" in saved, "the mismatched reference must refuse").toBe(
+      true,
+    );
+  });
+
+  it("a fresh draft's EMPTY_PRESERVED writes no reference, locks or bootstrap", () => {
+    const state = buildExerciseState(
+      tree(),
+      settings({}),
+      [],
+      undefined,
+      EMPTY_PRESERVED,
+    );
+    expect(state.exercise.reference).toBeNull();
+    expect(state.exercise.locked).toEqual([]);
+    expect(state.exercise.bootstrap).toBeNull();
+    expect(preservedFieldNames(EMPTY_PRESERVED)).toEqual([]);
   });
 });

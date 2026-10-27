@@ -87,9 +87,31 @@ function defaultSimModel(a: Alphabet): SimModel {
   return a === "protein" ? "Jtt" : "Jc69";
 }
 
-/** The alphabet a simulation model produces (JTT → protein). */
+/** The alphabet a simulation model produces (JTT → protein; the v1.4
+ * exercise-prescribed F84 is a DNA model like the menu's). */
 function simModelAlphabet(m: SimModel): Alphabet {
-  return SIM_MODEL_NAMES.dna.includes(simModelName(m)) ? "dna" : "protein";
+  return simModelName(m) === "Jtt" ? "protein" : "dna";
+}
+
+/** Corrections the engine accepts for `a` — the menu list PLUS the
+ * v1.4 exercise-prescribed models (F84 and K2P_PHYLIP, DNA-only and
+ * never menu-selectable but legal in a file, Task 10 fix round 1: the
+ * menu-membership check used to silently rewrite them to the default
+ * on load). */
+function correctionValidFor(
+  c: Exercise["analysis"]["correction"],
+  a: Alphabet,
+): boolean {
+  if (typeof c === "object" || c === "F84") return a === "dna";
+  return CORRECTIONS[a].includes(c);
+}
+
+/** Sim models valid for `a` — same rule: the menu list plus the
+ * exercise-prescribed F84. */
+function simModelValidFor(m: SimModel, a: Alphabet): boolean {
+  const n = simModelName(m);
+  if (n === "F84") return a === "dna";
+  return SIM_MODEL_NAMES[a].includes(n);
 }
 
 /** The exercise-level core of `reconcileModels`: switch the models
@@ -100,7 +122,7 @@ function reconcileExercise(
   target: Alphabet,
 ): { exercise: Exercise; notice: string } | null {
   const switches: string[] = [];
-  if (!CORRECTIONS[target].some((c) => c === exercise.analysis.correction)) {
+  if (!correctionValidFor(exercise.analysis.correction, target)) {
     const c = defaultCorrection(target);
     exercise = {
       ...exercise,
@@ -110,9 +132,7 @@ function reconcileExercise(
   }
   if (
     exercise.data.kind === "simulated" &&
-    !SIM_MODEL_NAMES[target].includes(
-      simModelName(exercise.data.sim.model),
-    )
+    !simModelValidFor(exercise.data.sim.model, target)
   ) {
     const m = defaultSimModel(target);
     exercise = {

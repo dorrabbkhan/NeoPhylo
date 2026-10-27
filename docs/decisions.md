@@ -4610,3 +4610,65 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `web/src/views/Controls.tsx` (the display fixes above);
   `web/src/views/editor/DrawCanvas.tsx`, `drawOps.ts`,
   `DrawCanvas.test.tsx` (the carry-overs); this file.
+
+### Task 10 — fix round 1 (PR #98)
+
+- **Touch drop resolution sees through `.node-touch`** (review).
+  `finishDrag` now hits-tests with `document.elementsFromPoint` and
+  skips `.node-touch` layers until a `data-node`/`data-edge` element
+  is found; the overlays also carry `data-node` so the
+  `elementFromPoint` fallback resolves them. The overlays stay up —
+  the Task-9-carry-over swipe scroll split is untouched. A CDP
+  real-touch test at 768×1024 (Chromium-only) drags a leaf onto a
+  node and onto a branch and compares the Newick with the keyboard
+  path.
+- **Imported `reference`, `locked`, `bootstrap` ride through to
+  save** (review). `buildExerciseState` previously hardcoded all
+  three away. They're `Exercise` fields the editor has no UI for, so
+  `settingsFromExercise` now returns a `PreservedFields` record
+  alongside `fileExtras` (which only ever held top-level unknown
+  keys); `buildExerciseState` writes them back into the rebuilt
+  exercise, `saveExercise` re-validates them (a tree edit that breaks
+  a `reference` fails naming the field — nothing is dropped), and
+  Settings shows a read-only "Kept from the imported file" notice.
+  Import → save untouched is deep-equal to the migrated file for
+  every importable `exercises/*.json` (pin: `draft.test.ts`); the
+  cytochrome-c / protein-models refusals stay.
+- **K2P label shows the prescribed ratio** (plan decision). Shared
+  `k2pLabel(ratio)` in `state/analysis.ts` renders
+  `K2P (dnadist, κ = 2.0)`; the player's conditional correction option
+  uses the exercise's actual ratio, the editor's model select uses 2.
+- **Exercise-prescribed F84/K2P survive `load`** (found while
+  capturing the K2P evidence shot). `reconcileExercise` treated the
+  menu lists as the validity set, so a prescribed F84 or K2P_PHYLIP
+  silently became the alphabet default on load — an #x= or previewed
+  exercise played under JC69. `correctionValidFor`/`simModelValidFor`
+  now treat the v1.4 models as valid for DNA (invalid for protein —
+  a protein import still switches with its notice), and
+  `simModelAlphabet` maps F84 to DNA. Pins in `session.test.ts`.
+- **Styled file-import control** (conductor): a visually hidden
+  `<input type="file">` behind a token-styled "Import file…" label
+  (≥40×40 under coarse pointer, focus ring forwarded to the label,
+  chosen file name in token type); `ImportPanel.tsx`'s separate
+  "Choose a file" picker is out of scope for this fix round.
+- **Sheet fields take `aria-labelledby` from the sheet title**
+  (conductor): `NewickView`/`BranchTable` gained an optional
+  `labelledBy`; inside sheets their own "Newick tree" label / "Branch
+  lengths" caption is omitted so the heading appears once — desktop
+  is unchanged.
+- **Editor scenes show their subjects** (conductor): `editor-f84`
+  scrolls Settings into view with the broken 1.65 sum and blocked
+  save; new `editor-prompts` shows a note prompt with its join gate.
+  `--update-snapshots=all --grep editor-` regenerated only editor
+  baselines; `git diff --name-status origin/main` stays A-only.
+- **Files outside the Files block, this round:**
+  `web/src/state/lesson.ts` + `session.test.ts` (the load-time
+  validity fix above); `web/src/editor/draft.ts` + `draft.test.ts`
+  (preserved fields); `web/src/state/analysis.ts`, `session.ts`,
+  `web/src/views/Controls.tsx` + `Controls.test.tsx`
+  (`k2pLabel` + pins); `web/src/views/editor/{useDrawDrag,
+  DrawCanvas,EditorPanel,NewickView,BranchTable,SettingsForm}.tsx/ts`
+  (drop fix, notice, sheet labels, K2P option); `web/src/index.css`
+  (import control styles); `web/e2e/{editor.spec.ts,
+  visualScenes.ts}`; `web/e2e/__screenshots__/` (8 new
+  `editor-prompts` baselines + regenerated editor frames).

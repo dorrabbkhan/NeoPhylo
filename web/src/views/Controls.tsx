@@ -21,6 +21,7 @@ import {
   SIM_LABEL,
   SIM_MODEL_NAMES,
   distModelName,
+  k2pLabel,
   simModelName,
 } from "../state/session";
 import type { SimModelName } from "../state/session";
@@ -293,7 +294,9 @@ export function Controls({
             <option value="F84">F84</option>
           )}
           {typeof analysis.correction === "object" && (
-            <option value="K2P_PHYLIP">K2P (dnadist)</option>
+            <option value="K2P_PHYLIP">
+              {k2pLabel(analysis.correction.K2pPhylip.ratio)}
+            </option>
           )}
         </select>
       </label>

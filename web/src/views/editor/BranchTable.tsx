@@ -21,6 +21,10 @@ import { errorMessage } from "../../explain/errors";
 
 export interface BranchTableProps {
   model: EditorModel;
+  /** Set inside a sheet: the sheet's title shows the "Branch lengths"
+   * heading once, and the table takes its name from it instead of a
+   * second visible caption (fix round 1). */
+  labelledBy?: string;
 }
 
 interface Row {
@@ -166,7 +170,7 @@ function BranchRow({
   );
 }
 
-export function BranchTable({ model }: BranchTableProps) {
+export function BranchTable({ model, labelledBy }: BranchTableProps) {
   const subscribe = useCallback(
     (fn: () => void) => model.subscribe(fn),
     [model],
@@ -176,8 +180,8 @@ export function BranchTable({ model }: BranchTableProps) {
 
   return (
     <div className="editor-view branch-table-view">
-      <table className="branch-table">
-        <caption>Branch lengths</caption>
+      <table className="branch-table" aria-labelledby={labelledBy}>
+        {labelledBy === undefined ? <caption>Branch lengths</caption> : null}
         <thead>
           <tr>
             <th scope="col">Branch to</th>

@@ -206,6 +206,113 @@ test("a touch drag drops on the branch under the finger, matching the keyboard p
   await context.close();
 });
 
+test("touch: drops onto a node and onto a branch match the keyboard path and never detach", async ({
+  browser,
+  browserName,
+}) => {
+  // Under (pointer: coarse) the .node-touch overlays sit above the
+  // svg — a release inside a node's 40 px box must still resolve to
+  // the node or branch beneath, not "empty canvas" (fix round 1:
+  // a node→node drop used to detach). Only Chromium's CDP
+  // Input.dispatchTouchEvent reproduces a real touch pointer.
+  test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+  // Below 1024 px the Newick field lives in its sheet (Task 10).
+  const openNewick = async () => {
+    await page.getByRole("button", { name: "Newick tree" }).click();
+    return NEWICK(page);
+  };
+  const setTree = async (text: string) => {
+    const newick = await openNewick();
+    await newick.fill(text);
+    await newick.press("Enter");
+    await page.keyboard.press("Escape");
+  };
+  await setTree("(A:0.1,B:0.2,C:0.3);");
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+  // The overlays are up — the bug only exists while they are.
+  await expect(page.locator(".node-touch").first()).toBeVisible();
+
+  const cdp = await context.newCDPSession(page);
+  const touchDrag = async (
+    from: import("@playwright/test").Locator,
+    to: import("@playwright/test").Locator,
+  ): Promise<void> => {
+    const a = await from.boundingBox();
+    const b = await to.boundingBox();
+    if (a === null || b === null) throw new Error("drag endpoint has no box");
+    const sx = a.x + a.width / 2;
+    const sy = a.y + a.height / 2;
+    const ex = b.x + b.width / 2;
+    const ey = b.y + b.height / 2;
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: sx, y: sy, id: 1 }],
+    });
+    const steps = 8;
+    for (let i = 1; i <= steps; i += 1) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            x: sx + ((ex - sx) * i) / steps,
+            y: sy + ((ey - sy) * i) / steps,
+            id: 1,
+          },
+        ],
+      });
+    }
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  };
+
+  const leafC = page.getByRole("button", { name: "Leaf C" });
+  const leafB = page.getByRole("button", { name: "Leaf B" });
+  const edgeB = page.getByRole("button", { name: "Branch to B" });
+  const MOVED = "(A:0.1,(B:0.1,C:0.3):0.1);";
+
+  // Drop leaf C onto leaf B's NODE — covered by B's overlay — and the
+  // op must be the move the keyboard path produces, never a detach.
+  await touchDrag(leafC, leafB);
+  let newick = await openNewick();
+  await expect(newick).toHaveValue(MOVED);
+  await page.keyboard.press("Escape");
+  await expect(page.getByText(/Detached/)).toHaveCount(0);
+
+  // The same drop onto B's branch produces the same Newick.
+  await setTree("(A:0.1,B:0.2,C:0.3);");
+  await touchDrag(leafC, edgeB);
+  newick = await openNewick();
+  const byTouch = await newick.inputValue();
+  expect(byTouch).toBe(MOVED);
+  await page.keyboard.press("Escape");
+
+  // The keyboard path — select leaf C, select the branch to B, J —
+  // lands the identical op.
+  await setTree("(A:0.1,B:0.2,C:0.3);");
+  await leafC.focus();
+  await page.keyboard.press("Enter");
+  await edgeB.focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("j");
+  newick = await openNewick();
+  await expect(newick).toHaveValue(byTouch);
+  await expect(newick).toHaveValue(MOVED);
+  await context.close();
+});
+
 test("the keyboard path covers join, detach and length nudges without a drag", async ({
   page,
 }) => {

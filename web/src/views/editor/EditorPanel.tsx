@@ -21,9 +21,12 @@ import { useBreakpoint } from "../../design/breakpoints";
 import {
   buildExerciseState,
   DEFAULT_SETTINGS,
+  EMPTY_PRESERVED,
+  preservedFieldNames,
   settingsFromExercise,
   settingsProblems,
   type EditorSettings,
+  type PreservedFields,
 } from "../../editor/draft";
 import {
   importExercise,
@@ -78,13 +81,20 @@ export function EditorPanel({ model }: EditorPanelProps) {
   const [fileExtras, setFileExtras] = useState<
     Record<string, unknown> | undefined
   >(undefined);
+  // Fields the form can't edit, carried from an imported file to the
+  // saved one (fix round 1) — empty on a fresh draft.
+  const [preserved, setPreserved] =
+    useState<PreservedFields>(EMPTY_PRESERVED);
   const [importText, setImportText] = useState("");
+  const [importFileName, setImportFileName] = useState<string | null>(
+    null,
+  );
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const problems = settingsProblems(settings);
   const canSave = !problems.some((p) => p.level === "error");
   const buildState = () =>
-    buildExerciseState(tree, settings, prompts, fileExtras);
+    buildExerciseState(tree, settings, prompts, fileExtras, preserved);
 
   const detached = detachedRoots(tree).length;
   const taxa: string[] = [];
@@ -199,6 +209,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
     setSettings(conv.settings);
     setPrompts(conv.prompts);
     setFileExtras(r.value.fileExtras);
+    setPreserved(conv.preserved);
     setImportText("");
     setNotice({
       level: "status",
@@ -209,6 +220,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
   const onImportFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file === undefined) return;
+    setImportFileName(file.name);
     void file.text().then(
       (text) => onImport(text),
       () =>
@@ -256,15 +268,26 @@ export function EditorPanel({ model }: EditorPanelProps) {
         >
           Import text
         </button>
-        <label className="import-file">
-          <span className="import-file-btn">Import file…</span>
+        {/* The visible control is a token-styled button labelling a
+          * visually hidden input — the browser's unstyled file widget
+          * never renders, while the input keeps its accessible name,
+          * its tab stop and the file dialog it opens (fix round 1). */}
+        <span className="import-file">
           <input
             type="file"
+            id="editor-import-file"
+            className="import-file-input"
             accept=".json,application/json"
             aria-label="Import an exercise file"
             onChange={onImportFile}
           />
-        </label>
+          <label htmlFor="editor-import-file" className="import-file-btn">
+            Import file…
+          </label>
+          {importFileName !== null && (
+            <span className="import-file-name">{importFileName}</span>
+          )}
+        </span>
       </div>
       {notice !== null && (
         <div className="editor-notice">
@@ -318,6 +341,12 @@ export function EditorPanel({ model }: EditorPanelProps) {
         aria-labelledby="editor-settings-title"
       >
         <h2 id="editor-settings-title">Settings</h2>
+        {preservedFieldNames(preserved).length > 0 && (
+          <p className="editor-hint">
+            Kept from the imported file (not editable here):{" "}
+            {preservedFieldNames(preserved).join(", ")}
+          </p>
+        )}
         <SettingsForm settings={settings} onChange={setSettings} />
       </section>
       <section
@@ -344,7 +373,10 @@ export function EditorPanel({ model }: EditorPanelProps) {
               ×
             </button>
           </header>
-          <NewickView model={model} />
+          <NewickView
+            model={model}
+            labelledBy="editor-sheet-newick-title"
+          />
         </Sheet>
       )}
       {sheet === "table" && (
@@ -364,7 +396,10 @@ export function EditorPanel({ model }: EditorPanelProps) {
               ×
             </button>
           </header>
-          <BranchTable model={model} />
+          <BranchTable
+            model={model}
+            labelledBy="editor-sheet-table-title"
+          />
         </Sheet>
       )}
     </section>

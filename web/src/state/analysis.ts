@@ -215,6 +215,15 @@ export const DIST_LABEL: Record<DistModelName, string> = {
   F84: "F84",
 };
 
+/** The menu label for a K2P_PHYLIP correction: the plan's pinned
+ * wording shows the prescribed ratio — "K2P (dnadist, κ = 2.0)".
+ * Integers keep the ".0"; any other ratio prints in full so the
+ * exercise's actual value is never misstated. */
+export function k2pLabel(ratio: number): string {
+  const r = Number.isInteger(ratio) ? ratio.toFixed(1) : String(ratio);
+  return `K2P (dnadist, κ = ${r})`;
+}
+
 /** The simple name of a `SimModel` (the K80/F84 parameters are
  * details). */
 export type SimModelName = "Jc69" | "K80" | "F84" | "Jtt";

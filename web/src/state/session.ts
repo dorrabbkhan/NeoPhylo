@@ -54,6 +54,7 @@ export {
   SIM_MODEL_NAMES,
   distModelName,
   exerciseSim,
+  k2pLabel,
   recompute,
   simModelName,
   type DistModelName,

@@ -349,11 +349,16 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
             * scrolls; a touch-drag that starts on a handle drags the
             * node through the same beginDrag path the svg handles use.
             * Keyboard and AT users keep the svg's own handles, so the
-            * overlays are aria-hidden and untabbable. */}
+            * overlays are aria-hidden and untabbable. The overlays sit
+            * above the svg, so drop resolution sees through them
+            * (elementsFromPoint in useDrawDrag); `data-node` makes an
+            * overlay resolve as its node where a single-element
+            * hit-test is all a browser offers. */}
           {[...pos.entries()].map(([id, p]) => (
             <div
               key={id}
               className="node-touch"
+              data-node={id}
               aria-hidden="true"
               style={{
                 left: p.x - HIT_MIN / 2,

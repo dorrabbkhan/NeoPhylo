@@ -295,7 +295,11 @@ export const SCENES: {
     },
   },
   {
-    // F84 selected: the four base-frequency inputs and their sum.
+    // F84 selected with a broken frequency sum: Settings scrolled into
+    // view so the frame shows the four base-frequency inputs, the
+    // non-1 sum and its error — save is blocked (fix round 1: the
+    // controls are below the fold, so an unscrolled frame was
+    // byte-identical to editor-default).
     name: "editor-f84",
     viewports: EDITOR_VIEWPORTS,
     setup: async (page) => {
@@ -306,10 +310,52 @@ export const SCENES: {
       await page
         .getByRole("combobox", { name: "Model" })
         .selectOption("F84");
+      const freqA = page.getByRole("textbox", {
+        name: "Base frequency A",
+      });
+      await expect(freqA).toBeVisible();
+      await freqA.fill("0.9");
       await expect(
-        page.getByRole("textbox", { name: "Base frequency A" }),
+        page.getByText(/Sum: 1\.65 — must be 1\./),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Save file" }),
+      ).toBeDisabled();
+      await settleFrame(page);
+      // Top-align the section: scrollIntoViewIfNeeded's "nearest"
+      // edge lands a below-fold heading at the viewport's BOTTOM,
+      // which would leave the frequency inputs off-frame.
+      await page
+        .getByRole("heading", { name: "Settings" })
+        .evaluate((el) => el.scrollIntoView({ block: "start" }));
+      await expect(freqA).toBeInViewport();
+    },
+  },
+  {
+    // The prompt list with its gate: one note prompt at join 1 added,
+    // the Prompts section scrolled into view (fix round 1 — the
+    // prompt UI was in no scene's frame).
+    name: "editor-prompts",
+    viewports: EDITOR_VIEWPORTS,
+    setup: async (page) => {
+      await page.goto("/?editor");
+      await expect(
+        page.getByRole("application", { name: "Tree canvas" }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Add note" }).click();
+      await page
+        .getByRole("textbox", { name: "Prompt 1 concept" })
+        .fill("Watch the first join happen.");
+      await expect(
+        page.getByText(/Prompt 1 — Note, at join 1/),
       ).toBeVisible();
       await settleFrame(page);
+      await page
+        .getByRole("heading", { name: "Prompts" })
+        .evaluate((el) => el.scrollIntoView({ block: "start" }));
+      await expect(
+        page.getByRole("textbox", { name: "Prompt 1 concept" }),
+      ).toBeInViewport();
     },
   },
   {

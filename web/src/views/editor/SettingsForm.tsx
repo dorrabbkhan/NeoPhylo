@@ -15,6 +15,7 @@
 import type { EditorSettings } from "../../editor/draft";
 import { settingsProblems } from "../../editor/draft";
 import type { Method } from "../../engine/generated/Method";
+import { k2pLabel } from "../../state/analysis";
 
 export interface SettingsFormProps {
   settings: EditorSettings;
@@ -22,13 +23,15 @@ export interface SettingsFormProps {
 }
 
 /** The select's display labels; the option values are
- * EditorModelChoice. The K2P label is the plan's pinned wording. */
+ * EditorModelChoice. The K2P label is the plan's pinned wording —
+ * the same `k2pLabel` the player's correction menu uses, at the
+ * dnadist/app default ratio. */
 const MODEL_OPTIONS: { value: EditorSettings["model"]; label: string }[] =
   [
     { value: "JC69", label: "JC69" },
     { value: "K80", label: "K80" },
     { value: "F84", label: "F84" },
-    { value: "K2P_PHYLIP", label: "K2P (dnadist, κ = 2.0)" },
+    { value: "K2P_PHYLIP", label: k2pLabel(2) },
     { value: "Kimura", label: "Kimura" },
     { value: "JTT", label: "JTT" },
   ];

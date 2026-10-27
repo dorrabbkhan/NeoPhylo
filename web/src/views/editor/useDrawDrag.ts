@@ -6,11 +6,15 @@
 // the engine's call.
 //
 // Drop resolution hit-tests the release point with
-// elementFromPoint — touch and pen pointers implicitly capture to
+// elementsFromPoint — touch and pen pointers implicitly capture to
 // the pointerdown element, so `e.target` on pointerup is always the
 // dragged node for them (review fix: every touch drag used to become
-// a length pull). `e.target` is the fallback only where no layout
-// hit-test exists (jsdom).
+// a length pull). Under (pointer: coarse) the HTML `.node-touch`
+// overlays sit above the svg's own handles, so the hit-test skips
+// them to see the svg below — otherwise a drop on a node's 40 px box
+// resolves to "empty canvas" and becomes a detach instead of a join
+// or move (Task 10 fix round 1). `e.target` is the fallback only
+// where no layout hit-test exists (jsdom).
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -104,14 +108,30 @@ export function useDrawDrag(
     });
   }, []);
 
+  /** The element the drop lands on, with the `.node-touch` overlays
+   * seen through: under a coarse pointer they sit above the svg, so the
+   * topmost element at the release point is a handle overlay, not the
+   * node or branch beneath it. Skipping them gives the same element a
+   * mouse drop resolves to. The overlay itself still carries `data-node`,
+   * so the elementFromPoint-only fallback resolves it as that node. */
+  const dropTarget = useCallback((e: PointerEvent): Element | null => {
+    if (typeof document.elementsFromPoint === "function") {
+      for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+        if (!el.classList.contains("node-touch")) return el;
+      }
+    }
+    if (typeof document.elementFromPoint === "function") {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el !== null) return el;
+    }
+    return e.target instanceof Element ? e.target : null;
+  }, []);
+
   const finishDrag = useCallback(
     (d: Drag, e: PointerEvent): void => {
       const { pos, tree, apply } = apiRef.current;
       const p = svgPoint(e);
-      const hit =
-        (typeof document.elementFromPoint === "function"
-          ? document.elementFromPoint(e.clientX, e.clientY)
-          : null) ?? (e.target instanceof Element ? e.target : null);
+      const hit = dropTarget(e);
       const edgeId = Number(
         hit?.closest("[data-edge]")?.getAttribute("data-edge"),
       );
@@ -150,7 +170,7 @@ export function useDrawDrag(
       else if (tree.nodes[d.node]?.parent !== null)
         apply({ kind: "detach", node: d.node });
     },
-    [setLenAt, svgPoint],
+    [dropTarget, setLenAt, svgPoint],
   );
 
   // While a drag is live, window-level listeners track it — the

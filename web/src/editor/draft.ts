@@ -249,19 +249,48 @@ function bootstrapStep(tree: Tree, method: Method): number {
   return method === "Nj" ? Math.max(1, n - 1) : n;
 }
 
+/** Exercise fields the editor's form can't edit, carried verbatim from
+ * an imported file to the saved one — an import must never silently
+ * drop `reference`, `locked` or `bootstrap` (fix round 1). The
+ * fresh-draft default is `EMPTY_PRESERVED`. */
+export interface PreservedFields {
+  reference: Exercise["reference"];
+  locked: Exercise["locked"];
+  bootstrap: Exercise["bootstrap"];
+}
+
+export const EMPTY_PRESERVED: PreservedFields = {
+  reference: null,
+  locked: [],
+  bootstrap: null,
+};
+
+/** Short names for the fields `preserved` actually carries, for the
+ * Settings section's read-only notice. */
+export function preservedFieldNames(p: PreservedFields): string[] {
+  const names: string[] = [];
+  if (p.reference !== null) names.push("reference");
+  if (p.locked.length > 0) names.push("locked controls");
+  if (p.bootstrap !== null) names.push("bootstrap");
+  return names;
+}
+
 /**
  * Assemble the tree, settings and prompts into the `ExerciseState`
  * `saveExercise`, `shareLink` and the preview consume. Fields the form
  * marked invalid are written through as NaN — `JSON.stringify` turns
  * them into `null`, which the schema/engine refuse with the field's
  * name, so the build itself can never invent a saveable value the form
- * called invalid.
+ * called invalid. `preserved` writes through untouched — if an edit
+ * makes one invalid (a reference whose taxa no longer match the tree),
+ * `saveExercise`'s engine reload refuses it by name as usual.
  */
 export function buildExerciseState(
   tree: Tree,
   s: EditorSettings,
   prompts: Prompt[],
   extras?: Record<string, unknown>,
+  preserved: PreservedFields = EMPTY_PRESERVED,
 ): ExerciseState {
   const preset = PRESETS[s.model];
   const seed = parseDecimal(s.seed) ?? NaN;
@@ -282,13 +311,13 @@ export function buildExerciseState(
       true_tree: engine.writeNewick(tree),
       sim: { model: preset.sim(s), length, seed },
     },
-    reference: null,
+    reference: preserved.reference,
     analysis,
-    locked: [],
+    locked: preserved.locked,
     prompts: prompts.map((p) =>
       p.type === "predict_branch" ? { ...p, at_step: atStep } : p,
     ),
-    bootstrap: null,
+    bootstrap: preserved.bootstrap,
   };
   const fileExtras: Record<string, unknown> = { ...extras };
   // `summary` is required by the schema and lives outside Exercise —
@@ -312,7 +341,7 @@ export function settingsFromExercise(
   ex: Exercise,
   extras?: Record<string, unknown>,
 ):
-  | { settings: EditorSettings; prompts: Prompt[] }
+  | { settings: EditorSettings; prompts: Prompt[]; preserved: PreservedFields }
   | { error: string } {
   if (ex.data.kind !== "simulated") {
     return {
@@ -385,5 +414,12 @@ export function settingsFromExercise(
       method: ex.analysis.method,
     },
     prompts: ex.prompts,
+    // Fields the form can't edit ride along verbatim so a save writes
+    // them back — never silently dropped (fix round 1).
+    preserved: {
+      reference: ex.reference,
+      locked: ex.locked,
+      bootstrap: ex.bootstrap,
+    },
   };
 }
