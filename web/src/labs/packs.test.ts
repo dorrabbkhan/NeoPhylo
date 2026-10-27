@@ -209,4 +209,44 @@ describe("lab pack dnadist-neighbor", () => {
     if (!r.ok) throw new Error(`compare failed`);
     expect(r.value.rf).toBe(0);
   });
+
+  it("pins the prompt's teaching claims to the computed trace and matrix", () => {
+    // The predict_pair reveal names t04–t05 as the first join and
+    // t06–t07 as the closest pair. Both claims come from the engine on
+    // PHYLIP's printed matrix — never from the fixture's tree text.
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "F84");
+    if (!dm.ok) throw new Error(`distances failed`);
+
+    // Closest pair in the engine's own matrix.
+    let best = { d: Infinity, i: -1, j: -1 };
+    const labels = dm.value.labels;
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        const c = dm.value.cells[i * labels.length + j];
+        if (c !== "Saturated" && c.Value < best.d) {
+          best = { d: c.Value, i, j };
+        }
+      }
+    }
+    expect([labels[best.i], labels[best.j]].sort()).toEqual(["t06", "t07"]);
+
+    // First join of the engine's NJ trace on PHYLIP's printed matrix.
+    const tr = engine.buildTree(printedMatrix(fx, "F84"), "Nj", {
+      trace: true,
+    });
+    if (!tr.ok) throw new Error(`buildTree failed`);
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) {
+      throw new Error("NJ trace missing");
+    }
+    const first = trace.Nj.steps[0];
+    const pair = [first.chosen[0], first.chosen[1]]
+      .map((pos) => {
+        const node = first.active[pos];
+        return dm.value.labels[node];
+      })
+      .sort();
+    expect(pair).toEqual(["t04", "t05"]);
+  });
 });
