@@ -32,8 +32,13 @@ struct Fixture {
     input: String,
     /// run name -> full n×n matrix (`"F84"`, or a ratio like `"2.0"`).
     distances: BTreeMap<String, Vec<Vec<f64>>>,
-    /// Number of decimals dnadist prints.
+    /// Number of decimals dnadist prints in the matrix.
     precision: u32,
+    /// Decimals in the printed matrix, when the fixture records the
+    /// split fields (PR #103). The phylip/ files carry only
+    /// `precision`, which *is* the matrix printed precision.
+    #[serde(default)]
+    dist_precision: Option<u32>,
 }
 
 fn fixtures_dir() -> PathBuf {
@@ -74,10 +79,10 @@ fn cell(m: &neophylo_core::dist::DistanceMatrix, i: usize, j: usize) -> Cell {
     m.cells[i * m.n() + j]
 }
 
-/// Half a unit of the last printed decimal — the strictest tolerance
-/// the printed precision supports (v1.4 spec §3.2).
-fn tol(fx: &Fixture) -> f64 {
-    0.5 * 10f64.powi(-(fx.precision as i32))
+/// Half a unit of the matrix's last printed decimal — the strictest
+/// tolerance the printed precision supports (v1.4 spec §3.2).
+fn dist_tol(fx: &Fixture) -> f64 {
+    0.5 * 10f64.powi(-(fx.dist_precision.unwrap_or(fx.precision) as i32))
 }
 
 /// Replay one fixture matrix against `model`, asserting every printed
@@ -105,11 +110,11 @@ fn check_matrix(
             } else {
                 match got {
                     Cell::Value(v) => assert!(
-                        (v - exp).abs() <= tol(fx),
+                        (v - exp).abs() <= dist_tol(fx),
                         "{} {run} cell ({i}, {j}): engine {v} vs dnadist {exp} \
                          (tol {})",
                         fx.name,
-                        tol(fx)
+                        dist_tol(fx)
                     ),
                     Cell::Saturated => panic!(
                         "{} {run} cell ({i}, {j}): engine Saturated, \
@@ -173,7 +178,7 @@ fn k2p_phylip_differs_from_k80_by_design() {
                         continue;
                     }
                     if let Cell::Value(v) = cell(&k80, i, j) {
-                        if (v - exp).abs() > tol(&fx) {
+                        if (v - exp).abs() > dist_tol(&fx) {
                             found = true;
                         }
                     }

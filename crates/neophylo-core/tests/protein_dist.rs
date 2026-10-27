@@ -40,8 +40,10 @@ struct ProteinFixture {
     /// model name -> reference Newick.
     #[serde(default)]
     nj: BTreeMap<String, String>,
-    /// Printed decimals in the PHYLIP output.
-    precision: u32,
+    /// Decimals protdist printed in the matrix outfile (6).
+    dist_precision: u32,
+    /// Decimals `neighbor` printed in the outtree (5).
+    tree_precision: u32,
     second_opinion: SecondOpinion,
 }
 
@@ -62,9 +64,16 @@ fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
 }
 
-/// Half a unit of the last printed decimal (spec §8.1 rule for PHYLIP).
-fn tol(fx: &ProteinFixture) -> f64 {
-    0.5 * 10f64.powi(-(fx.precision as i32))
+/// Half a unit of the matrix's last printed decimal — the spec §8.1
+/// rule for PHYLIP distances (`dist_precision`, 6 for protdist).
+fn dist_tol(fx: &ProteinFixture) -> f64 {
+    0.5 * 10f64.powi(-(fx.dist_precision as i32))
+}
+
+/// Half a unit of the outtree's last printed decimal (`tree_precision`,
+/// 5 for neighbor).
+fn tree_tol(fx: &ProteinFixture) -> f64 {
+    0.5 * 10f64.powi(-(fx.tree_precision as i32))
 }
 
 fn load_protein_fixtures() -> Vec<ProteinFixture> {
@@ -136,7 +145,7 @@ fn check_distances(fx: &ProteinFixture, aln: &Alignment, model: &str, want: &[Ve
     let got = compute(aln, model_of(model)).unwrap_or_else(|e| panic!("{tag}: {e:?}"));
     let n = got.n();
     assert_eq!(want.len(), n, "{tag}: matrix row count");
-    let t = tol(fx);
+    let t = dist_tol(fx);
     for (i, row) in want.iter().enumerate() {
         assert_eq!(row.len(), n, "{tag}: row {i} width");
         for (j, &w) in row.iter().enumerate() {
@@ -182,7 +191,7 @@ fn check_nj(fx: &ProteinFixture, model: &str, newick: &str) {
         }
     }
     let m = DistanceMatrix::from_values(fx.labels.clone(), &Matrix { n, data });
-    let t = tol(fx);
+    let t = tree_tol(fx);
     let got = build_tree(&m, Method::Nj, BuildOptions { trace: false })
         .unwrap_or_else(|e| panic!("{tag}: build failed: {e:?}"))
         .tree;

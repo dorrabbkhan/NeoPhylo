@@ -47,8 +47,22 @@ interface PhylipFixture {
   distances: Record<string, number[][]>;
   /** Run name → neighbor's outtree Newick on the printed matrix. */
   nj: Record<string, string>;
-  /** Decimals the distance program printed. */
+  /** Decimals the distance program printed (phylip/ files: the
+   * matrix decimals). */
   precision: number;
+  /** ref files only: decimals the distance program printed in the
+   * matrix (dnadist/protdist print 6). */
+  dist_precision?: number;
+  /** ref files only: decimals neighbor printed in the outtree (5). */
+  tree_precision?: number;
+}
+
+/** A ref/ PHYLIP fixture — dist_precision and tree_precision are
+ * required (PR #103); a missing key fails at load, never falls back
+ * to `precision`. */
+interface RefPhylipFixture extends PhylipFixture {
+  dist_precision: number;
+  tree_precision: number;
 }
 
 function loadFixture(sub: string, name: string): PhylipFixture {
@@ -61,12 +75,21 @@ function loadFixture(sub: string, name: string): PhylipFixture {
 
 /** The protdist corpus files live in ref/protein/ (protein_dist.rs
  * owns that glob), not under phylip/ — same JSON shape otherwise. */
-function loadProteinFixture(name: string): PhylipFixture {
+function loadProteinFixture(name: string): RefPhylipFixture {
   const text = readFileSync(
     resolve(FIXTURES, "ref", "protein", `${name}.json`),
     "utf8",
   );
-  return JSON.parse(text) as PhylipFixture;
+  const fx = JSON.parse(text) as RefPhylipFixture;
+  if (
+    typeof fx.dist_precision !== "number" ||
+    typeof fx.tree_precision !== "number"
+  ) {
+    throw new Error(
+      `ref/protein/${name}.json must carry dist_precision and tree_precision`,
+    );
+  }
+  return fx;
 }
 
 /** `>{name}\n{seq}` records in file order — names and residues byte
@@ -202,7 +225,9 @@ describe("lab pack dnadist-neighbor", () => {
     const want = parse(fx.nj.F84);
     // Unrooted RF = 0 pins every split; the sorted edge-length
     // multiset then agrees elementwise within neighbor's printed
-    // precision (5 decimals → 0.5e-5).
+    // precision (5 decimals → 0.5e-5). The f84 fixture records only
+    // `precision` — dnadist's 6 matrix decimals — so the outtree
+    // bound stays a literal.
     const r = engine.compare(want, got);
     if (!r.ok) throw new Error(`compare failed: ${JSON.stringify(r.error)}`);
     expect(r.value.rf).toBe(0);
@@ -352,14 +377,11 @@ describe("lab pack protdist-neighbor", () => {
     const got = r.value;
     expect(got.labels).toEqual(fx.labels);
     const n = fx.labels.length;
-    // protdist 3.697 prints 6 decimals in outfile (`0.722200`), so the
-    // honest bound is half a unit of the last printed decimal: 0.5e-6.
-    // The fixture's `precision` field reads 4 only because the
-    // generator counts decimals after JSON drops trailing zeros — it
-    // under-reports what protdist actually printed. Correcting the
-    // fixture field is an owner decision outside this PR. Measured max
-    // engine-vs-fixture diff is 4.95e-7, so the bound passes honestly.
-    const tol = 0.5e-6;
+    // protdist 3.697 prints 6 decimals in outfile (`0.722200`); the
+    // fixture's `dist_precision` records that, so the bound is half a
+    // unit of the last printed decimal. Measured max engine-vs-fixture
+    // diff is 4.95e-7, so the bound passes honestly.
+    const tol = 0.5 * Math.pow(10, -fx.dist_precision); // 6 decimals → 0.5e-6
     const want = fx.distances.JTT;
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -379,7 +401,8 @@ describe("lab pack protdist-neighbor", () => {
     const gl = branchLengths(got);
     const wl = branchLengths(want);
     expect(gl.length).toBe(wl.length);
-    const tol = 0.5e-5; // neighbor's outtree prints 5 decimals
+    // neighbor's outtree prints 5 decimals → 0.5e-5.
+    const tol = 0.5 * Math.pow(10, -fx.tree_precision);
     gl.forEach((g, k) =>
       expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
   });
@@ -399,7 +422,7 @@ describe("lab pack protdist-neighbor", () => {
     // Same pin as pack 1: neighbor ran on protdist's PRINTED matrix
     // while the engine keeps full precision; this pins that the
     // difference never shows at neighbor's own printed precision
-    // (5 decimals → 0.5e-5). Measured headroom: ~4.5e-6.
+    // (tree_precision, 5 decimals → 0.5e-5). Measured headroom: ~4.5e-6.
     const aln = packAlignment(pack.exercise);
     const dm = engine.distances(aln, "Jtt");
     if (!dm.ok) throw new Error(`distances failed`);
@@ -408,7 +431,7 @@ describe("lab pack protdist-neighbor", () => {
     const gl = branchLengths(got);
     const wl = branchLengths(want);
     expect(gl.length).toBe(wl.length);
-    const tol = 0.5e-5;
+    const tol = 0.5 * Math.pow(10, -fx.tree_precision);
     gl.forEach((g, k) =>
       expect(Math.abs(g - wl[k]), `branch length ${k}`).toBeLessThanOrEqual(tol));
   });
@@ -462,7 +485,9 @@ describe("lab pack protdist-neighbor", () => {
     const wantLen = pendantLength(want, "P05");
     expect(wantLen).toBeLessThan(0);
     expect(gotLen).toBeLessThan(0);
-    expect(Math.abs(gotLen - wantLen)).toBeLessThanOrEqual(0.5e-5);
+    expect(Math.abs(gotLen - wantLen)).toBeLessThanOrEqual(
+      0.5 * Math.pow(10, -fx.tree_precision),
+    );
   });
 
   it("pins the note's mechanism: R(P02) > R(P05) at their join makes P05's share negative", () => {

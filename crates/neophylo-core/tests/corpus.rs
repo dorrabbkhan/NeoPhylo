@@ -55,19 +55,41 @@ struct Fixture {
     nj: BTreeMap<String, String>,
     #[serde(default)]
     upgma: BTreeMap<String, String>,
-    /// `None` for ape/phangorn (full precision); the number of printed
-    /// decimals for PHYLIP.
+    /// `None` for ape/phangorn (full precision); `min(dist_precision,
+    /// tree_precision)` for PHYLIP.
     precision: Option<u32>,
+    /// PHYLIP files only: decimals the distance program printed in the
+    /// matrix (dnadist/protdist print 6).
+    #[serde(default)]
+    dist_precision: Option<u32>,
+    /// PHYLIP files only: decimals `neighbor` printed in the outtree
+    /// (5).
+    #[serde(default)]
+    tree_precision: Option<u32>,
 }
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
 }
 
-/// Distance/length tolerance (spec §8.1): 1e-9 against R output, half a
-/// unit of the last printed decimal against PHYLIP.
-fn tol(fx: &Fixture) -> f64 {
-    match fx.precision {
+/// Distance tolerance (spec §8.1): 1e-9 against R output, half a unit
+/// of the last printed matrix decimal (`dist_precision`) against
+/// PHYLIP. The key is required on PHYLIP fixtures — a missing key is a
+/// fixture bug, not a reason to fall back to `precision`.
+fn dist_tol(fx: &Fixture) -> f64 {
+    match fx.dist_precision {
+        None if is_phylip(fx) => panic!("{}: missing dist_precision", fx.name),
+        None => 1e-9,
+        Some(p) => 0.5 * 10f64.powi(-(p as i32)),
+    }
+}
+
+/// Branch-length tolerance (spec §8.1): 1e-9 against R output, half a
+/// unit of `neighbor`'s last printed decimal (`tree_precision`)
+/// against PHYLIP. Required on PHYLIP fixtures like `dist_precision`.
+fn tree_tol(fx: &Fixture) -> f64 {
+    match fx.tree_precision {
+        None if is_phylip(fx) => panic!("{}: missing tree_precision", fx.name),
         None => 1e-9,
         Some(p) => 0.5 * 10f64.powi(-(p as i32)),
     }
@@ -104,8 +126,19 @@ fn load_fixtures() -> Vec<Fixture> {
     paths
         .iter()
         .map(|p| {
-            serde_json::from_str(&fs::read_to_string(p).expect("readable fixture"))
-                .unwrap_or_else(|e| panic!("{}: {e}", p.display()))
+            let fx: Fixture =
+                serde_json::from_str(&fs::read_to_string(p).expect("readable fixture"))
+                    .unwrap_or_else(|e| panic!("{}: {e}", p.display()));
+            if is_phylip(&fx) {
+                let (dp, tp) = (fx.dist_precision, fx.tree_precision);
+                assert_eq!(
+                    fx.precision,
+                    dp.zip(tp).map(|(d, t)| d.min(t)),
+                    "{}: precision must equal min(dist_precision, tree_precision)",
+                    fx.name
+                );
+            }
+            fx
         })
         .collect()
 }
@@ -152,7 +185,7 @@ fn max_diff(got: &DistanceMatrix, want: &[Vec<f64>]) -> f64 {
 }
 
 /// Compute distances under `model` and compare every cell against the
-/// reference matrix at the fixture's tolerance. For the PHYLIP K80
+/// reference matrix at the matrix's printed tolerance. For the PHYLIP K80
 /// column (a different estimator, see header) assert the known
 /// divergence instead.
 fn check_distances(fx: &Fixture, aln: &Alignment, model: &str, want: &[Vec<f64>]) {
@@ -163,13 +196,13 @@ fn check_distances(fx: &Fixture, aln: &Alignment, model: &str, want: &[Vec<f64>]
     let diff = max_diff(&got, want);
     if different_estimator(fx, model) {
         assert!(
-            diff > tol(fx),
+            diff > dist_tol(fx),
             "{tag}: engine K80 unexpectedly matches PHYLIP K2P-MLE to \
              printed precision — if the fixture was regenerated with a \
              standard K80 column, restore the distance comparison"
         );
     } else {
-        let tol = tol(fx);
+        let tol = dist_tol(fx);
         assert!(
             diff <= tol,
             "{tag}: max distance error {diff} exceeds tolerance {tol}"
@@ -216,10 +249,10 @@ fn clusters(
 }
 
 /// NJ parity: unrooted RF = 0 and the sorted multisets of branch lengths
-/// agree elementwise at the fixture's tolerance. `m` is the fixture's
-/// own matrix — the input the reference tool consumed.
+/// agree elementwise at the outtree's printed tolerance. `m` is the
+/// fixture's own matrix — the input the reference tool consumed.
 fn check_nj(fx: &Fixture, m: &DistanceMatrix, model: &str, newick: &str) {
-    let tol = tol(fx);
+    let tol = tree_tol(fx);
     let tag = format!("{}/{model}/nj", fx.name);
     let got = build_tree(m, Method::Nj, BuildOptions { trace: false })
         .unwrap_or_else(|e| panic!("{tag}: build failed: {e:?}"))
@@ -242,7 +275,7 @@ fn check_nj(fx: &Fixture, m: &DistanceMatrix, model: &str, newick: &str) {
 /// rounding error, so a height — a sum of `depth` edges — is checked at
 /// `tol * depth`; for full-precision fixtures this is `depth * 1e-9`.
 fn check_upgma(fx: &Fixture, m: &DistanceMatrix, model: &str, newick: &str) {
-    let tol = tol(fx);
+    let tol = tree_tol(fx);
     let tag = format!("{}/{model}/upgma", fx.name);
     let got = build_tree(m, Method::Upgma, BuildOptions { trace: false })
         .unwrap_or_else(|e| panic!("{tag}: build failed: {e:?}"))
