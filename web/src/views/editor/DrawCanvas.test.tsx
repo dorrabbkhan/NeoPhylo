@@ -69,7 +69,7 @@ describe("DrawCanvas", () => {
       expect(edge(`Branch to ${leaf}`)).toBeTruthy();
     }
     // The root is an internal node control too (selectable for J).
-    expect(node("Node u1 (A, B, C)")).toBeTruthy();
+    expect(node("Node (A, B, C)")).toBeTruthy();
   });
 
   it("a drag onto a branch produces the same tree as the keyboard join, and the Newick text of both is identical", () => {
@@ -125,8 +125,8 @@ describe("DrawCanvas", () => {
     const before = model.tree;
     // (D,E) cannot move under D — its own descendant. The refusal
     // names the clades, not the arena ids.
-    fireEvent.pointerDown(node("Node u3 (D, E)"), { clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(node("Node u3 (D, E)"), { clientX: 30, clientY: 30 });
+    fireEvent.pointerDown(node("Node (D, E)"), { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(node("Node (D, E)"), { clientX: 30, clientY: 30 });
     fireEvent.pointerUp(edge("Branch to D"), { clientX: 30, clientY: 30 });
     const alert = screen.getByRole("alert").textContent ?? "";
     expect(alert).toContain("Can't move (D, E) onto the branch to D");
@@ -156,15 +156,33 @@ describe("DrawCanvas", () => {
     }
   });
 
+  // Task 10 carry-over (PR #96 review): while a detached or new leaf
+  // exists, state/names.ts's leaf count is off by the detached nodes
+  // and internal nodes used to read "Node #3". The editor names
+  // internal nodes by their clade instead — always correct.
+  it("internal nodes keep clade names while a detached leaf exists", () => {
+    const model = renderCanvas("(A:0.1,B:0.2,C:0.3);");
+    act(() => {
+      model.apply({ kind: "addLeaf", name: "F" });
+    });
+    // F is a fourth childless node — the u-numbering would misread
+    // the (A,B,C) root as "#3". The clade name stays right.
+    expect(node("Node (A, B, C)")).toBeTruthy();
+    expect(node("Leaf F")).toBeTruthy();
+    for (const b of screen.getAllByRole("button")) {
+      expect(b.getAttribute("aria-label") ?? "").not.toMatch(/^Node #/);
+    }
+  });
+
   it("a refused move shows the engine's message and keeps the same tree object", () => {
     const model = renderCanvas();
     const before = model.tree;
     // Dragging the root onto a branch is refused: "the root cannot move".
-    fireEvent.pointerDown(node("Node u1 (A, B, C, D, E)"), {
+    fireEvent.pointerDown(node("Node (A, B, C, D, E)"), {
       clientX: 10,
       clientY: 10,
     });
-    fireEvent.pointerMove(node("Node u1 (A, B, C, D, E)"), {
+    fireEvent.pointerMove(node("Node (A, B, C, D, E)"), {
       clientX: 60,
       clientY: 60,
     });
@@ -177,8 +195,8 @@ describe("DrawCanvas", () => {
     const model = renderCanvas();
     const before = model.tree;
     // (D,E) cannot move under D — its own descendant.
-    fireEvent.pointerDown(node("Node u3 (D, E)"), { clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(node("Node u3 (D, E)"), { clientX: 30, clientY: 30 });
+    fireEvent.pointerDown(node("Node (D, E)"), { clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(node("Node (D, E)"), { clientX: 30, clientY: 30 });
     fireEvent.pointerUp(edge("Branch to D"), { clientX: 30, clientY: 30 });
     expect(screen.getByRole("alert").textContent).toMatch(/descendant/i);
     expect(model.tree).toBe(before);
@@ -186,22 +204,22 @@ describe("DrawCanvas", () => {
 
   it("Delete detaches a selected node and the detached subtree draws beside the tree", () => {
     const model = renderCanvas();
-    select(node("Node u3 (D, E)"));
+    select(node("Node (D, E)"));
     fireEvent.keyDown(canvas(), { key: "Delete" });
     // The main tree keeps A, B, C; (D,E) draws as a detached component.
     expect(engine.writeNewick(model.tree)).toBe("((A:0.1,B:0.2):0.05,C:0.3);");
     expect(screen.getByText(/Detached/)).toBeTruthy();
     expect(node("Leaf D")).toBeTruthy();
-    expect(node("Node u3 (D, E)")).toBeTruthy();
+    expect(node("Node (D, E)")).toBeTruthy();
   });
 
   it("J joins two selected component roots back into one tree", () => {
     const model = renderCanvas();
     // Detach (D,E) first — it stays selected — then select the main
     // root too and press J to join the two component roots.
-    select(node("Node u3 (D, E)"));
+    select(node("Node (D, E)"));
     fireEvent.keyDown(canvas(), { key: "Delete" });
-    select(node("Node u1 (A, B, C)"));
+    select(node("Node (A, B, C)"));
     fireEvent.keyDown(canvas(), { key: "j" });
     expect(engine.writeNewick(model.tree)).toBe(
       "((D:0.1,E:0.15):0.1,((A:0.1,B:0.2):0.05,C:0.3):0.1);",
@@ -243,11 +261,11 @@ describe("DrawCanvas", () => {
     fireEvent.keyDown(canvas(), { key: "ArrowRight" });
     expect(engine.writeNewick(model.tree)).toBe("(A:0.1,B:0.21,C:0.3);");
     // One refused edit — dragging the root at a branch.
-    fireEvent.pointerDown(node("Node u1 (A, B, C)"), {
+    fireEvent.pointerDown(node("Node (A, B, C)"), {
       clientX: 10,
       clientY: 10,
     });
-    fireEvent.pointerMove(node("Node u1 (A, B, C)"), {
+    fireEvent.pointerMove(node("Node (A, B, C)"), {
       clientX: 60,
       clientY: 40,
     });
@@ -261,7 +279,7 @@ describe("DrawCanvas", () => {
 
   it("a drag onto a detached subtree's branch grafts the node there", () => {
     const model = renderCanvas();
-    select(node("Node u3 (D, E)"));
+    select(node("Node (D, E)"));
     fireEvent.keyDown(canvas(), { key: "Delete" });
     // Drag C onto the branch above D inside the detached component.
     fireEvent.pointerDown(node("Leaf C"), { clientX: 0, clientY: 0 });

@@ -4555,3 +4555,58 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   runner) the full `./scripts/check.sh` gate runs green here,
   including `wasm-pack test --node`, the pkg rebuild, the
   generated-types diff and all 684 vitest tests.
+
+## v1.4 Task 10: editor settings, prompts, preview, sheets, snapshots
+
+- **Viewport ruling (conductor):** the plan's Step 4 says editor
+  snapshots at 768/1,024/1,280 px but Global Constraints and
+  `visual.spec.ts` pin 1920×1080, 1024×768 and 768×1024. The editor
+  scenes use the standard three PLUS an extra 1280×800 frame (the
+  `viewports` field added to `SCENES` — 1280 is not added to the
+  global VIEWPORTS). New scenes: `editor-default`, `editor-f84`,
+  `editor-preview` (the Preview button's popup — the real player,
+  unchanged), `editor-sheet` (768×1024 only — sheets exist only below
+  1024). Baselines are ADD-only; the owner approves.
+- **One Model select, six presets.** `EditorModelChoice` maps each
+  choice to a matched (sim model, correction, alphabet) triple
+  following the lesson convention; `p` (uncorrected) is not offered
+  (the conductor list names JC69, K80, F84, K2P_PHYLIP and the
+  protein models Kimura/JTT). K80 keeps the dnadist/app default
+  κ = 2 with no field — κ shows only for K2P_PHYLIP, where it sets
+  BOTH `analysis.kappa` and the K80 sim's κ (spec §2.1). An imported
+  exercise outside these presets is refused with a reason rather than
+  silently rewritten (e.g. K80 at κ ≠ 2, a p correction, embedded
+  data).
+- **κ ≤ 0.5 warns, never refuses** ("dnadist treats ratios ≤ 0.5 as
+  0.5", owner decision PR #88): the engine accepts it, and the named
+  tests pin that the form's verdict always equals `saveExercise`'s.
+- **Preview = `window.open` on the share link.** The popup IS the
+  existing lesson player — no player code is embedded in the editor.
+- **Player display fixes (additive, not player changes):** an F84 or
+  K2P_PHYLIP exercise in an `#x=` link previously crashed Controls
+  (`simModelName` threw on `{F84:…}`; the correction select had no
+  matching option). `simModelName` now returns `"F84"` (the file's own
+  comment deferred this to the editor task), and Controls shows
+  exercise-prescribed F84/K2P_PHYLIP as conditional display options —
+  the menus themselves are unchanged.
+- **Task 9 carry-overs (REQUIRED per conductor notes):** (1) the touch
+  scroll trap — `touch-action: manipulation` on the svg plus
+  coarse-pointer HTML `.node-touch` overlays carrying `none`
+  (Chromium ignores touch-action on inner svg nodes), pinned by a CDP
+  touch test: a swipe over empty canvas scrolls, a handle drag still
+  drags. (2) detached/new leaves corrupted internal-node accessible
+  names into "#<id>" via `state/names.ts`'s leaf count — `nodeAria`
+  now names internal nodes by their clade ("Node (A, B)"), editor-side
+  only; `names.ts` untouched.
+- **Files outside the Files block:**
+  `web/src/editor/draft.ts` + `draft.test.ts` (the settings→Exercise
+  assembly and single validation source — view files would exceed the
+  ~400-line rule); `web/src/views/editor/SettingsForm.test.tsx` and
+  `PromptList.test.tsx` (the block lists e2e tests only; Review
+  Focus 1's agreement pin and per-field behaviour are cheaper in
+  Vitest); `web/e2e/visualScenes.ts` (new scenes + `viewports` +
+  popup-target support); `web/src/index.css` (new-component styles +
+  the touch-action change); `web/src/state/analysis.ts` and
+  `web/src/views/Controls.tsx` (the display fixes above);
+  `web/src/views/editor/DrawCanvas.tsx`, `drawOps.ts`,
+  `DrawCanvas.test.tsx` (the carry-overs); this file.

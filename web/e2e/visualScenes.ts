@@ -163,9 +163,25 @@ async function settleWithClosing(page: Page, closing: Locator) {
   expect(box!.y + box!.height).toBeLessThanOrEqual(vp!.height);
 }
 
+/** The editor scenes' extra viewport (conductor ruling, Task 10: the
+ * plan's 768/1,024/1,280 px list disagrees with the Global
+ * Constraints' standard viewports — the editor gets the standard
+ * three PLUS this one). */
+const EDITOR_VIEWPORTS = [
+  { w: 1920, h: 1080 },
+  { w: 1024, h: 768 },
+  { w: 768, h: 1024 },
+  { w: 1280, h: 800 },
+];
+
 export const SCENES: {
   name: string;
-  setup: (page: Page) => Promise<void>;
+  /** Drives the UI to the frame; returning a Page shoots THAT page
+   * instead of `page` (the editor preview's popup). */
+  setup: (page: Page) => Promise<void | Page>;
+  /** A custom viewport list (all themes). Defaults to the standard
+   * three when `only` is unset. */
+  viewports?: readonly { w: number; h: number }[];
   /** Restrict the scene to one viewport × theme (Task 11's
    * presenter variant records a single 1920×1080 light frame). */
   only?: { viewport: { w: number; h: number }; theme: "light" | "dark" };
@@ -260,6 +276,80 @@ export const SCENES: {
         .getByRole("button", { name: "Presenter mode" })
         .click();
       await settleWithClosing(page, closing);
+    },
+  },
+  {
+    // v1.4 Task 10: the editor at its default state — canvas, Newick,
+    // table, settings and prompts all visible.
+    name: "editor-default",
+    viewports: EDITOR_VIEWPORTS,
+    setup: async (page) => {
+      await page.goto("/?editor");
+      await expect(
+        page.getByRole("application", { name: "Tree canvas" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("combobox", { name: "Model" }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // F84 selected: the four base-frequency inputs and their sum.
+    name: "editor-f84",
+    viewports: EDITOR_VIEWPORTS,
+    setup: async (page) => {
+      await page.goto("/?editor");
+      await expect(
+        page.getByRole("application", { name: "Tree canvas" }),
+      ).toBeVisible();
+      await page
+        .getByRole("combobox", { name: "Model" })
+        .selectOption("F84");
+      await expect(
+        page.getByRole("textbox", { name: "Base frequency A" }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The preview: the editor's Preview button opens the exercise in a
+    // new tab — the real lesson player (spec §5.3). The popup is the
+    // shot, resized to the scene's viewport by the spec's own
+    // setViewportSize… popups don't inherit it, so set it here.
+    name: "editor-preview",
+    viewports: EDITOR_VIEWPORTS,
+    setup: async (page) => {
+      await page.goto("/?editor");
+      await expect(
+        page.getByRole("application", { name: "Tree canvas" }),
+      ).toBeVisible();
+      const [popup] = await Promise.all([
+        page.context().waitForEvent("page"),
+        page.getByRole("button", { name: "Preview" }).click(),
+      ]);
+      const vp = page.viewportSize();
+      if (vp !== null) await popup.setViewportSize(vp);
+      await popup.waitForLoadState();
+      await waitForApp(popup);
+      await settleFrame(popup);
+      return popup;
+    },
+  },
+  {
+    // Below 1024 px the Newick/table views open as full-screen sheets.
+    name: "editor-sheet",
+    viewports: [{ w: 768, h: 1024 }],
+    setup: async (page) => {
+      await page.goto("/?editor");
+      await expect(
+        page.getByRole("application", { name: "Tree canvas" }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Newick tree" }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Newick tree" }),
+      ).toBeVisible();
+      await settleFrame(page);
     },
   },
   {

@@ -240,7 +240,7 @@ test("detach and re-join through the canvas (keyboard only)", async ({
   await expect(newick).toBeVisible();
   // Starter tree: ((A,B),C,(D,E)) — the (D,E) node's parent has three
   // children, so it detaches cleanly.
-  const clade = page.getByRole("button", { name: "Node u3 (D, E)" });
+  const clade = page.getByRole("button", { name: "Node (D, E)" });
   await clade.focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press("Delete");
@@ -252,7 +252,7 @@ test("detach and re-join through the canvas (keyboard only)", async ({
   ).toBeVisible();
   // The detached root stays selected after Delete; selecting the main
   // root too gives J two component roots to join.
-  await page.getByRole("button", { name: "Node u1 (A, B, C)" }).focus();
+  await page.getByRole("button", { name: "Node (A, B, C)" }).focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press("j");
   await expect(newick).toHaveValue(
@@ -504,9 +504,9 @@ test("a selected and focused node keeps its ring clear of its label and inside t
   // The main-tree root — an unlabeled node at the left edge; its
   // ring alone must stay inside the canvas. (Checked before the add
   // below: a new arena leaf renumbers the u-names.)
-  await tabToHandle(page, "Node u1 (A, B, C)");
+  await tabToHandle(page, "Node (A, B, C)");
   await page.keyboard.press("Enter");
-  await expectDecorClear(page, "Node u1 (A, B, C)");
+  await expectDecorClear(page, "Node (A, B, C)");
 
   // The right-edge leaf of the main tree, selected+focused.
   await tabToHandle(page, "Leaf C");
@@ -580,9 +580,12 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
   });
   const page = await context.newPage();
   await page.goto("/?editor");
+  // Below 1024 px the Newick field lives in its sheet (Task 10).
+  await page.getByRole("button", { name: "Newick tree" }).click();
   const newick = NEWICK(page);
   await newick.fill("(A:0.1,B:0.2,C:0.3);");
   await newick.press("Enter");
+  await page.keyboard.press("Escape");
   expect(
     await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
     "the emulation presents a coarse pointer",
@@ -656,6 +659,7 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
     type: "touchEnd",
     touchPoints: [],
   });
+  await page.getByRole("button", { name: "Newick tree" }).click();
   await expect(newick).toHaveValue("(A:0.1,(B:0.1,F:0.1):0.1,C:0.3);");
   await context.close();
 });
@@ -713,4 +717,283 @@ test("axe: the editor page has no serious violations", async ({ page }) => {
     bad.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target).join(", ")}`),
     "the editor page must have no serious/critical axe violations",
   ).toEqual([]);
+});
+
+// ---- Task 10 (spec §5.3–5.5): settings, prompts, preview, sheets ----
+
+test("below 1024 px the Newick and table views open as full-screen sheets, and Escape returns focus", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 768, height: 1024 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+
+  // The views leave the grid: two buttons stand in for them.
+  const newickBtn = page.getByRole("button", { name: "Newick tree" });
+  const tableBtn = page.getByRole("button", { name: "Branch lengths" });
+  await expect(newickBtn).toBeVisible();
+  await expect(tableBtn).toBeVisible();
+  await expect(NEWICK(page)).toHaveCount(0);
+  await expect(TABLE(page)).toHaveCount(0);
+
+  // The Newick sheet: a dialog covering the viewport.
+  await newickBtn.click();
+  const sheet = page.getByRole("dialog", { name: "Newick tree" });
+  await expect(sheet).toBeVisible();
+  await expect(NEWICK(page)).toBeVisible();
+  const box = await sheet.boundingBox();
+  const vp = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(Math.round(box!.width)).toBe(vp!.width);
+  expect(Math.round(box!.height)).toBe(vp!.height);
+
+  // Editing still reaches the model: the table sheet sees it too.
+  await NEWICK(page).fill("(A:0.1,B:0.2,C:0.3);");
+  await NEWICK(page).press("Enter");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  // Focus went back to the button that opened the sheet.
+  await expect(newickBtn).toBeFocused();
+
+  await tableBtn.click();
+  const tableSheet = page.getByRole("dialog", {
+    name: "Branch lengths",
+  });
+  await expect(tableSheet).toBeVisible();
+  await expect(
+    TABLE(page).getByRole("textbox", {
+      name: "Length of the branch to C",
+    }),
+  ).toHaveValue("0.3");
+  await page.keyboard.press("Escape");
+  await expect(tableSheet).toHaveCount(0);
+  await expect(tableBtn).toBeFocused();
+  await context.close();
+});
+
+test("a prompt added in the list appears in the preview with its gate", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/?editor");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await page
+    .getByRole("textbox", { name: "Prompt 1 concept" })
+    .fill("Watch the first join happen.");
+  await page
+    .getByRole("spinbutton", { name: "Prompt 1 join step" })
+    .fill("1");
+
+  // Preview opens the exercise through the real lesson player — a new
+  // tab on the #x= link, unchanged.
+  const [popup] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("button", { name: "Preview" }).click(),
+  ]);
+  await popup.waitForLoadState();
+  await expect(popup.locator(".app")).toBeVisible();
+  // at_step 1 shows at stepper position 0 — the gate holds.
+  await expect(
+    popup.locator(".prompt-card", { hasText: "Watch the first join" }),
+  ).toBeVisible();
+  await popup.close();
+});
+
+test("a share link too long for the limit says so and offers the file (Review Focus 4)", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  // Deterministic, poorly compressible padding (Math.random is banned)
+  // — the same construction exerciseFile.test.ts uses to pass the
+  // SHARE_LINK_MAX_LENGTH limit.
+  let pad = "";
+  for (let i = 0; pad.length < 9000; i++) {
+    pad += i.toString(36) + "-";
+  }
+  await page
+    .getByRole("textbox", { name: "Title" })
+    .fill(`An exercise ${pad}`);
+  await page.getByRole("button", { name: "Share link" }).click();
+  const alert = page.getByRole("alert");
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText(/too long|over \d+ characters/i);
+  await expect(alert).toContainText(/save the file/i);
+});
+
+test("the κ field appears only for K2P_PHYLIP, rejects 0 and warns under dnadist's clamp", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const kappa = page.getByRole("textbox", { name: "Kappa (κ)" });
+  await expect(kappa).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Model" })
+    .selectOption("K2P_PHYLIP");
+  await expect(kappa).toBeVisible();
+
+  await kappa.fill("0");
+  await expect(page.getByRole("alert")).toContainText(/positive/i);
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeDisabled();
+
+  await kappa.fill("0.4");
+  await expect(
+    page.getByText(/dnadist treats ratios ≤ 0\.5 as 0\.5/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeEnabled();
+});
+
+test("F84 base frequencies show their sum and block save until it is 1", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  await page.getByRole("combobox", { name: "Model" }).selectOption("F84");
+  await expect(
+    page.getByRole("textbox", { name: "Base frequency A" }),
+  ).toHaveValue("0.25");
+  await expect(page.getByText(/Sum: 1 — must be 1\./)).toBeVisible();
+
+  await page
+    .getByRole("textbox", { name: "Base frequency A" })
+    .fill("0.9");
+  await expect(page.getByText(/Sum: 1\.65 — must be 1\./)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("textbox", { name: "Base frequency A" })
+    .fill("0.25");
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeEnabled();
+});
+
+test("touch: a swipe over empty canvas scrolls the page while a handle drag still drags", async ({
+  browser,
+  browserName,
+}) => {
+  // Real touch input only exists via Chromium's CDP
+  // Input.dispatchTouchEvent.
+  test.skip(browserName !== "chromium", "CDP touch input is Chromium-only");
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/?editor");
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  // A 12-taxon tree so the editor page is taller than the viewport —
+  // typed into the sheet's field (the Newick view is a sheet here).
+  const tall =
+    "(((T0:0.1,T1:0.1,T2:0.1):0.1,(T3:0.1,T4:0.1,T5:0.1):0.1):0.1," +
+    "((T6:0.1,T7:0.1,T8:0.1):0.1,(T9:0.1,T10:0.1,T11:0.1):0.1):0.1);";
+  await page.getByRole("button", { name: "Newick tree" }).click();
+  const newick = NEWICK(page);
+  await newick.fill(tall);
+  await newick.press("Enter");
+  // It parsed — otherwise the rest of the test pins a refusal, not
+  // the scroll behaviour.
+  await expect(page.getByRole("button", { name: "Leaf T0" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const cdp = await context.newCDPSession(page);
+  const swipe = async (
+    sx: number,
+    sy: number,
+    ex: number,
+    ey: number,
+  ): Promise<void> => {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: sx, y: sy, id: 1 }],
+    });
+    const steps = 10;
+    for (let i = 1; i <= steps; i += 1) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          { x: sx + ((ex - sx) * i) / steps, y: sy + ((ey - sy) * i) / steps, id: 1 },
+        ],
+      });
+    }
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  };
+
+  const scrollPos = () =>
+    page.evaluate(() => {
+      const box = document.querySelector(".draw-canvas-box");
+      return (
+        window.scrollY + (box === null ? 0 : box.scrollTop)
+      );
+    });
+
+  // A vertical swipe over EMPTY canvas must scroll the page/box — not
+  // drag or select anything. Pick the start point by hit-test: a spot
+  // inside the canvas box where elementFromPoint lands on the bare
+  // svg (no handle, no overlay).
+  const empty = await page.evaluate(() => {
+    const inner = document.querySelector(".draw-canvas-inner");
+    const box = document.querySelector(".draw-canvas-box");
+    if (inner === null || box === null) return null;
+    const r = box.getBoundingClientRect();
+    for (let y = r.bottom - 8; y > r.top + 8; y -= 12) {
+      for (let x = r.right - 8; x > r.left + 8; x -= 24) {
+        const el = document.elementFromPoint(x, y);
+        if (el !== null && el.classList.contains("draw-canvas")) {
+          return { x, y };
+        }
+      }
+    }
+    return null;
+  });
+  if (empty === null) {
+    throw new Error("no bare-canvas point found inside the canvas box");
+  }
+  const start = await scrollPos();
+  await swipe(empty.x, empty.y, empty.x, empty.y - 200);
+  await page.waitForTimeout(150);
+  expect(
+    await scrollPos(),
+    "a swipe over empty canvas scrolls the page",
+  ).toBeGreaterThan(start);
+
+  // A touch-drag that starts ON a node handle still drags the node:
+  // the HTML hit-target overlay carries touch-action: none. Drag the
+  // first leaf onto the second's branch — the move op the keyboard
+  // path produces.
+  const leaf0 = page.getByRole("button", { name: "Leaf T0", exact: true });
+  const edge1 = page.getByRole("button", {
+    name: "Branch to T1",
+    exact: true,
+  });
+  const a = await leaf0.boundingBox();
+  const b = await edge1.boundingBox();
+  if (a === null || b === null) throw new Error("no box");
+  await swipe(
+    a.x + a.width / 2,
+    a.y + a.height / 2,
+    b.x + b.width / 2,
+    b.y + b.height / 2,
+  );
+  // The tree changed — a real move op landed (leaf T0 now shares a
+  // clade with T1).
+  await page.getByRole("button", { name: "Newick tree" }).click();
+  await expect(newick).toHaveValue(/\(T1:0\.05,T0:0\.1\):0\.05/);
+  await context.close();
 });

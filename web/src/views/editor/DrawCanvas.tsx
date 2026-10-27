@@ -53,6 +53,7 @@ import {
 } from "../../layout/treePanel";
 
 import {
+  HIT_MIN,
   JOIN_EDGE,
   LENGTH_STEP,
   moveOp,
@@ -309,33 +310,61 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
         Tree canvas
       </span>
       <div className="draw-canvas-box" ref={boxRef}>
-        <svg
-          className="draw-canvas"
-          ref={svgRef}
-          role="application"
-          aria-label="Tree canvas"
-          aria-describedby="draw-canvas-hint"
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          width={svgW}
-          height={svgH}
-          tabIndex={0}
-          onKeyDown={onKeyDown}
-          onClick={(e) => {
-            if (e.target === svgRef.current) setSelected([]);
-          }}
+        <div
+          className="draw-canvas-inner"
+          style={{ width: svgW, height: svgH }}
         >
-          <DrawTree
-            tree={tree}
-            comps={comps}
-            pos={pos}
-            fontSize={fontSize}
-            smallFont={smallFont}
-            selected={selected}
-            drag={drag}
-            beginDrag={beginDrag}
-            selectEdge={(id) => toggleSel({ kind: "edge", id })}
-          />
-        </svg>
+          <svg
+            className="draw-canvas"
+            ref={svgRef}
+            role="application"
+            aria-label="Tree canvas"
+            aria-describedby="draw-canvas-hint"
+            viewBox={`0 0 ${svgW} ${svgH}`}
+            width={svgW}
+            height={svgH}
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            onClick={(e) => {
+              if (e.target === svgRef.current) setSelected([]);
+            }}
+          >
+            <DrawTree
+              tree={tree}
+              comps={comps}
+              pos={pos}
+              fontSize={fontSize}
+              smallFont={smallFont}
+              selected={selected}
+              drag={drag}
+              beginDrag={beginDrag}
+              selectEdge={(id) => toggleSel({ kind: "edge", id })}
+            />
+          </svg>
+          {/* HTML hit targets over the node handles (Task 10, spec
+            * §5.2): Chromium honours touch-action only on the outer
+            * svg element, not inner nodes — so the svg allows page pan
+            * (`manipulation`) and these coarse-pointer-only overlays
+            * carry `touch-action: none`. A swipe over empty canvas
+            * scrolls; a touch-drag that starts on a handle drags the
+            * node through the same beginDrag path the svg handles use.
+            * Keyboard and AT users keep the svg's own handles, so the
+            * overlays are aria-hidden and untabbable. */}
+          {[...pos.entries()].map(([id, p]) => (
+            <div
+              key={id}
+              className="node-touch"
+              aria-hidden="true"
+              style={{
+                left: p.x - HIT_MIN / 2,
+                top: p.y - HIT_MIN / 2,
+                width: HIT_MIN,
+                height: HIT_MIN,
+              }}
+              onPointerDown={(e) => beginDrag(id, e)}
+            />
+          ))}
+        </div>
       </div>
       <div className="new-leaf-row">
         <button

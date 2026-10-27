@@ -36,7 +36,9 @@ test.beforeEach(async ({ context }) => {
 });
 
 for (const scene of SCENES) {
-  const viewports = scene.only ? [scene.only.viewport] : VIEWPORTS;
+  const viewports = scene.only
+    ? [scene.only.viewport]
+    : (scene.viewports ?? VIEWPORTS);
   const themes = scene.only ? [scene.only.theme] : THEMES;
   for (const vp of viewports) {
     for (const theme of themes) {
@@ -57,8 +59,11 @@ for (const scene of SCENES) {
           }
         }, theme);
         await page.emulateMedia({ colorScheme: theme });
-        await scene.setup(page);
-        await expect(page).toHaveScreenshot(
+        // A setup may hand back a different page to shoot — the
+        // editor preview opens the exercise in a new tab (v1.4 Task
+        // 10); that popup is the frame, not the editor page.
+        const target = (await scene.setup(page)) ?? page;
+        await expect(target).toHaveScreenshot(
           `${scene.name}-${vp.w}x${vp.h}-${theme}.png`,
           { maxDiffPixelRatio: 0.001, animations: "disabled", caret: "hide" },
         );

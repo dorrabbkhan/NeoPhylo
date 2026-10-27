@@ -2222,21 +2222,43 @@ button,
   background: var(--color-surface);
 }
 
+.draw-canvas-inner {
+  position: relative;
+}
+
 .draw-canvas {
   display: block;
   color: var(--color-text);
   /* A drag must never select the leaf labels as text. */
   user-select: none;
-  /* A touch drag on a handle must not become a page pan — the browser
-   * would pointercancel it. On the svg itself because Chromium only
-   * honours touch-action on the outer svg element, not inner nodes. */
-  touch-action: none;
+  /* Panning stays allowed on the canvas itself (Task 10): a vertical
+   * swipe over empty canvas scrolls the page. Handle drags are
+   * protected by the .node-touch HTML overlays instead — Chromium
+   * ignores touch-action on inner svg nodes. */
+  touch-action: manipulation;
 }
 
 .draw-canvas .node-hit {
   cursor: grab;
   /* For engines that honour touch-action on inner svg nodes. */
   touch-action: none;
+}
+
+/* HTML hit targets over the node handles — display:none except under
+ * a coarse pointer, where they carry touch-action: none so a drag
+ * that starts on a handle is never taken over by page pan. Same size
+ * and position as the svg's .node-hit-pad. */
+.draw-canvas-inner .node-touch {
+  display: none;
+  position: absolute;
+  touch-action: none;
+  cursor: grab;
+}
+
+@media (pointer: coarse) {
+  .draw-canvas-inner .node-touch {
+    display: block;
+  }
 }
 
 .draw-canvas .edge-hit {
@@ -2377,6 +2399,267 @@ button,
   /* The New-leaf button and its form's submit get the same ≥40 px
    * floor as the rest of the editor's controls. */
   .new-leaf-row button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* ---- Editor settings, prompts, actions and sheets (v1.4 Task 10,
+ * spec §5.3–5.5) ---- */
+
+.editor-section {
+  margin-top: var(--space-24);
+}
+
+.editor-section h2 {
+  margin: 0 0 var(--space-8);
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+}
+
+.editor-actions .import-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.editor-actions .import-field input {
+  width: 280px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+/* The real <input type="file"> keeps its accessible name; the visible
+ * pill is the span — same pattern as the app's file buttons. */
+.import-file input[type="file"] {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  max-width: 240px;
+}
+
+.editor-notice {
+  margin-bottom: var(--space-16);
+}
+
+.share-link-out {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+/* A warning is a caution, not a refusal: the weak-support amber, which
+ * the tokens already define for caution text in both themes. */
+.editor-warning {
+  color: var(--color-support-weak);
+  font-size: var(--size-xs);
+  margin: var(--space-4) 0 0;
+}
+
+.settings-form .settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  margin-bottom: var(--space-8);
+}
+
+.settings-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.settings-form .field > span {
+  color: var(--color-text);
+}
+
+.settings-form input,
+.settings-form select {
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.settings-form input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.settings-form input:focus-visible,
+.settings-form select:focus-visible,
+.editor-actions input:focus-visible,
+.editor-actions button:focus-visible,
+.editor-view-buttons button:focus-visible,
+.import-file input:focus-visible + .import-file-btn,
+.prompt-list input:focus-visible,
+.prompt-list select:focus-visible,
+.prompt-list textarea:focus-visible,
+.prompt-list button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.freq-set {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  margin: 0 0 var(--space-8);
+}
+
+.freq-set legend {
+  font-size: var(--size-sm);
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+}
+
+.freq-field input {
+  width: 72px;
+  font-family: var(--font-mono);
+}
+
+/* The two view buttons replace the inline Newick/table views below
+ * 1024 px — they open the full-screen sheets. */
+.editor-view-buttons {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.editor-sheet {
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--space-24);
+  overflow: auto;
+}
+
+.editor-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-16);
+}
+
+.editor-sheet-head h2 {
+  margin: 0;
+}
+
+.editor-sheet .close {
+  font-size: var(--size-lg);
+  line-height: 1;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: var(--space-8);
+}
+
+.prompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.prompt-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.prompt-item legend {
+  font-size: var(--size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+}
+
+.prompt-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-16);
+}
+
+.prompt-list .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.prompt-list .field > span,
+.prompt-pair .field-label {
+  color: var(--color-text);
+}
+
+.prompt-list input,
+.prompt-list select,
+.prompt-list textarea {
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.prompt-list textarea {
+  font-family: var(--font-body, inherit);
+  min-height: 48px;
+  resize: vertical;
+}
+
+.prompt-step input {
+  width: 72px;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+.prompt-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--size-sm);
+}
+
+.prompt-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+@media (pointer: coarse) {
+  .editor-actions button,
+  .editor-view-buttons button,
+  .prompt-actions button,
+  .prompt-add-row button {
     min-height: 40px;
     min-width: 40px;
   }

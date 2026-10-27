@@ -10,7 +10,6 @@ import type { NeoError } from "../../engine/generated/NeoError";
 import type { NodeId } from "../../engine/generated/NodeId";
 import type { Tree } from "../../engine/generated/Tree";
 import { errorMessage, type ErrorMessage } from "../../explain/errors";
-import { nodeName } from "../../state/names";
 
 /** One selection slot on the draw canvas: a node, or the incoming
  * edge of a node. */
@@ -68,12 +67,18 @@ export function cladeName(tree: Tree, id: NodeId): string {
   return `(${names.join(", ")})`;
 }
 
-/** Accessible name for a node handle: "Leaf A" or "Node u2 (A, B)". */
+/** Accessible name for a node handle: "Leaf A" or "Node (A, B)". The
+ * internal-node name is the clade, not state/names.ts's u-numbering —
+ * that numbering counts EVERY childless arena node, so a detached or
+ * newly added leaf (a childless node that is not in the root
+ * component) corrupts it into "#<id>". The clade name is correct for
+ * any component layout, and the editor's names need no textbook
+ * u-ordering (which shifts on every edit anyway). */
 export function nodeAria(tree: Tree, id: NodeId): string {
   const n = tree.nodes[id];
   if (n === undefined) return `Node ${id}`;
   if (n.children.length === 0) return `Leaf ${n.label ?? `#${id}`}`;
-  return `Node ${nodeName(tree, id)} ${cladeName(tree, id)}`;
+  return `Node ${cladeName(tree, id)}`;
 }
 
 /** The op a node-onto-branch drop (or a node+branch J) applies: the
