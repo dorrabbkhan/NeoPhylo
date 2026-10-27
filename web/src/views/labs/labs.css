@@ -237,8 +237,20 @@
   gap: var(--space-8);
 }
 
-/* The ≥40×40 touch floor every other action row carries (§5.2). */
+/* The ≥40×40 touch floor every other action row carries (§5.2).
+ * The nav/card/empty-state entries are inline links — inline-flex
+ * keeps them in the text flow while the box reaches the floor. The
+ * wordmark's .editor-home rule lives in index.css (initial bundle). */
 @media (pointer: coarse) {
+  .lab-nav-link,
+  .lab-card-actions a,
+  .labs-empty a {
+    align-items: center;
+    display: inline-flex;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
   .lab-controls a,
   .lab-controls button,
   .lab-pick button,

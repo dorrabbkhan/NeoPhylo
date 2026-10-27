@@ -4832,3 +4832,24 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `web/src/views/SettingsDrawer.tsx` (the medium-breakpoint link),
   `web/src/views/App.tsx` (passes `labsHref` at medium only), this
   file.
+
+### Task 11 — fix round 2 (PR #99)
+
+- **"Load this lab" is navigation, not a share link:** the lab page's
+  load control builds an unbounded `#x=` app link straight in the
+  `href` — it never goes through the editor's Share path, so
+  `SHARE_LINK_MAX_LENGTH` (exerciseFile.ts) does not apply. A real
+  pack's dataset can push the link past 8000 chars; follow-up for
+  Task 12: check each shipped pack's load link actually opens.
+- **The e2e fixture labs ride the lazy labs chunk:**
+  `web/src/labs/__fixtures__/*.json` is bundled by the same
+  `import.meta.glob` as the shipped packs (registry.ts) but joins the
+  listing only under the `neophylo-e2e` localStorage flag — they cost
+  a few KB in the lazy chunk, never the initial bundle, and are never
+  listed for a real visitor.
+- **Coarse-pointer floor for the new links:** the generic
+  `(pointer: coarse)` rule covers `button`/`[role]` targets but not
+  plain `<a>`s, so `a.labs-link`, `.settings-drawer-labs`,
+  `.lab-nav-link`, `.lab-card-actions a` and `.labs-empty a` now get
+  the ≥40×40 floor under coarse pointers only — fine-pointer layout
+  (and every snapshot baseline) is unchanged.

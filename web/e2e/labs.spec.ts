@@ -150,6 +150,102 @@ test("with unsaved editor work Load this lab asks first; keep declines, replace 
   );
 });
 
+test("under (pointer: coarse) every lab link and button — header, drawer, More menu and the lab pages — is ≥40×40", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo-e2e", "1");
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await waitForApp(page);
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  const expectFloor = async (
+    target: import("@playwright/test").Locator,
+    name: string,
+  ) => {
+    const box = await target.boundingBox();
+    expect(box, `${name} has a bounding box`).not.toBeNull();
+    if (box === null) return;
+    expect(
+      box.width,
+      `${name} is at least 40 px wide (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(40);
+    expect(
+      box.height,
+      `${name} is at least 40 px tall (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(40);
+  };
+
+  // The header's "PHYLIP labs" chip at the wide breakpoint.
+  const headerLink = page.locator("a.labs-link");
+  await expect(headerLink).toBeVisible();
+  await expectFloor(headerLink, 'header "PHYLIP labs" link at 1366 px');
+
+  // Its Settings-drawer mirror at the medium breakpoint.
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.getByRole("button", { name: "Settings" }).click();
+  const drawerLink = page.locator("a.settings-drawer-labs");
+  await expect(drawerLink).toBeVisible();
+  await expectFloor(drawerLink, 'drawer "PHYLIP labs" link at 1024 px');
+  await page.keyboard.press("Escape");
+
+  // And the More-menu item below 1024 px.
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.getByRole("button", { name: "More" }).click();
+  const moreItem = page.getByRole("menuitem", { name: "PHYLIP labs" });
+  await expect(moreItem).toBeVisible();
+  await expectFloor(moreItem, 'More-menu "PHYLIP labs" item at 768 px');
+
+  // Every link and button the lab index and the lab page render —
+  // wordmark, nav links, "Open lab", "Load this lab" and the print
+  // button (the e2e flag registers the test lab).
+  const checkAll = async (what: string) => {
+    const targets = page.locator("a, button");
+    const count = await targets.count();
+    expect(count, `${what}: targets on screen`).toBeGreaterThan(2);
+    for (let i = 0; i < count; i++) {
+      const target = targets.nth(i);
+      if (!(await target.isVisible())) continue;
+      const label =
+        (await target.getAttribute("aria-label")) ??
+        (await target.innerText().catch(() => "")).slice(0, 40) ??
+        `target ${i}`;
+      await expectFloor(target, `${what}: "${label}"`);
+    }
+  };
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/?labs");
+  await expect(
+    page.getByRole("heading", { name: "PHYLIP labs" }),
+  ).toBeVisible();
+  await checkAll("the lab index");
+
+  await page.goto("/?lab=test-lab");
+  await expect(
+    page.getByRole("heading", { name: "Test lab: dnadist → neighbor" }),
+  ).toBeVisible();
+  await checkAll("the test lab page");
+
+  await context.close();
+});
+
 test("without the e2e flag the shipped registry is empty and the index says so", async ({
   browser,
 }) => {

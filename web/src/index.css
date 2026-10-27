@@ -1975,6 +1975,22 @@ a.labs-link {
     min-height: 40px;
   }
 
+  /* v1.4 Task 11 fix: the header's "PHYLIP labs" entry and its
+   * Settings-drawer mirror are links, so the button/rule selectors
+   * above miss them — same ≥40×40 floor (the More-menu item is a
+   * [role="menuitem"], already covered). */
+  a.labs-link {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .settings-drawer-labs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+  }
+
   .more-menu-list [role="menuitem"],
   .app-footer .repo-link {
     display: inline-flex;
