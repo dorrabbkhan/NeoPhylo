@@ -785,6 +785,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
               session={session}
               dispatch={dispatch}
               runGated={promptGate.branchGating !== null}
+              locked={
+                session.source === "sandbox" ? [] : session.exercise.locked
+              }
             />
           ) : undefined
         }

@@ -61,7 +61,7 @@ export interface ControlsProps {
 
 const KAPPA_DEFAULT = 2;
 const MAX_SEED = Number.MAX_SAFE_INTEGER;
-const LOCKED_TOOLTIP = "Fixed for this lesson.";
+export const LOCKED_TOOLTIP = "Fixed for this lesson.";
 const REAL_SEQUENCES_TOOLTIP =
   "This lesson uses real sequences; they can't be re-simulated.";
 

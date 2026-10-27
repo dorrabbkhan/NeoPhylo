@@ -19,7 +19,7 @@ import {
 } from "../state/session";
 import type { Action, Session } from "../state/session";
 
-import { NumberField } from "./Controls";
+import { NumberField, LOCKED_TOOLTIP } from "./Controls";
 import { EmptyState } from "./EmptyState";
 import { MathLine } from "./MathLine";
 
@@ -29,6 +29,11 @@ export interface BootstrapPanelProps {
   /** v1.2 spec §7.1: an unanswered predict_branch prompt keeps Run
    * disabled until the student clicks an internal branch. */
   runGated?: boolean;
+  /** Locked field paths from the exercise — "bootstrap.replicates"
+   * and "bootstrap.seed" disable their inputs with the same
+   * "Fixed for this lesson." tooltip Controls uses. App passes []
+   * in the sandbox (v1.4 Task 12 pack 3, fix round 1). */
+  locked?: string[];
 }
 
 /** "4 s" / "2 min" — the T in "Replicate k of N · about T left" and
@@ -42,7 +47,9 @@ export function BootstrapPanel({
   session,
   dispatch,
   runGated = false,
+  locked = [],
 }: BootstrapPanelProps) {
+  const isLocked = (path: string) => locked.includes(path);
   const b = session.bootstrap;
   const taxa = session.alignment?.labels.length ?? 0;
   const method = session.exercise.analysis.method;
@@ -94,7 +101,10 @@ export function BootstrapPanel({
         value={b.replicates}
         min={MIN_REPLICATES}
         max={MAX_REPLICATES}
-        disabled={false}
+        disabled={isLocked("bootstrap.replicates")}
+        title={
+          isLocked("bootstrap.replicates") ? LOCKED_TOOLTIP : undefined
+        }
         onCommit={(replicates) =>
           dispatch({ type: "setBootstrapSettings", patch: { replicates } })
         }
@@ -104,7 +114,8 @@ export function BootstrapPanel({
         value={b.seed}
         min={0}
         max={Number.MAX_SAFE_INTEGER}
-        disabled={false}
+        disabled={isLocked("bootstrap.seed")}
+        title={isLocked("bootstrap.seed") ? LOCKED_TOOLTIP : undefined}
         onCommit={(seed) =>
           dispatch({ type: "setBootstrapSettings", patch: { seed } })
         }
