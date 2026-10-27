@@ -25,10 +25,12 @@
 #
 # v1.4 path: dnadist's two ML distances — F84 (its default model) and
 # "Kimura 2-parameter" at a preset T ratio — on every gap-free input,
-# parsed into phylip/f84/<name>.json and phylip/k2p/<name>.json. These
-# live outside ref/ because the corpus test flat-globs ref/*.json and
-# replays every `distances` key against a DistModel of the same name;
-# the v1.4 parity test (tests/parity_phylip_v14.rs) owns these files.
+# parsed into phylip/f84/<name>.json and phylip/k2p/<name>.json; the f84
+# files also carry the neighbor NJ tree built on dnadist's printed F84
+# matrix (v1.4 spec §3.2, lab pack 1). These live outside ref/ because
+# the corpus test flat-globs ref/*.json and replays every `distances`
+# key against a DistModel of the same name; the v1.4 parity test
+# (tests/parity_phylip_v14.rs) owns these files.
 #
 # Usage: bash fixtures/generate_phylip.sh   (from anywhere)
 # Requires: dnadist, protdist, neighbor + consense (on PATH or
@@ -286,6 +288,16 @@ for name in $V14_INPUTS; do
     cp outfile "mat_${name}_k2p_${ratio}.txt"
   done
 
+  # Lab pack 1 chains dnadist -> neighbor, so keep PHYLIP's printed F84
+  # matrix as neighbor's input (v1.4 spec §3.2). This runs after the
+  # dnadist runs because run_neighbor overwrites infile with the matrix.
+  # neighbor ships in the same package as dnadist; assert its reported
+  # version matches so the single "phylip $VER" generator string covers
+  # both.
+  run_neighbor N "mat_${name}_f84.txt"; cp outtree "nj_${name}_f84.nwk"
+  NVER="$(grep -o 'version [0-9.]*' phylip.log | head -1 | awk '{print $2}')"
+  [ "$NVER" = "$VER" ] || { echo "neighbor $NVER != dnadist $VER" >&2; exit 1; }
+
   FIXDIR="$FIXDIR" NAME="$name" GEN="phylip $VER" Rscript - <<'RS'
 suppressPackageStartupMessages(library(jsonlite))
 name <- Sys.getenv("NAME"); fixdir <- Sys.getenv("FIXDIR")
@@ -307,12 +319,15 @@ parse_dnadist <- function(path) {
   list(labels = labels, m = do.call(rbind, vals))
 }
 
+read_nwk <- function(path) gsub("\\s+", "", paste(readLines(path), collapse = ""))
+
 decimals <- function(txt, pat) {
   m <- regmatches(txt, gregexpr(pat, txt))[[1]]
   min(nchar(sub(".*\\.", "", m)))
 }
 
 d_f84 <- parse_dnadist(paste0("mat_", name, "_f84.txt"))
+nwk_f84 <- read_nwk(paste0("nj_", name, "_f84.nwk"))
 d_k2 <- parse_dnadist(paste0("mat_", name, "_k2p_2.0.txt"))
 d_k4 <- parse_dnadist(paste0("mat_", name, "_k2p_4.0.txt"))
 stopifnot(identical(d_f84$labels, d_k2$labels),
@@ -329,9 +344,10 @@ prec <- min(
            "[0-9]+\\.[0-9]+")
 )
 
-# Same shape as ref/*_phylip.json minus trees; `model` names the
-# DistModel the parity test replays and the k2p `distances` keys are
-# the T ratio handed to K2pPhylip { ratio }.
+# Same shape as ref/*_phylip.json minus upgma; `model` names the
+# DistModel the parity test replays, the k2p `distances` keys are
+# the T ratio handed to K2pPhylip { ratio }, and `nj` is neighbor's
+# unrooted tree on dnadist's printed F84 matrix.
 shared <- list(
   generator = Sys.getenv("GEN"),
   labels = d_f84$labels,
@@ -339,7 +355,8 @@ shared <- list(
   precision = prec
 )
 f84 <- c(list(name = paste0(name, "_f84_phylip"), model = "F84"), shared,
-         list(distances = list(F84 = unname(d_f84$m))))
+         list(distances = list(F84 = unname(d_f84$m)),
+              nj = list(F84 = nwk_f84)))
 k2p <- c(list(name = paste0(name, "_k2p_phylip"), model = "K2P_PHYLIP"), shared,
          list(distances = list("2.0" = unname(d_k2$m), "4.0" = unname(d_k4$m))))
 
