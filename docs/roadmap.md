@@ -1,8 +1,8 @@
 # NeoPhylo roadmap
 
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
-rooting)** and **v1.3 (design system and polish)** released or releasing; **next: v1.4** (instructor
-kit, PHYLIP lab packs and MEGA companion). Last revised 2026-10-25.
+rooting)**, **v1.3 (design system and polish)** and **v1.4 (instructor kit and PHYLIP lab packs)**
+released or releasing; **next: v1.4b** (MEGA companion and data library). Last revised 2026-10-27.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -55,7 +55,7 @@ validation discipline: an independent oracle, property tests and fuzzing.
   4-taxon tree, replicate panel, bootstrap-basics final step, narrow width) generated in CI and attached
   to every UI PR.
 
-### v1.4 Instructor kit, PHYLIP lab packs and MEGA companion (L)
+### v1.4 Instructor kit and PHYLIP lab packs (L)
 - **Exercise editor in the UI:** draw or paste a true tree, set the model, seed and length, add prompts,
   preview, share a link. No JSON editing.
 - **PHYLIP parity models:** F84 (`dnadist`'s default) and PHYLIP's Kimura 2-parameter variant
@@ -66,6 +66,8 @@ validation discipline: an independent oracle, property tests and fuzzing.
   (`dnadist` → `neighbor`, `protdist` → `neighbor`, `seqboot` → `dnadist` → `neighbor` → `consense`),
   each with a handout, the settings that match PHYLIP's defaults, and a "what PHYLIP's outfile showed
   you vs what NeoPhylo shows you" note.
+
+### v1.4b MEGA companion and data library · *new — gets its own spec*
 - **MEGA companion:**
   - 3–4 ready-made lab handouts mirroring the standard MEGA assignments (JC69 vs K2P, NJ vs UPGMA,
     100 bootstrap replicates, interpreting support): understand each step in NeoPhylo, then reproduce
