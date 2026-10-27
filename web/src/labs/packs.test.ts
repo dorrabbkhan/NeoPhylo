@@ -352,9 +352,14 @@ describe("lab pack protdist-neighbor", () => {
     const got = r.value;
     expect(got.labels).toEqual(fx.labels);
     const n = fx.labels.length;
-    // The fixture's own precision (4, the smallest decimal count
-    // surviving the JSON round-trip; protdist prints 6) → 0.5e-4.
-    const tol = 0.5 * Math.pow(10, -fx.precision);
+    // protdist 3.697 prints 6 decimals in outfile (`0.722200`), so the
+    // honest bound is half a unit of the last printed decimal: 0.5e-6.
+    // The fixture's `precision` field reads 4 only because the
+    // generator counts decimals after JSON drops trailing zeros — it
+    // under-reports what protdist actually printed. Correcting the
+    // fixture field is an owner decision outside this PR. Measured max
+    // engine-vs-fixture diff is 4.95e-7, so the bound passes honestly.
+    const tol = 0.5e-6;
     const want = fx.distances.JTT;
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
@@ -458,5 +463,54 @@ describe("lab pack protdist-neighbor", () => {
     expect(wantLen).toBeLessThan(0);
     expect(gotLen).toBeLessThan(0);
     expect(Math.abs(gotLen - wantLen)).toBeLessThanOrEqual(0.5e-5);
+  });
+
+  it("pins the note's mechanism: R(P02) > R(P05) at their join makes P05's share negative", () => {
+    // The closing note says P05's pendant edge estimated negative
+    // because "P02 sits much farther out than P05". NJ's limb formula
+    // splits a join's distance by net divergence:
+    //   len(x) = d(x,y)/2 + (R_x - R_y) / (2(k-2)),
+    // so P05's share goes negative exactly when R(P02) exceeds R(P05)
+    // by more than (k-2)·d. Both claims are read off the engine's own
+    // trace on the pack's matrix — the run the student steps through.
+    const aln = packAlignment(pack.exercise);
+    const dm = engine.distances(aln, "Jtt");
+    if (!dm.ok) throw new Error(`distances failed`);
+    const tr = engine.buildTree(dm.value, "Nj", { trace: true });
+    if (!tr.ok) throw new Error(`buildTree failed`);
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) {
+      throw new Error("NJ trace missing");
+    }
+    const labelOf = (id: number) => tr.value.tree.nodes[id].label;
+
+    // The step whose chosen pair is P02 and P05 (a cherry in the tree).
+    const step = trace.Nj.steps.find(
+      (s) =>
+        s.chosen
+          .map((p) => labelOf(s.active[p]))
+          .sort()
+          .join("+") === "P02+P05",
+    );
+    if (!step) throw new Error("no NJ step joins P02 and P05");
+    const [i, j] = step.chosen;
+    const iIsP02 = labelOf(step.active[i]) === "P02";
+    const [p02, p05] = iIsP02 ? [i, j] : [j, i];
+    const lenP05 = iIsP02 ? step.len_j : step.len_i;
+
+    // The premise the note states: P02's net divergence (row sum)
+    // exceeds P05's at the join.
+    expect(step.r[p02]).toBeGreaterThan(step.r[p05]);
+
+    // The mechanism: the limb formula on the step's own distance and
+    // row sums reproduces the negative share the trace records for
+    // P05, which is the pendant length the tree carries for it.
+    const k = step.active.length;
+    const dij = step.distance.data[p02 * k + p05];
+    const share = dij / 2 + (step.r[p05] - step.r[p02]) / (2 * (k - 2));
+    expect(share).toBeLessThan(0);
+    expect(Math.abs(share - lenP05)).toBeLessThanOrEqual(1e-12);
+    expect(Math.abs(pendantLength(tr.value.tree, "P05") - share))
+      .toBeLessThanOrEqual(1e-12);
   });
 });

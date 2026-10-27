@@ -5017,3 +5017,21 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   - `docs/decisions.md` (this entry).
 - **Bundle:** the pack lives in the lazy `labs` chunk; initial JS
   measurement vs main is reported in the PR body.
+- **Fix round 1 (PR #102, owner review):** the JTT matrix check in
+  `packs.test.ts` now uses protdist's real printed precision — 0.5e-6
+  (6 decimals, e.g. `0.722200` in outfile) — not `0.5·10^-precision`
+  off the fixture's `precision: 4`. That field counts the decimals
+  that survive the JSON round-trip's dropped trailing zeros and
+  under-reports what protdist prints; correcting it is an owner
+  decision outside this PR. Measured max engine-vs-fixture diff is
+  4.95e-7, so the tighter bound passes honestly. A new named test
+  pins the note's mechanism claim: at the step joining P02 and P05 the
+  trace's row sums give R(P02) > R(P05), and the limb formula on the
+  step's own distance and row sums reproduces P05's negative pendant.
+  The "both tools count only standard-amino-acid sites" claim stays,
+  verified by a gapped toy run of the installed protdist 3.697
+  (Kimura printed 0.304489 = d(p) with p = 2 differences / 8
+  comparable sites, i.e. `-` and `X` sites pairwise-deleted) and by
+  `pair_counts` in `protein_dist.rs`, which skips any site where
+  either character is non-standard. No pack text changed, so no
+  baseline regeneration.
