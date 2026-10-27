@@ -5372,3 +5372,45 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   here). `./scripts/check.sh quick` was run — fmt + clippy, no
   `crates/` changes so the wasm pkg was skipped; docs-only. The
   conductor verifies main's full-matrix CI.
+- **Pre-release fixes (owner checkpoint 2026-10-27, same PR):**
+  - Checkpoint §5 rewritten to describe reality: `F84`/`K2P_PHYLIP`
+    appear in the exercise editor's settings and in the correction
+    menu only when the loaded exercise or lab prescribes them; the six
+    built-in lessons' menus are unchanged. A re-checks section (§8)
+    covers the detach refusal wording, the saturation note and the
+    bootstrap-basics Length-change behaviour; the #107 gate line now
+    reads "merged 2026-10-27 (#107)".
+  - `drawOps.ts` `refusalMessage`: a detach refused because the parent
+    joins only two branches gets a canvas body naming the node and its
+    sibling and saying what to do instead ("drag it onto another
+    branch, or select it and a branch and press J"). The trigger is
+    exactly the engine's refusal condition, so the two pre-existing
+    tests that pinned the old "fewer than two children" phrasing
+    (`DrawCanvas.test.tsx`, the unary-drag test and the
+    refused-detach test) had their message assertions updated — the
+    instruction's "existing test must pass unmodified" could not hold
+    for the leaf-detach scenario it exercises; flagged for the owner.
+  - `saturation.json` step-1 note reworded so it stays true after a
+    fix works (text only).
+  - `bootstrap-basics.json`: the step-7 `first_run` note now asks for
+    one action (change Seed, run again). In `lesson.ts`, a settings
+    rebuild (`setSim`/`setAnalysis`/`setAlphabet`/`setBranchScale`) in
+    a lesson with a `bootstrap` block and a completed run lands on the
+    new tree's final position and keeps `completedRuns`/`maxRunSites`
+    (results still cleared); lessons without a `bootstrap` block keep
+    the reset-to-step-0 behaviour.
+  - `cytochrome-c` claim verified with the engine: RF = 0 vs the
+    lesson reference under JTT **and** under `p` **and** `Kimura`, so
+    the "matches the accepted classification in every clade" wording
+    stays; `locked` unchanged.
+  - Standing note added (lesson notes must stay true under every
+    student-changeable setting); roadmap v1.4b bullet added (sandbox
+    correction menu gains `F84`/`K2P_PHYLIP` in v1.4b).
+  - **Files outside the Files block (this fix round):**
+    `web/src/views/editor/drawOps.ts`,
+    `web/src/views/editor/DrawCanvas.test.tsx`,
+    `web/src/state/lesson.ts`, `web/src/state/session.test.ts`,
+    `web/e2e/bootstrap-lesson.spec.ts`, `exercises/saturation.json`,
+    `exercises/bootstrap-basics.json`,
+    `docs/conductor/standing-notes.md` — plus the checkpoint doc
+    itself, which is part of the original Files block.
