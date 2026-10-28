@@ -103,6 +103,8 @@ function correctionName(
       return "Kimura";
     case "Jtt":
       return "JTT";
+    case "Poisson":
+      return "Poisson";
     case "F84":
       return "F84";
   }

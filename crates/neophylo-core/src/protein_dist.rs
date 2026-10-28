@@ -393,6 +393,16 @@ pub fn optimizer_estimates(counts: &[[u32; 20]; 20]) -> (Option<f64>, f64) {
     (newton_mle(&cells), brent_mle(&cells))
 }
 
+/// The Poisson correction (v1.4b spec §3.3): `d = −ln(1 − p)` on
+/// pairwise-compared sites; `Saturated` when `p ≥ 1`.
+pub fn poisson_from_p(p: f64) -> Cell {
+    if p >= 1.0 {
+        Cell::Saturated
+    } else {
+        Cell::Value(-log(1.0 - p))
+    }
+}
+
 /// The on-demand detail behind one pair's distance, for the "How was
 /// this distance computed?" panel (spec §3.4).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
