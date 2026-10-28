@@ -5508,3 +5508,25 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   acknowledgements) went out as the owner, who gets no notification for their own comments.
 - **Shell:** export lines rather than sourcing `app-env.sh`, which is bash-only; the owner's
   shell is zsh. Verified with a fresh headless session: commits authored by the bot.
+
+## v1.4b Task 2: MEGA-CC oracle and first fixtures (fixture PR)
+
+- **What:** `fixtures/mega/{mao,*.json,README.md}` — 54 hand-written `.mao` files (DNA
+  p/JC69/K2P and protein p/Poisson/JTT × pairwise/complete/partial95 × dist/NJ/UPGMA),
+  `generate_mega.sh`, per-input JSON for every `inputs/*.fasta` and `inputs/protein/*.fasta`,
+  new `inputs/gaps_boundary.fasta` (20 taxa: one 95%- and one 90%-coverage column), and
+  `worked/mega-notes.md` recording the MEGA-CC 12.1.4 oracle findings.
+- **Key decisions:** (1) MEGA-CC 12.1.4 echoes but does not apply `Gaps/Missing Data
+  Treatment` — an all-gap control still produces a matrix — so the generator pre-filters
+  columns to MEGA's documented complete/partial-95 semantics and the `.mao` declares the
+  intended treatment for echo verification; (2) partial-cutoff boundary is `>=` per the
+  binary caption "less than %d%% site coverage" and the manual's Partial-Deletion page —
+  the boundary column is kept and that is visible in `gaps_boundary.json`; (3) MEGA's JTT
+  diverges from `Jtt` (max 0.1779 on p12_100) → `JttMega` needed; (4) branch lengths are
+  printed to ~16 significant digits with trailing zeros trimmed, so comparisons are
+  per-printed-value half-ulp, recorded as max decimals.
+- **Files outside the Files block:** `docs/decisions.md` itself (this entry, per workflow).
+- **Open items answered:** megacc version 12.1.4 build 12261022; printed precision 8 dp
+  distances / ~16 sig-digit branch lengths; bootstrap filters sites before resampling
+  (manual: removed "before the analysis begins"); `N` is missing under all treatments;
+  JTT verdict `JttMega` needed.
