@@ -15,7 +15,7 @@ use ts_rs::TS;
 use crate::alphabet::{protein_index, Alphabet};
 use crate::dist::{label, Cell, DistModel};
 use crate::error::NeoError;
-use crate::model::jtt_spectral;
+use crate::model::{jtt_mega_spectral, jtt_spectral, SpectralCtx};
 use crate::seq::Alignment;
 
 /// Farthest distance reported by the JTT fit (spec §3.4: protdist
@@ -125,7 +125,10 @@ fn merge_counts(counts: &[[u32; 20]; 20]) -> CountList {
 /// `protdist`'s `predict` uses — same value, oracle-matching rounding
 /// within merged-cell ulps.
 fn jtt_logl(cells: &CountList, d: f64) -> f64 {
-    let ctx = jtt_spectral(d);
+    jtt_logl_ctx(cells, &jtt_spectral(d))
+}
+
+fn jtt_logl_ctx(cells: &CountList, ctx: &SpectralCtx) -> f64 {
     let mut l = 0.0;
     for &(x, y, n) in cells {
         let p = ctx.prob(x as usize, y as usize);
@@ -137,7 +140,10 @@ fn jtt_logl(cells: &CountList, d: f64) -> f64 {
 /// `logL`'s first two derivatives at `d` (protdist's `slope`/`curv`),
 /// plus whether any observed site pair's joint probability underflowed.
 fn logl_derivs(cells: &CountList, d: f64) -> (f64, f64, bool) {
-    let ctx = jtt_spectral(d);
+    logl_derivs_ctx(cells, &jtt_spectral(d))
+}
+
+fn logl_derivs_ctx(cells: &CountList, ctx: &SpectralCtx) -> (f64, f64, bool) {
     let (mut slope, mut curv) = (0.0, 0.0);
     let mut neginfinity = false;
     for &(x, y, n) in cells {
@@ -391,6 +397,74 @@ pub fn jtt_ml(counts: &[[u32; 20]; 20]) -> Cell {
 pub fn optimizer_estimates(counts: &[[u32; 20]; 20]) -> (Option<f64>, f64) {
     let cells = merge_counts(counts);
     (newton_mle(&cells), brent_mle(&cells))
+}
+
+/// The Poisson correction (v1.4b spec §3.3): `d = −ln(1 − p)` on
+/// pairwise-compared sites; `Saturated` when `p ≥ 1`.
+pub fn poisson_from_p(p: f64) -> Cell {
+    if p >= 1.0 {
+        Cell::Saturated
+    } else {
+        Cell::Value(-log(1.0 - p))
+    }
+}
+
+/// The iterate floor MEGA's JTT estimator reports (v1.4b Task 4):
+/// MEGA-CC prints `0.00000100` for identical pairs where protdist's
+/// `protepsilon` floor is `1e-5`.
+const MEGA_EPSILON: f64 = 1e-6;
+
+/// MEGA's JTT pair-distance estimator (v1.4b spec §3.3): protdist's
+/// raw Newton trajectory — the same fixed NEWTON_ITERS passes from
+/// `tt = 0.1` with delta-halving and the divergence guard — run under
+/// MEGA's own spectral decomposition (`jtt_mega_spectral`) and
+/// reported without the global bounded-search adjudication `jtt_ml`
+/// applies. The iterate is the estimate, which is why MEGA returns
+/// finite local maxima (e.g. a rare-exchange pair whose likelihood is
+/// asymptotically higher at the boundary) where `jtt_ml` reports
+/// `Saturated`. `None` only on divergence (`tt > DIVERGED`) or a
+/// non-finite iterate.
+fn mega_newton(cells: &CountList) -> Option<f64> {
+    let mut tt = 0.1;
+    let mut delta = tt / 2.0;
+    for _ in 0..NEWTON_ITERS {
+        let (slope, curv, neginfinity) = logl_derivs_ctx(cells, &jtt_mega_spectral(tt));
+        if !neginfinity {
+            if curv < 0.0 {
+                tt -= slope / curv;
+                if tt > DIVERGED {
+                    return None;
+                }
+            } else {
+                if (slope > 0.0 && delta < 0.0) || (slope < 0.0 && delta > 0.0) {
+                    delta /= -2.0;
+                }
+                tt += delta;
+            }
+        } else {
+            delta /= -2.0;
+            tt += delta;
+        }
+        if tt < MEGA_EPSILON {
+            tt = MEGA_EPSILON;
+        }
+    }
+    if tt.is_finite() && tt <= DIVERGED {
+        Some(tt)
+    } else {
+        None
+    }
+}
+
+/// MEGA's JTT maximum-likelihood distance for one pair's count table
+/// (v1.4b spec §3.3): the raw Newton iterate under MEGA's spectral
+/// data; `Saturated` only when the trajectory diverges.
+pub fn jtt_mega_ml(counts: &[[u32; 20]; 20]) -> Cell {
+    let cells = merge_counts(counts);
+    match mega_newton(&cells) {
+        Some(d) => Cell::Value(d),
+        None => Cell::Saturated,
+    }
 }
 
 /// The on-demand detail behind one pair's distance, for the "How was

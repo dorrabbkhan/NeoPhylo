@@ -3,4 +3,4 @@
 /**
  * Distance correction model (spec §4.3, v1.1 §3.4, v1.4 §3.1).
  */
-export type DistModel = "P" | "Jc69" | "K80" | "Kimura" | "Jtt" | "F84" | { "K2pPhylip": { ratio: number, } };
+export type DistModel = "P" | "Jc69" | "K80" | "Kimura" | "Jtt" | "Poisson" | "JttMega" | "F84" | { "K2pPhylip": { ratio: number, } };
