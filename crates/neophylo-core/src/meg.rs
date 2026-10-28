@@ -3,7 +3,8 @@
 //! `parse_meg` reads sequence files: a `#mega` header (first non-blank
 //! line, case-insensitive), `!Title <text>;`, `!Format` with
 //! `key=value` pairs (`DataType`, `Identical`, `Missing`, `Indel`;
-//! keys case-insensitive, any order), `#name` lines and `"…"` comments,
+//! keys case-insensitive, any order, whitespace tolerated around
+//! `=`), `#name` lines and `"…"` comments,
 //! which may span lines. Commands are `!` statements terminated by `;`
 //! and may also span lines; `!Gene`, `!Domain`, `!Label` and any other
 //! unrecognised command are read, ignored and reported as notices.
@@ -142,12 +143,30 @@ impl Parser {
         Ok(())
     }
 
-    /// `!Format` holds `key=value` pairs in any order; unknown keys and
-    /// bare tokens are ignored. `DataType` resolves immediately so a
-    /// distance-matrix file is refused at this line, before its data
-    /// rows can fail as sequences.
+    /// `!Format` holds `key=value` pairs in any order, with whitespace
+    /// tolerated around `=` (`DataType = DNA`, `Indel =-`); unknown
+    /// keys and bare tokens are ignored. `DataType` resolves
+    /// immediately so a distance-matrix file is refused at this line,
+    /// before its data rows can fail as sequences.
     fn format(&mut self, line_no: u32, rest: &str) -> Result<(), NeoError> {
-        for tok in rest.split_whitespace() {
+        let toks: Vec<&str> = rest.split_whitespace().collect();
+        let mut i = 0;
+        while i < toks.len() {
+            // Rejoin a pair whitespace split around `=`: a bare `key`
+            // absorbs following `=`/`=v` tokens, and a trailing `key=`
+            // absorbs the next token as its value — unless that token
+            // is itself a `k=v` pair (`Indel= Missing=?` leaves Indel
+            // unset rather than stealing Missing's declaration).
+            let mut tok = toks[i].to_string();
+            while !tok.contains('=') && toks.get(i + 1).is_some_and(|t| t.starts_with('=')) {
+                i += 1;
+                tok.push_str(toks[i]);
+            }
+            if tok.ends_with('=') && toks.get(i + 1).is_some_and(|t| !t.contains('=')) {
+                i += 1;
+                tok.push_str(toks[i]);
+            }
+            i += 1;
             let Some(eq) = tok.find('=') else {
                 continue;
             };

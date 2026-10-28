@@ -1,0 +1,7 @@
+#mega
+!Title Format with spaced key=value pairs;
+!Format DataType = DNA Indel= - Missing =?;
+#Alpha
+ACGT
+#Beta
+A-G?

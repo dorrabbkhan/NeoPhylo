@@ -224,6 +224,86 @@ fn no_format_detects_alphabet() {
 }
 
 #[test]
+fn format_spaces_around_equals() {
+    // `key = value` pairs tolerate whitespace on either side of `=`:
+    // `DataType = DNA`, `Indel= -`, `Missing =?` all take effect, so
+    // there is no auto-detect notice.
+    let meg = parse_meg(&input("format_spaces.meg")).unwrap();
+    assert_eq!(meg.alignment.alphabet, Alphabet::Dna);
+    assert!(meg.notices.is_empty(), "notices: {:?}", meg.notices);
+    assert_eq!(meg.alignment.labels, ["Alpha", "Beta"]);
+    assert_eq!(meg.alignment.seqs[0], b"ACGT");
+    assert_eq!(meg.alignment.seqs[1], b"A-G?");
+}
+
+#[test]
+fn distance_matrix_spaced_is_refused() {
+    // A spaced `DataType = Distance` is still a distance declaration:
+    // the v1.4c refusal at the !Format line, not a character error in
+    // the matrix rows.
+    let err = parse_meg(&input("matrix_spaced.meg")).unwrap_err();
+    assert_eq!(parse_line(&err), 2, "err: {err:?}");
+    match &err {
+        NeoError::Parse { msg, .. } => assert_eq!(
+            msg,
+            "distance-matrix .meg files are not supported yet (planned for v1.4c)"
+        ),
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn format_keys_case_insensitive_any_order() {
+    // Spec §3.4: `!Format` keys are case-insensitive and may appear in
+    // any order.
+    let meg =
+        parse_meg("#mega\n!FORMAT missing=? DATATYPE=dna indel=-;\n#a\nACGT\n#b\nA-G?\n").unwrap();
+    assert_eq!(meg.alignment.alphabet, Alphabet::Dna);
+    assert!(meg.notices.is_empty(), "notices: {:?}", meg.notices);
+    assert_eq!(meg.alignment.seqs[1], b"A-G?");
+}
+
+#[test]
+fn command_spanning_lines() {
+    // Commands run to `;` and may span lines (spec §3.4).
+    let meg = parse_meg("#mega\n!Title a\n title;\n!Format DataType=\nDNA;\n#a\nACGT\n#b\nAGGT\n")
+        .unwrap();
+    assert_eq!(meg.title.as_deref(), Some("a title"));
+    assert_eq!(meg.alignment.alphabet, Alphabet::Dna);
+    assert_eq!(meg.alignment.seqs[0], b"ACGT");
+    assert_eq!(meg.alignment.seqs[1], b"AGGT");
+    // An error in a spanning command reports its opening line, not the
+    // line the `;` lands on.
+    let err = parse_meg("#mega\n!Format DataType=\nDistance;\n").unwrap_err();
+    assert_eq!(parse_line(&err), 2, "err: {err:?}");
+}
+
+#[test]
+fn custom_symbols() {
+    // `Identical`, `Indel` and `Missing` may be redefined to symbols
+    // that are not residues (spec §3.4): `*` copies the first
+    // sequence, `~` maps to `-`, `X` maps to `?`.
+    let meg = parse_meg(
+        "#mega\n!Format DataType=DNA Identical=* Indel=~ Missing=X;\n#First\nACGT\n#Second\nA*~X\n",
+    )
+    .unwrap();
+    assert_eq!(meg.alignment.seqs[0], b"ACGT");
+    assert_eq!(meg.alignment.seqs[1], b"AC-?");
+    // With `Identical=*`, `.` is an ordinary character again — and not
+    // a DNA residue, so it is refused.
+    let err =
+        parse_meg("#mega\n!Format DataType=DNA Identical=*;\n#a\nACGT\n#b\nA.G.\n").unwrap_err();
+    assert_eq!(
+        err,
+        NeoError::UnsupportedCharacter {
+            label: "b".to_string(),
+            position: 1,
+            ch: '.',
+        }
+    );
+}
+
+#[test]
 fn sequence_data_before_first_name() {
     let err = parse_meg("#mega\nACGT\n#b\nAGGT\n").unwrap_err();
     assert_eq!(parse_line(&err), 2, "err: {err:?}");

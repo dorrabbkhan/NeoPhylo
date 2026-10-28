@@ -5673,6 +5673,11 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   (ts-rs output, committed as produced, never hand-edited);
   `crates/neophylo-core/fuzz/seeds/meg/*` (seed copies of
   `tests/meg_inputs`, following the existing `fuzz/seeds/<target>/`
-  layout); `docs/decisions.md` (this entry).
+  layout); `scripts/ci/fuzz.sh` (the `meg` target added to the nightly
+  fuzz loop, fix round on #119); `docs/decisions.md` (this entry).
+- **Fix round (#119):** `!Format` pairs tolerate whitespace around `=`
+  (`DataType = Distance` is refused as a matrix file rather than
+  falling through to sequence parsing; a trailing `key=` absorbs only
+  a bare value, never the next `k=v` pair).
 - **Fuzz:** the `meg` target was run by the conductor outside the
   sandbox (wasm/sandbox limits): 60 s, 2.52M runs, no crash.
