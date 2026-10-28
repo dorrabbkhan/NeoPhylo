@@ -78,6 +78,12 @@ export function errorMessage(e: NeoError): ErrorMessage {
         title: "That edit isn't allowed",
         body: e.msg,
       };
+    case "NoSitesKept":
+      // v1.4b spec §3.1: `filter` is "complete" or "partial {cutoff}%".
+      return {
+        title: "The gap filter removed every site",
+        body: `${e.filter} deletion dropped all columns — every site has too much missing data for that treatment. Choose pairwise deletion or a lower partial cutoff, or use sequences with less missing data.`,
+      };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";

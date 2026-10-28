@@ -19,6 +19,7 @@ use crate::bootstrap::split::{tree_splits, Split};
 use crate::dist::{compute_weighted, DistModel};
 use crate::error::NeoError;
 use crate::seq::Alignment;
+use crate::site_filter::{site_mask, SiteFilter};
 
 /// The running result of a bootstrap run (spec §3.3). Carries `labels`
 /// (n = `labels.len()`) rather than the spec's bare `n`, so support and
@@ -139,12 +140,39 @@ pub fn bootstrap_batch(
     start: u32,
     count: u32,
 ) -> Result<BootstrapTally, NeoError> {
+    bootstrap_batch_filtered(aln, model, method, SiteFilter::Pairwise, seed, start, count)
+}
+
+/// `bootstrap_batch` under a site filter (v1.4b spec §3.2): the mask is
+/// applied before resampling — MEGA removes sites "before the analysis
+/// begins" (`fixtures/worked/mega-notes.md`) — so replicate `i` draws
+/// `resample_weights(seed, i, kept.len())` and each weight lands on the
+/// kept column it indexes. Under `Pairwise` `kept` is every column, the
+/// draws are `resample_weights(seed, i, l)` on the full length, and the
+/// result is bit-identical to the unfiltered run.
+pub fn bootstrap_batch_filtered(
+    aln: &Alignment,
+    model: DistModel,
+    method: Method,
+    filter: SiteFilter,
+    seed: u64,
+    start: u32,
+    count: u32,
+) -> Result<BootstrapTally, NeoError> {
     let n = aln.seqs.len();
     // The same generated-label fallback `compute_weighted` uses, so the
     // tally names match the tree it builds.
     let labels: Vec<String> = (0..n).map(|i| crate::dist::label(&aln.labels, i)).collect();
     let l = aln.seqs.iter().map(Vec::len).max().unwrap_or(0);
     let rooted = method == Method::Upgma;
+    let mask = site_mask(aln, filter)?;
+    let kept: Vec<usize> = mask
+        .weights
+        .iter()
+        .enumerate()
+        .filter(|(_, &w)| w == 1)
+        .map(|(k, _)| k)
+        .collect();
 
     let mut tally = BootstrapTally {
         method,
@@ -154,7 +182,11 @@ pub fn bootstrap_batch(
         counts: BTreeMap::new(),
     };
     for i in start..start.saturating_add(count) {
-        let w = resample_weights(seed, i, l);
+        let kept_w = resample_weights(seed, i, kept.len());
+        let mut w = vec![0u32; l];
+        for (j, &wt) in kept_w.iter().enumerate() {
+            w[kept[j]] = wt;
+        }
         let dm = match compute_weighted(aln, model, &w) {
             Ok(dm) => dm,
             Err(NeoError::InsufficientOverlap { .. }) => {

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc d5e15a4120d8816dfb06393daad9932e3e200ff4a81fd01a794fc98ae42b8d69 # shrinks to aln = Alignment { labels: ["t0"], seqs: [[88]], alphabet: Protein }

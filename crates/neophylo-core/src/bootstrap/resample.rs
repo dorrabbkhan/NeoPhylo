@@ -16,9 +16,10 @@ use ts_rs::TS;
 use crate::algos::{build_tree, BuildOptions, Method};
 use crate::bootstrap::split::{tree_splits, Split};
 use crate::compare::rf;
-use crate::dist::{compute, compute_weighted, DistModel};
+use crate::dist::{compute_filtered, compute_weighted, DistModel};
 use crate::error::NeoError;
 use crate::seq::Alignment;
+use crate::site_filter::{site_mask, SiteFilter};
 use crate::tree::Tree;
 
 /// Column weights for replicate `i` of `seed` over `l` columns
@@ -76,10 +77,39 @@ pub fn replicate_detail(
     seed: u64,
     i: u32,
 ) -> Result<ReplicateDetail, NeoError> {
+    replicate_detail_filtered(aln, model, method, SiteFilter::Pairwise, seed, i)
+}
+
+/// `replicate_detail` under a site filter (v1.4b spec §3.2): replicates
+/// draw over the kept columns only, exactly as in
+/// `bootstrap_batch_filtered`, and the "original" tree is built on the
+/// filtered distances so like is compared with like. `weights` stays
+/// one entry per alignment column (removed columns are 0 and count in
+/// `undrawn`). Under `Pairwise` this is today's path bit for bit.
+pub fn replicate_detail_filtered(
+    aln: &Alignment,
+    model: DistModel,
+    method: Method,
+    filter: SiteFilter,
+    seed: u64,
+    i: u32,
+) -> Result<ReplicateDetail, NeoError> {
     let n = aln.seqs.len();
     let labels: Vec<String> = (0..n).map(|k| crate::dist::label(&aln.labels, k)).collect();
     let l = aln.seqs.iter().map(Vec::len).max().unwrap_or(0);
-    let w = resample_weights(seed, i, l);
+    let mask = site_mask(aln, filter)?;
+    let kept: Vec<usize> = mask
+        .weights
+        .iter()
+        .enumerate()
+        .filter(|(_, &w)| w == 1)
+        .map(|(k, _)| k)
+        .collect();
+    let kept_w = resample_weights(seed, i, kept.len());
+    let mut w = vec![0u32; l];
+    for (j, &wt) in kept_w.iter().enumerate() {
+        w[kept[j]] = wt;
+    }
     let undrawn = w.iter().filter(|&&x| x == 0).count() as u32;
     let mut detail = ReplicateDetail {
         index: i,
@@ -105,8 +135,9 @@ pub fn replicate_detail(
     }
     let rep = build_tree(&dm, method, BuildOptions { trace: false })?.tree;
 
-    // The original tree is rebuilt on demand; its errors propagate.
-    let orig_dm = compute(aln, model)?;
+    // The original tree is rebuilt on demand under the same filter; its
+    // errors propagate.
+    let orig_dm = compute_filtered(aln, model, filter)?;
     let orig = build_tree(&orig_dm, method, BuildOptions { trace: false })?.tree;
 
     let rooted = method == Method::Upgma;
