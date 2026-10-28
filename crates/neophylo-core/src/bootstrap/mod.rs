@@ -18,7 +18,9 @@ pub mod support;
 pub mod tally;
 
 pub use consensus::{consensus, consensus_dropped, ConsensusKind, DroppedGroup};
-pub use resample::{replicate_detail, resample_weights, ReplicateDetail};
+pub use resample::{
+    replicate_detail, replicate_detail_filtered, resample_weights, ReplicateDetail,
+};
 pub use split::{tree_splits, Split};
 pub use support::support_on_tree;
-pub use tally::{bootstrap_batch, merge_tallies, BootstrapTally};
+pub use tally::{bootstrap_batch, bootstrap_batch_filtered, merge_tallies, BootstrapTally};

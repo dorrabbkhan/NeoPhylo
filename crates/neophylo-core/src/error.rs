@@ -69,6 +69,11 @@ pub enum NeoError {
     InvalidEdit {
         msg: String,
     },
+    /// A site filter removed every column (v1.4b spec §3.1); `filter`
+    /// names the treatment ("complete" or "partial {cutoff}%").
+    NoSitesKept {
+        filter: String,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -129,6 +134,9 @@ impl fmt::Display for NeoError {
                 )
             }
             Self::InvalidEdit { msg } => write!(f, "{msg}"),
+            Self::NoSitesKept { filter } => {
+                write!(f, "every site was removed by {filter} deletion")
+            }
         }
     }
 }

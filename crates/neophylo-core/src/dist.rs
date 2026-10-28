@@ -24,6 +24,7 @@ use crate::error::NeoError;
 use crate::matrix::Matrix;
 use crate::protein_dist;
 use crate::seq::Alignment;
+use crate::site_filter::{site_mask, SiteFilter};
 
 /// Distance correction model (spec §4.3, v1.1 §3.4, v1.4 §3.1).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -163,7 +164,7 @@ impl DistanceMatrix {
     }
 }
 
-fn is_base(b: u8) -> bool {
+pub(crate) fn is_base(b: u8) -> bool {
     matches!(b, b'A' | b'C' | b'G' | b'T')
 }
 
@@ -292,6 +293,19 @@ fn distance(counts: &PairCounts, model: DistModel, params: &DnaParams) -> Cell {
 pub fn compute(aln: &Alignment, model: DistModel) -> Result<DistanceMatrix, NeoError> {
     let w = vec![1u32; aln.seqs.iter().map(Vec::len).max().unwrap_or(0)];
     compute_weighted(aln, model, &w)
+}
+
+/// Pairwise distances under a site filter (v1.4b spec §3.1): the
+/// filter's 0/1 column weights go through `compute_weighted`, so every
+/// model gets all three of MEGA's gap treatments with no distance
+/// function changes. `SiteFilter::Pairwise` is exactly `compute`.
+pub fn compute_filtered(
+    aln: &Alignment,
+    model: DistModel,
+    filter: SiteFilter,
+) -> Result<DistanceMatrix, NeoError> {
+    let mask = site_mask(aln, filter)?;
+    compute_weighted(aln, model, &mask.weights)
 }
 
 /// Weighted pairwise distances (v1.2 spec §3.1): column `k` counts

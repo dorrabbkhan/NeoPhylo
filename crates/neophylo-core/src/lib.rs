@@ -22,6 +22,7 @@ pub mod protein_dist;
 pub mod reroot;
 pub mod seq;
 pub mod sim;
+pub mod site_filter;
 pub mod tree;
 
 pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, Trace, UpgmaStep};
@@ -29,12 +30,12 @@ pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, 
 // root-level name.
 pub use alphabet::{detect_alphabet, protein_index, with_alphabet, Alphabet, PROTEIN_STATES};
 pub use bootstrap::{
-    bootstrap_batch, consensus, consensus_dropped, merge_tallies, replicate_detail,
-    resample_weights, support_on_tree, tree_splits, BootstrapTally, ConsensusKind, DroppedGroup,
-    ReplicateDetail,
+    bootstrap_batch, bootstrap_batch_filtered, consensus, consensus_dropped, merge_tallies,
+    replicate_detail, replicate_detail_filtered, resample_weights, support_on_tree, tree_splits,
+    BootstrapTally, ConsensusKind, DroppedGroup, ReplicateDetail,
 };
 pub use compare::{rf, RfResult, Split};
-pub use dist::{compute, Cell, DistModel, DistanceMatrix};
+pub use dist::{compute, compute_filtered, Cell, DistModel, DistanceMatrix};
 pub use error::NeoError;
 pub use exercise::{
     load_exercise, Analysis, Exercise, ExerciseBootstrap, ExerciseData, Prompt, PromptType,
@@ -51,4 +52,5 @@ pub use protein_dist::{jtt_ml, jtt_pair_detail, kimura_from_p, pair_counts, Pair
 pub use reroot::{reference_outgroup, reroot_on_outgroup, RerootResult};
 pub use seq::{parse_fasta, Alignment, MAX_SITES, MAX_TAXA};
 pub use sim::{simulate, SimModel, SimSpec};
+pub use site_filter::{site_mask, SiteFilter, SiteMask};
 pub use tree::{BranchAttrs, Node, NodeId, Tree};
