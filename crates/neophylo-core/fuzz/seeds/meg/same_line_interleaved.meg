@@ -1,0 +1,10 @@
+#mega
+!Title Interleaved same-line data;
+!Format DataType=DNA;
+#Alpha  ACGT
+#Beta   AGGT
+#Gamma  CGTT
+
+#Beta   CCCC
+#Alpha  TTTT
+#Gamma  AAAA

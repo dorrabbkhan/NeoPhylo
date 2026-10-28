@@ -5650,3 +5650,34 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `docs/decisions.md` (this entry).
 - Fixture notes updated in the stacked follow-up PR (fixture guard keeps
   `fixtures/` edits out of #117).
+
+## v1.4b Task 5: .meg parser and writer
+
+- **Plan correction — label mapping:** the plan said `write_meg` writes
+  labels with spaces "with `_`, the same name mapping `phylip.rs`
+  uses", but `phylip.rs` has no such mapping (its `NameMode` is a
+  *read* rule: Strict pads/trims 10 chars, Relaxed splits at the first
+  whitespace). `write_meg` therefore maps each whitespace character in
+  a label to `_`, refuses two labels that collide after the mapping
+  (`a b` vs `a_b`), empty labels and labels containing `"` (which would
+  open a comment on re-parse). `parse_meg` keeps names literally, never
+  mapping `_` back to a space, so the writer→parser identity holds only
+  for labels without whitespace — stated as such in
+  `tests/meg_props.rs` and the `meg` fuzz target.
+- **Same-line sequence data:** a `#name` line may carry sequence data
+  after the name (MEGA's own manual writes `#Human   ACTGACTGAC`). The
+  name runs from after `#` to the first whitespace; the tail goes
+  through the same `data()` path as data lines, with `col_base` set so
+  error columns point at the right column of the line.
+- **Files outside the Files block:** `web/src/engine/generated/MegFile.ts`
+  (ts-rs output, committed as produced, never hand-edited);
+  `crates/neophylo-core/fuzz/seeds/meg/*` (seed copies of
+  `tests/meg_inputs`, following the existing `fuzz/seeds/<target>/`
+  layout); `scripts/ci/fuzz.sh` (the `meg` target added to the nightly
+  fuzz loop, fix round on #119); `docs/decisions.md` (this entry).
+- **Fix round (#119):** `!Format` pairs tolerate whitespace around `=`
+  (`DataType = Distance` is refused as a matrix file rather than
+  falling through to sequence parsing; a trailing `key=` absorbs only
+  a bare value, never the next `k=v` pair).
+- **Fuzz:** the `meg` target was run by the conductor outside the
+  sandbox (wasm/sandbox limits): 60 s, 2.52M runs, no crash.
