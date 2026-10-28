@@ -1,0 +1,8 @@
+﻿#mega
+!Title CRLF and BOM;
+!Format DataType=DNA;
+
+#Alpha
+ACGT
+#Beta
+AGGT

@@ -1,0 +1,12 @@
+#mega
+!Title With ignored commands;
+!Format DataType=DNA;
+!Gene globin;
+#Alpha
+ACGT
+!Domain coding Property=exon;
+#Beta
+AGGT
+!Label conserved;
+#Gamma
+CGTT

@@ -1,0 +1,17 @@
+#mega
+!Title Interleaved protein;
+!Format DataType=Protein;
+
+#Alpha
+ARNDC
+#Beta
+AKNDC
+#Gamma
+ARNDQ
+
+#Alpha
+QEGHI
+#Beta
+QEGHI
+#Gamma
+LEGHI

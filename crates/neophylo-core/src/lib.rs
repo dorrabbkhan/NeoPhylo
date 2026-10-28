@@ -15,6 +15,7 @@ pub mod edit;
 pub mod error;
 pub mod exercise;
 pub mod matrix;
+pub mod meg;
 pub mod model;
 pub mod newick;
 pub mod phylip;
@@ -42,6 +43,7 @@ pub use exercise::{
     Reference, ReferenceKind, Source,
 };
 pub use matrix::Matrix;
+pub use meg::{parse_meg, write_meg, MegFile};
 pub use model::{RateModel, JTT};
 pub use newick::{
     compatible_names, labels_need_quotes, parse_newick, write_newick, write_newick_compatible,

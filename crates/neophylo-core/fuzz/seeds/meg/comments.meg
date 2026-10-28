@@ -1,0 +1,8 @@
+#mega
+"this whole line is a comment"
+!Format DataType=DNA;
+#Alpha "inline comment after the name"
+ACGT "a comment that
+spans two lines" TGCA
+#Beta
+AGGTCCAA

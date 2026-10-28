@@ -1,0 +1,10 @@
+#mega
+!Title Sequential DNA example;
+!Format DataType=DNA Indel=- Missing=?;
+
+#Alpha
+AACGTGGCCA
+#Beta
+AAGGTCGCCA
+#Gamma
+CAGTTCGCCA

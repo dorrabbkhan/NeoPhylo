@@ -1,0 +1,16 @@
+#mega
+!Format DataType=DNA;
+
+#Alpha
+ACGT
+#Beta
+AGGT
+#Gamma
+CGTT
+
+#Gamma
+AAAA
+#Alpha
+TTTT
+#Beta
+CCCC
