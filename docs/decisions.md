@@ -5629,6 +5629,10 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   verified) at `len_tol = max(0.5·10^-d, 8·f64::EPSILON·max(1, |v|))`
   per printed value — the Task-4-notes formula; measured worst |diff|
   4.5e-15.
+- Owner sign-off: MEGA parity compares branch lengths on the engine's own matrix at
+  `len_tol = max(0.5·10^-d, 8·f64::EPSILON·max(1, |v|))` and topology only on MEGA's printed matrix
+  (MEGA builds trees on its unrounded matrix); no JTT_MEGA model (option D), with Jtt's divergence
+  from MEGA's JTT pinned by `jtt_diverges_from_mega`. Confirmed by owner 2026-10-28.
 - **Follow-up for Task 13's guide:** "NeoPhylo's JTT follows PHYLIP; MEGA's
   JTT differs by up to ~0.18 on saturated pairs; use Poisson or p to match
   MEGA exactly."
@@ -5644,3 +5648,5 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   required so no `JttMega`/`JTT_MEGA`/`jtt_mega` string remains outside this
   file and the untouchable `fixtures/` notes);
   `docs/decisions.md` (this entry).
+- Fixture notes updated in the stacked follow-up PR (fixture guard keeps
+  `fixtures/` edits out of #117).

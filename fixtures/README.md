@@ -88,10 +88,12 @@ see `AGENTS.md` for the rules.
   MEGA-CC analysis-settings files in MEGA's GUI serialization, so megacc
   applies each declared gap treatment itself; `worked/mega-notes.md`
   records the version, precision, the partial-cutoff `>=` decision
-  (observed from MEGA's output), the JTT verdict (`JttMega` needed) and
+  (observed from MEGA's output), the JTT verdict (MEGA's JTT differs from
+  NeoPhylo's; not shipped, #117) and
   the earlier finding that hand-written `.mao` files with the
   `Gaps/Missing Data Treatment` key are silently ignored. Not globbed by
-  `tests/corpus.rs`; the parity tests that read it arrive in later tasks.
+  `tests/corpus.rs`; it is read by
+  `crates/neophylo-core/tests/parity_mega.rs`.
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
   3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed
