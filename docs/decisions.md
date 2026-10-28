@@ -5508,3 +5508,42 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   acknowledgements) went out as the owner, who gets no notification for their own comments.
 - **Shell:** export lines rather than sourcing `app-env.sh`, which is bash-only; the owner's
   shell is zsh. Verified with a fresh headless session: commits authored by the bot.
+
+## v1.4b Task 2: MEGA-CC oracle and first fixtures (fixture PR)
+
+- **What:** `fixtures/mega/{mao,*.json,README.md}` — 54 `.mao` files (DNA
+  p/JC69/K2P and protein p/Poisson/JTT × pairwise/complete/partial95 × dist/NJ/UPGMA),
+  `generate_mega.sh`, per-input JSON for every `inputs/*.fasta` and `inputs/protein/*.fasta`,
+  new `inputs/gaps_boundary.fasta` (20 taxa: one 95%- and one 90%-coverage column), and
+  `worked/mega-notes.md` recording the MEGA-CC 12.1.4 oracle findings.
+- **Key decisions (fix round 1, owner option A):** (1) hand-written `.mao` files whose key
+  is `Gaps/Missing Data Treatment` are echoed but silently ignored — only GUI-serialized
+  files work — so `dist_dna_p_complete.mao`/`dist_dna_p_partial95.mao` are the owner's
+  verbatim MEGA Prototype files and the other 52 are derived from them (same key names,
+  order, sections, comment header and `ver` line; for NJ/UPGMA the tree block —
+  `Analysis = Phylogeny Reconstruction`, `Scope = All Selected Taxa`, `Statistical
+  Method`, `Phylogeny Test`/`Test of Phylogeny = None` — is derived from a real GUI
+  NJ serialization plus `strings megacc`; for protein `Substitutions to Include =
+  Not Applicable`); (2) megacc now applies the declared treatment itself on the
+  unfiltered input — proven per setting: 3-taxon complete gives 9 sites (a–b
+  0.11111111), `jc8_gaps` reports 365 vs 500 sites under dist/NJ/UPGMA with different
+  trees per treatment, a gapped protein alignment reports 38 vs 40 the same way, each
+  model differs from p on a divergent input, NJ and UPGMA differ on a non-ultrametric
+  input — and the generator keeps an assert-only kept-site check against `No. of
+  Sites` instead of pre-filtering; (3) partial-cutoff boundary `>=` is now observed
+  from MEGA's own output: `gaps_boundary` reports 1,000 → 999 (partial95, the 95%
+  column kept) and → 998 (complete), same on a 20-taxon protein control; (4) MEGA's
+  JTT diverges from `Jtt` (max 0.1779 on p12_100) → `JttMega` needed; (5) branch
+  lengths are printed to ~16 significant digits with trailing zeros trimmed, so
+  comparisons are per-printed-value half-ulp, recorded as max decimals.
+- **All numbers identical to round 0:** megacc applies the treatments to the same
+  column set the old pre-filter removed, so every `distances`/`trees`/`precision`
+  entry is byte-identical (largest |diff| = 0 for complete and partial95); only
+  `generator.note`/`mao_sha256` changed in each JSON.
+- **Files outside the Files block:** `fixtures/ref/gaps_boundary.json` (ape ref for
+  the new input, added in this PR) and `docs/decisions.md` itself (this entry, per
+  workflow).
+- **Open items answered:** megacc version 12.1.4 build 12261022; printed precision 8 dp
+  distances / ~16 sig-digit branch lengths; bootstrap filters sites before resampling
+  (manual: removed "before the analysis begins"); `N` is missing under all treatments;
+  JTT verdict `JttMega` needed.

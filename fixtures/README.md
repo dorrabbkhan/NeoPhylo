@@ -10,6 +10,11 @@ see `AGENTS.md` for the rules.
   `jc8_gaps.fasta` carries `-` gaps and `N`s; `k80_10.fasta` was simulated
   under K80 with κ = 6 so transitions dominate. None has a tied minimum at
   any join (the generator asserts this and fails if one appears).
+- `inputs/gaps_boundary.fasta` — 20 DNA sequences × 1,000 sites for the
+  MEGA partial-deletion boundary: one column at exactly 95% coverage
+  (19/20), one at 90% (18/20), the rest gap-free with heterogeneous
+  per-sequence substitution rates so NJ/UPGMA have no tied joins (v1.4b
+  Task 2).
 - `inputs/protein/*.fasta` — four committed protein alignments (6–12 taxa,
   100–400 sites, standard amino acids only, `P01`-style names), generated
   by `make_protein_inputs.py` (numpy, seed 2026): sequences evolved down a
@@ -75,6 +80,18 @@ see `AGENTS.md` for the rules.
   search (8675309 upward, step 2) whose extended-majority run has no tied
   decision — asserted in R against `ape::prop.part` on `trees` exactly as
   `generate_consensus.sh` does.
+- `mega/` — MEGA-CC oracle fixtures (frozen, local only; see
+  `mega/README.md`). Distances and NJ/UPGMA trees for p, JC69, K80 (DNA)
+  and p, Poisson, JTT (protein) under pairwise, complete and partial-95
+  deletion on every `inputs/*.fasta` and `inputs/protein/*.fasta`, plus
+  the `gaps_boundary` cutoff fixture. `mao/*.mao` are the committed
+  MEGA-CC analysis-settings files in MEGA's GUI serialization, so megacc
+  applies each declared gap treatment itself; `worked/mega-notes.md`
+  records the version, precision, the partial-cutoff `>=` decision
+  (observed from MEGA's output), the JTT verdict (`JttMega` needed) and
+  the earlier finding that hand-written `.mao` files with the
+  `Gaps/Missing Data Treatment` key are silently ignored. Not globbed by
+  `tests/corpus.rs`; the parity tests that read it arrive in later tasks.
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
   3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed
@@ -140,6 +157,8 @@ Per-step textbook traces, same field names as `NjStep`/`UpgmaStep`
 ## Regenerating
 
 ```sh
+bash fixtures/generate_mega.sh           # MEGA-CC fixtures -> mega/*.json (LOCAL ONLY: needs megacc on PATH;
+                                         #   never run by CI or the other generators)
 python3 fixtures/make_protein_inputs.py  # regenerate inputs/protein/*.fasta
 bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_phylip.json, ref/protein_*.json,
                                          #   phylip/{f84,k2p}/*.json; then consense -> consensus/*.json
