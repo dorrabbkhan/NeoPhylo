@@ -7,16 +7,18 @@ the other generators. **Regenerate only locally** by running
 `bash fixtures/generate_mega.sh` with `megacc` on `PATH`; the committed
 JSON is the oracle. Do not edit the outputs by hand.
 
-## Gap-treatment caveat (read this first)
+## `.mao` serialization (read this first)
 
-MEGA-CC 12.1.4 **does not apply** `Gaps/Missing Data Treatment` — it is
-echoed in every `.mao` run but changes nothing (verified with an all-gap
-control). `generate_mega.sh` therefore pre-filters columns itself to the
-exact sites MEGA's documentation says complete and partial deletion
-remove, then runs the `.mao` declaring the intended treatment on the
-filtered input. `pairwise` runs are unfiltered. Full evidence:
-`../worked/mega-notes.md`. The `generator.note` field in every JSON
-carries the same caveat.
+The `.mao` files use MEGA's **GUI serialization** — the same key names,
+order and sections the MEGA Prototype dialog writes (`Gaps/Missing Data`,
+`Labelled Sites` under `[ DataSettings ]`, `Rates among Sites = Uniform
+Rates`, …). Only GUI-serialized `.mao` files are valid: hand-written
+files using the `Gaps/Missing Data Treatment` key are echoed by megacc
+but the treatment is **silently ignored** (evidence:
+`../worked/mega-notes.md`). With the correct serialization megacc applies
+the declared gap treatment itself — every run gets the unfiltered input,
+and the generator asserts MEGA's reported `No. of Sites` against an
+independently computed kept-site count for `complete`/`partial95`.
 
 ## Layout
 

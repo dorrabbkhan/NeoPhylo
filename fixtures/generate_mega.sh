@@ -9,16 +9,13 @@
 # MEGA's distance matrices (.meg) and Newick trees (.nwk) into
 # fixtures/mega/<name>.json. The committed JSON is what CI reads.
 #
-# IMPORTANT — gap treatment workaround (full story in
-# fixtures/worked/mega-notes.md): MEGA-CC 12.1.4 echoes but does NOT apply
-# "Gaps/Missing Data Treatment" for distance estimation or distance-based
-# tree inference — an all-gap control input still produces a distance
-# matrix instead of the documented "All Sites were removed" error, and
-# pairwise/complete/partial runs are byte-identical. To obtain the numbers
-# MEGA's own documentation defines, the script pre-filters the columns
-# itself (removing exactly the sites complete or partial-95 deletion
-# removes) and hands the filtered alignment to the matching .mao, which
-# still declares the intended treatment so its echo can be checked.
+# The .mao files use MEGA's GUI serialization (the `Gaps/Missing Data`
+# key), so megacc 12.1.4 applies the declared gap treatment itself —
+# hand-written .mao files using `Gaps/Missing Data Treatment` are echoed
+# but silently ignored (fixtures/worked/mega-notes.md). Every run gets
+# the unfiltered input; the generator independently computes the kept-site
+# count each complete/partial-95 treatment should leave and fails if MEGA's
+# reported "No. of Sites" differs.
 #
 # Usage: bash fixtures/generate_mega.sh   (from anywhere)
 # Requires: megacc on PATH, python3.
@@ -73,28 +70,23 @@ def read_fasta(path):
 def is_missing(ch, alphabet):
     return ch not in (DNA_MISSING_OK if alphabet == 'dna' else AA_STATES)
 
-def filter_sites(seqs, alphabet, filt):
-    """Return a copy of seqs with the columns removed that MEGA's
-    complete/partial deletion removes (missing = the characters the
-    engine's pairwise deletion skips, spec v1.4b §3.1)."""
+def kept_sites(seqs, alphabet, filt):
+    """Independent oracle for MEGA's gap treatment: the column count that
+    complete/partial-95 deletion should leave (missing = the characters
+    the engine's pairwise deletion skips, spec v1.4b §3.1). Assert-only;
+    never used to modify the input handed to megacc."""
     if filt == 'pairwise':
-        return seqs
+        return len(seqs[0][1])
     n, L = len(seqs), len(seqs[0][1])
-    keep = []
+    kept = 0
     for k in range(L):
         present = sum(1 for _, s in seqs if not is_missing(s[k], alphabet))
         if filt == 'complete':
             ok = present == n
         else:  # partial95: kept iff present*100 >= 95*n (integer math)
             ok = present * 100 >= 95 * n
-        if ok:
-            keep.append(k)
-    return [[nm, ''.join(s[k] for k in keep)] for nm, s in seqs]
-
-def write_fasta(seqs, path):
-    with open(path, 'w') as f:
-        for nm, s in seqs:
-            f.write(f'>{nm}\n{s}\n')
+        kept += ok
+    return kept
 
 def sha256(path):
     return hashlib.sha256(open(path, 'rb').read()).hexdigest()
@@ -135,6 +127,16 @@ def check_echo(text, expected):
         pat = re.compile(rf'^\s*{re.escape(k)}\s*=\s*{re.escape(v)}\s*$', re.M)
         if not pat.search(text):
             sys.exit(f'setting echo mismatch: wanted {k}={v} in\n{text[-2000:]}')
+
+def check_sites(text, want, tag):
+    """Assert MEGA's reported 'No. of Sites' equals the independently
+    computed kept-site count (commas stripped)."""
+    m = re.search(r'No\. of Sites\s*=\s*([\d,]+)', text)
+    if not m:
+        sys.exit(f'{tag}: no "No. of Sites" in output')
+    got = int(m.group(1).replace(',', ''))
+    if got != want:
+        sys.exit(f'{tag}: No. of Sites {got} != expected {want}')
 
 def decimals(tok):
     return len(tok.split('.')[1]) if '.' in tok else 0
@@ -192,8 +194,9 @@ def nwk_decimals(path):
 
 def expected_echo(model_long, gap, cutoff, statmethod=None):
     e = {'Model/Method': model_long,
-         'Gaps/Missing Data Treatment': gap,
-         'Site Coverage Cutoff (%)': cutoff}
+         'Gaps/Missing Data': gap}
+    if cutoff is not None:
+        e['Site Coverage Cutoff (%)'] = cutoff
     if statmethod:
         e['Statistical Method'] = statmethod
         e['Test of Phylogeny'] = 'None'
@@ -202,8 +205,8 @@ def expected_echo(model_long, gap, cutoff, statmethod=None):
 MODEL_LONG = {'p': 'p-distance', 'jc69': 'Jukes-Cantor model',
               'k2p': 'Kimura 2-parameter model', 'poisson': 'Poisson model',
               'jtt': 'Jones-Taylor-Thornton (JTT) model'}
-FILTER_LONG = {'pairwise': ('Pairwise deletion', 'Not Applicable'),
-               'complete': ('Complete deletion', 'Not Applicable'),
+FILTER_LONG = {'pairwise': ('Pairwise deletion', None),
+               'complete': ('Complete deletion', None),
                'partial95': ('Partial deletion', '95')}
 STAT_LONG = {'nj': 'Neighbor-joining', 'upgma': 'UPGMA'}
 
@@ -229,31 +232,24 @@ def process(relpath, alphabet):
     dist_dec = nwk_dec = None
 
     for filt in FILTERS:
-        filt_seqs = filter_sites(seqs, alphabet, filt)
-        if not filt_seqs[0][1]:
+        want_sites = kept_sites(seqs, alphabet, filt)
+        if want_sites == 0:
             sys.exit(f'{relpath}: {filt} removes every site')
-        data_path = src if filt == 'pairwise' else os.path.join(
-            TMPD, f'{name}_{filt}.fasta')
-        if filt != 'pairwise':
-            write_fasta(filt_seqs, data_path)
         gap, cutoff = FILTER_LONG[filt]
         for json_model, model_id in models:
             e = expected_echo(MODEL_LONG[model_id], gap, cutoff)
-            # distance matrix
+            # distance matrix — megacc applies the .mao gap treatment to
+            # the unfiltered input
             maof = mao_file('dist', alpha_dir, model_id, filt)
             used_maos[maof] = sha256(os.path.join(MAO, maof))
             out = os.path.join(TMPD, f'{name}_{filt}_{model_id}_d')
-            summary = run_megacc(os.path.join(MAO, maof), data_path, out)
+            summary = run_megacc(os.path.join(MAO, maof), src, out)
             meg_path = out + '.meg'
             if not os.path.exists(meg_path):
                 sys.exit(f'no distance matrix: {meg_path}')
             mtxt = open(meg_path, errors='replace').read()
             check_echo(mtxt, e)
-            sites = int(re.search(r'No\. of Sites=([\d,]+)', mtxt)
-                        .group(1).replace(',', ''))
-            if sites != len(filt_seqs[0][1]):
-                sys.exit(f'{name} {filt} {model_id}: No. of Sites {sites} '
-                         f'!= filtered {len(filt_seqs[0][1])}')
+            check_sites(mtxt, want_sites, f'{name} {filt} {model_id} dist')
             labels, mat, d = parse_meg_matrix(meg_path)
             if labels != [nm for nm, _ in seqs]:
                 sys.exit(f'{name}: labels {labels} != input order')
@@ -264,12 +260,14 @@ def process(relpath, alphabet):
                 maof = mao_file(method, alpha_dir, model_id, filt)
                 used_maos[maof] = sha256(os.path.join(MAO, maof))
                 out = os.path.join(TMPD, f'{name}_{filt}_{model_id}_{method}')
-                summary = run_megacc(os.path.join(MAO, maof), data_path, out)
+                summary = run_megacc(os.path.join(MAO, maof), src, out)
                 nwk_path = out + '.nwk'
                 if not os.path.exists(nwk_path):
                     sys.exit(f'no newick: {nwk_path}')
                 check_echo(summary, expected_echo(MODEL_LONG[model_id], gap,
                                                   cutoff, STAT_LONG[method]))
+                check_sites(summary, want_sites,
+                            f'{name} {filt} {model_id} {method}')
                 nwk, dec = nwk_decimals(nwk_path)
                 nwk_dec = dec if nwk_dec is None else max(nwk_dec, dec)
                 trees[f'{method}/{json_model}/{filt}'] = nwk
@@ -278,10 +276,10 @@ def process(relpath, alphabet):
         'generator': {
             'megacc': VER,
             'mao_sha256': dict(sorted(used_maos.items())),
-            'note': 'megacc 12.1.4 echoes but does not apply '
-                    'Gaps/Missing Data Treatment; complete/partial95 '
-                    'inputs were pre-filtered by the generator to the '
-                    'sites the option removes (fixtures/mega/README.md).',
+            'note': 'GUI-serialized .mao (Gaps/Missing Data key); megacc '
+                    'applies the declared gap treatment itself and the '
+                    'generator asserts No. of Sites against an '
+                    'independently computed kept-site count.',
         },
         'input': relpath.replace(os.sep, '/'),
         'alphabet': alphabet,

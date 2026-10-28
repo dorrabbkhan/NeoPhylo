@@ -85,12 +85,13 @@ see `AGENTS.md` for the rules.
   and p, Poisson, JTT (protein) under pairwise, complete and partial-95
   deletion on every `inputs/*.fasta` and `inputs/protein/*.fasta`, plus
   the `gaps_boundary` cutoff fixture. `mao/*.mao` are the committed
-  MEGA-CC analysis-settings files; `worked/mega-notes.md` records the
-  version, precision, the partial-cutoff `>=` decision, the JTT verdict
-  (`JttMega` needed) and the finding that megacc 12.1.4 echoes but does
-  not apply the gap-treatment option (the generator pre-filters the
-  columns instead). Not globbed by `tests/corpus.rs`; the parity tests
-  that read it arrive in later tasks.
+  MEGA-CC analysis-settings files in MEGA's GUI serialization, so megacc
+  applies each declared gap treatment itself; `worked/mega-notes.md`
+  records the version, precision, the partial-cutoff `>=` decision
+  (observed from MEGA's output), the JTT verdict (`JttMega` needed) and
+  the earlier finding that hand-written `.mao` files with the
+  `Gaps/Missing Data Treatment` key are silently ignored. Not globbed by
+  `tests/corpus.rs`; the parity tests that read it arrive in later tasks.
 - `worked/*.json` — hand-entered textbook step traces (see below).
 - `worked/f84-k2p.md` — the `dnadist` F84 / Kimura definitions from the
   3.697 source (`makev`, `kimquick`, `getbasefreqs`), the printed

@@ -2,44 +2,42 @@
 
 Everything below was observed on the conductor machine 2026-10-28 with
 `megacc` (MEGA-CC) **12.1.4, build 12261022-x86_64** (`/usr/bin/megacc`).
-Hand-written `.mao` files were used (no display for the GUI prototyper);
-each file lists every setting explicitly and the generator asserts the
-settings MEGA echoes back (`!Description` / `*_summary.txt`).
+The `.mao` files use MEGA's **GUI serialization**: `dist_dna_p_complete`
+and `dist_dna_p_partial95` are verbatim files produced by the MEGA
+Prototype dialog (12261022 build); the other 52 are derived from them with
+the same key names, order and sections, changing only the model, data
+type, gap value, cutoff and analysis. Each file lists every setting
+explicitly and the generator asserts the settings MEGA echoes back
+(`!Description` / `*_summary.txt`).
 
-## megacc applies no gap treatment (the big finding)
+## megacc applies the gap treatment — with GUI-serialized `.mao`
 
-`Gaps/Missing Data Treatment` in a `.mao` is echoed verbatim in the output
-but **has no effect** in MEGA-CC 12.1.4 for distance estimation or for
-distance-based tree inference (NJ, UPGMA):
+`Gaps/Missing Data` in a GUI-serialized `.mao` **takes effect** in
+MEGA-CC 12.1.4 for distance estimation and for distance-based tree
+inference (NJ, UPGMA):
 
-- Identical distance matrices on `inputs/jc8_gaps.fasta` (135 of 500
-  columns gapped) under `Pairwise deletion`, `Complete deletion` and
-  `Partial deletion` with cutoff 95 — all equal to the pairwise-deletion
-  result (e.g. t1–t2 p = 0.19780220 on 455 comparable sites).
-- Identical NJ trees under all three treatments.
-- **Control:** a 3-taxon 4-site alignment where every column has a gap
-  still produced a distance matrix and a tree `(a,b,c);` under `Complete
-  deletion` — MEGA's own "All Sites were removed, try partial deletion
-  rather than complete" error never fires.
-- Every variant tried: both serializations (the MEGA X `Analysis =
-  Phylogeny Reconstruction` + `Statistical Method` layout and the MEGA 12
-  `Analysis = NJ Phylogeny Reconstruction` layout), `ver` strings matching
-  and not matching the build, `Scope` variants, `?` instead of `-`,
-  `.meg` instead of FASTA, and every plausible value string. Model and
-  all other settings bind fine (K2P output matches hand-computed K80);
-  only the gap treatment is ignored.
+- 3-taxon 10-site control with one gapped column: `Complete deletion`
+  reports `No. of Sites = 9` and a–b = 0.11111111; `Pairwise deletion`
+  reports 10.
+- `inputs/jc8_gaps.fasta` (500 sites, 135 gapped columns): `Complete
+  deletion` and `Partial deletion` at 95% report `No. of Sites = 365`
+  under `dist`, `nj` and `upgma`; `Pairwise deletion` reports 500. The
+  NJ and UPGMA trees also differ between treatments.
+- Protein behaves the same: a 6-taxon 40-site alignment with gapped/X
+  columns reports 38 sites under `complete`/`partial95` vs 40 under
+  `pairwise` for `dist`, `nj` and `upgma`.
+- `Test of Phylogeny = None`, `Statistical Method = Neighbor-joining` /
+  `UPGMA`, every model and `datatype = snProtein` all bind too: NJ and
+  UPGMA produce different trees on a non-ultrametric input, each model
+  gives different numbers from p-distance on a divergent input, and
+  protein analyses run under the amino-acid models.
 
-**Consequence for the fixtures:** `generate_mega.sh` removes the columns
-itself — exactly the sites MEGA's documentation says each option removes
-(`Complete-Deletion_Option.htm`: "sites containing missing data or
-alignment gaps are removed before the analysis begins";
-`Partial-Deletion_Option.htm`: a site is removed when its ambiguous
-fraction exceeds the cutoff) — and hands the filtered alignment to the
-`.mao` that still declares the intended treatment. The numbers are
-therefore what MEGA defines the option to compute, verified end-to-end
-through MEGA's own pairwise-deletion math. Each JSON's
-`generator.mao_sha256` records the `.mao` actually run; the `note` field
-carries this caveat.
+**History:** an earlier round used hand-written `.mao` files whose key
+was `Gaps/Missing Data Treatment`. Those files are echoed verbatim but
+**silently ignored** — an all-gap control still produced a distance
+matrix under `Complete deletion`, and pairwise/complete/partial runs were
+byte-identical. Only GUI-serialized `.mao` files are valid; that is why
+`generate_mega.sh` derives every file from the two GUI prototypes.
 
 ## Printed precision
 
@@ -52,41 +50,42 @@ carries this caveat.
   that input's trees; compare each printed length within half an ulp of
   *its own* decimals — a single global tolerance would be meaningless.
 - `No. of Sites` in `!Description` prints with a thousands separator
-  (`1,500`); the generator strips commas. It reports the (filtered)
-  input's site count, which is how the partial-95 boundary is visible
-  (`gaps_boundary`: 100 → 99 sites kept).
+  (`1,500`); the generator strips commas. It reports the sites left after
+  the declared gap treatment, which is how the partial-95 boundary is
+  visible (`gaps_boundary`: 1,000 → 999 under partial95, → 998 under
+  complete).
 
 ## Defaults (prototyper)
-
-The GUI prototyper cannot run here (no display). What is recorded:
 
 - Default gap treatment: MEGA's UI default is pairwise deletion (all
   documentation and .mao examples use it; nothing in the binary suggests
   otherwise). The sandbox default stays `Pairwise`.
-- Default site-coverage cutoff: **95%**. Could not be read off the
-  prototyper; it is MEGA's well-known default for partial deletion and
-  the value the plan fixes anyway. The binary carries the caption
-  "The partial deletion option was applied to eliminate all positions
-  with less than %d%% site coverage".
+- Default site-coverage cutoff: **95%**, MEGA's well-known default for
+  partial deletion and the value the plan fixes anyway. The binary
+  carries the caption "The partial deletion option was applied to
+  eliminate all positions with less than %d%% site coverage".
 
-## Partial cutoff boundary: `>=` (kept at exactly 95%)
-
-MEGA-CC could not be observed on this (above), but two sources agree on
-the comparison direction:
-
-- The binary's caption: partial deletion removes "all positions with
-  **less than** %d%% site coverage" → a column at exactly the cutoff is
-  kept → `present*100 >= cutoff_pct*n`.
-- `Partial-Deletion_Option.htm`: "a site is removed if it has a higher
-  percentage of ambiguous sites than is specified" → removed iff
-  `missing% > 100 − cutoff` → kept iff `present% >= cutoff`.
+## Partial cutoff boundary: `>=` (observed from MEGA's output)
 
 `gaps_boundary.fasta` (20 × 1,000; long enough that NJ/UPGMA have no tied
 joins — `generate.R` asserts this for every `inputs/*.fasta`) puts a
-column at exactly 19/20 = 95% coverage (and one at 18/20 = 90%). Its
-`p/partial95` matrix shows the 95% column kept (s01–s02 = 0.05505506 vs
-0.05410822 under `p/complete`), so the boundary decision is visible in
-committed output.
+column at exactly 19/20 = 95% coverage and one at 18/20 = 90%. MEGA
+itself reports:
+
+- `Pairwise deletion`: `No. of Sites = 1,000`
+- `Partial deletion`, cutoff 95: `No. of Sites = 999` — the 95% column
+  is **kept**, so the comparison is `present*100 >= cutoff_pct*n`.
+- `Complete deletion`: `No. of Sites = 998`
+
+The same `>=` boundary shows on protein: a 20-taxon 60-site alignment
+with a 19/20 (95%) column, an 18/20 (90%) column and a 19/20
+X-containing column reports 59 sites under `partial95` vs 57 under
+`complete` — the 95% columns are kept and `X` counts as missing for
+coverage. The two documentary sources agree: the binary's caption
+("less than %d%% site coverage" is removed) and
+`Partial-Deletion_Option.htm` ("a site is removed if it has a higher
+percentage of ambiguous sites than is specified" → kept iff
+`present% >= cutoff`).
 
 ## Missing characters (per treatment)
 
@@ -95,10 +94,12 @@ ambiguities (`R`, `Y`, …) per pair — verified: `a=AAAACCCC` vs
 `b=AANACGCC` gives 1/7 = 0.14285714, and `c=ARNAYYCC` contributes only
 4 comparable sites against either. This matches the engine's `is_base`
 (A/C/G/T) and `protein_index` (20 standard states) exactly, so the same
-rule drives the generator's pre-filter for `complete`/`partial95`.
-`jc8_gaps.fasta` contains `N`; under every treatment those columns behave
-as missing data (pairwise: excluded per pair; complete/partial95:
-counted as missing for coverage and removal).
+rule drives the generator's independent kept-site check for
+`complete`/`partial95`: `-`, `?`, `N`, IUPAC ambiguities and protein `X`
+all count as missing for site coverage. `jc8_gaps.fasta` contains `N`;
+under every treatment those columns behave as missing data (pairwise:
+excluded per pair; complete/partial95: counted as missing for coverage
+and removal).
 
 ## Bootstrap order: sites are removed before resampling
 
@@ -141,11 +142,12 @@ exactly spec §3.3.
 - `megacc` writes `$XDG_CONFIG_HOME/megacc`; the generator sets
   `XDG_CONFIG_HOME` to a `mktemp -d` and works in a temp dir — nothing is
   written under `~`.
-- On `jc7_long.fasta` distance runs, megacc prints `EAccessViolation` and
-  exits 1 **after** the `.meg` and summary are fully written (reproducible
-  on every model and filter; NJ/UPGMA on the same data exit 0). The
-  generator warns but continues only when the summary is clean and the
-  expected output exists and parses completely (cell count checked).
+- On `jc7_long.fasta` and `gaps_boundary.fasta` distance runs, megacc
+  prints `EAccessViolation` and exits 1 **after** the `.meg` and summary
+  are fully written (reproducible on every model and filter; NJ/UPGMA on
+  the same data exit 0). The generator warns but continues only when the
+  summary is clean and the expected output exists and parses completely
+  (cell count checked).
 - `megacc -a file.mao -d data.(fasta|meg) -o outbase` writes
   `outbase.meg` (distances) or `outbase.nwk` (trees) plus
   `outbase_summary.txt`. Errors appear at the bottom of the summary as
@@ -154,5 +156,5 @@ exactly spec §3.3.
   "Unable to recognize type of Analysis".
 - `.mao` echo is verbatim text, not a validated readback (unrecognized
   values are echoed too) — which is why the generator also asserts the
-  output's `No. of Sites` equals the filtered site count and compares
-  numbers itself.
+  output's `No. of Sites` equals an independently computed kept-site
+  count and compares numbers itself.
