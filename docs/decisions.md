@@ -5457,3 +5457,29 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     the existing `d=` failures.
   - **The pair panel** is where removed columns are shown (NeoPhylo has no
     whole-alignment view; spec §6.2).
+
+## Conductor: act as the neophylo-conductor GitHub App (owner request, 2026-10-28)
+
+- **What:** the conductor and every Devin session act on GitHub as the GitHub App
+  `neophylo-conductor[bot]` (app 5503160, installed on this repository only), not as the
+  owner. `scripts/conductor/app-token.sh` mints 1-hour installation tokens from a private key
+  kept outside the repo (`~/.config/neophylo-conductor/`); `scripts/conductor/bin/gh` and
+  `bin/git-credential-neophylo` fetch a fresh token per call, so long sessions never expire;
+  `app-env.sh` (sourced by `devin.sh`, `status-comment.sh`, `as-app.sh`, `start.sh`) sets
+  them up and authors commits as the bot. The owner's own shell is unaffected.
+- **Permissions:** Contents, Pull requests, Issues, Actions read/write; Checks, Commit
+  statuses, Metadata read. No Administration, Workflows, Secrets or Environments, so the app
+  cannot change settings, rules or `.github/workflows/`.
+- **Why:** under the owner's account the owner could not approve agent PRs (GitHub forbids
+  self-approval; Devin's "APPROVE" on #111 became a comment), received no notifications for
+  escalations, and `/inbox` could not tell owner commands from agent comments by author.
+- **Owner-only settings** (`docs/conductor/rulesets/apply.sh`, run by the owner): `main`
+  requires a PR with one Code Owner approval not by the last pusher; `v*` tags only by the
+  owner; the `production` environment requires the owner's approval, because the app's Actions
+  permission could otherwise deploy through a dispatch on `main`.
+- **`.github/CODEOWNERS`:** `* @dorrabbkhan` added first, so every PR needs the owner.
+- **`/inbox`** (local, `.claude/` is gitignored): a command counts only from `dorrabbkhan` with
+  association OWNER; comments by the bot are never commands. `status-comment.sh` edits only
+  the bot's own sticky comment.
+- **CLA:** commits by the bot are the owner's agents acting on the owner's behalf; no CLA
+  signature is needed for them.

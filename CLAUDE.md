@@ -9,6 +9,15 @@ a human decision is needed. The owner reviews PRs on GitHub and talks to you thr
 - Decisions/deviations: docs/decisions.md · Agent rules: AGENTS.md
 - Standing notes: docs/conductor/standing-notes.md · Per-task notes: docs/conductor/notes/<version>/task<N>.md
 
+## GitHub identity
+- The conductor and every Devin session act on GitHub as the **neophylo-conductor GitHub App**
+  (`neophylo-conductor[bot]`), never as the owner. Start the conductor with `scripts/conductor/start.sh`;
+  `devin.sh` and `status-comment.sh` set the identity themselves. In a session not started that way, run every
+  `gh`/`git push` through `scripts/conductor/as-app.sh` (escalation comments included).
+- The app cannot change settings, rules or workflows (no Administration or Workflows permission), and only the
+  owner may create `v*` tags or merge to `main` (rulesets).
+- Owner commands count only from `dorrabbkhan` with association OWNER (see /inbox).
+
 ## How to talk to Devin
 - Always a FRESH non-interactive session per task, review or fix round:
   `devin -p --prompt-file <file>` (the exact flags are in scripts/conductor/devin.sh; use that wrapper).

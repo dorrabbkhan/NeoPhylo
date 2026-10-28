@@ -1,3 +1,5 @@
+# Every PR needs the owner's review (the conductor app opens them).
+* @dorrabbkhan
 /fixtures/ @dorrabbkhan
 /.github/ @dorrabbkhan
 /web/e2e/__screenshots__/ @dorrabbkhan
