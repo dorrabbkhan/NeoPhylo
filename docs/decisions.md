@@ -5743,3 +5743,18 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   schema/engine agreement test the conductor note requires, modeled on
   `schema_v3.test.ts`; no new bindings — it uses the existing
   `engine.loadExercise`); `docs/decisions.md` (this entry).
+- **Known gaps, deferred (conductor ruling):**
+  - `web/src/state/lesson.ts` `correctionValidFor` does not know
+    `"Poisson"` (not in `CORRECTIONS.protein`), so `reconcileModels`
+    rewrites a v4 exercise's `Poisson` correction to `Jtt` on
+    load/sandbox/alphabet switch. Deferred to Task 10 (model menu adds
+    Poisson; the v1.4 F84 equivalent was fixed in Task 10). Task 10 must
+    pin a test that a loaded Poisson protein exercise keeps `Poisson`.
+  - The editor (`web/src/editor/draft.ts` `PreservedFields` /
+    `exerciseToDraft`, `exerciseFile.ts` writing schema_version 3) drops
+    `analysis.site_filter` when a v4 file is imported and saved.
+    Deferred to Task 11 (editor model/filter options), which must carry
+    `site_filter` through import→save and write schema_version 4 when
+    used.
+  Neither is reachable in production before the v1.4b release tag; no
+  repository exercise uses them.
