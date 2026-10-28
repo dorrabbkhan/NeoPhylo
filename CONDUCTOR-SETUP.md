@@ -24,8 +24,8 @@ you can approve them, and only your comments count as commands.
 4. Check: `scripts/conductor/app-token.sh --permissions` prints exactly the permissions above.
 5. Rulesets (owner): `main` requires a PR with your Code Owner approval (you are the only bypass actor), and
    `v*` tags can be created only by you. The JSON is in `docs/conductor/rulesets/`.
-Your own shell keeps using `gh` and git as you; only processes started through `scripts/conductor/` act as the
-app.
+Your own shell keeps using `gh` and git as you. Every Claude Code session opened in this repo acts as the app
+(SessionStart hook `scripts/conductor/session-env.sh`), as do processes started through `scripts/conductor/`.
 
 ## 2. Add these files to the repo
 Copy CLAUDE.md, .claude/, scripts/conductor/ and docs/conductor/ into ~/NeoPhylo, then commit them on a
@@ -35,9 +35,9 @@ branch and open a PR (you merge it). Add `.claude/settings.local.json` to .gitig
 ```bash
 cd ~/NeoPhylo
 tmux new -s conductor          # keeps it running if you close the terminal
-scripts/conductor/start.sh     # claude as the app; then type:  /conduct v1.4b 2
+claude                         # acts as the app (SessionStart hook); then type:  /conduct v1.4b 2
 ```
-or fully headless for one task: `scripts/conductor/start.sh -p "/conduct v1.4b 2"`.
+or fully headless for one task: `claude -p "/conduct v1.4b 2"`.
 For a range: `/run-plan v1.3 2 6` (pauses at gates; waits for your merges).
 
 ## 4. Talking to it
