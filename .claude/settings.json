@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Grep", "Glob",
+      "Edit(docs/conductor/**)",
+      "Bash(scripts/conductor/*)",
+      "Bash(./scripts/check.sh:*)",
+      "Bash(devin:*)",
+      "Bash(gh pr view:*)", "Bash(gh pr diff:*)", "Bash(gh pr checks:*)", "Bash(gh pr list:*)",
+      "Bash(gh pr comment:*)", "Bash(gh run view:*)", "Bash(gh run list:*)", "Bash(gh run rerun:*)",
+      "Bash(gh workflow run:*)", "Bash(gh api repos/*/issues/*/comments*)",
+      "Bash(git fetch:*)", "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)",
+      "Bash(git switch:*)", "Bash(git worktree:*)", "Bash(git rev-parse:*)", "Bash(git pull:*)",
+      "Bash(notify-send:*)", "Bash(mkdir:*)", "Bash(cat:*)", "Bash(grep:*)", "Bash(wc:*)", "Bash(sleep:*)"
+    ],
+    "deny": [
+      "Bash(gh pr merge:*)", "Bash(gh pr review:*)", "Bash(gh release:*)", "Bash(gh api -X PUT*)",
+      "Bash(git push:*)", "Bash(git commit:*)", "Bash(git reset:*)", "Bash(git tag:*)",
+      "Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(curl:*)", "Bash(wget:*)",
+      "Edit(crates/**)", "Edit(web/**)", "Edit(fixtures/**)", "Edit(exercises/**)",
+      "Edit(docs/decisions.md)", "Edit(.github/**)", "Edit(AGENTS.md)", "Edit(.devin/**)"
+    ]
+  }
+}

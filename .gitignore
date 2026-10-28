@@ -18,7 +18,10 @@ web/dist/
 .DS_Store
 .vscode/
 .idea/
-.claude/
+# Conductor config (.claude/settings.json, .claude/commands/) is tracked;
+# per-machine settings and worktrees are not.
+.claude/settings.local.json
+.claude/worktrees/
 
 # Fuzzing
 crates/neophylo-core/fuzz/target/
