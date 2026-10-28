@@ -1,23 +1,33 @@
-//! Parity of `Poisson` and `JttMega` (and the existing models under
-//! every site filter) against the frozen MEGA-CC oracle (v1.4b spec
-//! §3.5, plan Task 4).
+//! Parity of `Poisson` (and the existing models under every site
+//! filter) against the frozen MEGA-CC oracle (v1.4b spec §3.5, plan
+//! Task 4).
 //!
 //! Every `fixtures/mega/*.json` is replayed: for every `distances` key
-//! `"<model>/<filter>"`, `compute_filtered` must equal MEGA's printed
-//! matrix within half a unit of the last printed decimal
-//! (`precision.distances`, 8). MEGA prints `n/c` for cells it cannot
-//! compute — stored as JSON `null` — which asserts `Cell::Saturated`
-//! or the `InsufficientOverlap` error, never a skip.
+//! `"<model>/<filter>"` over p, JC69, K80 or Poisson,
+//! `compute_filtered` must equal MEGA's printed matrix within half a
+//! unit of the last printed decimal (`precision.distances`, 8). MEGA
+//! prints `n/c` for cells it cannot compute — stored as JSON `null` —
+//! which asserts `Cell::Saturated` or the `InsufficientOverlap` error,
+//! never a skip.
 //!
-//! For every `trees` key `"<method>/<model>/<filter>"` two checks run:
-//! the tree built on MEGA's printed matrix must reproduce MEGA's
-//! topology and labels (branch lengths are not compared on the rounded
-//! matrix — the fixture trees were generated at full precision, so
-//! rounding propagates ~1e-9; see `check_tree`), and the tree built on
-//! our own matrix — which equals MEGA's unrounded one to ~1e-15 — must
-//! match topology and every branch length within `len_tol` of that
-//! value's own printed decimals. NJ trees are compared as unrooted
-//! topologies (basal trifurcation); UPGMA trees as rooted.
+//! MEGA's `"JTT"` keys are compared for divergence, not parity: MEGA's
+//! JTT is a different estimator NeoPhylo does not ship (owner decision
+//! on #117, 2026-10-28 — docs/decisions.md). `jtt_diverges_from_mega`
+//! pins the measured gap between our `Jtt` (PHYLIP 3.697 spectral
+//! data) and MEGA's printed JTT matrices, and
+//! `every_fixture_key_is_handled` makes sure no fixture key is ever
+//! silently ignored.
+//!
+//! For every `trees` key `"<method>/<model>/<filter>"` the tree built
+//! on MEGA's printed matrix must reproduce MEGA's topology and labels
+//! (branch lengths are not compared on the rounded matrix — the
+//! fixture trees were generated at full precision, so rounding
+//! propagates ~1e-9; see `check_tree`), and for the parity models the
+//! tree built on our own matrix — which equals MEGA's unrounded one to
+//! ~1e-15 — must match topology and every branch length within
+//! `len_tol` of that value's own printed decimals. NJ trees are
+//! compared as unrooted topologies (basal trifurcation); UPGMA trees
+//! as rooted.
 //!
 //! Fixtures are the oracle: a failure here is a bug in the engine,
 //! never in the fixture (AGENTS.md rule 1).
@@ -88,17 +98,18 @@ fn load_alignment(rel: &str) -> Alignment {
     parse_fasta(&text).unwrap_or_else(|e| panic!("{rel}: {e:?}"))
 }
 
+/// The engine model a fixture distance key is parity-compared with.
+/// `"JTT"` never reaches this: MEGA's JTT estimator is not our `Jtt`
+/// (owner decision on #117 — docs/decisions.md), so JTT keys are
+/// routed to `jtt_diverges_from_mega` and the printed-matrix topology
+/// check, never to an equality comparison.
 fn model_of(name: &str) -> DistModel {
     match name {
         "p" => DistModel::P,
         "JC69" => DistModel::Jc69,
         "K80" => DistModel::K80,
         "Poisson" => DistModel::Poisson,
-        // The fixture's "JTT" is MEGA's JTT estimator: our JttMega
-        // (MEGA's own spectral data + its raw Newton iterate), not the
-        // PHYLIP-3.697 Jtt (fixtures/worked/mega-notes.md).
-        "JTT" => DistModel::JttMega,
-        other => panic!("unknown model key {other:?}"),
+        other => panic!("unknown parity model key {other:?}"),
     }
 }
 
@@ -333,6 +344,11 @@ fn mega_distances_match_at_printed_precision() {
         let aln = load_alignment(&fx.input);
         for (key, run) in &fx.distances {
             let (mname, fname) = key.split_once('/').expect("model/filter key");
+            // MEGA's JTT is a different estimator (docs/decisions.md):
+            // `jtt_diverges_from_mega` pins the gap, never an equality.
+            if mname == "JTT" {
+                continue;
+            }
             let ctx = format!("{stem} {key}");
             assert_eq!(
                 fx.alphabet == "protein",
@@ -391,6 +407,17 @@ fn mega_trees_match_topology_and_lengths() {
                 );
                 e
             };
+            if mname == "JTT" {
+                // No branch-length (or engine-matrix) check for JTT
+                // trees: the fixture tree was built on MEGA's own JTT
+                // matrix, whose estimator differs from our `Jtt` by
+                // up to ~0.18 on the most divergent pairs
+                // (`jtt_diverges_from_mega`), so no MEGA JTT branch
+                // length is reproducible by the engine. Topology and
+                // labels are still asserted on the printed matrix —
+                // the tree algorithm is ours either way.
+                continue;
+            }
             // Full parity on the engine's own matrix: topology and
             // every branch length at per-value precision.
             let ours = compute_filtered(&aln, model_of(mname), filter_of(fname))
@@ -405,25 +432,110 @@ fn mega_trees_match_topology_and_lengths() {
     }
 }
 
-/// spec §3.3: `JTT_MEGA` is a different estimator from `JTT` — MEGA's
-/// JTT uses the PHYLIP-3.6 spectral decomposition and reports its raw
-/// Newton iterate, ours uses the 3.697 data with a bounded global
-/// check. The divergence must be visible on `p12_100`, where the notes
-/// record the largest difference (0.177891 on one cell).
+/// Owner decision on #117 (2026-10-28, option D): NeoPhylo does not
+/// ship MEGA's JTT estimator — neither MEGA's binary nor an
+/// independent JTT92 derivation is an acceptable or working source
+/// for its table (docs/decisions.md, v1.4b Task 4). Our `Jtt` follows
+/// PHYLIP 3.697's spectral data, so it must DIFFER from MEGA's
+/// printed `JTT/<filter>` matrices: this test pins the gap so a
+/// silent drift toward or away from MEGA cannot slip in. On every
+/// protein fixture and every filter, at least one cell must differ
+/// by more than 1e-3 — or MEGA's `n/c` state must mismatch.
+///
+/// Measured per-input max |diff| (identical under every filter —
+/// these protein inputs carry no gaps, so `complete` and `partial95`
+/// coincide with `pairwise`):
+///
+/// | input   | max |diff| |
+/// |---------|------------|
+/// | p6_150  | 0.029497   |
+/// | p8_250  | 0.003641   |
+/// | p10_400 | 0.048638   |
+/// | p12_100 | 0.177891   |
 #[test]
-fn jtt_mega_differs_from_jtt() {
-    let aln = load_alignment("inputs/protein/p12_100.fasta");
-    let jtt = compute_filtered(&aln, DistModel::Jtt, SiteFilter::Pairwise).unwrap();
-    let mega = compute_filtered(&aln, DistModel::JttMega, SiteFilter::Pairwise).unwrap();
-    let mut max_diff = 0.0f64;
-    for (a, b) in jtt.cells.iter().zip(mega.cells.iter()) {
-        if let (Cell::Value(x), Cell::Value(y)) = (a, b) {
-            max_diff = max_diff.max((x - y).abs());
+fn jtt_diverges_from_mega() {
+    for (stem, fx) in load_fixtures() {
+        if fx.alphabet != "protein" {
+            continue;
+        }
+        let aln = load_alignment(&fx.input);
+        for (key, run) in &fx.distances {
+            let (mname, fname) = key.split_once('/').expect("model/filter key");
+            if mname != "JTT" {
+                continue;
+            }
+            let ctx = format!("{stem} {key}");
+            let dm = compute_filtered(&aln, DistModel::Jtt, filter_of(fname))
+                .unwrap_or_else(|e| panic!("{ctx}: {e:?}"));
+            let n = run.labels.len();
+            assert_eq!(dm.labels, run.labels, "{ctx}: labels");
+            let mut max_diff = 0.0f64;
+            let mut state_mismatch = false;
+            for (i, row) in run.matrix.iter().enumerate() {
+                for (j, exp) in row.iter().enumerate() {
+                    match (exp, dm.cells[i * n + j]) {
+                        (Some(v), Cell::Value(g)) => max_diff = max_diff.max((g - v).abs()),
+                        (None, Cell::Saturated) => {}
+                        // MEGA printed a value where ours saturates,
+                        // or n/c where ours returns a distance: a
+                        // divergence of state, not of magnitude.
+                        _ => state_mismatch = true,
+                    }
+                }
+            }
+            assert!(
+                max_diff > 1e-3 || state_mismatch,
+                "{ctx}: Jtt matches MEGA's JTT (max |diff| {max_diff}) — \
+                 the recorded divergence is gone"
+            );
         }
     }
-    assert!(
-        max_diff > 0.17,
-        "JTT and JTT_MEGA agree within {max_diff} on p12_100 — the \
-         mega-notes divergence (0.177891) is missing"
-    );
+}
+
+/// Coverage guard: every key in every `fixtures/mega/*.json` must be
+/// either parity-compared above (p, JC69, K80, Poisson) or a JTT key,
+/// which `jtt_diverges_from_mega` covers for distances and the
+/// printed-matrix topology check covers for trees. Any other model,
+/// filter or method name fails here, so a fixture key added later can
+/// never be silently ignored.
+#[test]
+fn every_fixture_key_is_handled() {
+    fn check_model(stem: &str, key: &str, mname: &str, protein: bool) {
+        match mname {
+            "p" | "JC69" | "K80" | "Poisson" => {}
+            // JTT keys are covered only on protein fixtures — the
+            // divergence test skips DNA alignments.
+            "JTT" => assert!(protein, "{stem} {key}: JTT on a non-protein fixture"),
+            other => panic!(
+                "{stem} {key}: model {other:?} has no comparison — \
+                 add a parity arm or a divergence test"
+            ),
+        }
+    }
+    for (stem, fx) in load_fixtures() {
+        let protein = fx.alphabet == "protein";
+        for key in fx.distances.keys() {
+            let (mname, fname) = key
+                .split_once('/')
+                .unwrap_or_else(|| panic!("{stem} {key}: not a <model>/<filter> key"));
+            filter_of(fname);
+            check_model(&stem, key, mname, protein);
+        }
+        for key in fx.trees.keys() {
+            let mut it = key.split('/');
+            match it.next() {
+                Some("nj") | Some("upgma") => {}
+                other => panic!("{stem} {key}: unknown method {other:?}"),
+            }
+            let (mname, fname) = (
+                it.next()
+                    .unwrap_or_else(|| panic!("{stem} {key}: missing model")),
+                it.next()
+                    .unwrap_or_else(|| panic!("{stem} {key}: missing filter")),
+            );
+            assert!(it.next().is_none(), "{stem} {key}: trailing segment");
+            filter_of(fname);
+            check_model(&stem, key, mname, protein);
+        }
+    }
 }

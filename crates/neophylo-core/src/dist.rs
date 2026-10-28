@@ -46,10 +46,6 @@ pub enum DistModel {
     /// Poisson correction (protein), `d = −ln(1 − p)`. Saturates at
     /// `p ≥ 1` (v1.4b spec §3.3).
     Poisson,
-    /// MEGA's JTT estimator (protein): MEGA's own spectral
-    /// decomposition with the raw Newton iterate (v1.4b spec §3.3).
-    /// Saturates when the trajectory diverges.
-    JttMega,
     /// F84 as PHYLIP `dnadist` computes it (v1.4 §3.1): ML distance with
     /// empirical base frequencies and the fixed ratio 2.0.
     F84,
@@ -72,7 +68,6 @@ impl DistModel {
             DistModel::Kimura => "Kimura",
             DistModel::Jtt => "JTT",
             DistModel::Poisson => "Poisson",
-            DistModel::JttMega => "JTT_MEGA",
             DistModel::F84 => "F84",
             DistModel::K2pPhylip { .. } => "K2P_PHYLIP",
         }
@@ -92,11 +87,7 @@ impl DistModel {
             Alphabet::Protein => {
                 matches!(
                     self,
-                    DistModel::P
-                        | DistModel::Kimura
-                        | DistModel::Jtt
-                        | DistModel::Poisson
-                        | DistModel::JttMega
+                    DistModel::P | DistModel::Kimura | DistModel::Jtt | DistModel::Poisson
                 )
             }
         }
@@ -260,9 +251,7 @@ fn distance(counts: &PairCounts, model: DistModel, params: &DnaParams) -> Cell {
         // dispatch that calls this function, and `compute` handles
         // protein pairs through `protein_dist` directly. A saturated
         // cell is the honest fallthrough for a wrong model.
-        DistModel::Kimura | DistModel::Jtt | DistModel::Poisson | DistModel::JttMega => {
-            Cell::Saturated
-        }
+        DistModel::Kimura | DistModel::Jtt | DistModel::Poisson => Cell::Saturated,
         // dnadist's ML solves; `params` is built for the same model in
         // `compute_weighted`, so the Other arm is unreachable in
         // practice and Saturated stays the honest fallthrough.
@@ -395,7 +384,6 @@ pub fn compute_weighted(
                         DistModel::Kimura => protein_dist::kimura_from_p(p),
                         DistModel::Jtt => protein_dist::jtt_ml(&table),
                         DistModel::Poisson => protein_dist::poisson_from_p(p),
-                        DistModel::JttMega => protein_dist::jtt_mega_ml(&table),
                         other => {
                             return Err(NeoError::ModelAlphabetMismatch {
                                 model: other.name().to_string(),

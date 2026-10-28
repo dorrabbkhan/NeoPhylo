@@ -213,7 +213,6 @@ export const DIST_LABEL: Record<DistModelName, string> = {
   Kimura: "Kimura",
   Jtt: "JTT",
   Poisson: "Poisson",
-  JttMega: "JTT_MEGA",
   F84: "F84",
 };
 

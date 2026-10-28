@@ -10,7 +10,6 @@
 //! `scripts/gen_models.py` from `data/models/jtt.dat` — never hand-edited.
 
 pub mod jtt_constants;
-pub(crate) mod jtt_mega_constants;
 
 use std::sync::OnceLock;
 
@@ -86,41 +85,24 @@ struct SiteTables {
 
 static JTT_TABLES: OnceLock<SiteTables> = OnceLock::new();
 
-fn build_tables(eigvals: &[f64; 20], u_inv: &[[f64; 20]; 20]) -> SiteTables {
-    let n = eigvals.len();
-    let (mut ut, mut lt, mut l2t) = (
-        [[0.0_f64; 20]; 20],
-        [[0.0_f64; 20]; 20],
-        [[0.0_f64; 20]; 20],
-    );
-    for m in 0..n {
-        let l = eigvals[m];
-        for y in 0..n {
-            let c = u_inv[m][y];
-            ut[y][m] = c;
-            lt[y][m] = l * c;
-            l2t[y][m] = l * l * c;
-        }
-    }
-    SiteTables { ut, lt, l2t }
-}
-
 fn jtt_tables() -> &'static SiteTables {
-    JTT_TABLES.get_or_init(|| build_tables(&JTT.eigvals, &JTT.u_inv))
-}
-
-static JTT_MEGA_TABLES: OnceLock<SiteTables> = OnceLock::new();
-
-fn jtt_mega_tables() -> &'static SiteTables {
-    JTT_MEGA_TABLES.get_or_init(|| {
-        // MEGA stores its JTT eigenvalues in PAM units (mean rate
-        // 0.01); x100 converts to expected substitutions per site
-        // (protdist units, `jtt_mega_constants`' header).
-        let mut e = jtt_mega_constants::EIGVALS;
-        for v in e.iter_mut() {
-            *v *= 100.0;
+    JTT_TABLES.get_or_init(|| {
+        let n = JTT.n;
+        let (mut ut, mut lt, mut l2t) = (
+            [[0.0_f64; 20]; 20],
+            [[0.0_f64; 20]; 20],
+            [[0.0_f64; 20]; 20],
+        );
+        for m in 0..n {
+            let l = JTT.eigvals[m];
+            for y in 0..n {
+                let c = JTT.u_inv[m][y];
+                ut[y][m] = c;
+                lt[y][m] = l * c;
+                l2t[y][m] = l * l * c;
+            }
         }
-        build_tables(&e, &jtt_mega_constants::U_INV)
+        SiteTables { ut, lt, l2t }
     })
 }
 
@@ -171,21 +153,7 @@ impl SpectralCtx {
 pub(crate) fn jtt_spectral(t: f64) -> SpectralCtx {
     let e = JTT.spectral_weights(t);
     let tabs = jtt_tables();
-    spectral_ctx(&e, tabs, JTT.n)
-}
-
-/// The spectral context for MEGA's JTT (v1.4b spec §3.3): same
-/// evaluation as `jtt_spectral` over MEGA's own decomposition, whose
-/// raw eigenvalues are in PAM units (x100 inside).
-pub(crate) fn jtt_mega_spectral(t: f64) -> SpectralCtx {
-    let mut e = [0.0_f64; 20];
-    for (m, e_m) in e.iter_mut().enumerate() {
-        *e_m = libm::exp(jtt_mega_constants::EIGVALS[m] * 100.0 * t);
-    }
-    spectral_ctx(&e, jtt_mega_tables(), 20)
-}
-
-fn spectral_ctx(e: &[f64; 20], tabs: &'static SiteTables, n: usize) -> SpectralCtx {
+    let n = JTT.n;
     let mut ce = [[0.0_f64; 20]; 20];
     for (x, row) in ce.iter_mut().enumerate().take(n) {
         for (m, cell) in row.iter_mut().enumerate().take(n) {

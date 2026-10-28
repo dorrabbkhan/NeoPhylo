@@ -79,8 +79,9 @@ validation discipline: an independent oracle, property tests and fuzzing.
     (MEGA-CC) and frozen, so instructors can be told "same numbers as MEGA."
 - **MEGA's gap treatments:** pairwise (default, unchanged), complete and partial deletion with a
   site-coverage cutoff; removed columns shown in the pair panel.
-- **Full protein parity with MEGA:** p-distance, Poisson (new) and JTT (a separate `JTT_MEGA` model only
-  if MEGA's JTT differs from `protdist`'s).
+- **Full protein parity with MEGA:** p-distance and Poisson (new) match MEGA exactly; JTT follows
+  `protdist` — MEGA's JTT is a different estimator that is not shipped (owner decision on #117), with
+  the divergence pinned in tests and explained in the guide.
 - **Curated data library, bundled offline:** one-click datasets with provenance and licensing (globins,
   cytochrome c, primate mtDNA, 16S rRNA, a small SARS-CoV-2 gene set), rebuilt from public accessions
   by a committed script.

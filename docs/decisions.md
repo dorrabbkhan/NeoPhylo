@@ -5587,48 +5587,60 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   file's own header and the `edit_props` precedent); `docs/decisions.md` (this
   entry).
 
-## v1.4b Task 4: Poisson, JTT_MEGA, MEGA parity
+## v1.4b Task 4: Poisson and MEGA parity
 
 - **What:** `dist.rs` gains `DistModel::Poisson` (protein, `d = −ln(1 − p)`,
-  saturated at `p ≥ 1`) and `DistModel::JttMega` ("JTT_MEGA", protein); both wired
-  through `compute_weighted`/`compute_filtered` and `supports`. `protein_dist.rs`
-  gains `poisson_from_p` and `jtt_mega_ml`; `model.rs` gains `jtt_mega_spectral`
-  over a `jtt_mega_constants` spectral set; the optimizer path
-  (`logl_derivs`/`jtt_logl`) was parameterized by `&SpectralCtx` so both models
-  share it.
-- **MEGA's JTT estimator (the "real cause" the notes asked for):** MEGA-CC
-  12.1.4 embeds a JTT spectral decomposition at PAM-rate units (eigenvalues
-  ~0.01× protdist's, Q̄ = 0.01 exactly; the published JTT92 frequencies at
-  three decimals) that differs from PHYLIP 3.697's `jtt.dat` by up to ~2% —
-  plus MEGA reports its raw Newton iterate (no global bounded-search
-  adjudication) with a 1e-6 floor, so it returns finite local maxima where
-  `jtt_ml` reports `Saturated`. Both pieces were verified numerically against
-  live `megacc` probes: extracted model + raw Newton reproduces MEGA to <5e-9
-  on every cell of all fixtures and every synthetic probe (including the
-  local-maximum cases aw50/al50/all-R that diverge under the existing
-  optimizer). The constants in `jtt_mega_constants.rs` are the spectral data
-  MEGA attributes to PHYLIP 3.6 (`Dayhoff_and_JTT_Models.htm`), transcribed at
-  full f64 precision.
-- **Branch-length parity premise (owner flag, see PR):** `fixtures/mega/*.json`
-  trees were generated on MEGA's *full-precision* internal matrix, not the
-  8-decimal printed one: two independent NJ implementations agree bit-for-bit
-  on the printed matrix yet sit ~±3e-9 from MEGA's printed branch lengths on
-  every edge — exactly the ±5e-9 cell-rounding propagation. No implementation
-  can satisfy a half-ulp bound against the rounded matrix. The parity test
-  therefore (a) asserts topology+labels from NJ/UPGMA on the printed matrix,
-  and (b) compares branch lengths for the tree built on the engine's own
-  matrix (which equals MEGA's internal matrix to ~1e-15, verified) at
-  `len_tol = max(0.5·10^-d, 8·f64::EPSILON·max(1, |v|))` per printed value —
-  the Task-4-notes formula; measured worst |diff| 4.5e-15.
-- **Files outside the Files block:** `crates/neophylo-core/src/model.rs`
-  (`jtt_mega_spectral` + the shared `build_tables`/`spectral_ctx` helpers —
-  the spectral evaluation lives here, not in `protein_dist.rs`);
-  `crates/neophylo-core/src/model/jtt_mega_constants.rs` (new constants module — MEGA's spectral data, same
-  role as `jtt_constants.rs`); `web/src/engine/generated/DistModel.ts`
+  saturated at `p ≥ 1`), wired through `compute_weighted`/`compute_filtered`
+  and `supports`; `protein_dist.rs` gains `poisson_from_p`. `model.rs` is
+  identical to main — `SpectralCtx` needed no changes.
+- **Owner decision on #117 (2026-10-28): option D — no `JTT_MEGA`.** MEGA's
+  JTT estimator is not shipped, because no acceptable or working source for
+  MEGA's JTT table exists: the only constants that reproduced MEGA were
+  copied from the MEGA binary — rejected as a source (the plan commits
+  nothing from MEGA and its licence is unresolved); PHYLIP 3.69's
+  `protdist.c` carries Tillier's decomposition, not MEGA's table; and an
+  independent derivation from PAML `jones.dat` (JTT92 exchangeabilities,
+  3-decimal frequencies, mean rate 0.01) misses MEGA by 9e-3 to 1.5e-1
+  against the required 5e-9 on every protein fixture. `DistModel::JttMega`,
+  `jtt_mega_constants.rs`, `jtt_mega_spectral`, `mega_newton`/`jtt_mega_ml`
+  and the `"JTT_MEGA"` wire name were removed entirely; `model.rs` was
+  reverted to main.
+- **Pinned JTT divergence (replaces the dropped model's parity):** our `Jtt`
+  (PHYLIP 3.697 spectral data) vs MEGA's printed `JTT/<filter>` matrices —
+  measured per-input max |diff|, identical under all three filters since the
+  protein inputs carry no gaps: p6_150 0.029497, p8_250 0.003641,
+  p10_400 0.048638, p12_100 0.177891. `jtt_diverges_from_mega` asserts a
+  > 1e-3 gap on every protein fixture/filter;
+  `every_fixture_key_is_handled` fails on any fixture key that is neither
+  parity-compared (p, JC69, K80, Poisson) nor JTT-divergence-covered. JTT
+  tree keys get the printed-matrix topology+labels check only — the tree
+  algorithm is ours either way, but MEGA's JTT branch lengths are
+  unreproducible because the input matrix itself differs by up to ~0.18.
+- **Branch-length parity premise and `len_tol` approved by the owner on
+  #117.** `fixtures/mega/*.json` trees were generated on MEGA's
+  *full-precision* internal matrix, not the 8-decimal printed one: two
+  independent NJ implementations agree bit-for-bit on the printed matrix
+  yet sit ~±3e-9 from MEGA's printed branch lengths on every edge —
+  exactly the ±5e-9 cell-rounding propagation. No implementation can
+  satisfy a half-ulp bound against the rounded matrix. The parity test
+  therefore (a) asserts topology+labels from NJ/UPGMA on the printed
+  matrix, and (b) compares branch lengths for the tree built on the
+  engine's own matrix (which equals MEGA's internal matrix to ~1e-15,
+  verified) at `len_tol = max(0.5·10^-d, 8·f64::EPSILON·max(1, |v|))`
+  per printed value — the Task-4-notes formula; measured worst |diff|
+  4.5e-15.
+- **Follow-up for Task 13's guide:** "NeoPhylo's JTT follows PHYLIP; MEGA's
+  JTT differs by up to ~0.18 on saturated pairs; use Poisson or p to match
+  MEGA exactly."
+- **Files outside the Files block:** `web/src/engine/generated/DistModel.ts`
   (regenerated by ts-rs, never hand-edited); `web/src/state/analysis.ts`
-  (`DIST_LABEL` is a total `Record<DistModelName, _>` — the two new variants
-  are a compile error without label entries; menus in `CORRECTIONS` are
-  untouched, that is Task 10); `web/src/editor/exerciseFile.ts`
-  (`correctionName`'s exhaustive switch fails `tsc` without the two new
-  variants — the minimal `never`-style exhaustiveness fix; each maps to its
-  `DistModel::name()` wire string); `docs/decisions.md` (this entry).
+  (`DIST_LABEL` is a total `Record<DistModelName, _>` — the `Poisson`
+  variant is a compile error without a label entry; menus in `CORRECTIONS`
+  are untouched, that is Task 10); `web/src/editor/exerciseFile.ts`
+  (`correctionName`'s exhaustive switch fails `tsc` without the `Poisson`
+  arm — the minimal `never`-style exhaustiveness fix, mapping to its
+  `DistModel::name()` wire string); `docs/roadmap.md`, the v1.4b spec and
+  plan (the conditional model's mentions annotated with the owner decision —
+  required so no `JttMega`/`JTT_MEGA`/`jtt_mega` string remains outside this
+  file and the untouchable `fixtures/` notes);
+  `docs/decisions.md` (this entry).

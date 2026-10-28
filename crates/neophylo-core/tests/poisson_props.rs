@@ -2,7 +2,7 @@
 //! plan Task 4): `d = −ln(1 − p)` is symmetric, has a zero diagonal, is
 //! non-negative and is monotone in the observed difference proportion
 //! p; `p = 1` is `Saturated`. Protein-only like JTT: a DNA alignment
-//! under `Poisson` or `JttMega` is `ModelAlphabetMismatch`.
+//! under `Poisson` is `ModelAlphabetMismatch`.
 
 use neophylo_core::dist::{compute, compute_filtered, Cell, DistModel};
 use neophylo_core::error::NeoError;
@@ -85,26 +85,18 @@ fn poisson_saturates_at_p_one() {
 }
 
 #[test]
-fn poisson_and_jtt_mega_are_protein_only() {
-    // supports(): the new corrections reject DNA with
+fn poisson_is_protein_only() {
+    // supports(): the new correction rejects DNA with
     // ModelAlphabetMismatch, exactly like Kimura/Jtt.
     let dna = parse_fasta(">a\nACGTACGT\n>b\nACGTACGA\n").unwrap();
-    for model in [DistModel::Poisson, DistModel::JttMega] {
-        match compute(&dna, model) {
-            Err(NeoError::ModelAlphabetMismatch { model: m, .. }) => {
-                assert_eq!(m, model.name())
-            }
-            other => panic!(
-                "{:?}: expected ModelAlphabetMismatch, got {other:?}",
-                model.name()
-            ),
+    match compute(&dna, DistModel::Poisson) {
+        Err(NeoError::ModelAlphabetMismatch { model: m, .. }) => {
+            assert_eq!(m, DistModel::Poisson.name())
         }
-        match compute_filtered(&dna, model, SiteFilter::Complete) {
-            Err(NeoError::ModelAlphabetMismatch { .. }) => {}
-            other => panic!(
-                "{:?}: filtered expected ModelAlphabetMismatch, got {other:?}",
-                model.name()
-            ),
-        }
+        other => panic!("expected ModelAlphabetMismatch, got {other:?}"),
+    }
+    match compute_filtered(&dna, DistModel::Poisson, SiteFilter::Complete) {
+        Err(NeoError::ModelAlphabetMismatch { .. }) => {}
+        other => panic!("filtered expected ModelAlphabetMismatch, got {other:?}"),
     }
 }
