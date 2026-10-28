@@ -5483,3 +5483,14 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   the bot's own sticky comment.
 - **CLA:** commits by the bot are the owner's agents acting on the owner's behalf; no CLA
   signature is needed for them.
+
+## Conductor: track .claude/settings.json and .claude/commands/ (owner request, 2026-10-28)
+
+- **What:** `.gitignore` no longer ignores all of `.claude/`; only `.claude/settings.local.json`
+  and `.claude/worktrees/` stay untracked. `.claude/settings.json` (the conductor's allow/deny
+  list) and `.claude/commands/{conduct,inbox,run-plan}.md` are committed as they stand on the
+  conductor machine, including the owner-only command check added to `/inbox` with the GitHub
+  App (`dorrabbkhan` + association OWNER; the bot's comments are never commands).
+- **Why:** they are the conductor's guardrails and were invisible to review and lost on a new
+  checkout; `CONDUCTOR-SETUP.md` already said to commit them, and babelgate tracks the same
+  files. With `* @dorrabbkhan` in CODEOWNERS, any change to them needs the owner's approval.
