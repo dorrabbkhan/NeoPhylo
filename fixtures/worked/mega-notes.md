@@ -109,7 +109,7 @@ prior to the analysis". The bootstrap replicates are drawn inside the
 analysis, so the mask is applied first and resampling happens on the
 kept columns — matching Task 3's "filter before resampling" branch.
 
-## JTT verdict: `JttMega` needed
+## JTT verdict: MEGA's JTT differs; not shipped
 
 MEGA's JTT is *not* protdist's JTT. Comparing `compute(.., DistModel::Jtt)`
 to MEGA's `JTT/pairwise` matrices on all four protein inputs
@@ -122,17 +122,23 @@ to MEGA's `JTT/pairwise` matrices on all four protein inputs
 | p10_400 | 0.048638 | 4.921175807 vs 4.872537340 |
 | p12_100 | **0.177891** | 7.708440190 vs 7.530548870 |
 
-All far outside half an ulp of 8 decimals. The committed fixtures are the
-reference for `JttMega`.
+All far outside half an ulp of 8 decimals. Owner decision on #117
+(2026-10-28), option D: no MEGA-JTT model ships. MEGA's JTT table could
+not be sourced acceptably — the only constants that reproduced MEGA were
+copied from the MEGA binary (rejected as a source); PHYLIP 3.69's
+`protdist.c` carries Tillier's decomposition, not MEGA's table; and an
+independent derivation from PAML `jones.dat` misses MEGA by 9e-3 to
+1.5e-1. `parity_mega.rs`'s `jtt_diverges_from_mega` pins the gap. See
+docs/decisions.md "v1.4b Task 4".
 
 MEGA's estimator (`Dayhoff_and_JTT_Models.htm`): the distance is found
 iteratively by maximum likelihood from the observed pair-proportion
 matrix F, `d = 2t·Q̄` under the JTT substitution-rate matrix Q; "the
 eigen values for the PAM and JTT matrices required in this computation
 were obtained from the program source code of PHYLIP version 3.6". So it
-is the same family as protdist's estimator but a different implementation
-(different optimizer constants / stopping rule) — hence the small but
-real divergence.
+is the same family as protdist's estimator, but MEGA's spectral data
+differs from PHYLIP 3.697's (~1–2% in the eigenvalues) — hence the small
+but real divergence.
 
 `Poisson`: manual formula `d = −ln(1 − p)` (`Poisson_Correction_(PC)_distance.htm`),
 exactly spec §3.3.

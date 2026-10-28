@@ -5644,3 +5644,5 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   required so no `JttMega`/`JTT_MEGA`/`jtt_mega` string remains outside this
   file and the untouchable `fixtures/` notes);
   `docs/decisions.md` (this entry).
+- Fixture notes updated in the stacked follow-up PR (fixture guard keeps
+  `fixtures/` edits out of #117).
