@@ -11,9 +11,10 @@ a human decision is needed. The owner reviews PRs on GitHub and talks to you thr
 
 ## GitHub identity
 - The conductor and every Devin session act on GitHub as the **neophylo-conductor GitHub App**
-  (`neophylo-conductor[bot]`), never as the owner. Start the conductor with `scripts/conductor/start.sh`;
-  `devin.sh` and `status-comment.sh` set the identity themselves. In a session not started that way, run every
-  `gh`/`git push` through `scripts/conductor/as-app.sh` (escalation comments included).
+  (`neophylo-conductor[bot]`), never as the owner. Any Claude Code session opened in this repo gets that identity
+  automatically (SessionStart hook `scripts/conductor/session-env.sh` in `.claude/settings.json`), and `devin.sh`
+  and `status-comment.sh` set it themselves. If `printenv NEOPHYLO_ACTOR` prints nothing, the hook did not run:
+  then run every `gh`/`git push` through `scripts/conductor/as-app.sh` (escalation comments included).
 - The app cannot change settings, rules or workflows (no Administration or Workflows permission), and only the
   owner may create `v*` tags or merge to `main` (rulesets).
 - Owner commands count only from `dorrabbkhan` with association OWNER (see /inbox).

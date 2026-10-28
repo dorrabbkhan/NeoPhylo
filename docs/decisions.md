@@ -5494,3 +5494,17 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **Why:** they are the conductor's guardrails and were invisible to review and lost on a new
   checkout; `CONDUCTOR-SETUP.md` already said to commit them, and babelgate tracks the same
   files. With `* @dorrabbkhan` in CODEOWNERS, any change to them needs the owner's approval.
+
+## Conductor: SessionStart hook sets the app identity (owner request, 2026-10-28)
+
+- **What:** `.claude/settings.json` gains a SessionStart hook running
+  `scripts/conductor/session-env.sh`, which writes absolute `export` lines (git identity and
+  credential helper, the `gh` wrapper first on PATH, `NEOPHYLO_ACTOR`) to `$CLAUDE_ENV_FILE`. Every
+  Claude Code session opened in this repo therefore acts as `neophylo-conductor[bot]`, however it
+  was started; `start.sh` stays but is optional. On a machine without the app's config the
+  hook writes nothing. CLAUDE.md and CONDUCTOR-SETUP.md describe it, with the fallback check
+  (`printenv NEOPHYLO_ACTOR` empty → use `as-app.sh`).
+- **Why:** in a plain `claude` session, the conductor's own `gh` calls (escalations, /inbox
+  acknowledgements) went out as the owner, who gets no notification for their own comments.
+- **Shell:** export lines rather than sourcing `app-env.sh`, which is bash-only; the owner's
+  shell is zsh. Verified with a fresh headless session: commits authored by the bot.
