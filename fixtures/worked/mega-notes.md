@@ -81,10 +81,12 @@ the comparison direction:
   percentage of ambiguous sites than is specified" → removed iff
   `missing% > 100 − cutoff` → kept iff `present% >= cutoff`.
 
-`gaps_boundary.fasta` puts a column at exactly 19/20 = 95% coverage (and
-one at 18/20 = 90%). Its `p/partial95` matrix shows the 95% column kept
-(s01–s02 = 3/99 = 0.03030303 vs 2/98 = 0.02040816 under `p/complete`),
-so the boundary decision is visible in committed output.
+`gaps_boundary.fasta` (20 × 1,000; long enough that NJ/UPGMA have no tied
+joins — `generate.R` asserts this for every `inputs/*.fasta`) puts a
+column at exactly 19/20 = 95% coverage (and one at 18/20 = 90%). Its
+`p/partial95` matrix shows the 95% column kept (s01–s02 = 0.05505506 vs
+0.05410822 under `p/complete`), so the boundary decision is visible in
+committed output.
 
 ## Missing characters (per treatment)
 

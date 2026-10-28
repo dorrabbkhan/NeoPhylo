@@ -10,10 +10,11 @@ see `AGENTS.md` for the rules.
   `jc8_gaps.fasta` carries `-` gaps and `N`s; `k80_10.fasta` was simulated
   under K80 with κ = 6 so transitions dominate. None has a tied minimum at
   any join (the generator asserts this and fails if one appears).
-- `inputs/gaps_boundary.fasta` — 20 DNA sequences × 100 sites for the
+- `inputs/gaps_boundary.fasta` — 20 DNA sequences × 1,000 sites for the
   MEGA partial-deletion boundary: one column at exactly 95% coverage
-  (19/20), one at 90% (18/20), the rest gap-free; every sequence carries
-  one private difference so no distance row is all zeros (v1.4b Task 2).
+  (19/20), one at 90% (18/20), the rest gap-free with heterogeneous
+  per-sequence substitution rates so NJ/UPGMA have no tied joins (v1.4b
+  Task 2).
 - `inputs/protein/*.fasta` — four committed protein alignments (6–12 taxa,
   100–400 sites, standard amino acids only, `P01`-style names), generated
   by `make_protein_inputs.py` (numpy, seed 2026): sequences evolved down a
