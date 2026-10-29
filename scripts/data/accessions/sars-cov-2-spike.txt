@@ -1,0 +1,38 @@
+# id: sars-cov-2-spike
+# title: SARS-CoV-2 spike RBD, major variants
+# alphabet: dna
+# source: ncbi-nucleotide
+# license: NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights
+# citation: NCBI Virus / GenBank severe acute respiratory syndrome coronavirus 2 records. https://www.ncbi.nlm.nih.gov/labs/virus
+# good_for: variant surveillance mutations in the spike receptor-binding domain
+#
+# Dataset choice: one verified complete-genome representative per major
+# WHO-designated variant (Alpha through the Omicron sublineages) plus the
+# bat sarbecovirus RaTG13 as the outgroup. The whole spike CDS (~3,822 nt)
+# exceeds the 2,000-site cap, so each record is sliced to the
+# receptor-binding domain, spike residues 319-541 (gene:S:319-541 = codons
+# 319-541 of the CDS annotated /gene="S"; codon anchoring absorbs the NTD
+# indels that shift absolute genome coordinates between variants).
+# Lineages are stated in each record's genotype note or its publication
+# title (checked 2026-10-29): PP847689 is BA.2.3.20, PP848071 BA.5.2 —
+# the BA.2/BA.5 parent lineages. PP832910 has no genotype note; its
+# publication title is "First Report of SARS-CoV-2 JN.1 variant in
+# Morocco".
+#
+# Format: <accession> <label> <slice>   (labels: no whitespace, no '"', unique)
+MN908947.3  Wuhan-Hu-1        gene:S:319-541
+OR357865.1  Alpha_B.1.1.7     gene:S:319-541
+OR357823.1  Beta_B.1.351      gene:S:319-541
+MW642250.1  Gamma_P.1         gene:S:319-541
+OR357870.1  Delta_B.1.617.2   gene:S:319-541
+MZ571142.1  Kappa_B.1.617.1   gene:S:319-541
+OR322718.1  Epsilon_B.1.429   gene:S:319-541
+MZ702450.1  Iota_B.1.526      gene:S:319-541
+MZ275302.1  Lambda_C.37       gene:S:319-541
+OR322724.1  Mu_B.1.621        gene:S:319-541
+PP848092.1  Omicron_BA.1      gene:S:319-541
+PP847689.1  Omicron_BA.2      gene:S:319-541
+PP848071.1  Omicron_BA.5      gene:S:319-541
+PP848088.1  Omicron_XBB.1.5   gene:S:319-541
+PP832910.1  Omicron_JN.1      gene:S:319-541
+MN996532.1  RaTG13_bat        gene:S:319-541

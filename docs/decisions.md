@@ -5758,3 +5758,47 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     used.
   Neither is reachable in production before the v1.4b release tag; no
   repository exercise uses them.
+
+## Task 8 (v1.4b) data library
+
+- **MAFFT version resolved:** pinned at **7.525** (`--auto`), matching the
+  v1.1 task-12 cytochrome-c alignment build; `build_library.py` refuses
+  any other `mafft --version`.
+- **Accession-line format extended** beyond the plan's
+  `<accession> <display label>`: an optional third `slice` field —
+  `<start>-<end>` (1-based inclusive genomic range, efetch
+  `seq_start`/`seq_stop`) or `gene:<name>:<a>-<b>` (codons a..b of the
+  CDS annotated `/gene="<name>"`). Needed because the records the spec
+  asks for exceed the 2,000-site cap: primate-mtdna slices the Horai
+  (1995) complete genomes to their annotated D-loop/control-region
+  feature, and sars-cov-2-spike slices codon-anchored spike residues
+  319–541 (the RBD), which absorbs the NTD indels that shift absolute
+  genome coordinates between variants.
+- **primate-mtdna region:** MEGA's `mtCDNA.meg` is the whole ~16.5 kb
+  hominoid mtDNA alignment — over the cap — so the dataset is the
+  control region (the segment the classic hominoid studies used), from
+  the same public accessions.
+- **sars-cov-2-spike region:** the whole spike CDS (~3,822 nt) is over
+  the cap, so the dataset is the receptor-binding domain (S residues
+  319–541, 669 nt unaligned / 690 aligned).
+- **Provenance JSON adds `id` and `title`** to the spec's listed keys
+  (the schema `oneOf` still pins `aligner` xor `published_alignment`).
+- **`web/public/licenses.html` is generated** at build time from
+  `THIRD_PARTY_NOTICES.md` and is gitignored (`web/scripts/licenses.ts`),
+  so the Files-block "modify licenses.html" is satisfied by the
+  notices-file edit alone.
+- **Files outside the Files block:** `docs/decisions.md` (this entry —
+  the workflow requires decisions in the same PR).
+- **rights_check (2026-10-29):** all 50 NCBI records in
+  `scripts/data/accessions/{16s-rrna,primate-mtdna,sars-cov-2-spike}.txt`
+  were re-fetched as full GenBank flat files (efetch `rettype=gb`,
+  `tool=neophylo-build`) and searched case-insensitively — COMMENT,
+  REFERENCE/JOURNAL/REMARK, KEYWORDS, DBLINK and FEATURES notes — for
+  rights language (copyright, ©, patent, "all rights", license/licence,
+  "intellectual property", restricted, "not for", permission,
+  "terms of use", "data use", embargo) and patent-sequence markers
+  (JOURNAL "Patent:", KEYWORDS "patent", division PAT). No rights
+  statements found: no record matched any term, all divisions are
+  BCT/PRI/VRL, and the only adjacent text is X97707's standard DDBJ
+  courtesy note asking users to cite the entry — a citation request,
+  not a use restriction.

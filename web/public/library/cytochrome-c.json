@@ -1,0 +1,112 @@
+{
+  "id": "cytochrome-c",
+  "title": "Eukaryotic cytochrome c",
+  "accessions": [
+    {
+      "accession": "P99999",
+      "label": "Homo_sapiens"
+    },
+    {
+      "accession": "P00002",
+      "label": "Macaca_mulatta"
+    },
+    {
+      "accession": "P00004",
+      "label": "Equus_caballus"
+    },
+    {
+      "accession": "P62894",
+      "label": "Bos_taurus"
+    },
+    {
+      "accession": "P00012",
+      "label": "Mirounga_leonina"
+    },
+    {
+      "accession": "P00014",
+      "label": "Macropus_giganteus"
+    },
+    {
+      "accession": "P68099",
+      "label": "Camelus_dromedarius"
+    },
+    {
+      "accession": "P67881",
+      "label": "Gallus_gallus"
+    },
+    {
+      "accession": "P67882",
+      "label": "Meleagris_gallopavo"
+    },
+    {
+      "accession": "P00021",
+      "label": "Columba_livia"
+    },
+    {
+      "accession": "P00022",
+      "label": "Chelydra_serpentina"
+    },
+    {
+      "accession": "P68518",
+      "label": "Crotalus_atrox"
+    },
+    {
+      "accession": "P00024",
+      "label": "Aquarana_catesbeiana"
+    },
+    {
+      "accession": "P00025",
+      "label": "Katsuwonus_pelamis"
+    },
+    {
+      "accession": "P81459",
+      "label": "Thunnus_alalunga"
+    },
+    {
+      "accession": "Q6IQM2",
+      "label": "Danio_rerio"
+    },
+    {
+      "accession": "P00028",
+      "label": "Entosphenus_tridentatus"
+    },
+    {
+      "accession": "P84029",
+      "label": "Drosophila_melanogaster"
+    },
+    {
+      "accession": "P00037",
+      "label": "Samia_cynthia"
+    },
+    {
+      "accession": "P00068",
+      "label": "Triticum_aestivum"
+    },
+    {
+      "accession": "P00054",
+      "label": "Sesamum_indicum"
+    },
+    {
+      "accession": "P00044",
+      "label": "Saccharomyces_cerevisiae"
+    },
+    {
+      "accession": "P00046",
+      "label": "Schizosaccharomyces_pombe"
+    },
+    {
+      "accession": "P00048",
+      "label": "Neurospora_crassa"
+    }
+  ],
+  "source": "UniProtKB",
+  "retrieved": "2026-10-29",
+  "license": "CC BY 4.0 (UniProtKB)",
+  "citation": "The UniProt Consortium, UniProt: the Universal Protein Knowledgebase in 2025, Nucleic Acids Research 53 (D1). https://www.uniprot.org",
+  "aligner": {
+    "name": "MAFFT",
+    "version": "7.525",
+    "args": "--auto"
+  },
+  "sha256": "9dbc9366375f4d602d95a3b1672845a189c0b12f210bc4a444c78b12db3e79f8"
+}

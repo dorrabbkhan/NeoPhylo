@@ -1,0 +1,38 @@
+# id: globins
+# title: Vertebrate globins
+# alphabet: protein
+# source: uniprot
+# license: CC BY 4.0 (UniProtKB)
+# citation: The UniProt Consortium, UniProt: the Universal Protein Knowledgebase in 2025, Nucleic Acids Research 53 (D1). https://www.uniprot.org
+# good_for: protein distances (Poisson, JTT) and the alpha/beta globin gene family
+#
+# Dataset choice: vertebrate alpha and beta haemoglobins plus one myoglobin
+# outgroup — the classic globin family used to teach protein distances and
+# paralogy. All accessions are reviewed (Swiss-Prot) UniProtKB entries, so
+# every record is CC BY 4.0 and redistributable. Sequences are ~140-150 aa,
+# so the MAFFT alignment is far under the 2,000-site cap.
+#
+# Format: <accession> <label>   (labels: no whitespace, no '"', unique)
+P69905  Human_HBA
+P68871  Human_HBB
+P02042  Human_HBD
+P69891  Human_HBG1
+P68873  Chimp_HBB
+P02024  Gorilla_HBB
+P01942  Mouse_HBA
+P02088  Mouse_HBB1
+P02091  Rat_HBB1
+P01958  Horse_HBA
+P02062  Horse_HBB
+P01966  Cow_HBA
+P02070  Cow_HBB
+P02067  Pig_HBB
+P02075  Sheep_HBB
+P60524  Dog_HBB
+P02057  Rabbit_HBB
+P01994  Chicken_HBAA
+P02112  Chicken_HBB
+P02012  Xenopus_HBA1
+P02132  Xenopus_HBB1
+Q90486  Zebrafish_HBB1
+P02144  Human_myoglobin
