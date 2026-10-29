@@ -1,0 +1,25 @@
+# id: primate-mtdna
+# title: Hominoid mitochondrial D-loop
+# alphabet: dna
+# source: ncbi-nucleotide
+# license: Public domain (NCBI GenBank)
+# citation: Horai S, Hayasaka K, Kondo R, Tsugane K, Takahata N (1995) Recent African origin of modern humans revealed by complete sequences of hominoid mitochondrial DNAs. PNAS 92:532-536.
+# good_for: DNA distances on the MEGA mtCDNA hominoid set
+#
+# Dataset choice: MEGA's mtCDNA timetree example is the seven-taxon hominoid
+# mitochondrial set of Horai et al. (1995); those complete-genome accessions
+# are public and are listed below, so students can cross-check against MEGA.
+# The full ~16.5 kb genomes exceed the 2,000-site cap, so each record is
+# sliced to its annotated D-loop (control region) — the non-coding segment
+# the classic hominoid studies used. The start-end ranges below are the
+# D-loop/control-region feature coordinates of each record (1-based,
+# inclusive, efetch seq_start/seq_stop).
+#
+# Format: <accession> <label> <start-end>   (labels: no whitespace, no '"', unique)
+D38112  Homo_sapiens      15438-16559
+D38113  Pan_troglodytes   15442-16554
+D38116  Pan_paniscus      15443-16563
+D38114  Gorilla_gorilla   15447-16364
+D38115  Pongo_pygmaeus    15473-16389
+X97707  Pongo_abelii      15484-16499
+X99256  Hylobates_lar     15444-16472

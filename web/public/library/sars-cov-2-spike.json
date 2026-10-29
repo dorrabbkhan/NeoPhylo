@@ -1,0 +1,80 @@
+{
+  "id": "sars-cov-2-spike",
+  "title": "SARS-CoV-2 spike RBD, major variants",
+  "accessions": [
+    {
+      "accession": "MN908947.3",
+      "label": "Wuhan-Hu-1"
+    },
+    {
+      "accession": "OR357865.1",
+      "label": "Alpha_B.1.1.7"
+    },
+    {
+      "accession": "OR357823.1",
+      "label": "Beta_B.1.351"
+    },
+    {
+      "accession": "MW642250.1",
+      "label": "Gamma_P.1"
+    },
+    {
+      "accession": "OR357870.1",
+      "label": "Delta_B.1.617.2"
+    },
+    {
+      "accession": "MZ571142.1",
+      "label": "Kappa_B.1.617.1"
+    },
+    {
+      "accession": "OR322718.1",
+      "label": "Epsilon_B.1.429"
+    },
+    {
+      "accession": "MZ702450.1",
+      "label": "Iota_B.1.526"
+    },
+    {
+      "accession": "MZ275302.1",
+      "label": "Lambda_C.37"
+    },
+    {
+      "accession": "OR322724.1",
+      "label": "Mu_B.1.621"
+    },
+    {
+      "accession": "PP848092.1",
+      "label": "Omicron_BA.1"
+    },
+    {
+      "accession": "PP847689.1",
+      "label": "Omicron_BA.2"
+    },
+    {
+      "accession": "PP848071.1",
+      "label": "Omicron_BA.5"
+    },
+    {
+      "accession": "PP848088.1",
+      "label": "Omicron_XBB.1.5"
+    },
+    {
+      "accession": "PP832910.1",
+      "label": "Omicron_JN.1"
+    },
+    {
+      "accession": "MN996532.1",
+      "label": "RaTG13_bat"
+    }
+  ],
+  "source": "NCBI Nucleotide",
+  "retrieved": "2026-10-29",
+  "license": "Public domain (NCBI Virus / GenBank)",
+  "citation": "NCBI Virus / GenBank severe acute respiratory syndrome coronavirus 2 records. https://www.ncbi.nlm.nih.gov/labs/virus",
+  "aligner": {
+    "name": "MAFFT",
+    "version": "7.525",
+    "args": "--auto"
+  },
+  "sha256": "5920c25af916c2908c527fa78a367ed5055845377f36cfa412bcabbbebc4f52f"
+}

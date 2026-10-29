@@ -1,0 +1,44 @@
+# id: 16s-rrna
+# title: Bacterial 16S ribosomal RNA
+# alphabet: dna
+# source: ncbi-nucleotide
+# license: Public domain (NCBI RefSeq)
+# citation: NCBI RefSeq ribosomal RNA records, NCBI Nucleotide. https://www.ncbi.nlm.nih.gov/nuccore
+# good_for: gap treatments and distances on real indels across bacterial phyla
+#
+# Dataset choice: 27 bacteria spanning the major phyla (Proteobacteria,
+# Firmicutes, Actinobacteria, Bacteroidetes, Cyanobacteria, Spirochaetes,
+# Mollicutes, Deinococcus-Thermus, Aquificae, Thermotogae, Chlamydiae,
+# Chloroflexi) so the alignment carries real indels — this dataset backs the
+# gap-treatment handouts. Every accession is an NCBI RefSeq (NR_) 16S
+# ribosomal RNA record, verified against E-utilities on 2026-10-29; RefSeq
+# records are public-domain US government works.
+#
+# Format: <accession> <label>   (labels: no whitespace, no '"', unique)
+NR_114042.1   Escherichia_coli
+NR_102783.2   Bacillus_subtilis
+NR_074910.1   Salmonella_enterica
+NR_117678.1   Pseudomonas_aeruginosa
+NR_037007.2   Staphylococcus_aureus
+NR_117496.1   Streptococcus_pneumoniae
+NR_044826.2   Mycobacterium_tuberculosis
+NR_113659.1   Mycoplasmoides_pneumoniae
+NR_036849.2   Spiroplasma_citri
+NR_044761.1   Helicobacter_pylori
+NR_044732.2   Borreliella_burgdorferi
+NR_025900.1   Thermus_aquaticus
+NR_075056.2   Aquifex_aeolicus
+NR_102775.2   Thermotoga_maritima
+NR_025888.1   Chlamydia_trachomatis
+NR_074309.1   Synechococcus_elongatus
+NR_199297.1   Nostoc_coriaceum
+NR_117894.1   Vibrio_cholerae
+NR_044682.2   Haemophilus_influenzae
+NR_104946.1   Neisseria_meningitidis
+NR_044656.2   Rickettsia_prowazekii
+NR_174322.1   Agrobacterium_tumefaciens
+NR_074784.2   Bacteroides_fragilis
+NR_074411.1   Deinococcus_radiodurans
+NR_074263.1   Chloroflexus_aurantiacus
+NR_044823.1   Listeria_monocytogenes
+NR_037099.1   Caulobacter_vibrioides

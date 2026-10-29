@@ -1,0 +1,40 @@
+# id: cytochrome-c
+# title: Eukaryotic cytochrome c
+# alphabet: protein
+# source: uniprot
+# license: CC BY 4.0 (UniProtKB)
+# citation: The UniProt Consortium, UniProt: the Universal Protein Knowledgebase in 2025, Nucleic Acids Research 53 (D1). https://www.uniprot.org
+# good_for: the classic Fitch–Margoliash protein tree across deep eukaryote splits
+#
+# Dataset choice: the taxa of the Fitch & Margoliash (1967) cytochrome c
+# alignment where they survive in UniProtKB/Swiss-Prot — mammals, birds,
+# reptiles, an amphibian, bony fish, a lamprey, insects, plants and fungi —
+# so students reproduce the textbook tree. Every accession was checked live
+# against the UniProt REST API (2026-10-29); all are reviewed (sp|) records.
+# ~104 aa per sequence, far under the caps.
+#
+# Format: <accession> <label>   (labels: no whitespace, no '"', unique)
+P99999  Homo_sapiens
+P00002  Macaca_mulatta
+P00004  Equus_caballus
+P62894  Bos_taurus
+P00012  Mirounga_leonina
+P00014  Macropus_giganteus
+P68099  Camelus_dromedarius
+P67881  Gallus_gallus
+P67882  Meleagris_gallopavo
+P00021  Columba_livia
+P00022  Chelydra_serpentina
+P68518  Crotalus_atrox
+P00024  Aquarana_catesbeiana
+P00025  Katsuwonus_pelamis
+P81459  Thunnus_alalunga
+Q6IQM2  Danio_rerio
+P00028  Entosphenus_tridentatus
+P84029  Drosophila_melanogaster
+P00037  Samia_cynthia
+P00068  Triticum_aestivum
+P00054  Sesamum_indicum
+P00044  Saccharomyces_cerevisiae
+P00046  Schizosaccharomyces_pombe
+P00048  Neurospora_crassa

@@ -1,0 +1,124 @@
+{
+  "id": "16s-rrna",
+  "title": "Bacterial 16S ribosomal RNA",
+  "accessions": [
+    {
+      "accession": "NR_114042.1",
+      "label": "Escherichia_coli"
+    },
+    {
+      "accession": "NR_102783.2",
+      "label": "Bacillus_subtilis"
+    },
+    {
+      "accession": "NR_074910.1",
+      "label": "Salmonella_enterica"
+    },
+    {
+      "accession": "NR_117678.1",
+      "label": "Pseudomonas_aeruginosa"
+    },
+    {
+      "accession": "NR_037007.2",
+      "label": "Staphylococcus_aureus"
+    },
+    {
+      "accession": "NR_117496.1",
+      "label": "Streptococcus_pneumoniae"
+    },
+    {
+      "accession": "NR_044826.2",
+      "label": "Mycobacterium_tuberculosis"
+    },
+    {
+      "accession": "NR_113659.1",
+      "label": "Mycoplasmoides_pneumoniae"
+    },
+    {
+      "accession": "NR_036849.2",
+      "label": "Spiroplasma_citri"
+    },
+    {
+      "accession": "NR_044761.1",
+      "label": "Helicobacter_pylori"
+    },
+    {
+      "accession": "NR_044732.2",
+      "label": "Borreliella_burgdorferi"
+    },
+    {
+      "accession": "NR_025900.1",
+      "label": "Thermus_aquaticus"
+    },
+    {
+      "accession": "NR_075056.2",
+      "label": "Aquifex_aeolicus"
+    },
+    {
+      "accession": "NR_102775.2",
+      "label": "Thermotoga_maritima"
+    },
+    {
+      "accession": "NR_025888.1",
+      "label": "Chlamydia_trachomatis"
+    },
+    {
+      "accession": "NR_074309.1",
+      "label": "Synechococcus_elongatus"
+    },
+    {
+      "accession": "NR_199297.1",
+      "label": "Nostoc_coriaceum"
+    },
+    {
+      "accession": "NR_117894.1",
+      "label": "Vibrio_cholerae"
+    },
+    {
+      "accession": "NR_044682.2",
+      "label": "Haemophilus_influenzae"
+    },
+    {
+      "accession": "NR_104946.1",
+      "label": "Neisseria_meningitidis"
+    },
+    {
+      "accession": "NR_044656.2",
+      "label": "Rickettsia_prowazekii"
+    },
+    {
+      "accession": "NR_174322.1",
+      "label": "Agrobacterium_tumefaciens"
+    },
+    {
+      "accession": "NR_074784.2",
+      "label": "Bacteroides_fragilis"
+    },
+    {
+      "accession": "NR_074411.1",
+      "label": "Deinococcus_radiodurans"
+    },
+    {
+      "accession": "NR_074263.1",
+      "label": "Chloroflexus_aurantiacus"
+    },
+    {
+      "accession": "NR_044823.1",
+      "label": "Listeria_monocytogenes"
+    },
+    {
+      "accession": "NR_037099.1",
+      "label": "Caulobacter_vibrioides"
+    }
+  ],
+  "source": "NCBI Nucleotide",
+  "retrieved": "2026-10-29",
+  "license": "Public domain (NCBI RefSeq)",
+  "citation": "NCBI RefSeq ribosomal RNA records, NCBI Nucleotide. https://www.ncbi.nlm.nih.gov/nuccore",
+  "aligner": {
+    "name": "MAFFT",
+    "version": "7.525",
+    "args": "--auto"
+  },
+  "sha256": "f30d6db05de2235c86a59fabae96cc7cbf6fd87421136460dc7c019576db81fc"
+}

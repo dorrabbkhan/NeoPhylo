@@ -1,0 +1,52 @@
+[
+  {
+    "id": "16s-rrna",
+    "title": "Bacterial 16S ribosomal RNA",
+    "alphabet": "dna",
+    "taxa": 27,
+    "sites": 1628,
+    "good_for": "gap treatments and distances on real indels across bacterial phyla",
+    "license": "Public domain (NCBI RefSeq)",
+    "provenance": "16s-rrna.json"
+  },
+  {
+    "id": "cytochrome-c",
+    "title": "Eukaryotic cytochrome c",
+    "alphabet": "protein",
+    "taxa": 24,
+    "sites": 112,
+    "good_for": "the classic Fitch\u2013Margoliash protein tree across deep eukaryote splits",
+    "license": "CC BY 4.0 (UniProtKB)",
+    "provenance": "cytochrome-c.json"
+  },
+  {
+    "id": "globins",
+    "title": "Vertebrate globins",
+    "alphabet": "protein",
+    "taxa": 23,
+    "sites": 156,
+    "good_for": "protein distances (Poisson, JTT) and the alpha/beta globin gene family",
+    "license": "CC BY 4.0 (UniProtKB)",
+    "provenance": "globins.json"
+  },
+  {
+    "id": "primate-mtdna",
+    "title": "Hominoid mitochondrial D-loop",
+    "alphabet": "dna",
+    "taxa": 7,
+    "sites": 1138,
+    "good_for": "DNA distances on the MEGA mtCDNA hominoid set",
+    "license": "Public domain (NCBI GenBank)",
+    "provenance": "primate-mtdna.json"
+  },
+  {
+    "id": "sars-cov-2-spike",
+    "title": "SARS-CoV-2 spike RBD, major variants",
+    "alphabet": "dna",
+    "taxa": 16,
+    "sites": 690,
+    "good_for": "variant surveillance mutations in the spike receptor-binding domain",
+    "license": "Public domain (NCBI Virus / GenBank)",
+    "provenance": "sars-cov-2-spike.json"
+  }
+]

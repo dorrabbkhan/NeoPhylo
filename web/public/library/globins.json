@@ -1,0 +1,108 @@
+{
+  "id": "globins",
+  "title": "Vertebrate globins",
+  "accessions": [
+    {
+      "accession": "P69905",
+      "label": "Human_HBA"
+    },
+    {
+      "accession": "P68871",
+      "label": "Human_HBB"
+    },
+    {
+      "accession": "P02042",
+      "label": "Human_HBD"
+    },
+    {
+      "accession": "P69891",
+      "label": "Human_HBG1"
+    },
+    {
+      "accession": "P68873",
+      "label": "Chimp_HBB"
+    },
+    {
+      "accession": "P02024",
+      "label": "Gorilla_HBB"
+    },
+    {
+      "accession": "P01942",
+      "label": "Mouse_HBA"
+    },
+    {
+      "accession": "P02088",
+      "label": "Mouse_HBB1"
+    },
+    {
+      "accession": "P02091",
+      "label": "Rat_HBB1"
+    },
+    {
+      "accession": "P01958",
+      "label": "Horse_HBA"
+    },
+    {
+      "accession": "P02062",
+      "label": "Horse_HBB"
+    },
+    {
+      "accession": "P01966",
+      "label": "Cow_HBA"
+    },
+    {
+      "accession": "P02070",
+      "label": "Cow_HBB"
+    },
+    {
+      "accession": "P02067",
+      "label": "Pig_HBB"
+    },
+    {
+      "accession": "P02075",
+      "label": "Sheep_HBB"
+    },
+    {
+      "accession": "P60524",
+      "label": "Dog_HBB"
+    },
+    {
+      "accession": "P02057",
+      "label": "Rabbit_HBB"
+    },
+    {
+      "accession": "P01994",
+      "label": "Chicken_HBAA"
+    },
+    {
+      "accession": "P02112",
+      "label": "Chicken_HBB"
+    },
+    {
+      "accession": "P02012",
+      "label": "Xenopus_HBA1"
+    },
+    {
+      "accession": "P02132",
+      "label": "Xenopus_HBB1"
+    },
+    {
+      "accession": "Q90486",
+      "label": "Zebrafish_HBB1"
+    },
+    {
+      "accession": "P02144",
+      "label": "Human_myoglobin"
+    }
+  ],
+  "source": "UniProtKB",
+  "retrieved": "2026-10-29",
+  "license": "CC BY 4.0 (UniProtKB)",
+  "citation": "The UniProt Consortium, UniProt: the Universal Protein Knowledgebase in 2025, Nucleic Acids Research 53 (D1). https://www.uniprot.org",
+  "aligner": {
+    "name": "MAFFT",
+    "version": "7.525",
+    "args": "--auto"
+  },
+  "sha256": "7537da000a29602dfbc3abed61153fb03d55047f918205320424d5f7fe669954"
+}

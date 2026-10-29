@@ -58,6 +58,34 @@ Source: The UniProt Consortium, UniProt: the Universal Protein
 Knowledgebase, https://www.uniprot.org (retrieved 2026-10-18).
 Changes: sequences were aligned (gaps added); residues are unmodified.
 
+## Library datasets — `web/public/library/`
+
+The bundled datasets are rebuilt from public accessions by
+`scripts/data/build_library.py` (accession lists and selection reasons in
+`scripts/data/accessions/`); per-dataset accessions, citations and the
+retrieval date are in `web/public/library/<id>.json`.
+
+- **globins** and **cytochrome-c** (`globins.fasta`,
+  `cytochrome-c.fasta`): reviewed UniProtKB/Swiss-Prot sequences,
+  licensed CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+  Source: The UniProt Consortium, UniProt: the Universal Protein
+  Knowledgebase, https://www.uniprot.org (retrieved 2026-10-29).
+  Changes: sequences were aligned with MAFFT (gaps added); residues are
+  unmodified.
+- **primate-mtdna** (`primate-mtdna.fasta`): D-loop slices of the
+  Horai et al. (1995) hominoid mitochondrial genomes, NCBI Nucleotide
+  (GenBank). NCBI places no restrictions on the use or distribution of
+  GenBank data (https://www.ncbi.nlm.nih.gov/home/about/policies/).
+  Changes: control-region subsequences aligned with MAFFT.
+- **16s-rrna** (`16s-rrna.fasta`): NCBI RefSeq (NR_) 16S ribosomal RNA
+  records, public-domain US government works.
+  Changes: sequences aligned with MAFFT.
+- **sars-cov-2-spike** (`sars-cov-2-spike.fasta`): spike
+  receptor-binding-domain slices (residues 319–541 of the S CDS) of
+  SARS-CoV-2 genomes, NCBI Nucleotide / NCBI Virus (GenBank — same terms
+  as above).
+  Changes: subsequence slices aligned with MAFFT.
+
 ## Inter — bundled font subsets
 
 `web/public/fonts/inter-*.woff2` are subsets of the Inter font family,
