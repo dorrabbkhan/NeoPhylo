@@ -28,6 +28,24 @@
 #   .meg. The generator asserts every matrix equals the matrix MEGA
 #   produced from the FASTA in fixtures/mega/<name>.json, cell for cell
 #   at the printed precision (success criterion 4).
+# - fixtures/mega/library/boot1000/<id>.json: the same NJ bootstrap runs
+#   as the library 100-replicate blocks but at 1,000 replicates
+#   (njboot1000_*.mao — identical to njboot_* except `Bootstrap
+#   Replicates = 1000`). Owner ruling on #126 (option A): the Step 3
+#   parity test compares at 1,000 replicates under the unchanged
+#   v1.2 §8.3 5-point rule; the 100-replicate blocks stay as the handout
+#   values. These files carry only generator/input/alphabet/bootstrap.
+#   Support keeps MEGA's printed precision: BCL proportions have 4
+#   decimals, so percents have 0.1 granularity at 1,000 replicates
+#   (e.g. 0.7810 -> 78.1). The -pfc partition list prints integer
+#   percents plus `No_of_bootstrap_reps=1000`, both of which the
+#   generator asserts; the split set must equal the 100-replicate
+#   block's (the original NJ tree is deterministic).
+#
+# `--boot1000-only` runs ONLY the boot1000 phase: megacc's bootstrap is
+# unseeded, so a full rerun would rewrite the 100-replicate blocks and
+# the other fixtures. Everything else is skipped; nothing existing is
+# touched.
 #
 # The .mao files use MEGA's GUI serialization (the `Gaps/Missing Data`
 # key), so megacc 12.1.4 applies the declared gap treatment itself —
@@ -40,10 +58,14 @@
 # count each complete/partial-95 treatment should leave and fails if
 # MEGA's reported "No. of Sites" differs.
 #
-# Usage: bash fixtures/generate_mega.sh   (from anywhere)
+# Usage: bash fixtures/generate_mega.sh [--boot1000-only]   (from anywhere)
 # Requires: megacc on PATH, python3, cargo (for the write_meg helper).
 
 set -euo pipefail
+
+BOOT1000_ONLY=0
+if [ "${1:-}" = "--boot1000-only" ]; then BOOT1000_ONLY=1; fi
+export BOOT1000_ONLY
 
 FIXDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -69,6 +91,7 @@ TMPD = os.environ['TMPD']
 MAO = os.path.join(FIXDIR, 'mega', 'mao')
 OUT = os.path.join(FIXDIR, 'mega')
 VER = os.environ['MEGACC_VERSION'].strip() + ' (build ' + os.environ['MEGACC_BUILD'].strip() + ')'
+BOOT1000_ONLY = os.environ.get('BOOT1000_ONLY') == '1'
 
 DNA_MISSING_OK = set('ACGT')
 AA_STATES = set('ARNDCQEGHILKMFPSTWYV')
@@ -227,10 +250,12 @@ def canon_split(side, all_labels, first_label):
         sys.exit('bootstrap: a labelled node covers every taxon')
     return '|'.join(sorted(canon))
 
-def parse_nwk_support(nwk_path, first_label):
+def parse_nwk_support(nwk_path, first_label, replicates=100):
     """Parse MEGA's bootstrap .nwk — the ORIGINAL inferred tree with BCL
-    support printed as internal node labels (proportions, e.g. `0.9800`).
-    Returns {canonical split key -> integer percent}."""
+    support printed as internal node labels (proportions to 4 decimals,
+    e.g. `0.9800`). Returns {canonical split key -> percent}. The percent
+    must be a whole count out of `replicates`: integers at 100, one
+    decimal at 1,000 (0.7810 -> 78.1)."""
     nwk = open(nwk_path, errors='replace').read().strip()
     pos = [0]
 
@@ -286,12 +311,14 @@ def parse_nwk_support(nwk_path, first_label):
                 pct = float(n[1]) * 100
             except ValueError:
                 sys.exit(f'{nwk_path}: non-numeric node label {n[1]!r}')
-            if abs(pct - round(pct)) > 1e-4:
-                sys.exit(f'{nwk_path}: support {n[1]} is not an integer '
-                         'percent')
+            count = pct * replicates / 100
+            if abs(count - round(count)) > 1e-3:
+                sys.exit(f'{nwk_path}: support {n[1]} is not a whole '
+                         f'count out of {replicates} replicates')
+            v = round(count) * 100 / replicates
             if key in support:
                 sys.exit(f'{nwk_path}: split {key} appears twice')
-            support[key] = int(round(pct))
+            support[key] = int(v) if v == int(v) else v
         for k in n[2]:
             walk(k)
 
@@ -300,11 +327,18 @@ def parse_nwk_support(nwk_path, first_label):
         sys.exit(f'{nwk_path}: no support labels found')
     return support
 
-def parse_partitions(path, labels, first_label):
+def parse_partitions(path, labels, first_label, replicates=100):
     """Parse megacc's -pfc partition list (0/1 strings in input order,
-    integer percents) into {canonical split key -> percent}. Used only to
-    cross-check the original tree's BCL values."""
+    integer percents even at 1,000 replicates) into {canonical split key
+    -> percent}; also asserts `No_of_bootstrap_reps=<replicates>`. Used
+    only to cross-check the original tree's BCL values."""
     txt = open(path, errors='replace').read()
+    m = re.search(r'No_of_bootstrap_reps=(\d+)', txt)
+    if not m:
+        sys.exit(f'{path}: no No_of_bootstrap_reps header')
+    if int(m.group(1)) != replicates:
+        sys.exit(f'{path}: No_of_bootstrap_reps={m.group(1)} != '
+                 f'{replicates}')
     all_labels = set(labels)
     parts = {}
     for m in re.finditer(r'^([01]+)[ \t]+(\d+(?:\.\d+)?)%[ \t]*$', txt, re.M):
@@ -320,7 +354,7 @@ def parse_partitions(path, labels, first_label):
     return parts
 
 def expected_echo(model_long, gap, cutoff, statmethod=None,
-                  bootstrap=False):
+                  bootstrap=0):
     e = {'Model/Method': model_long,
          'Gaps/Missing Data': gap}
     if cutoff is not None:
@@ -330,7 +364,7 @@ def expected_echo(model_long, gap, cutoff, statmethod=None,
         if bootstrap:
             e['Test of Phylogeny'] = 'Bootstrap method'
             e['Approach'] = 'Standard Bootstrap (slow)'
-            e['Bootstrap Replicates'] = '100'
+            e['Bootstrap Replicates'] = str(bootstrap)
         else:
             e['Test of Phylogeny'] = 'None'
     return e
@@ -443,11 +477,12 @@ def process(relpath, alphabet, out_dir=None, boot_runs=None):
                 sys.exit(f'no partition list: {part_path}')
             check_echo(summary, expected_echo(MODEL_LONG[model_id], gap,
                                               cutoff, 'Neighbor-joining',
-                                              bootstrap=True))
+                                              bootstrap=100))
             check_sites(summary, want_sites,
                         f'{name} {filt} {model_id} njboot')
-            support = parse_nwk_support(nwk_path, labels_in[0])
-            parts = parse_partitions(part_path, labels_in, labels_in[0])
+            support = parse_nwk_support(nwk_path, labels_in[0], 100)
+            parts = parse_partitions(part_path, labels_in, labels_in[0],
+                                     100)
             for key, pct in support.items():
                 if key not in parts:
                     sys.exit(f'{name} {filt} {model_id}: split {key} on '
@@ -483,10 +518,11 @@ def process(relpath, alphabet, out_dir=None, boot_runs=None):
         f.write('\n')
     print(f'wrote {out_path}  (dist {dist_dec} dp, nwk {nwk_dec} dp)')
 
-for f in dna_inputs:
-    process(f'inputs/{f}', 'dna')
-for f in prot_inputs:
-    process(f'inputs/protein/{f}', 'protein')
+if not BOOT1000_ONLY:
+    for f in dna_inputs:
+        process(f'inputs/{f}', 'dna')
+    for f in prot_inputs:
+        process(f'inputs/protein/{f}', 'protein')
 
 # --- library datasets (v1.4b Task 9): the Task 2 shape plus a bootstrap
 # block. Reads the FASTAs in web/public/library/ directly; the "input"
@@ -496,9 +532,10 @@ for f in prot_inputs:
 # not compared on rerun.
 LIB_DIR = os.path.join(OUT, 'library')
 
-for relpath, alphabet in LIB_INPUTS:
-    nm = os.path.splitext(os.path.basename(relpath))[0]
-    process(relpath, alphabet, out_dir=LIB_DIR, boot_runs=BOOT_RUNS[nm])
+if not BOOT1000_ONLY:
+    for relpath, alphabet in LIB_INPUTS:
+        nm = os.path.splitext(os.path.basename(relpath))[0]
+        process(relpath, alphabet, out_dir=LIB_DIR, boot_runs=BOOT_RUNS[nm])
 
 # --- .meg round trip (v1.4b Task 9): export every inputs/*.fasta through
 # the engine's write_meg (fixtures/tools/write_meg), run the DNA distance
@@ -585,6 +622,102 @@ def roundtrip(fasta_rel):
         f.write('\n')
     print(f'wrote {out_path}  (round trip verified vs {name}.json)')
 
-for f in dna_inputs:
-    roundtrip(f'inputs/{f}')
+if not BOOT1000_ONLY:
+    for f in dna_inputs:
+        roundtrip(f'inputs/{f}')
+
+# --- boot1000 phase (owner ruling on #126, option A): the same NJ
+# bootstrap runs as the library 100-replicate blocks, at 1,000
+# replicates via the njboot1000_*.mao files, written to
+# library/boot1000/<id>.json. Runs on a full run and under
+# --boot1000-only (the only phase that flag runs). Support keeps the
+# 0.1-percent granularity 1,000 replicates give (BCL 0.7810 -> 78.1).
+def process_boot1000(relpath, alphabet, boot_runs):
+    name = os.path.splitext(os.path.basename(relpath))[0]
+    src = os.path.join(FIXDIR, relpath)
+    seqs = read_fasta(src)
+    if len({len(s) for _, s in seqs}) != 1:
+        sys.exit(f'{relpath} is not a rectangular alignment')
+    labels_in = [nm for nm, _ in seqs]
+    alpha_dir = 'dna' if alphabet == 'dna' else 'protein'
+    ref = json.load(open(os.path.join(LIB_DIR, name + '.json')))
+    used_maos, bootstrap = {}, {}
+
+    for model_id, json_model in boot_runs:
+        for filt in BOOT_FILTERS:
+            want_sites = kept_sites(seqs, alphabet, filt)
+            gap, cutoff = FILTER_LONG[filt]
+            maof = mao_file('njboot1000', alpha_dir, model_id, filt)
+            used_maos[maof] = sha256(os.path.join(MAO, maof))
+            out = os.path.join(TMPD, f'{name}_boot1000_{filt}_{model_id}')
+            summary = run_megacc(os.path.join(MAO, maof), src, out,
+                                 extra=('-pfc', '0.0'))
+            nwk_path = out + '.nwk'
+            part_path = out + '_partitions.txt'
+            if not os.path.exists(nwk_path):
+                sys.exit(f'no bootstrap newick: {nwk_path}')
+            if not os.path.exists(part_path):
+                sys.exit(f'no partition list: {part_path}')
+            check_echo(summary, expected_echo(MODEL_LONG[model_id], gap,
+                                              cutoff, 'Neighbor-joining',
+                                              bootstrap=1000))
+            check_sites(summary, want_sites,
+                        f'{name} {filt} {model_id} njboot1000')
+            support = parse_nwk_support(nwk_path, labels_in[0], 1000)
+            parts = parse_partitions(part_path, labels_in, labels_in[0],
+                                     1000)
+            # Partitions print integer percents even at 1,000
+            # replicates, so the BCL is within 1 pp of them.
+            for key, pct in support.items():
+                if key not in parts:
+                    sys.exit(f'{name} {filt} {model_id}: split {key} on '
+                             'the tree is missing from the partition '
+                             'list')
+                if abs(parts[key] - pct) >= 1.0:
+                    sys.exit(f'{name} {filt} {model_id}: tree BCL {pct} '
+                             f'differs from partition frequency '
+                             f'{parts[key]} for {key} by >= 1 pp')
+            # The original NJ tree is deterministic, so its labelled
+            # split set equals the 100-replicate block's.
+            ref_key = f'nj/{json_model}/{filt}'
+            if set(support) != set(ref['bootstrap'][ref_key]['support']):
+                sys.exit(f'{name} {filt} {model_id}: 1,000-replicate '
+                         'split set differs from the 100-replicate '
+                         'block (the original NJ tree should be '
+                         'identical)')
+            # 1,000 replicates must show in the values: at least one
+            # support finer than a whole percent.
+            if all(v == int(v) for v in support.values()):
+                sys.exit(f'{name} {filt} {model_id}: every support is '
+                         'an integer percent — the 1,000-replicate '
+                         'count did not take effect')
+            bootstrap[ref_key] = {'replicates': 1000, 'support': support}
+
+    doc = {
+        'generator': {
+            'megacc': VER,
+            'mao_sha256': dict(sorted(used_maos.items())),
+            'note': 'NJ bootstrap at 1,000 replicates (njboot1000_*.mao; '
+                    'owner ruling on #126). Support is from MEGA\'s '
+                    'original NJ tree at 0.1-percent granularity, '
+                    'cross-checked against the -pfc 0.0 partitions '
+                    '(integer percents, No_of_bootstrap_reps=1000); the '
+                    'split set is asserted equal to the 100-replicate '
+                    'block in ../<id>.json.',
+        },
+        'input': relpath.replace(os.sep, '/'),
+        'alphabet': alphabet,
+        'bootstrap': bootstrap,
+    }
+    out_dir = os.path.join(LIB_DIR, 'boot1000')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, name + '.json')
+    with open(out_path, 'w') as f:
+        json.dump(doc, f, indent=1)
+        f.write('\n')
+    print(f'wrote {out_path}  (1,000-replicate bootstrap)')
+
+for relpath, alphabet in LIB_INPUTS:
+    nm = os.path.splitext(os.path.basename(relpath))[0]
+    process_boot1000(relpath, alphabet, BOOT_RUNS[nm])
 PYEOF

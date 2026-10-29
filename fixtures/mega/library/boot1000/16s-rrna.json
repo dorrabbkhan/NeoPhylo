@@ -1,0 +1,72 @@
+{
+ "generator": {
+  "megacc": "12.1.4 (build 12261022-x86_64)",
+  "mao_sha256": {
+   "njboot1000_dna_k2p_complete.mao": "ae45b837d61395ed9278b888f4c125b07b5507025823dbe562dab343c857fa4e",
+   "njboot1000_dna_k2p_pairwise.mao": "20f44de12a45555b4993ea48f04d0c873a0a881dc193c5c50fb643772c1adf70"
+  },
+  "note": "NJ bootstrap at 1,000 replicates (njboot1000_*.mao; owner ruling on #126). Support is from MEGA's original NJ tree at 0.1-percent granularity, cross-checked against the -pfc 0.0 partitions (integer percents, No_of_bootstrap_reps=1000); the split set is asserted equal to the 100-replicate block in ../<id>.json."
+ },
+ "input": "../web/public/library/16s-rrna.fasta",
+ "alphabet": "dna",
+ "bootstrap": {
+  "nj/K80/pairwise": {
+   "replicates": 1000,
+   "support": {
+    "Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 61.9,
+    "Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 96,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 100,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 92.8,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 100,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Haemophilus_influenzae|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 98,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Haemophilus_influenzae|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus|Vibrio_cholerae": 100,
+    "Agrobacterium_tumefaciens|Caulobacter_vibrioides|Rickettsia_prowazekii": 99.5,
+    "Agrobacterium_tumefaciens|Caulobacter_vibrioides": 95.5,
+    "Bacillus_subtilis|Borreliella_burgdorferi|Listeria_monocytogenes|Mycoplasmoides_pneumoniae|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae": 53.9,
+    "Bacillus_subtilis|Listeria_monocytogenes|Mycoplasmoides_pneumoniae|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae": 86.7,
+    "Bacillus_subtilis|Listeria_monocytogenes|Staphylococcus_aureus|Streptococcus_pneumoniae": 100,
+    "Bacillus_subtilis|Listeria_monocytogenes|Staphylococcus_aureus": 100,
+    "Bacillus_subtilis|Staphylococcus_aureus": 91.3,
+    "Mycoplasmoides_pneumoniae|Spiroplasma_citri": 100,
+    "Aquifex_aeolicus|Bacteroides_fragilis|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Nostoc_coriaceum|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 70.5,
+    "Aquifex_aeolicus|Bacteroides_fragilis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Thermotoga_maritima|Thermus_aquaticus": 45.2,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Thermotoga_maritima|Thermus_aquaticus": 63.1,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Thermotoga_maritima|Thermus_aquaticus": 67.9,
+    "Deinococcus_radiodurans|Thermus_aquaticus": 75.7,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Thermotoga_maritima": 73.2,
+    "Aquifex_aeolicus|Thermotoga_maritima": 94.6,
+    "Chlamydia_trachomatis|Nostoc_coriaceum|Synechococcus_elongatus": 42.6,
+    "Nostoc_coriaceum|Synechococcus_elongatus": 100
+   }
+  },
+  "nj/K80/complete": {
+   "replicates": 1000,
+   "support": {
+    "Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 83.8,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 100,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 96.5,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 100,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Haemophilus_influenzae|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 95.8,
+    "Agrobacterium_tumefaciens|Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Caulobacter_vibrioides|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Haemophilus_influenzae|Helicobacter_pylori|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Neisseria_meningitidis|Nostoc_coriaceum|Pseudomonas_aeruginosa|Rickettsia_prowazekii|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus|Vibrio_cholerae": 100,
+    "Agrobacterium_tumefaciens|Caulobacter_vibrioides|Rickettsia_prowazekii": 100,
+    "Agrobacterium_tumefaciens|Caulobacter_vibrioides": 96.1,
+    "Aquifex_aeolicus|Bacillus_subtilis|Bacteroides_fragilis|Borreliella_burgdorferi|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Listeria_monocytogenes|Mycobacterium_tuberculosis|Mycoplasmoides_pneumoniae|Nostoc_coriaceum|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 42.6,
+    "Bacillus_subtilis|Borreliella_burgdorferi|Listeria_monocytogenes|Mycoplasmoides_pneumoniae|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae": 49.2,
+    "Bacillus_subtilis|Listeria_monocytogenes|Mycoplasmoides_pneumoniae|Spiroplasma_citri|Staphylococcus_aureus|Streptococcus_pneumoniae": 89,
+    "Bacillus_subtilis|Listeria_monocytogenes|Staphylococcus_aureus|Streptococcus_pneumoniae": 100,
+    "Bacillus_subtilis|Listeria_monocytogenes|Staphylococcus_aureus": 100,
+    "Bacillus_subtilis|Staphylococcus_aureus": 71.2,
+    "Mycoplasmoides_pneumoniae|Spiroplasma_citri": 99.9,
+    "Aquifex_aeolicus|Bacteroides_fragilis|Chlamydia_trachomatis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Nostoc_coriaceum|Synechococcus_elongatus|Thermotoga_maritima|Thermus_aquaticus": 14.4,
+    "Aquifex_aeolicus|Bacteroides_fragilis|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Thermotoga_maritima|Thermus_aquaticus": 34.6,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Mycobacterium_tuberculosis|Thermotoga_maritima|Thermus_aquaticus": 72.4,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Deinococcus_radiodurans|Thermotoga_maritima|Thermus_aquaticus": 69.9,
+    "Deinococcus_radiodurans|Thermus_aquaticus": 79.6,
+    "Aquifex_aeolicus|Chloroflexus_aurantiacus|Thermotoga_maritima": 70.6,
+    "Aquifex_aeolicus|Thermotoga_maritima": 100,
+    "Chlamydia_trachomatis|Nostoc_coriaceum|Synechococcus_elongatus": 24.5,
+    "Nostoc_coriaceum|Synechococcus_elongatus": 100
+   }
+  }
+ }
+}
