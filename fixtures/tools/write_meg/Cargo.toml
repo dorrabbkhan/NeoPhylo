@@ -1,0 +1,15 @@
+[package]
+name = "write_meg"
+description = "Fixture generator helper: re-exports a FASTA alignment as MEGA .meg via neophylo_core::write_meg. Local-only tool for fixtures/generate_mega.sh; contains no logic beyond calling the engine."
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+neophylo-core = { path = "../../../crates/neophylo-core" }
+
+# Standalone crate: this directory is intentionally outside the root
+# workspace so the fixture PR adds no crates/ changes (CI fixture guard
+# forbids modifying fixtures/ and code in one PR). The empty table keeps
+# `cargo` from walking up to the root workspace.
+[workspace]

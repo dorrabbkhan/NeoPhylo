@@ -5802,3 +5802,47 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   BCT/PRI/VRL, and the only adjacent text is X97707's standard DDBJ
   courtesy note asking users to cite the entry — a citation request,
   not a use restriction.
+
+## Task 9 (v1.4b) MEGA fixtures on library datasets, bootstrap, .meg round trip
+
+- **Bootstrap `.mao` serialization (MEGA 12):** the `njboot_*` files are
+  derived from the GUI-serialized `nj_*` files, keeping key names and
+  order, with the `Phylogeny Test` block replaced by
+  `Test of Phylogeny = Bootstrap method`,
+  `Approach = Standard Bootstrap (slow)`,
+  `Bootstrap Replicates = 100`. MEGA 12 binds `Bootstrap Replicates`;
+  the older `No. of Bootstrap Replications` key is echoed but ignored
+  (the run dies at "tree display setup" with `Bootstrap Rep #: 0/-1`).
+  Proof that the files take effect, before the fixtures were trusted:
+  support values appear on the original tree, 10 vs 100 replicates give
+  different granularity, and `No. of Sites` follows the gap treatment.
+  Full evidence in `fixtures/worked/mega-notes.md`.
+- **Support source:** taken from MEGA's ORIGINAL NJ tree (`<out>.nwk`
+  BCL labels, proportions like `0.9800`), never the `_consensus.nwk`
+  view; every split is cross-checked against the `-pfc 0.0` partition
+  list (exact percent match required by the generator).
+- **Poisson bootstrap added to globins** (beyond the plan's JTT): MEGA's
+  JTT is not our `Jtt` (#117), so JTT support is not a parity target;
+  `Poisson` is the protein bootstrap oracle. `nj/Poisson/{pairwise,
+  complete}` fixtures are generated alongside the plan's `nj/JTT/*`.
+- **Split keys:** canonical side = the side NOT containing the dataset's
+  first label, sorted labels joined by `|` (same rule as
+  `fixtures/consensus/`); documented in `fixtures/mega/README.md`.
+- **Bootstrap blocks are not byte-reproducible** (megacc has no seed
+  option; two runs differ). The generator never compares them on rerun;
+  said so in the README.
+- **Library data referenced, not copied:** `"input"` is
+  `../web/public/library/<id>.fasta`, resolved relative to `fixtures/`
+  like the existing `"inputs/<file>"` convention (this is what
+  `parity_mega.rs`'s `load_alignment` expects).
+- **Files outside the Files block:** `fixtures/tools/write_meg/` (new
+  standalone crate — the plan's `cargo run --example write_meg` would
+  touch `crates/` and fail the CI fixture guard, which forbids fixture
+  and code changes in one PR; it is its own crate with an empty
+  `[workspace]`, a path dependency on `crates/neophylo-core` and a copy
+  of the root `Cargo.lock`, and calls only
+  `neophylo_core::{parse_fasta, write_meg}`);
+  `fixtures/mega/mao/njboot_*.mao` (six new bootstrap .mao files the
+  bootstrap fixtures need); `fixtures/worked/mega-notes.md` (the task's
+  own evidence record — serialization findings, output formats, no seed
+  option, underscored-name printing); `docs/decisions.md` (this entry).

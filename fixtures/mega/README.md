@@ -23,14 +23,31 @@ independently computed kept-site count for `complete`/`partial95`.
 ## Layout
 
 - `mao/*.mao` — one file per
-  `{dist,nj,upgma}_{dna,protein}_{model}_{filter}` combination. DNA
-  models `p`, `jc69`, `k2p` (MEGA names: p-distance, Jukes-Cantor model,
-  Kimura 2-parameter model); protein models `p`, `poisson`, `jtt`
-  (p-distance, Poisson model, Jones-Taylor-Thornton (JTT) model). Filters
-  `pairwise`, `complete`, `partial95` (Partial deletion, 95%). Every
-  setting is written explicitly; no defaults are relied on.
+  `{dist,nj,upgma}_{dna,protein}_{model}_{filter}` combination, plus
+  `njboot_{dna,protein}_{k2p,jtt,poisson}_{pairwise,complete}.mao` for
+  NJ bootstrap (100 replicates). DNA models `p`, `jc69`, `k2p` (MEGA
+  names: p-distance, Jukes-Cantor model, Kimura 2-parameter model);
+  protein models `p`, `poisson`, `jtt` (p-distance, Poisson model,
+  Jones-Taylor-Thornton (JTT) model). Filters `pairwise`, `complete`,
+  `partial95` (Partial deletion, 95%; bootstrap runs pairwise and
+  complete only). Every setting is written explicitly; no defaults are
+  relied on. Bootstrap uses MEGA 12's serialization
+  (`Test of Phylogeny = Bootstrap method`, `Approach = Standard
+  Bootstrap (slow)`, `Bootstrap Replicates = 100`); the older
+  `No. of Bootstrap Replications` key alone is echoed but ignored
+  (`../worked/mega-notes.md`).
 - `<name>.json` — one per input: every `inputs/*.fasta` (DNA) and
   `inputs/protein/*.fasta` (protein), plus `inputs/gaps_boundary.fasta`.
+- `library/<id>.json` — the same shape for each library dataset the MEGA
+  handouts use, read from `../web/public/library/<id>.fasta` (the data
+  itself is never copied into `fixtures/`). Adds a `bootstrap` block
+  (below).
+- `roundtrip/<name>.meg` — every `inputs/*.fasta` written in MEGA format
+  by `neophylo_core::write_meg` (via `fixtures/tools/write_meg`).
+- `roundtrip/<name>.json` — MEGA-CC distances on that `.meg`, same shape
+  minus `trees` (`precision` has `distances` only). During generation
+  every matrix is asserted equal, cell for cell, to the matrix MEGA
+  produced from the FASTA in `<name>.json` (success criterion 4).
 
 ## JSON format
 
@@ -63,3 +80,29 @@ independently computed kept-site count for `complete`/`partial95`.
   trifurcation); UPGMA trees are rooted and ultrametric.
 - `mao_sha256` covers every `.mao` run for that input, so fixture drift
   is detectable.
+
+## `bootstrap` block (library files only)
+
+```json
+"bootstrap": { "nj/<model>/<filter>":
+               { "replicates": 100,
+                 "support": { "<split key>": <percent> } } }
+```
+
+- Runs: NJ, 100 replicates, Standard Bootstrap. `primate-mtdna` and
+  `16s-rrna` with `K80`; `globins` with `JTT` and `Poisson`; each under
+  `pairwise` and `complete`.
+- `support` is read from MEGA's **original NJ tree** (the `<out>.nwk`
+  BCL labels, printed as proportions like `0.9800` → percent), never
+  from the `<out>_consensus.nwk`. Each labelled internal edge is a
+  split; the key is the **canonical side — the side that does NOT
+  contain the dataset's first label** — as sorted labels joined by `|`,
+  the same rule `fixtures/consensus/` uses. Percent is an integer (100
+  replicates).
+- During generation every split is cross-checked against megacc's
+  `-pfc 0.0` partition list: the tree's BCL must equal the partition
+  frequency exactly.
+- **Not byte-reproducible:** megacc has no seed option, so rerunning the
+  generator produces fresh support values (and different internal
+  replicate trees). Do not diff bootstrap blocks across runs; the
+  generator itself never compares them.
