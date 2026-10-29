@@ -15,26 +15,33 @@ import type { DroppedGroup } from "./generated/DroppedGroup";
 import type { Method } from "./generated/Method";
 import type { NeoError } from "./generated/NeoError";
 import type { ReplicateDetail } from "./generated/ReplicateDetail";
+import type { SiteFilter } from "./generated/SiteFilter";
 import type { Tree } from "./generated/Tree";
 
-/** Everything a bootstrap run needs (spec §5 `start` fields). */
+/** Everything a bootstrap run needs (spec §5 `start` fields).
+ * `filter` is the MEGA gap treatment (v1.4b spec §3.1); absent means
+ * `{ kind: "pairwise" }`, the pre-v1.4b behavior. */
 export interface BootstrapParams {
   alignment: Alignment;
   model: DistModel;
   method: Method;
   seed: number;
   replicates: number;
+  filter?: SiteFilter;
 }
 
 /** Everything a one-replicate `replicate_detail` job needs (spec §6.5:
  * for estimates over ~2 s the detail runs in the worker instead of on
- * the main thread). `index` is the 0-based replicate index. */
+ * the main thread). `index` is the 0-based replicate index. `filter`
+ * is the gap treatment the run used (v1.4b spec §3.2); absent means
+ * pairwise. */
 export interface ReplicateDetailParams {
   alignment: Alignment;
   model: DistModel;
   method: Method;
   seed: number;
   index: number;
+  filter?: SiteFilter;
 }
 
 /** Page → worker (spec §5, plus the §6.5 detail job). */

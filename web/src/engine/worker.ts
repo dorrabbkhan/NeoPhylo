@@ -10,6 +10,7 @@ import init from "./pkg/neophylo_wasm.js";
 import type { BootstrapTally } from "./generated/BootstrapTally";
 import type { ConsensusKind } from "./generated/ConsensusKind";
 import type { DroppedGroup } from "./generated/DroppedGroup";
+import type { SiteFilter } from "./generated/SiteFilter";
 import type { Tree } from "./generated/Tree";
 import type {
   BootstrapParams,
@@ -24,6 +25,10 @@ import { engine } from "./index";
 export const BATCH_MS = 100;
 
 const CONSENSUS_KINDS: ConsensusKind[] = ["Strict", "Majority", "Extended"];
+
+/** An absent `filter` means pairwise — the pre-v1.4b path, so existing
+ * callers and link-restored params are unchanged (v1.4b spec §3.1). */
+const PAIRWISE: SiteFilter = { kind: "pairwise" };
 
 /**
  * Yield to the event loop between batches. Batches are synchronous wasm
@@ -74,9 +79,12 @@ export async function runBootstrapJob(
   shouldStop: () => boolean,
   waitConfirm: () => Promise<boolean>,
 ): Promise<void> {
+  const filter = p.filter ?? PAIRWISE;
   // The original tree is the scaffold every progress/result support
   // tree is copied from (support_on_tree writes BranchAttrs.support).
-  const dist = engine.distances(p.alignment, p.model);
+  // It is built on the filtered distances so replicates and original
+  // compare like with like (v1.4b spec §3.2).
+  const dist = engine.distancesFiltered(p.alignment, p.model, filter);
   if (!dist.ok) {
     post({ type: "error", error: dist.error });
     return;
@@ -90,10 +98,11 @@ export async function runBootstrapJob(
 
   // Replicate 0 alone, timed for the estimate (spec §5 step 1).
   const t0 = performance.now();
-  const first = engine.bootstrapBatch(
+  const first = engine.bootstrapBatchFiltered(
     p.alignment,
     p.model,
     p.method,
+    filter,
     p.seed,
     0,
     1,
@@ -158,10 +167,11 @@ export async function runBootstrapJob(
     await yieldToEventLoop();
     if (shouldStop()) return;
     const count = Math.min(batchSize, p.replicates - done);
-    const batch = engine.bootstrapBatch(
+    const batch = engine.bootstrapBatchFiltered(
       p.alignment,
       p.model,
       p.method,
+      filter,
       p.seed,
       done,
       count,
@@ -269,10 +279,11 @@ function runDetailJob(
   p: ReplicateDetailParams,
   post: (m: WorkerToPageJob) => void,
 ): void {
-  const r = engine.replicateDetail(
+  const r = engine.replicateDetailFiltered(
     p.alignment,
     p.model,
     p.method,
+    p.filter ?? PAIRWISE,
     p.seed,
     p.index,
   );
@@ -336,6 +347,7 @@ export function installWorkerScope(
               method: start.method,
               seed: start.seed,
               replicates: start.replicates,
+              filter: start.filter,
             },
             post,
             () => job.cancelled,

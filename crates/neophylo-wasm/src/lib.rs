@@ -27,6 +27,7 @@ use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
+use neophylo_core::site_filter::{SiteFilter, SiteMask};
 use neophylo_core::tree::{NodeId, Tree};
 
 /// The single envelope every export returns (spec §5, plan gap 3).
@@ -145,6 +146,44 @@ pub fn labels_need_quotes(tree: JsValue) -> JsValue {
 pub fn distances(aln: JsValue, model: JsValue) -> JsValue {
     to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
         arg::<DistModel>(model, "model").and_then(|m| neophylo_core::dist::compute(&a, m))
+    }))
+}
+
+// --- v1.4b MEGA gap treatment and .meg I/O (v1.4b spec §3.1, §3.4) ---
+
+/// Compute pairwise distances under `model` with a site filter
+/// (v1.4b spec §3.1). `{ "kind": "pairwise" }` is exactly `distances`.
+#[wasm_bindgen]
+pub fn distances_filtered(aln: JsValue, model: JsValue, filter: JsValue) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<DistModel>(model, "model").and_then(|m| {
+            arg::<SiteFilter>(filter, "filter")
+                .and_then(|f| neophylo_core::dist::compute_filtered(&a, m, f))
+        })
+    }))
+}
+
+/// The 0/1 column weights and removed indices a site filter leaves on
+/// an alignment (v1.4b spec §3.1) — the data the pair panel marks up.
+#[wasm_bindgen]
+pub fn site_mask(aln: JsValue, filter: JsValue) -> JsValue {
+    to_js::<SiteMask>(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<SiteFilter>(filter, "filter").and_then(|f| neophylo_core::site_mask(&a, f))
+    }))
+}
+
+/// Parse `.meg` text into the alignment plus title and notices
+/// (v1.4b spec §3.4). Distance-matrix files are refused.
+#[wasm_bindgen]
+pub fn parse_meg(text: &str) -> JsValue {
+    to_js(neophylo_core::parse_meg(text))
+}
+
+/// Serialize an `Alignment` as `.meg` text (v1.4b spec §3.4).
+#[wasm_bindgen]
+pub fn write_meg(aln: JsValue, title: JsValue) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<String>(title, "title").and_then(|title| neophylo_core::write_meg(&a, &title))
     }))
 }
 
@@ -268,6 +307,34 @@ pub fn bootstrap_batch(
     }))
 }
 
+/// `bootstrap_batch` under a site filter (v1.4b spec §3.2):
+/// replicates draw over the kept columns only. `{ "kind": "pairwise" }`
+/// is bit-identical to `bootstrap_batch`.
+#[wasm_bindgen]
+pub fn bootstrap_batch_filtered(
+    aln: JsValue,
+    model: JsValue,
+    method: JsValue,
+    filter: JsValue,
+    seed: JsValue,
+    start: u32,
+    count: u32,
+) -> JsValue {
+    to_js(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<DistModel>(model, "model").and_then(|m| {
+            arg::<Method>(method, "method").and_then(|method| {
+                arg::<SiteFilter>(filter, "filter").and_then(|f| {
+                    arg::<u64>(seed, "seed").and_then(|seed| {
+                        neophylo_core::bootstrap_batch_filtered(
+                            &a, m, method, f, seed, start, count,
+                        )
+                    })
+                })
+            })
+        })
+    }))
+}
+
 /// Merge two tallies over the same alignment, method and run
 /// (v1.2 spec §3.3, §4).
 #[wasm_bindgen]
@@ -344,6 +411,32 @@ pub fn replicate_detail(
             arg::<Method>(method, "method").and_then(|method| {
                 arg::<u64>(seed, "seed")
                     .and_then(|seed| neophylo_core::replicate_detail(&a, m, method, seed, i))
+            })
+        })
+    }))
+}
+
+/// `replicate_detail` under a site filter (v1.4b spec §3.2): the
+/// replicate draws over kept columns and the "original" tree is built
+/// on filtered distances. `{ "kind": "pairwise" }` is bit-identical to
+/// `replicate_detail`.
+#[wasm_bindgen]
+pub fn replicate_detail_filtered(
+    aln: JsValue,
+    model: JsValue,
+    method: JsValue,
+    filter: JsValue,
+    seed: JsValue,
+    i: u32,
+) -> JsValue {
+    to_js::<ReplicateDetail>(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<DistModel>(model, "model").and_then(|m| {
+            arg::<Method>(method, "method").and_then(|method| {
+                arg::<SiteFilter>(filter, "filter").and_then(|f| {
+                    arg::<u64>(seed, "seed").and_then(|seed| {
+                        neophylo_core::replicate_detail_filtered(&a, m, method, f, seed, i)
+                    })
+                })
             })
         })
     }))

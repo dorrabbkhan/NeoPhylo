@@ -5,6 +5,7 @@
 
 import init, {
   bootstrap_batch,
+  bootstrap_batch_filtered,
   build_tree,
   compare,
   compatible_names,
@@ -12,6 +13,7 @@ import init, {
   consensus_dropped,
   detect_alphabet,
   distances,
+  distances_filtered,
   edit_add_leaf,
   edit_detach,
   edit_join,
@@ -24,14 +26,18 @@ import init, {
   load_exercise,
   merge_tallies,
   parse_fasta,
+  parse_meg,
   parse_newick,
   parse_phylip,
   reference_outgroup,
   replicate_detail,
+  replicate_detail_filtered,
   reroot_on_outgroup,
   simulate,
+  site_mask,
   support_on_tree,
   with_alphabet,
+  write_meg,
   write_newick,
   write_newick_compatible,
   write_newick_with_support,
@@ -48,6 +54,7 @@ import type { DistanceMatrix } from "./generated/DistanceMatrix";
 import type { DistModel } from "./generated/DistModel";
 import type { DroppedGroup } from "./generated/DroppedGroup";
 import type { Exercise } from "./generated/Exercise";
+import type { MegFile } from "./generated/MegFile";
 import type { Method } from "./generated/Method";
 import type { NameMode } from "./generated/NameMode";
 import type { NeoError } from "./generated/NeoError";
@@ -58,6 +65,8 @@ import type { ReplicateDetail } from "./generated/ReplicateDetail";
 import type { RerootResult } from "./generated/RerootResult";
 import type { RfResult } from "./generated/RfResult";
 import type { SimSpec } from "./generated/SimSpec";
+import type { SiteFilter } from "./generated/SiteFilter";
+import type { SiteMask } from "./generated/SiteMask";
 import type { Tree } from "./generated/Tree";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: NeoError };
@@ -141,6 +150,29 @@ export const engine = {
   distances(a: Alignment, m: DistModel): Result<DistanceMatrix> {
     return distances(a, m);
   },
+  /** Pairwise distances under a site filter (v1.4b spec §3.1);
+   * `{ kind: "pairwise" }` is exactly `distances`. */
+  distancesFiltered(
+    a: Alignment,
+    m: DistModel,
+    filter: SiteFilter,
+  ): Result<DistanceMatrix> {
+    return distances_filtered(a, m, filter);
+  },
+  /** The column weights and removed indices a site filter leaves
+   * (v1.4b spec §3.1) — the pair panel's markup source. */
+  siteMask(a: Alignment, filter: SiteFilter): Result<SiteMask> {
+    return site_mask(a, filter);
+  },
+  /** Parse `.meg` text into the alignment plus title and notices
+   * (v1.4b spec §3.4). Distance-matrix files are refused. */
+  parseMeg(text: string): Result<MegFile> {
+    return parse_meg(text);
+  },
+  /** Serialize an `Alignment` as `.meg` text (v1.4b spec §3.4). */
+  writeMeg(a: Alignment, title: string): Result<string> {
+    return write_meg(a, title);
+  },
   buildTree(
     m: DistanceMatrix,
     method: Method,
@@ -186,6 +218,19 @@ export const engine = {
   ): Result<BootstrapTally> {
     return bootstrap_batch(a, m, method, seed, start, count);
   },
+  /** `bootstrapBatch` under a site filter (v1.4b spec §3.2);
+   * `{ kind: "pairwise" }` is bit-identical to `bootstrapBatch`. */
+  bootstrapBatchFiltered(
+    a: Alignment,
+    m: DistModel,
+    method: Method,
+    filter: SiteFilter,
+    seed: number,
+    start: number,
+    count: number,
+  ): Result<BootstrapTally> {
+    return bootstrap_batch_filtered(a, m, method, filter, seed, start, count);
+  },
   /** Merge two tallies over the same alignment, method and run
    * (v1.2 spec §3.3, §4). */
   mergeTallies(a: BootstrapTally, b: BootstrapTally): Result<BootstrapTally> {
@@ -224,6 +269,18 @@ export const engine = {
     i: number,
   ): Result<ReplicateDetail> {
     return replicate_detail(a, m, method, seed, i);
+  },
+  /** `replicateDetail` under a site filter (v1.4b spec §3.2);
+   * `{ kind: "pairwise" }` is bit-identical to `replicateDetail`. */
+  replicateDetailFiltered(
+    a: Alignment,
+    m: DistModel,
+    method: Method,
+    filter: SiteFilter,
+    seed: number,
+    i: number,
+  ): Result<ReplicateDetail> {
+    return replicate_detail_filtered(a, m, method, filter, seed, i);
   },
   /** The outgroup a rooted reference names (v1.2 spec §3.7, §4). */
   referenceOutgroup(reference: Tree): Result<string[]> {

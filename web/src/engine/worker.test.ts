@@ -335,3 +335,97 @@ describe("installWorkerScope", () => {
     ]);
   });
 });
+
+// v1.4b Task 7: the worker always calls the filtered entry points.
+// An absent filter means pairwise — today's path — so an explicit
+// `{ kind: "pairwise" }` must give the identical result, and a real
+// filter must match the filtered engine calls.
+describe("runBootstrapJob site filter", () => {
+  /** DNA alignment with gaps in two columns (complete removes 2, 5). */
+  function gapped(): Alignment {
+    const r = engine.parseFasta(
+      ">a\nACGTACGT\n>b\nAC-TA-GT\n>c\nTCGTACGA\n>d\nAAGTTCGA\n",
+    );
+    if (!r.ok) throw new Error("test alignment failed to parse");
+    return r.value;
+  }
+
+  async function resultOf(p: BootstrapParams): Promise<WorkerToPageJob> {
+    const msgs = await collect(p);
+    const result = msgs.find((m) => m.type === "result");
+    if (result === undefined) throw new Error("no result message");
+    return result;
+  }
+
+  it("an explicit pairwise filter gives the identical result to an omitted filter", async () => {
+    const alignment = gapped();
+    const p = params({ alignment });
+    const without = await resultOf(p);
+    const withPairwise = await resultOf({
+      ...p,
+      filter: { kind: "pairwise" },
+    });
+    expect(withPairwise).toEqual(without);
+  });
+
+  it("a complete-deletion filter matches the filtered engine calls", async () => {
+    const filter = { kind: "complete" } as const;
+    const p = params({ alignment: gapped(), filter });
+    const result = await resultOf(p);
+    if (result.type !== "result") throw new Error("no result message");
+
+    const tally = engine.bootstrapBatchFiltered(
+      p.alignment,
+      p.model,
+      p.method,
+      filter,
+      p.seed,
+      0,
+      p.replicates,
+    );
+    if (!tally.ok) throw new Error("bootstrapBatchFiltered failed");
+    expect(result.tally).toEqual(tally.value);
+
+    // The scaffold tree is the filtered original, so the drawn columns
+    // and the support tree compare like with like.
+    const dist = engine.distancesFiltered(p.alignment, p.model, filter);
+    const built = dist.ok
+      ? engine.buildTree(dist.value, p.method, { trace: false })
+      : null;
+    if (!dist.ok || built === null || !built.ok) {
+      throw new Error("filtered tree build failed");
+    }
+    const support = engine.supportOnTree(built.value.tree, tally.value);
+    if (!support.ok) throw new Error("support_on_tree failed");
+    expect(result.support).toEqual(support.value);
+  });
+
+  it("a detail job with a filter calls replicate_detail_filtered", async () => {
+    const { posts, send } = makeScope();
+    const p = params({ alignment: gapped() });
+    const filter = { kind: "complete" } as const;
+    send({
+      type: "detail",
+      jobId: 1,
+      alignment: p.alignment,
+      model: p.model,
+      method: p.method,
+      seed: p.seed,
+      index: 3,
+      filter,
+    });
+    await settle();
+    const want = engine.replicateDetailFiltered(
+      p.alignment,
+      p.model,
+      p.method,
+      filter,
+      p.seed,
+      3,
+    );
+    if (!want.ok) throw new Error("replicateDetailFiltered failed");
+    expect(posts).toEqual([
+      { type: "detail", jobId: 1, detail: want.value },
+    ]);
+  });
+});
