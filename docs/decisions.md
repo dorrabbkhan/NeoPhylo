@@ -5846,3 +5846,41 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   bootstrap fixtures need); `fixtures/worked/mega-notes.md` (the task's
   own evidence record — serialization findings, output formats, no seed
   option, underscored-name printing); `docs/decisions.md` (this entry).
+
+## v1.4b Task 9: owner ruling on #126 (option A) — MEGA bootstrap fixtures at 1,000 replicates
+
+- **Ruling:** on #126 the owner chose option A — the Step 3 MEGA
+  bootstrap parity test compares against MEGA-CC results at **1,000
+  replicates** under the unchanged v1.2 §8.3 5-point rule. This PR is
+  part (a): fixtures only. `parity_mega_library.rs` follows in a later
+  code PR (the CI fixture guard forbids mixing fixtures and code).
+- **No existing fixture changed.** `fixtures/mega/library/*.json`
+  (their 100-replicate bootstrap blocks stay as the handout values),
+  `fixtures/mega/roundtrip/` and `fixtures/mega/*.json` are
+  byte-identical. Because megacc's bootstrap is unseeded, a full
+  generator rerun would rewrite the 100-replicate blocks, so
+  `generate_mega.sh` gained a `--boot1000-only` flag that runs only the
+  new phase (documented in its header).
+- **New files:** `fixtures/mega/mao/njboot1000_*.mao` (six files,
+  identical to `njboot_*` except `Bootstrap Replicates = 1000`) and
+  `fixtures/mega/library/boot1000/{primate-mtdna,16s-rrna,globins}.json`
+  (`generator`/`input`/`alphabet`/`bootstrap` only; same runs and
+  canonical split keys as the 100-replicate blocks, support at the
+  0.1-percent granularity 1,000 replicates give).
+- **Generator assertions for the new phase:** settings echo,
+  `No. of Sites`, `No_of_bootstrap_reps=1000` in the partition file,
+  every tree split within 1 pp of its integer-printed partition
+  frequency, at least one non-integer percent per run (proof the count
+  took effect), and the split set equal to the 100-replicate block's
+  (same deterministic original NJ tree).
+- **Run-to-run check:** the original NJ tree is reproducible. The
+  conductor ran `16s-rrna`/`nj/K80/complete` 15 times on megacc 12.1.4
+  (4 plain NJ, 4 bootstrap at 100 replicates, 5 at 1,000 replicates,
+  plus the committed runs) and the split set equaled the committed one
+  every time; across the five 1,000-replicate reruns the largest
+  per-split support difference from the committed values was 2.2–6.1 pp
+  per run (binomial noise of two 1,000-replicate samples, ~2.2 pp SD
+  at 50%). Recorded in `fixtures/worked/mega-notes.md` together with
+  the globins ties.
+- **Files outside the Files block:** `docs/decisions.md` (this entry —
+  the workflow requires decisions in the same PR).

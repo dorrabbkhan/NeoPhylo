@@ -1,0 +1,32 @@
+{
+ "generator": {
+  "megacc": "12.1.4 (build 12261022-x86_64)",
+  "mao_sha256": {
+   "njboot1000_dna_k2p_complete.mao": "ae45b837d61395ed9278b888f4c125b07b5507025823dbe562dab343c857fa4e",
+   "njboot1000_dna_k2p_pairwise.mao": "20f44de12a45555b4993ea48f04d0c873a0a881dc193c5c50fb643772c1adf70"
+  },
+  "note": "NJ bootstrap at 1,000 replicates (njboot1000_*.mao; owner ruling on #126). Support is from MEGA's original NJ tree at 0.1-percent granularity, cross-checked against the -pfc 0.0 partitions (integer percents, No_of_bootstrap_reps=1000); the split set is asserted equal to the 100-replicate block in ../<id>.json."
+ },
+ "input": "../web/public/library/primate-mtdna.fasta",
+ "alphabet": "dna",
+ "bootstrap": {
+  "nj/K80/pairwise": {
+   "replicates": 1000,
+   "support": {
+    "Pan_paniscus|Pan_troglodytes": 100,
+    "Gorilla_gorilla|Hylobates_lar|Pongo_abelii|Pongo_pygmaeus": 99.3,
+    "Hylobates_lar|Pongo_abelii|Pongo_pygmaeus": 96.3,
+    "Pongo_abelii|Pongo_pygmaeus": 100
+   }
+  },
+  "nj/K80/complete": {
+   "replicates": 1000,
+   "support": {
+    "Pan_paniscus|Pan_troglodytes": 100,
+    "Gorilla_gorilla|Hylobates_lar|Pongo_abelii|Pongo_pygmaeus": 83.7,
+    "Hylobates_lar|Pongo_abelii|Pongo_pygmaeus": 91,
+    "Pongo_abelii|Pongo_pygmaeus": 100
+   }
+  }
+ }
+}

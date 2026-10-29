@@ -216,6 +216,65 @@ asserts this on every distance run). If a future dataset ever does have
 whitespace, MEGA prints the `_` form as written — the one rule to apply
 is the identity, no normalization.
 
+## NJ bootstrap at 1,000 replicates (owner ruling on #126, option A)
+
+Observed 2026-10-29 on the same megacc 12.1.4 build. The Step 3 MEGA
+parity test compares at 1,000 replicates under the unchanged v1.2 §8.3
+5-point rule; the library 100-replicate blocks stay as the handout
+values. The six `njboot1000_*.mao` files are the `njboot_*` files with
+`Bootstrap Replicates = 1000` as the only changed line.
+
+What MEGA writes at 1,000 replicates (all verified in the run that
+produced `fixtures/mega/library/boot1000/`):
+
+- `.nwk` BCL labels are still proportions to 4 decimals, so support has
+  **0.1-percent granularity** (`0.9720` → 97.2, `0.7810` → 78.1) — the
+  count demonstrably took effect, and the generator also requires at
+  least one non-integer percent in every run's support block.
+- `-pfc 0.0` partitions still print **integer** percents and add
+  `No_of_bootstrap_reps=1000` to the header; the generator asserts the
+  header and cross-checks each tree split within 1 pp (the BCL is the
+  exact count/10, the partition its integer rendering).
+- `No. of Sites` follows the gap treatment as at 100 replicates.
+
+### Run-to-run checks
+
+megacc's bootstrap is unseeded, but the original NJ tree **is**
+reproducible run to run: on this build the conductor ran `16s-rrna`
+`nj/K80/complete` 15 times (4 plain NJ, 4 bootstrap at 100 replicates
+and 5 at 1,000 replicates, plus the committed runs) and the original
+tree and the consensus tree had exactly the committed split set every
+time. Three checks:
+
+- `primate-mtdna` `nj/K80/pairwise`: two independent 1,000-replicate
+  runs produced the same split set; supports differed by ≤ 0.9 pp
+  (99.4 vs 99.3, 97.2 vs 96.3).
+- `16s-rrna` `nj/K80/complete`: across five independent 1,000-replicate
+  reruns the split set always equaled the committed one; the largest
+  per-split support difference from the committed values was 2.2–6.1 pp
+  per run — binomial noise of two 1,000-replicate samples (~2.2 pp SD
+  at 50%). The generator's assertion that the split set equals the
+  100-replicate block's holds on regeneration.
+- `16s-rrna` `nj/K80/complete`, run vs run: two independent
+  1,000-replicate runs by the conductor had the same split set and
+  agreed within 3.2 pp of each other.
+
+### Ties in `globins`
+
+- `Human_HBB` and `Chimp_HBB` are **identical** over all 147 comparable
+  sites; `Gorilla_HBB` differs at 1 of 147 comparable sites (156
+  aligned columns). UPGMA and bootstrap support near this triple depend
+  on tie-breaking.
+- `Human_HBA`, `Horse_HBA` and `Cow_HBA` tie differently per gap
+  treatment (values read from `p/*` in
+  `fixtures/mega/library/globins.json`). Under **pairwise** deletion
+  they are mutually **17/142** — an exact 3-way tie (p = 0.11971831),
+  so joins among them are tie-broken. Under **complete** and
+  **partial95** deletion the pairs are **16/138**, **16/138** and
+  **17/138**: `Human_HBA`–`Horse_HBA` and `Human_HBA`–`Cow_HBA` tie
+  at p = 0.11594203 while `Horse_HBA`–`Cow_HBA` is 17/138
+  (p = 0.12318841) — a 2-way tie only.
+
 ## megacc quirks recorded
 
 - `megacc` writes `$XDG_CONFIG_HOME/megacc`; the generator sets

@@ -1,0 +1,116 @@
+{
+ "generator": {
+  "megacc": "12.1.4 (build 12261022-x86_64)",
+  "mao_sha256": {
+   "njboot1000_protein_jtt_complete.mao": "cb0b8c08e2fb14b7abbe291e39644b6ea1d23a9c4a7e4e9c3e7de5be503f1b6f",
+   "njboot1000_protein_jtt_pairwise.mao": "e8992c177130ab6162ff0a808bc9b8129ecb3612d40147487745606ab7b08cbb",
+   "njboot1000_protein_poisson_complete.mao": "fdf517f0479c5318b7aa501215411f9ba92a70b79d1b99492240d83e9b9a3f08",
+   "njboot1000_protein_poisson_pairwise.mao": "2d4f79859971f883c6b1f687429da297d74bcc19d0bce600a43e11584bc98aef"
+  },
+  "note": "NJ bootstrap at 1,000 replicates (njboot1000_*.mao; owner ruling on #126). Support is from MEGA's original NJ tree at 0.1-percent granularity, cross-checked against the -pfc 0.0 partitions (integer percents, No_of_bootstrap_reps=1000); the split set is asserted equal to the 100-replicate block in ../<id>.json."
+ },
+ "input": "../web/public/library/globins.fasta",
+ "alphabet": "protein",
+ "bootstrap": {
+  "nj/JTT/pairwise": {
+   "replicates": 1000,
+   "support": {
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB": 71.5,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 98.5,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 90.3,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 62.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Zebrafish_HBB1": 59.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 70.4,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 99.1,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 70.4,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 93.8,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 64.7,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBA|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 28.9,
+    "Mouse_HBB1|Rat_HBB1": 100,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 52.4,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 45,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 79.8,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB": 95.9,
+    "Chimp_HBB|Human_HBB": 66.3,
+    "Cow_HBB|Horse_HBB|Pig_HBB|Sheep_HBB": 32.9,
+    "Cow_HBB|Pig_HBB|Sheep_HBB": 34.5,
+    "Cow_HBB|Sheep_HBB": 98.8
+   }
+  },
+  "nj/JTT/complete": {
+   "replicates": 1000,
+   "support": {
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB": 62.9,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 97.8,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 90,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 54.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Zebrafish_HBB1": 50.3,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 76.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 98.4,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 64.6,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 93.3,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 71.3,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBA|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 34.2,
+    "Mouse_HBB1|Rat_HBB1": 99.8,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 46.5,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 51.3,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 86.6,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB": 94.5,
+    "Chimp_HBB|Human_HBB": 68,
+    "Cow_HBB|Horse_HBB|Pig_HBB|Sheep_HBB": 18.5,
+    "Cow_HBB|Pig_HBB|Sheep_HBB": 33.3,
+    "Cow_HBB|Sheep_HBB": 99.7
+   }
+  },
+  "nj/Poisson/pairwise": {
+   "replicates": 1000,
+   "support": {
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 98.2,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 87.5,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 80.7,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Zebrafish_HBB1": 39.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 78.1,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 99.8,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 78.2,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 94,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 63.1,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBA|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 35.9,
+    "Mouse_HBB1|Rat_HBB1": 100,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB": 67.5,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 48.2,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 43.9,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 75.6,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB": 95.5,
+    "Chimp_HBB|Human_HBB": 65.2,
+    "Cow_HBB|Horse_HBB|Pig_HBB|Sheep_HBB": 32.6,
+    "Cow_HBB|Pig_HBB|Sheep_HBB": 39.9,
+    "Cow_HBB|Sheep_HBB": 99.4
+   }
+  },
+  "nj/Poisson/complete": {
+   "replicates": 1000,
+   "support": {
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB": 55.9,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 96,
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 87.6,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB": 79.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1": 29.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 81.4,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBB1|Zebrafish_HBB1": 99.9,
+    "Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 78.8,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 92.5,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 62.2,
+    "Chicken_HBAA|Chicken_HBB|Chimp_HBB|Cow_HBA|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Human_HBG1|Human_myoglobin|Mouse_HBA|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB|Xenopus_HBA1|Xenopus_HBB1|Zebrafish_HBB1": 38.5,
+    "Mouse_HBB1|Rat_HBB1": 99.9,
+    "Chimp_HBB|Dog_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 45,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD|Rabbit_HBB": 50.2,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB|Human_HBD": 82.2,
+    "Chimp_HBB|Gorilla_HBB|Human_HBB": 94.7,
+    "Chimp_HBB|Human_HBB": 63.6,
+    "Cow_HBB|Horse_HBB|Pig_HBB|Sheep_HBB": 19.2,
+    "Cow_HBB|Pig_HBB|Sheep_HBB": 35.4,
+    "Cow_HBB|Sheep_HBB": 100
+   }
+  }
+ }
+}
