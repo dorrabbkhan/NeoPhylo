@@ -69,7 +69,7 @@
   ],
   "source": "NCBI Nucleotide",
   "retrieved": "2026-10-29",
-  "license": "Public domain (NCBI Virus / GenBank)",
+  "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
   "citation": "NCBI Virus / GenBank severe acute respiratory syndrome coronavirus 2 records. https://www.ncbi.nlm.nih.gov/labs/virus",
   "aligner": {
     "name": "MAFFT",

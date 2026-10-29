@@ -6,7 +6,7 @@
     "taxa": 27,
     "sites": 1628,
     "good_for": "gap treatments and distances on real indels across bacterial phyla",
-    "license": "Public domain (NCBI RefSeq)",
+    "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
     "provenance": "16s-rrna.json"
   },
   {
@@ -36,7 +36,7 @@
     "taxa": 7,
     "sites": 1138,
     "good_for": "DNA distances on the MEGA mtCDNA hominoid set",
-    "license": "Public domain (NCBI GenBank)",
+    "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
     "provenance": "primate-mtdna.json"
   },
   {
@@ -46,7 +46,7 @@
     "taxa": 16,
     "sites": 690,
     "good_for": "variant surveillance mutations in the spike receptor-binding domain",
-    "license": "Public domain (NCBI Virus / GenBank)",
+    "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
     "provenance": "sars-cov-2-spike.json"
   }
 ]

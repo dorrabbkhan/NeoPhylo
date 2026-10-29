@@ -2,7 +2,7 @@
 # title: SARS-CoV-2 spike RBD, major variants
 # alphabet: dna
 # source: ncbi-nucleotide
-# license: Public domain (NCBI Virus / GenBank)
+# license: NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights
 # citation: NCBI Virus / GenBank severe acute respiratory syndrome coronavirus 2 records. https://www.ncbi.nlm.nih.gov/labs/virus
 # good_for: variant surveillance mutations in the spike receptor-binding domain
 #

@@ -74,16 +74,20 @@ retrieval date are in `web/public/library/<id>.json`.
   unmodified.
 - **primate-mtdna** (`primate-mtdna.fasta`): D-loop slices of the
   Horai et al. (1995) hominoid mitochondrial genomes, NCBI Nucleotide
-  (GenBank). NCBI places no restrictions on the use or distribution of
-  GenBank data (https://www.ncbi.nlm.nih.gov/home/about/policies/).
+  (GenBank). Per the NCBI data policy
+  (https://www.ncbi.nlm.nih.gov/home/about/policies/): "NCBI itself
+  places no restrictions on the use or distribution of the data
+  contained therein. Nevertheless, some submitters may claim patent,
+  copyright, or other intellectual property rights in all or a portion
+  of the data they have submitted."
   Changes: control-region subsequences aligned with MAFFT.
 - **16s-rrna** (`16s-rrna.fasta`): NCBI RefSeq (NR_) 16S ribosomal RNA
-  records, public-domain US government works.
+  records; same NCBI data policy as above.
   Changes: sequences aligned with MAFFT.
 - **sars-cov-2-spike** (`sars-cov-2-spike.fasta`): spike
   receptor-binding-domain slices (residues 319–541 of the S CDS) of
-  SARS-CoV-2 genomes, NCBI Nucleotide / NCBI Virus (GenBank — same terms
-  as above).
+  SARS-CoV-2 genomes, NCBI Nucleotide / NCBI Virus (GenBank); same NCBI
+  data policy as above.
   Changes: subsequence slices aligned with MAFFT.
 
 ## Inter — bundled font subsets

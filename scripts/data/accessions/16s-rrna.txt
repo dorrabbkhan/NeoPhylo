@@ -2,7 +2,7 @@
 # title: Bacterial 16S ribosomal RNA
 # alphabet: dna
 # source: ncbi-nucleotide
-# license: Public domain (NCBI RefSeq)
+# license: NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights
 # citation: NCBI RefSeq ribosomal RNA records, NCBI Nucleotide. https://www.ncbi.nlm.nih.gov/nuccore
 # good_for: gap treatments and distances on real indels across bacterial phyla
 #
@@ -11,8 +11,9 @@
 # Mollicutes, Deinococcus-Thermus, Aquificae, Thermotogae, Chlamydiae,
 # Chloroflexi) so the alignment carries real indels — this dataset backs the
 # gap-treatment handouts. Every accession is an NCBI RefSeq (NR_) 16S
-# ribosomal RNA record, verified against E-utilities on 2026-10-29; RefSeq
-# records are public-domain US government works.
+# ribosomal RNA record, verified against E-utilities on 2026-10-29; their
+# use follows the NCBI data policy (no NCBI restrictions on use or
+# distribution, but submitters may claim rights in the data).
 #
 # Format: <accession> <label>   (labels: no whitespace, no '"', unique)
 NR_114042.1   Escherichia_coli

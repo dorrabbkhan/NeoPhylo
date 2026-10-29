@@ -2,7 +2,7 @@
 # title: Hominoid mitochondrial D-loop
 # alphabet: dna
 # source: ncbi-nucleotide
-# license: Public domain (NCBI GenBank)
+# license: NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights
 # citation: Horai S, Hayasaka K, Kondo R, Tsugane K, Takahata N (1995) Recent African origin of modern humans revealed by complete sequences of hominoid mitochondrial DNAs. PNAS 92:532-536.
 # good_for: DNA distances on the MEGA mtCDNA hominoid set
 #

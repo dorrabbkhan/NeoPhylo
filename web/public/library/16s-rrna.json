@@ -113,7 +113,7 @@
   ],
   "source": "NCBI Nucleotide",
   "retrieved": "2026-10-29",
-  "license": "Public domain (NCBI RefSeq)",
+  "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
   "citation": "NCBI RefSeq ribosomal RNA records, NCBI Nucleotide. https://www.ncbi.nlm.nih.gov/nuccore",
   "aligner": {
     "name": "MAFFT",

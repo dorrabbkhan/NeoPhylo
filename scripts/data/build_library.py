@@ -258,6 +258,8 @@ def build_one(path: Path) -> dict:
     with unaligned.open("w") as fh:
         for _, label, seq in seqs:
             fh.write(f">{label}\n{seq}\n")
+    # MAFFT writes nucleotides lowercase by default (no --preservecase),
+    # which is why the DNA FASTAs are lowercase.
     proc = subprocess.run(
         ["mafft", "--auto", str(unaligned)],
         capture_output=True,
