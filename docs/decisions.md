@@ -5884,3 +5884,31 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   the globins ties.
 - **Files outside the Files block:** `docs/decisions.md` (this entry —
   the workflow requires decisions in the same PR).
+
+## v1.4b Task 9 Step 3: MEGA library parity test (owner ruling on #126, option A — implementation)
+
+- **Bootstrap at 1,000 replicates:** `bootstrap_support_within_sampling_noise`
+  compares `fixtures/mega/library/boot1000/<id>.json` under the unchanged
+  5-pp rule (v1.2 spec §8.3), our side at 1,000 replicates from the fixed
+  seed 1 — never another seed, bound or count. The 100-replicate
+  `bootstrap` blocks in `library/*.json` stay the handout values: only
+  their split sets are asserted (equal to our NJ splits), never their
+  support numbers.
+- **Identical-sequence exclusions are computed, never listed:** a split
+  is excluded iff one side is a set of ≥ 2 taxa all pairwise identical
+  over the sites the run's filter keeps. `Chimp_HBB|Human_HBB`
+  (globins, under both filters) is the only exclusion — it differs by
+  ~33–35 pp because with two identical sequences the cherry's replicate
+  support is a tie-break artifact; `identical_sequence_exclusions_are_exactly`
+  pins the set.
+- **UPGMA is tie-aware only where a tie exists:** the exact comparison
+  runs first; only on failure is MEGA's tree replayed on the engine's
+  full-precision matrix — every merge must be a minimum-distance pair
+  under exact `==` on the engine's f64 values, every cluster height
+  half that distance within `len_tol`, and the replay must see at least
+  one step with more than one minimal pair. It engages for exactly the
+  six `globins upgma/{p,Poisson}/{pairwise,complete,partial95}` keys
+  (`upgma_tie_resolutions_are_exactly`). NJ stays exact everywhere.
+- **Files outside the Files block:** `docs/decisions.md` (this entry)
+  and `docs/conductor/notes/v1.4b/task13.md` (the handout-2 warning the
+  owner ruling requires).

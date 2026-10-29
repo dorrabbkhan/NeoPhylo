@@ -12,3 +12,11 @@
   this rule.
 - Likewise for `sars-cov-2-spike` if a handout uses it: it is the spike receptor-binding domain
   (S residues 319–541), not the whole spike gene.
+- Handout 2 (globins, NJ vs UPGMA): the UPGMA tree has exact ties among Human_HBA,
+  Horse_HBA and Cow_HBA — a 3-way tie at 17/142 under pairwise deletion, a 2-way tie at
+  16/138 under complete/partial95 (`fixtures/worked/mega-notes.md` "Ties in globins").
+  NeoPhylo and MEGA may join a different pair there and both trees are valid UPGMA trees;
+  the handout must not claim the UPGMA trees are identical. Where it says the trees match,
+  it explains the tie, and its test uses the tie-aware comparison from
+  `parity_mega_library.rs`. The same applies to support for `Chimp_HBB|Human_HBB`
+  (identical sequences over the kept sites) if a handout mentions it.
