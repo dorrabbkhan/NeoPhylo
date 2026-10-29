@@ -16,6 +16,13 @@
 //! lengths at load time so `InvalidExercise { field: "true_tree" }`
 //! surfaces before any simulation runs; an embedded FASTA is parsed and
 //! re-validated against the declared `alphabet`.
+//!
+//! Later versions only add fields: v3 adds `analysis.kappa`,
+//! `sim.base_freqs` and the F84/K2P_PHYLIP identifiers (v1.4 spec §4),
+//! v4 adds `analysis.site_filter` and the `"Poisson"` identifier
+//! (v1.4b spec §4). Fields newer than the declared version are refused
+//! at their own path, presence-aware — a `"key": null` counts as
+//! present, never as absent.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -28,17 +35,19 @@ use crate::error::NeoError;
 use crate::newick::parse_newick;
 use crate::seq::parse_fasta;
 use crate::sim::{check_branch_lengths, check_spec, SimModel, SimSpec};
+use crate::site_filter::SiteFilter;
 
 /// Exercise-level site cap (spec §4.2): files allow `10..=10_000`.
 const MAX_EXERCISE_LEN: u32 = 10_000;
 
-/// The schema version every writer emits (v1.4 spec §4; Task 7's
-/// editor save). `load_exercise` accepts 1, 2 and 3.
-pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+/// The schema version every writer emits once it supports the v1.4b
+/// fields (v1.4b spec §4). `load_exercise` accepts 1, 2, 3 and 4.
+pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
-/// A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4). Always
-/// normalized to the v2-or-later shape; `schema_version` reports 2 for
-/// v1 and v2 files and 3 for v3 files.
+/// A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4, v1.4b
+/// spec §4). Always normalized to the v2-or-later shape;
+/// `schema_version` reports 2 for v1 and v2 files, 3 for v3 files and
+/// 4 for v4 files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Exercise {
@@ -123,6 +132,15 @@ pub struct Analysis {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub kappa: Option<f64>,
+    /// v1.4b spec §4: MEGA's gap treatment applied to the alignment
+    /// before distances. `None` means `SiteFilter::Pairwise` — the
+    /// pre-v1.4b path — so v2/v3 files serialize unchanged; a file may
+    /// write `{ "kind": "pairwise" }` explicitly and keep `Some(..)` so
+    /// the file round-trips. Omitted from the wire shape then, as
+    /// `kappa` is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub site_filter: Option<SiteFilter>,
 }
 
 /// What a prompt asks for at a join step.
@@ -197,11 +215,12 @@ pub struct Prompt {
     pub after: Option<NoteAfter>,
 }
 
-/// Parse and validate an exercise file. `schema_version` must be 1, 2
-/// or 3; v1 files are migrated to the v2 `Exercise` shape (v1.1 spec
-/// §3.6) and v3 files follow the v2 rules plus the v1.4 fields (§4).
-/// `sim.length` is capped at `10_000` on top of the engine-level
-/// `SimSpec` checks.
+/// Parse and validate an exercise file. `schema_version` must be 1, 2,
+/// 3 or 4; v1 files are migrated to the v2 `Exercise` shape (v1.1 spec
+/// §3.6), v3 files follow the v2 rules plus the v1.4 fields (§4) and v4
+/// files add the v1.4b fields (`analysis.site_filter`, the `"Poisson"`
+/// correction). `sim.length` is capped at `10_000` on top of the
+/// engine-level `SimSpec` checks.
 pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
     let f: ExerciseFile = serde_json::from_str(json).map_err(|e| NeoError::InvalidExercise {
         field: missing_field(&e).unwrap_or_else(|| "json".to_string()),
@@ -211,22 +230,22 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
     match f.schema_version {
         1 => load_v1(f),
         2 => load_v2(f, 2),
-        3 => {
-            // A v3 file uses the v2 shape; a flat v1 body claiming 3 is
-            // a version mismatch, so the refusal names schema_version
-            // rather than a missing `alphabet`.
+        v @ (3 | 4) => {
+            // A v3/v4 file uses the v2 shape; a flat v1 body claiming
+            // either is a version mismatch, so the refusal names
+            // schema_version rather than a missing `alphabet`.
             if f.data.is_none() && (f.true_tree.is_some() || f.sim.is_some()) {
                 Err(bad(
                     "schema_version",
                     "a file in the v1 shape must declare schema_version 1",
                 ))
             } else {
-                load_v2(f, 3)
+                load_v2(f, v)
             }
         }
         v => Err(bad(
             "schema_version",
-            &format!("schema_version must be 1, 2 or 3, got {v}"),
+            &format!("schema_version must be 1, 2, 3 or 4, got {v}"),
         )),
     }
 }
@@ -284,12 +303,13 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
     })
 }
 
-/// A v2 or v3 file: declared `alphabet`, `data.kind` choosing
+/// A v2-or-later file: declared `alphabet`, `data.kind` choosing
 /// simulated vs embedded, and an optional `reference`. `v` is the
 /// declared version — v3 additionally accepts the v1.4 fields
 /// (`analysis.kappa`, `sim.base_freqs`, the F84 and K2P_PHYLIP
-/// identifiers); in a v2 file those are refused with a message naming
-/// the required version.
+/// identifiers) and v4 the v1.4b fields (`analysis.site_filter`, the
+/// `"Poisson"` identifier); in an older file those are refused with a
+/// message naming the required version.
 fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
     let alphabet = match f.alphabet.as_deref() {
         Some("dna") => Alphabet::Dna,
@@ -441,14 +461,17 @@ fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
 }
 
 /// The serde mirror of the `analysis` object (v1.1 spec §3.6, v1.4
-/// spec §4): `"correction": "p"|"JC69"|"K80"|"Kimura"|"JTT"|"F84"|
-/// "K2P_PHYLIP"`, the last two v3-only, with `kappa` the K2P_PHYLIP
-/// transition/transversion ratio (default 2.0).
+/// spec §4, v1.4b spec §4): `"correction": "p"|"JC69"|"K80"|"Kimura"|
+/// "JTT"|"Poisson"|"F84"|"K2P_PHYLIP"`, the last three version-gated
+/// (F84 and K2P_PHYLIP v3-only, Poisson v4-only), with `kappa` the
+/// K2P_PHYLIP transition/transversion ratio (default 2.0) and
+/// `site_filter` MEGA's gap treatment (v4-only).
 fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
-    // v3-only fields and identifiers are refused at their own path in
-    // older files so an editor never silently accepts them. Presence
-    // counts even for an explicit `null`: schema.json has no nullable
-    // kappa, so `"kappa": null` must not read as "absent".
+    // v3-only and v4-only fields and identifiers are refused at their
+    // own path in older files so an editor never silently accepts them.
+    // Presence counts even for an explicit `null`: schema.json has no
+    // nullable kappa or site_filter, so `null` must not read as
+    // "absent".
     if v < 3 {
         if f.kappa.is_some() {
             return Err(bad(
@@ -463,12 +486,40 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
             ));
         }
     }
+    if v < 4 {
+        if f.site_filter.is_some() {
+            return Err(bad(
+                "analysis.site_filter",
+                "analysis.site_filter requires schema_version 4",
+            ));
+        }
+        if f.correction.as_str() == "Poisson" {
+            return Err(bad(
+                "analysis.correction",
+                "'Poisson' requires schema_version 4",
+            ));
+        }
+    }
     let file_kappa = match f.kappa {
         Some(None) => {
             return Err(bad("analysis.kappa", "kappa must be a number, not null"));
         }
         Some(Some(k)) => Some(k),
         None => None,
+    };
+    // Same presence rule as kappa: an explicit `null` or a non-object
+    // (serde would otherwise read `null` as absent) is refused, and the
+    // object's fields are validated by hand so each bad value names its
+    // own path, the way schema.json's `siteFilter` def does.
+    let site_filter = match &f.site_filter {
+        None => None,
+        Some(None) => {
+            return Err(bad(
+                "analysis.site_filter",
+                "site_filter must be an object with a \"kind\", not null",
+            ));
+        }
+        Some(Some(raw)) => Some(site_filter_file(raw)?),
     };
     if let Some(k) = file_kappa {
         if !k.is_finite() || k <= 0.0 {
@@ -481,6 +532,7 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
         "K80" => (DistModel::K80, None),
         "Kimura" => (DistModel::Kimura, None),
         "JTT" => (DistModel::Jtt, None),
+        "Poisson" => (DistModel::Poisson, None),
         "F84" => (DistModel::F84, None),
         "K2P_PHYLIP" => {
             let k = file_kappa.unwrap_or(2.0);
@@ -504,7 +556,72 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
             other => return Err(bad("analysis.method", &format!("unknown method '{other}'"))),
         },
         kappa,
+        site_filter,
     })
+}
+
+/// Convert a raw `analysis.site_filter` value to `SiteFilter`
+/// (v1.4b spec §4): `{ "kind": "pairwise"|"complete"|"partial",
+/// "cutoff_pct": <integer 0–100> }` with `cutoff_pct` present only for
+/// `partial`. Kept as a raw value so each bad piece names its own field
+/// — a u8 `cutoff_pct` would accept 101–255, an `Option<f64>` a
+/// fraction, and serde's untagged fallthroughs a string or array —
+/// none of which schema.json allows.
+fn site_filter_file(raw: &serde_json::Value) -> Result<SiteFilter, NeoError> {
+    if !raw.is_object() {
+        return Err(bad(
+            "analysis.site_filter",
+            "site_filter must be an object with a \"kind\"",
+        ));
+    }
+    let kind = raw.get("kind");
+    let cutoff = raw.get("cutoff_pct");
+    let stray_cutoff = |kind: &str| -> Result<(), NeoError> {
+        if cutoff.is_some() {
+            Err(bad(
+                "analysis.site_filter.cutoff_pct",
+                &format!("cutoff_pct applies only to \"partial\", not \"{kind}\""),
+            ))
+        } else {
+            Ok(())
+        }
+    };
+    match kind.and_then(serde_json::Value::as_str) {
+        Some("pairwise") => {
+            stray_cutoff("pairwise")?;
+            Ok(SiteFilter::Pairwise)
+        }
+        Some("complete") => {
+            stray_cutoff("complete")?;
+            Ok(SiteFilter::Complete)
+        }
+        Some("partial") => {
+            let c = cutoff.ok_or_else(|| {
+                bad(
+                    "analysis.site_filter.cutoff_pct",
+                    "cutoff_pct is required for \"partial\"",
+                )
+            })?;
+            // A JSON integer in 0–100: `as_u64` is None for negative,
+            // fractional, string, boolean, null, array and object
+            // values, so each refusal lands on the field.
+            match c
+                .as_u64()
+                .and_then(|n| u8::try_from(n).ok())
+                .filter(|&n| n <= 100)
+            {
+                Some(cutoff_pct) => Ok(SiteFilter::Partial { cutoff_pct }),
+                None => Err(bad(
+                    "analysis.site_filter.cutoff_pct",
+                    &format!("cutoff_pct must be an integer in 0-100, got {c}"),
+                )),
+            }
+        }
+        _ => Err(bad(
+            "analysis.site_filter.kind",
+            "kind must be \"pairwise\", \"complete\" or \"partial\"",
+        )),
+    }
 }
 
 /// Parse and label-check the `reference` object. The reference's leaf
@@ -806,6 +923,13 @@ struct AnalysisFile {
     /// a present null is refused, matching schema.json.
     #[serde(default, deserialize_with = "present")]
     kappa: Option<Option<f64>>,
+    /// v1.4b spec §4: MEGA's gap treatment; v4-only, presence-checked
+    /// in `analysis`. Kept as a raw value (the `Option<Option>` pattern
+    /// above) so a present `null` or a non-object is refused rather
+    /// than read as absent — serde would otherwise deserialize
+    /// `SiteFilter` directly and lose the per-field error paths.
+    #[serde(default, deserialize_with = "present")]
+    site_filter: Option<Option<serde_json::Value>>,
 }
 
 /// The serde mirror of the `bootstrap` block: `f64` so a negative or

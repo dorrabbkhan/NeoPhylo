@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NeoPhylo exercise file",
-  "description": "Lesson/exercise file format, schema v2 and v3 (v1.1 design spec section 3.6, v1.4 spec section 4). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, sim.kappa is required when sim.model is \"K80\" or \"F84\", and analysis.kappa is allowed only when analysis.correction is \"K2P_PHYLIP\". `summary` is required only here — the engine ignores it — because repository lessons power the app's Lessons menu. Schema_version 2 and 3 validate here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files are v2 or later. The v3 identifiers (analysis.kappa, corrections \"F84\"/\"K2P_PHYLIP\", sim.model \"F84\", sim.base_freqs) are valid only with schema_version 3. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0..). Model/alphabet compatibility, embedded-FASTA character validity, reference label matching, the F84 base-frequencies sum-to-1 rule and the F84 kappa feasibility floor are semantic checks the engine performs; this schema only covers structure.",
+  "description": "Lesson/exercise file format, schema v2, v3 and v4 (v1.1 design spec section 3.6, v1.4 spec section 4, v1.4b spec section 4). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, sim.kappa is required when sim.model is \"K80\" or \"F84\", and analysis.kappa is allowed only when analysis.correction is \"K2P_PHYLIP\". `summary` is required only here — the engine ignores it — because repository lessons power the app's Lessons menu. Schema_version 2, 3 and 4 validate here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files are v2 or later. The v3 identifiers (analysis.kappa, corrections \"F84\"/\"K2P_PHYLIP\", sim.model \"F84\", sim.base_freqs) are valid only with schema_version 3 or later; the v4 identifiers (analysis.site_filter, correction \"Poisson\") are valid only with schema_version 4. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0.., site_filter.cutoff_pct 0..=100). Model/alphabet compatibility, embedded-FASTA character validity, reference label matching, the F84 base-frequencies sum-to-1 rule and the F84 kappa feasibility floor are semantic checks the engine performs; this schema only covers structure.",
   "type": "object",
   "required": ["schema_version", "id", "title", "summary", "alphabet", "data", "analysis"],
   "properties": {
-    "schema_version": { "enum": [2, 3] },
+    "schema_version": { "enum": [2, 3, 4] },
     "id": { "type": "string" },
     "title": { "type": "string" },
     "summary": {
@@ -96,7 +96,10 @@
       "description": "v1.4 spec 6.2: optional lab-pack block. Absent on ordinary exercises; a file under exercises/labs/ without it is refused at load by the lab registry."
     }
   },
-  "allOf": [{ "$ref": "#/$defs/v3Identifiers" }],
+  "allOf": [
+    { "$ref": "#/$defs/v3Identifiers" },
+    { "$ref": "#/$defs/v4Identifiers" }
+  ],
   "$defs": {
     "sim": {
       "type": "object",
@@ -155,15 +158,43 @@
       "type": "object",
       "required": ["correction", "method"],
       "properties": {
-        "correction": { "enum": ["p", "JC69", "K80", "Kimura", "JTT", "F84", "K2P_PHYLIP"] },
+        "correction": { "enum": ["p", "JC69", "K80", "Kimura", "JTT", "Poisson", "F84", "K2P_PHYLIP"] },
         "method": { "enum": ["NJ", "UPGMA"] },
         "kappa": {
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "v1.4 spec 4: the K2P_PHYLIP transition/transversion ratio (default 2.0 when omitted). Only valid with correction \"K2P_PHYLIP\"."
-        }
+        },
+        "site_filter": { "$ref": "#/$defs/siteFilter" }
       },
       "allOf": [{ "$ref": "#/$defs/kappaForK2p" }]
+    },
+    "siteFilter": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["pairwise", "complete", "partial"] },
+        "cutoff_pct": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "MEGA's site-coverage cutoff: a column counts when this percentage of sequences is not missing there. Required for kind \"partial\"; not allowed otherwise."
+        }
+      },
+      "allOf": [{ "$ref": "#/$defs/cutoffForPartial" }],
+      "description": "v1.4b spec 4/3.1: MEGA's gap treatment applied to the alignment before distances (schema_version 4 only). Absent means pairwise deletion — the pre-v1.4b behavior."
+    },
+    "cutoffForPartial": {
+      "if": {
+        "properties": { "kind": { "const": "partial" } },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["cutoff_pct"]
+      },
+      "else": {
+        "not": { "required": ["cutoff_pct"] }
+      }
     },
     "kappaForK2p": {
       "if": {
@@ -197,6 +228,23 @@
                 "not": { "required": ["base_freqs"] }
               }
             }
+          }
+        }
+      }
+    },
+    "v4Identifiers": {
+      "description": "v1.4b spec 4: the v4 identifiers exist only in schema_version 4 files. In a v2 or v3 file an analysis.site_filter key (even a null one) and the correction \"Poisson\" are invalid.",
+      "if": {
+        "properties": { "schema_version": { "enum": [2, 3] } },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "properties": {
+          "analysis": {
+            "properties": {
+              "correction": { "not": { "const": "Poisson" } }
+            },
+            "not": { "required": ["site_filter"] }
           }
         }
       }

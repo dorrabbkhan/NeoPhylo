@@ -1,0 +1,13 @@
+{
+  "schema_version": 4,
+  "id": "v4-bad-cutoff-101",
+  "title": "Cutoff 101",
+  "summary": "Cutoff 101",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "(A:0.1,B:0.2,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ", "site_filter": { "kind": "partial", "cutoff_pct": 101 } }
+}

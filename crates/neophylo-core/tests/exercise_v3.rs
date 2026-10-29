@@ -96,9 +96,11 @@ fn sim_model(ex: &Exercise) -> SimModel {
 // --- analysis.kappa and the new corrections (v1.4 spec §4) -------------
 
 #[test]
-fn current_schema_version_is_3() {
-    // The version every writer (Task 7's editor save) emits.
-    assert_eq!(CURRENT_SCHEMA_VERSION, 3);
+fn current_schema_version_is_4() {
+    // The version writers emit once they support the v1.4b fields
+    // (v1.4b Task 6; the editor still writes 3 — its v4 fields are a
+    // later task).
+    assert_eq!(CURRENT_SCHEMA_VERSION, 4);
 }
 
 #[test]
@@ -477,12 +479,12 @@ fn repo_exercises_v3_twins_load_identically() {
 }
 
 #[test]
-fn unknown_schema_version_reports_all_three() {
-    let json = V2_EQUIVALENT.replace(r#""schema_version": 2"#, r#""schema_version": 4"#);
+fn unknown_schema_version_reports_all_four() {
+    let json = V2_EQUIVALENT.replace(r#""schema_version": 2"#, r#""schema_version": 5"#);
     let err = load_exercise(&json).unwrap_err();
     let (field, msg) = invalid(&err);
     assert_eq!(field, "schema_version");
-    assert_eq!(msg, "schema_version must be 1, 2 or 3, got 4");
+    assert_eq!(msg, "schema_version must be 1, 2, 3 or 4, got 5");
 }
 
 // --- an explicit null is not "absent" on the v3 keys --------------------
