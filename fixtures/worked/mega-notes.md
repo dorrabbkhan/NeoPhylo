@@ -244,7 +244,7 @@ reproducible run to run: on this build the conductor ran `16s-rrna`
 `nj/K80/complete` 15 times (4 plain NJ, 4 bootstrap at 100 replicates
 and 5 at 1,000 replicates, plus the committed runs) and the original
 tree and the consensus tree had exactly the committed split set every
-time. Two checks:
+time. Three checks:
 
 - `primate-mtdna` `nj/K80/pairwise`: two independent 1,000-replicate
   runs produced the same split set; supports differed by ≤ 0.9 pp
@@ -255,6 +255,9 @@ time. Two checks:
   per run — binomial noise of two 1,000-replicate samples (~2.2 pp SD
   at 50%). The generator's assertion that the split set equals the
   100-replicate block's holds on regeneration.
+- `16s-rrna` `nj/K80/complete`, run vs run: two independent
+  1,000-replicate runs by the conductor had the same split set and
+  agreed within 3.2 pp of each other.
 
 ### Ties in `globins`
 
@@ -262,8 +265,15 @@ time. Two checks:
   sites; `Gorilla_HBB` differs at 1 of 147 comparable sites (156
   aligned columns). UPGMA and bootstrap support near this triple depend
   on tie-breaking.
-- `Human_HBA`, `Horse_HBA` and `Cow_HBA` are mutually **17/142** — an
-  exact 3-way tie, so joins among them are tie-broken too.
+- `Human_HBA`, `Horse_HBA` and `Cow_HBA` tie differently per gap
+  treatment (values read from `p/*` in
+  `fixtures/mega/library/globins.json`). Under **pairwise** deletion
+  they are mutually **17/142** — an exact 3-way tie (p = 0.11971831),
+  so joins among them are tie-broken. Under **complete** and
+  **partial95** deletion the pairs are **16/138**, **16/138** and
+  **17/138**: `Human_HBA`–`Horse_HBA` and `Human_HBA`–`Cow_HBA` tie
+  at p = 0.11594203 while `Horse_HBA`–`Cow_HBA` is 17/138
+  (p = 0.12318841) — a 2-way tie only.
 
 ## megacc quirks recorded
 

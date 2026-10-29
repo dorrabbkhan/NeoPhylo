@@ -64,7 +64,14 @@
 set -euo pipefail
 
 BOOT1000_ONLY=0
-if [ "${1:-}" = "--boot1000-only" ]; then BOOT1000_ONLY=1; fi
+if [ $# -gt 0 ]; then
+  if [ $# -eq 1 ] && [ "$1" = "--boot1000-only" ]; then
+    BOOT1000_ONLY=1
+  else
+    echo "usage: bash fixtures/generate_mega.sh [--boot1000-only]" >&2
+    exit 2
+  fi
+fi
 export BOOT1000_ONLY
 
 FIXDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
