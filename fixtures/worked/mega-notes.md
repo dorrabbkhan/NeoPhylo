@@ -143,6 +143,79 @@ but real divergence.
 `Poisson`: manual formula `d = −ln(1 − p)` (`Poisson_Correction_(PC)_distance.htm`),
 exactly spec §3.3.
 
+## Bootstrap `.mao` serialization (v1.4b Task 9)
+
+Observed 2026-10-29 on the same megacc 12.1.4 build. The `njboot_*` files
+are derived from the GUI-serialized `nj_*` files, same key names and
+order, changing only the `Phylogeny Test` block:
+
+```
+Test of Phylogeny               = Bootstrap method
+Approach                        = Standard Bootstrap (slow)
+Bootstrap Replicates            = 100
+```
+
+The `Bootstrap Replicates` key is what MEGA 12 binds — **not** the
+`No. of Bootstrap Replications` key a MEGA X/11 file would use.
+`Approach` is what the GUI serialization writes alongside it (it is
+kept for fidelity; the run also succeeds without it). Evidence:
+
+- `Test of Phylogeny = Bootstrap method` with the old
+  `No. of Bootstrap Replications = 100` key (with or without
+  `Approach`): megacc engages the bootstrap path — the run takes ~2 s
+  and spawns its worker pool — then dies with `An error occurred when
+  finalizing the calculation: tree display setup not finalized`; the
+  summary reports `No. of Taxa = 0` and progress shows
+  `Bootstrap Rep #: 0/-1`. The replicate count never bound — the old
+  key name is echoed but ignored.
+- `Test of Phylogeny = Bootstrap` (an unrecognized value): echoed
+  verbatim, run finishes in 0.019 s with a plain NJ tree and **no**
+  support values — silently ignored, exactly like the
+  `Gaps/Missing Data Treatment` trap in the History section.
+- The full three-key block on `jc6.fasta`: `<out>.nwk`,
+  `<out>_consensus.nwk`, `<out>_partitions.txt` and a clean summary.
+  With `Bootstrap Replicates = 10` the support granularity is 10%
+  steps (`1.0000`, `0.9000`); at 100 it is 1% steps — the count
+  demonstrably takes effect.
+- `No. of Sites` follows the gap treatment under bootstrap too:
+  `njboot` with `Complete deletion` on `jc8_gaps.fasta` reports 365
+  sites, the same as `nj`/`dist`/`upgma` under that treatment.
+
+`Test of Phylogeny = Interior-branch test` also binds with no extra
+keys and writes confidence values as internal labels (`0.0000`).
+
+### What MEGA writes for a bootstrap NJ run
+
+- `<out>.nwk`: the **original inferred NJ tree** with BCL support on
+  each internal node, printed as a **proportion** to 4 decimals
+  (`0.9800`, `1.0000` — i.e. 98%, 100%). This is the file the fixtures
+  take support from.
+- `<out>_consensus.nwk`: a bootstrap consensus tree, same proportional
+  labels; not used (the fixture uses the computed tree, not a consensus
+  view).
+- `<out>_partitions.txt` (with `-pfc 0.0`): every replicate partition as
+  a 0/1 string in input-taxon order plus its integer-percent frequency
+  (`111000\t95%`). Every split on the original tree appears with a
+  frequency equal to its BCL — the generator asserts this for every
+  split.
+- **No seed option:** `megacc -h` lists no bootstrap seed flag, and two
+  runs on the same input give different support values (jc6: 0.98/0.95
+  vs 1.00/0.94), so `bootstrap` blocks are not byte-reproducible — the
+  generator does not diff them on rerun.
+
+### Underscored names in MEGA's outputs
+
+NeoPhylo's `write_meg` maps whitespace in labels to `_` and reads names
+literally. MEGA-CC 12.1.4 prints underscored names **literally** in all
+outputs — distance `.meg` rows (`[ 2] #Pan_troglodytes`), Newick leaf
+names and the partition file carry `Homo_sapiens` verbatim, never
+`Homo sapiens`. Since the library labels contain no whitespace, the
+`parity_mega_library.rs` name rule needed in practice is none: MEGA's
+labels equal the FASTA labels character for character (the generator
+asserts this on every distance run). If a future dataset ever does have
+whitespace, MEGA prints the `_` form as written — the one rule to apply
+is the identity, no normalization.
+
 ## megacc quirks recorded
 
 - `megacc` writes `$XDG_CONFIG_HOME/megacc`; the generator sets
