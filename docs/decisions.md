@@ -5789,3 +5789,16 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   notices-file edit alone.
 - **Files outside the Files block:** `docs/decisions.md` (this entry —
   the workflow requires decisions in the same PR).
+- **rights_check (2026-10-29):** all 50 NCBI records in
+  `scripts/data/accessions/{16s-rrna,primate-mtdna,sars-cov-2-spike}.txt`
+  were re-fetched as full GenBank flat files (efetch `rettype=gb`,
+  `tool=neophylo-build`) and searched case-insensitively — COMMENT,
+  REFERENCE/JOURNAL/REMARK, KEYWORDS, DBLINK and FEATURES notes — for
+  rights language (copyright, ©, patent, "all rights", license/licence,
+  "intellectual property", restricted, "not for", permission,
+  "terms of use", "data use", embargo) and patent-sequence markers
+  (JOURNAL "Patent:", KEYWORDS "patent", division PAT). No rights
+  statements found: no record matched any term, all divisions are
+  BCT/PRI/VRL, and the only adjacent text is X97707's standard DDBJ
+  courtesy note asking users to cite the entry — a citation request,
+  not a use restriction.
