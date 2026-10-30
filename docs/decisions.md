@@ -6033,3 +6033,4 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   removes only 21. `web/e2e/gaps.spec.ts` is a Files-block test file,
   so no entry was strictly required, but the changed assertions are
   recorded here for the reviewer.
+- Baselines regenerated (owner-approved 2026-10-30): four-taxa and weak-support at 1920×1080, both themes. The sandbox controls column gains the gap control; no other baseline changed. Pinned playwright v1.64.1-noble image, targeted --grep.
