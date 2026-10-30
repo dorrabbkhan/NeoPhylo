@@ -50,7 +50,9 @@ pub use newick::{
     write_newick_with_support,
 };
 pub use phylip::{parse_phylip, write_phylip_matrix, NameMode};
-pub use protein_dist::{jtt_ml, jtt_pair_detail, kimura_from_p, pair_counts, PairDetail};
+pub use protein_dist::{
+    jtt_ml, jtt_pair_detail, jtt_pair_detail_filtered, kimura_from_p, pair_counts, PairDetail,
+};
 pub use reroot::{reference_outgroup, reroot_on_outgroup, RerootResult};
 pub use seq::{parse_fasta, Alignment, MAX_SITES, MAX_TAXA};
 pub use sim::{simulate, SimModel, SimSpec};

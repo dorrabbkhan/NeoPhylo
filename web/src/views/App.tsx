@@ -470,10 +470,20 @@ export function App({ exercise }: { exercise?: Exercise }) {
       (session?.bootstrap.maxRunSites ?? 0) >= LONGER_RUN_SITES,
   });
 
+  // The active gap treatment (v1.4b spec §3.1): absent means pairwise.
+  const siteFilter = useMemo(
+    () =>
+      session?.exercise.analysis.site_filter ?? {
+        kind: "pairwise" as const,
+      },
+    [session?.exercise.analysis.site_filter],
+  );
+
   // Pair panel (v1.1 spec §5.2): in protein mode with no predict
   // prompt gating, activating a matrix cell opens "How was this
-  // distance computed?" — the engine's jttPairDetail for the picked
-  // pair of taxa.
+  // distance computed?" — the engine's jttPairDetailFiltered for the
+  // picked pair of taxa, so the panel's numbers follow the same gap
+  // treatment as the matrix (owner decision 2026-10-30, option A).
   const onPickPairCell = useCallback(
     (i: number, j: number) => {
       if (sm === null) return;
@@ -489,8 +499,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
     const i = aln.labels.indexOf(pair[0]);
     const j = aln.labels.indexOf(pair[1]);
     if (i < 0 || j < 0) return null;
-    return engine.jttPairDetail(aln, i, j);
-  }, [pair, session]);
+    return engine.jttPairDetailFiltered(aln, i, j, siteFilter);
+  }, [pair, session, siteFilter]);
 
   // "Watch one replicate" (v1.2 Task 13, spec §6.5): the panel shows
   // replicate `replicateIndex` (0-based) of the finished run — its seed
@@ -565,14 +575,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
     );
   }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed, repFilter]);
 
-  // The active gap treatment (v1.4b spec §3.1): absent means pairwise.
-  const siteFilter = useMemo(
-    () =>
-      session?.exercise.analysis.site_filter ?? {
-        kind: "pairwise" as const,
-      },
-    [session?.exercise.analysis.site_filter],
-  );
   // The mask the count line and the pair panel share: kept/removed
   // column indices from the engine (science lives in Rust). On a
   // filter error (NoSitesKept) every column counts as removed.
