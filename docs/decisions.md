@@ -6034,4 +6034,37 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   so no entry was strictly required, but the changed assertions are
   recorded here for the reviewer.
 - Baselines regenerated (owner-approved 2026-10-30): four-taxa and weak-support at 1920×1080, both themes. The sandbox controls column gains the gap control; no other baseline changed. Pinned playwright v1.64.1-noble image, targeted --grep.
-- **Clipped select fix (owner-approved 2026-10-30):** the sandbox "Correction" select laid out at its widest option ("K2P (dnadist, κ = 2.0)") and overflowed the 230 px controls column, clipping its dropdown arrow. `index.css` now gives `.controls .field > select`/`> input` and `.gap-control .field > input` `min-width: 0` and caps `.controls`/`.gap-control` selects and inputs at `max-width: 100%` — tokens only; the seed row's wrap is unchanged. A named `gaps.spec.ts` test asserts every controls-column select's box sits inside the column at 1920 (fails on the bug: right edge 271 > 230). The same four baselines were regenerated a second time in the same pinned image; the full visual project passes 89/89 with no other shot changed.
+- **Wrap, don't shrink (replaces the min-width fix from c4f9ea8):**
+  the controls-column clip was never sandbox-only — on main the
+  "Correction" select laid out at its widest option
+  ("K2P (dnadist, κ = 2.0)") and its box ran past the 230 px column
+  edge (right edge ~271 px, ~41 px over) clipping its dropdown arrow,
+  and the same overflow clipped menus in the 1920×1080 lesson/editor
+  frames. Shrinking the control (`min-width: 0`, the c4f9ea8 fix) kept
+  the arrow inside but ellipsized the selected text
+  ("Neighbor-Joinin") — the same class of bug one layer down, caught
+  by the new truncation check. `index.css` now sets
+  `flex-wrap: wrap` on `.controls .field`: a control too wide for the
+  space next to its label wraps onto its own line at natural width,
+  while `max-width: 100%` still caps anything wider than the column
+  itself (the `.newick-name-mode` select keeps its deliberate clamp —
+  its longest option exceeds the column by design). `gaps.spec.ts`
+  gains a second check inside the same named test: every
+  `.controls select` must keep its natural (clone-measured) width, not
+  just stay inside the column — it fails on c4f9ea8's shrunk menus and
+  passes on this fix. **16 baselines regenerated, owner-approved
+  2026-10-30** (pinned `playwright:v1.64.1-noble` image, targeted
+  `--grep`):
+  `four-taxa-1920x1080-{dark,light}`,
+  `weak-support-1920x1080-{dark,light}`,
+  `cytc-rooted-1920x1080-{dark,light}`,
+  `cytc-computed-1920x1080-{dark,light}`,
+  `replicate-panel-1920x1080-{dark,light}`,
+  `bootstrap-basics-final-1920x1080-{dark,light}`,
+  `editor-preview-1920x1080-{dark,light}`,
+  `editor-preview-1280x800-{dark,light}`. The other 73 scene/viewports
+  re-rendered byte-identical or within the image's run-to-run AA noise
+  (~0–50 px scattered in headers/footers — the same signature
+  reproduces at HEAD without this change and between two same-code
+  runs), so their baselines are untouched; the full visual project
+  passes 89/89 without updating.

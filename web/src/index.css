@@ -780,6 +780,11 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* A select too wide for the space next to its label wraps onto its
+   * own line under the label at its natural width rather than
+   * shrinking — a shrunk select ellipsizes the selected text
+   * ("Neighbor-Joinin", Task 10 corrective pass). */
+  flex-wrap: wrap;
   gap: 8px;
   margin: 6px 0;
   font-size: var(--size-sm);
@@ -822,16 +827,10 @@ button:disabled {
 /* A native select lays out at its widest option's width, not the
  * selected one's — "K2P (dnadist, κ = 2.0)" made the Correction menu
  * wider than the controls column and clipped its dropdown arrow
- * (v1.4b Task 10 fix). min-width: 0 lets the field's controls shrink
- * below their min-content and max-width caps them at the row, so no
- * select or input in the column can cross its edge; the label keeps
- * its own width and stays on one line where it fits. */
-.controls .field > select,
-.controls .field > input,
-.gap-control .field > input {
-  min-width: 0;
-}
-
+ * (v1.4b Task 10 fix). The row wraps it under its label instead of
+ * shrinking it (see .controls .field above); max-width still caps any
+ * control that can't fit even on its own line, so nothing in the
+ * column can cross its edge. */
 .controls select,
 .controls input,
 .gap-control input {

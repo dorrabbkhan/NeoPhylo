@@ -181,6 +181,35 @@ test("at 1920 every model menu stays inside the controls column", async ({
         `${label} right edge (${correction ?? "default"})`,
       ).toBeLessThanOrEqual(colBox!.x + colBox!.width);
     }
+
+    // The model menus additionally must not shrink below their natural
+    // width — a shrunk select ellipsizes the selected text
+    // ("Neighbor-Joinin"), the same class of bug as the clipped arrow
+    // one layer down. The natural width comes from a clone laid out
+    // without the field row's constraints. Scoped to .controls: the
+    // export section's Newick-names menu is deliberately clamped by
+    // .newick-name-mode select (its longest option is wider than the
+    // column) and keeps that approved look.
+    const menus = column.locator(".controls select");
+    const menuCount = await menus.count();
+    for (let i = 0; i < menuCount; i++) {
+      const label =
+        (await menus.nth(i).getAttribute("aria-label")) ?? `menu ${i}`;
+      const size = await menus.nth(i).evaluate((el) => {
+        const sel = el as HTMLSelectElement;
+        const clone = sel.cloneNode(true) as HTMLSelectElement;
+        clone.style.cssText =
+          "position:absolute;visibility:hidden;top:0;left:0;width:auto;min-width:0;max-width:none;";
+        sel.parentElement!.appendChild(clone);
+        const natural = clone.getBoundingClientRect().width;
+        clone.remove();
+        return { actual: sel.getBoundingClientRect().width, natural };
+      });
+      expect(
+        size.actual,
+        `${label} selected text not truncated (${correction ?? "default"})`,
+      ).toBeGreaterThanOrEqual(size.natural - 0.5);
+    }
   }
   await context.close();
 });
