@@ -18,6 +18,7 @@ import type { Action, Session } from "../state/session";
 import {
   CORRECTIONS,
   DIST_LABEL,
+  SANDBOX_MODELS,
   SIM_LABEL,
   SIM_MODEL_NAMES,
   distModelName,
@@ -57,6 +58,11 @@ export interface ControlsProps {
    * only while the stepper sits at its final position; it renders
    * under the Analysis section. */
   bootstrapPanel?: ReactNode;
+  /** Sandbox menus list the v1.4b models (F84, K2P_PHYLIP with its κ
+   * field, Poisson); built-in lessons keep the old menu and show them
+   * only as the conditional option an exercise prescribes (v1.4b spec
+   * §6.1). */
+  sandbox?: boolean;
 }
 
 const KAPPA_DEFAULT = 2;
@@ -73,6 +79,8 @@ export function NumberField({
   step,
   disabled,
   title,
+  integer = false,
+  errorMessage,
   onCommit,
 }: {
   label: string;
@@ -84,34 +92,55 @@ export function NumberField({
   /** Tooltip explaining why the field is disabled (locked, or the
    * alignment can't be re-simulated). */
   title?: string;
+  /** Refuse non-integers too (v1.4b: the site-coverage cutoff). */
+  integer?: boolean;
+  /** When set, an input that fails validation also shows this message
+   * next to the field (v1.4b κ and cutoff: refused with a message,
+   * last valid value kept). */
+  errorMessage?: string;
   onCommit: (v: number) => void;
 }) {
   const [text, setText] = useState(String(value));
+  const [invalid, setInvalid] = useState(false);
   // Re-sync the editable text when the committed value changes from
   // outside (adjust-state-during-render pattern; no effect needed).
   const [lastValue, setLastValue] = useState(value);
   if (value !== lastValue) {
     setLastValue(value);
     setText(String(value));
+    setInvalid(false);
   }
   return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={text}
-        disabled={disabled}
-        title={title}
-        onChange={(e) => {
-          setText(e.target.value);
-          const v = e.target.valueAsNumber;
-          if (Number.isFinite(v) && v >= min && v <= max) onCommit(v);
-        }}
-      />
-    </label>
+    <>
+      <label className="field">
+        <span>{label}</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={text}
+          disabled={disabled}
+          title={title}
+          onChange={(e) => {
+            setText(e.target.value);
+            const v = e.target.valueAsNumber;
+            const ok =
+              Number.isFinite(v) &&
+              v >= min &&
+              v <= max &&
+              (!integer || Number.isInteger(v));
+            setInvalid(!ok);
+            if (ok) onCommit(v);
+          }}
+        />
+      </label>
+      {invalid && errorMessage !== undefined && (
+        <p className="field-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -126,6 +155,7 @@ export function Controls({
   alphabet,
   dispatch,
   bootstrapPanel,
+  sandbox = false,
 }: ControlsProps) {
   const isLocked = (path: string) => locked.includes(path);
   const simEnabled = alignmentOrigin === "simulated";
@@ -148,6 +178,40 @@ export function Controls({
     sim === null || typeof sim.model === "string" || !("K80" in sim.model)
       ? KAPPA_DEFAULT
       : sim.model.K80.kappa;
+
+  // v1.4b spec §6.1: the sandbox menu is the full CORRECTIONS list; a
+  // lesson's menu drops the sandbox-only models (they still display
+  // as the conditional option when the exercise prescribes one).
+  const menuModels = sandbox
+    ? CORRECTIONS[alphabet]
+    : CORRECTIONS[alphabet].filter((c) => !SANDBOX_MODELS.has(c));
+  const currentName = distModelName(analysis.correction);
+  // The K2P_PHYLIP ratio the κ field edits and the option label shows:
+  // the selected correction's ratio, else analysis.kappa, else 2.0.
+  const k2pRatio =
+    typeof analysis.correction === "object"
+      ? analysis.correction.K2pPhylip.ratio
+      : (analysis.kappa ?? KAPPA_DEFAULT);
+  const setCorrection = (name: string) => {
+    if (name === "K2P_PHYLIP") {
+      // In a lesson the option only displays the prescribed model;
+      // selecting it is a no-op. In the sandbox it selects, carrying
+      // the κ field's value in both the enum and analysis.kappa.
+      if (!sandbox) return;
+      dispatch({
+        type: "setAnalysis",
+        patch: {
+          correction: { K2pPhylip: { ratio: k2pRatio } },
+          kappa: k2pRatio,
+        },
+      });
+      return;
+    }
+    dispatch({
+      type: "setAnalysis",
+      patch: { correction: name as Analysis["correction"] },
+    });
+  };
 
   const setModel = (name: SimModelName) => {
     let model: SimModel;
@@ -266,40 +330,56 @@ export function Controls({
         <span>Correction</span>
         <select
           aria-label="Distance correction"
-          value={distModelName(analysis.correction)}
+          value={currentName}
           disabled={isLocked("analysis.correction")}
           title={isLocked("analysis.correction") ? LOCKED_TOOLTIP : undefined}
-          onChange={(e) => {
-            // The K2P_PHYLIP option exists only to DISPLAY the current
-            // correction — selecting it is a no-op (its ratio lives in
-            // the exercise, not in this menu).
-            if (e.target.value === "K2P_PHYLIP") return;
-            dispatch({
-              type: "setAnalysis",
-              patch: {
-                correction: e.target.value as Analysis["correction"],
-              },
-            });
-          }}
+          onChange={(e) => setCorrection(e.target.value)}
         >
-          {CORRECTIONS[alphabet].map((c) => (
+          {menuModels.map((c) => (
             <option key={c} value={c}>
-              {c === "P" ? "p (uncorrected)" : DIST_LABEL[c]}
+              {c === "P"
+                ? "p (uncorrected)"
+                : c === "K2P_PHYLIP"
+                  ? k2pLabel(k2pRatio)
+                  : DIST_LABEL[c]}
             </option>
           ))}
-          {/* v1.4 models that only an exercise file can prescribe:
-            * displayed as the current value, never menu-selectable
-            * (K2P_PHYLIP's ratio lives in the exercise). */}
-          {analysis.correction === "F84" && (
-            <option value="F84">F84</option>
-          )}
-          {typeof analysis.correction === "object" && (
-            <option value="K2P_PHYLIP">
-              {k2pLabel(analysis.correction.K2pPhylip.ratio)}
+          {/* A model only an exercise file can prescribe displays as a
+            * conditional option when the menu doesn't list it — in a
+            * lesson the sandbox models aren't selectable (v1.4b). */}
+          {!menuModels.includes(
+            currentName as (typeof menuModels)[number],
+          ) && (
+            <option value={currentName}>
+              {currentName === "K2P_PHYLIP"
+                ? k2pLabel(k2pRatio)
+                : DIST_LABEL[currentName as keyof typeof DIST_LABEL]}
             </option>
           )}
         </select>
       </label>
+      {typeof analysis.correction === "object" && (
+        <NumberField
+          label="Ratio (κ)"
+          value={k2pRatio}
+          min={Number.MIN_VALUE}
+          max={Number.POSITIVE_INFINITY}
+          disabled={isLocked("analysis.correction")}
+          title={
+            isLocked("analysis.correction") ? LOCKED_TOOLTIP : undefined
+          }
+          errorMessage="κ must be a number greater than 0."
+          onCommit={(v) =>
+            dispatch({
+              type: "setAnalysis",
+              patch: {
+                correction: { K2pPhylip: { ratio: v } },
+                kappa: v,
+              },
+            })
+          }
+        />
+      )}
       <label className="field">
         <span>Method</span>
         <select

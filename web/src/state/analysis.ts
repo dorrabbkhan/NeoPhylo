@@ -17,6 +17,7 @@ import type { ReferenceKind } from "../engine/generated/ReferenceKind";
 import type { RfResult } from "../engine/generated/RfResult";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
+import type { SiteFilter } from "../engine/generated/SiteFilter";
 import type { Trace } from "../engine/generated/Trace";
 import type { Tree } from "../engine/generated/Tree";
 
@@ -184,26 +185,37 @@ export function analysisReducer(
 }
 
 /** The plain-string `DistModel` variants — the only values the
- * correction menu can list or label. `K2pPhylip` carries a ratio and
- * arrives only via an exercise file (v1.4), never from this menu. */
+ * correction menu can list or label — plus "K2P_PHYLIP", the menu
+ * value for `K2pPhylip`, whose ratio travels in the enum, not the
+ * name (v1.4). */
 export type DistModelName = Extract<DistModel, string>;
+export type CorrectionMenuName = DistModelName | "K2P_PHYLIP";
 
 /** A string value for the correction `<select>`: the `DistModel`
- * variant string itself ("P", "Jc69", "K80", "Kimura", "Jtt", "F84")
- * for the plain variants, "K2P_PHYLIP" for `K2pPhylip`, whose ratio
- * travels in the enum, not the name (v1.4). */
+ * variant string itself ("P", "Jc69", "K80", "Kimura", "Jtt", "F84",
+ * "Poisson") for the plain variants, "K2P_PHYLIP" for `K2pPhylip`. */
 export function distModelName(m: DistModel): string {
   return typeof m === "string" ? m : "K2P_PHYLIP";
 }
 
 /** Corrections valid for each alphabet, in menu order (v1.1 spec
- * §5.1). The first non-`P` entry is the alphabet's default. The v1.4
- * models (F84, K2P_PHYLIP) arrive only via an exercise file — the menu
- * itself is unchanged. */
-export const CORRECTIONS: Record<Alphabet, DistModelName[]> = {
-  dna: ["P", "Jc69", "K80"],
-  protein: ["P", "Kimura", "Jtt"],
+ * §5.1). The first non-`P` entry is the alphabet's default. The v1.4b
+ * entries (F84, K2P_PHYLIP, Poisson) are appended at the end so the
+ * default and the lesson menu order are unchanged; they are
+ * selectable only in the sandbox — `SANDBOX_MODELS` names the set
+ * built-in lessons filter back out (v1.4b spec §6.1). */
+export const CORRECTIONS: Record<Alphabet, CorrectionMenuName[]> = {
+  dna: ["P", "Jc69", "K80", "F84", "K2P_PHYLIP"],
+  protein: ["P", "Kimura", "Jtt", "Poisson"],
 };
+
+/** Corrections the sandbox menu alone offers; in a lesson they appear
+ * only as the conditional option for an exercise-prescribed model. */
+export const SANDBOX_MODELS: ReadonlySet<CorrectionMenuName> = new Set([
+  "F84",
+  "K2P_PHYLIP",
+  "Poisson",
+]);
 
 /** Display labels for the correction menu and `notice` text. */
 export const DIST_LABEL: Record<DistModelName, string> = {
@@ -223,6 +235,13 @@ export const DIST_LABEL: Record<DistModelName, string> = {
 export function k2pLabel(ratio: number): string {
   const r = Number.isInteger(ratio) ? ratio.toFixed(1) : String(ratio);
   return `K2P (dnadist, κ = ${r})`;
+}
+
+/** The site filter's short name for the count line and pair-panel
+ * note — "pairwise", "complete" or "partial 95%", matching the
+ * engine's `SiteFilter::describe` (v1.4b spec §6.2). */
+export function siteFilterName(f: SiteFilter): string {
+  return f.kind === "partial" ? `partial ${f.cutoff_pct}%` : f.kind;
 }
 
 /** The simple name of a `SimModel` (the K80/F84 parameters are
@@ -373,7 +392,14 @@ export function recompute(s: Session): Session {
   }
   alphabet = alignment.alphabet;
 
-  const dist = engine.distances(alignment, s.exercise.analysis.correction);
+  // v1.4b spec §3.1: `analysis.site_filter` is the MEGA gap treatment
+  // applied before distances; `None` is `SiteFilter::Pairwise`, the
+  // pre-v1.4b path, bit-identical to `engine.distances`.
+  const dist = engine.distancesFiltered(
+    alignment,
+    s.exercise.analysis.correction,
+    s.exercise.analysis.site_filter ?? { kind: "pairwise" },
+  );
   if (!dist.ok) {
     return { ...failed(s, dist.error), alignment, alphabet };
   }

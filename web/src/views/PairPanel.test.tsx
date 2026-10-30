@@ -406,3 +406,93 @@ describe("PairPanel wiring in App", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+// v1.4b plan Task 10 (spec §6.2): columns the gap filter removed get a
+// distinct marker in the site grid — separate from the non-comparable
+// dimming — and an accessible "removed by … deletion" description.
+describe("PairPanel — filter-removed columns", () => {
+  // Columns 1 and 3 (0-based) are gaps in at least one sequence; the
+  // mask's removed indices mark them.
+  it("marks removed columns distinctly from non-comparable dimming", () => {
+    const { container } = render(
+      <PairPanel
+        aln={ALN}
+        detail={{ ok: true, value: okDetail(ALN, 0, 1) }}
+        mode="concept"
+        dispatch={() => {}}
+        onClose={() => {}}
+        removed={new Set([1, 3])}
+        removedBy="complete"
+      />,
+    );
+    const cols = Array.from(container.querySelectorAll(".pair-col"));
+    expect(cols.length).toBe(9);
+    const removed = cols.filter((c) => c.classList.contains("removed"));
+    expect(removed.length).toBe(2);
+    expect(removed.map((c) => cols.indexOf(c))).toEqual([1, 3]);
+    // The removed marker is the engine-filter marker — neither the
+    // comparable-difference "×" nor the non-comparable dimming.
+    for (const c of removed) {
+      const { marker, markerText } = colCells(c);
+      expect(markerText).toBe("∅");
+      expect(marker.hasAttribute("data-missing")).toBe(false);
+    }
+    // The accessible description names the treatment.
+    expect(
+      container.querySelector(".pair-removed-note")?.textContent,
+    ).toContain("removed by complete deletion");
+  });
+
+  it("no removed prop → the grid is unchanged (pairwise path)", () => {
+    const { container } = renderPanel(ALN, {
+      ok: true,
+      value: okDetail(ALN, 0, 1),
+    });
+    expect(container.querySelectorAll(".pair-col.removed").length).toBe(0);
+    expect(container.querySelector(".pair-removed-note")).toBeNull();
+  });
+
+  it("an App-driven filtered session shows removed columns in the panel", async () => {
+    // Schema-4 protein exercise: column 0 has a gap in one sequence —
+    // complete deletion drops it.
+    const ex: Exercise = {
+      schema_version: 4,
+      id: "filtered-pair",
+      title: "Filtered pair",
+      alphabet: "protein",
+      data: {
+        kind: "embedded",
+        fasta: [
+          ">a",
+          "-KVLGELAK",
+          ">b",
+          "MKVLGRLAK",
+          ">c",
+          "MQVLGELTK",
+          ">d",
+          "MKALGELAK",
+        ].join("\n"),
+        source: { citation: "test", license: "test", accessions: [] },
+      },
+      reference: null,
+      analysis: {
+        correction: "Jtt",
+        method: "Nj",
+        site_filter: { kind: "complete" },
+      },
+      locked: [],
+      prompts: [],
+      bootstrap: null,
+    };
+    render(<App exercise={ex} />);
+    await screen.findByRole("grid", { name: "Distance matrix" });
+    fireEvent.click(
+      document.querySelector<SVGGElement>(
+        '[role="gridcell"][data-i="0"][data-j="1"]',
+      )!,
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.querySelectorAll(".pair-col.removed").length).toBe(1);
+    expect(dialog.textContent).toContain("removed by complete deletion");
+  });
+});

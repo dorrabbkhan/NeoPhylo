@@ -54,6 +54,7 @@ import {
   hasImportedData,
   initialSession,
   reducer,
+  siteFilterName,
 } from "../state/session";
 import { encode } from "../state/url";
 import {
@@ -74,11 +75,11 @@ import { consensusKind, viewLabel } from "./consensusTabs";
 import { Controls } from "./Controls";
 import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
+import { GapControl } from "./GapControl";
 import { Header } from "./Header";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PairPanel } from "./PairPanel";
-import { ReplicatePanel } from "./ReplicatePanel";
 import { PromptCard } from "./PromptCard";
 import { SettingsDrawer } from "./SettingsDrawer";
 import {
@@ -103,6 +104,16 @@ import { nodeName } from "../state/names";
 // SW's `**/*.js` precache keeps it working offline after first load.
 const PhylipHelp = lazy(() =>
   import("./PhylipHelp").then((m) => ({ default: m.PhylipHelp })),
+);
+
+// "Watch one replicate" is a lazy chunk too (v1.4b Task 10, owner
+// decision 2026-10-30 — the v1.3 Task 14 precedent): fetched on first
+// open, not with the app. Sheet's mount-time focus contract is
+// unchanged — it runs when the chunk resolves — and the overlay keeps
+// a null fallback layout-stable; the SW's `**/*.js` precache keeps it
+// working offline after first load.
+const ReplicatePanel = lazy(() =>
+  import("./ReplicatePanel").then((m) => ({ default: m.ReplicatePanel })),
 );
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -308,6 +319,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
         method: session.exercise.analysis.method,
         seed: b.seed,
         replicates: b.replicates,
+        // v1.4b: the run uses the same gap treatment as the tree —
+        // absent means pairwise, the pre-v1.4b call.
+        filter: session.exercise.analysis.site_filter,
       },
       {
         onEstimate: (e) =>
@@ -488,6 +502,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const repAln = session?.alignment ?? null;
   const repModel = session?.exercise.analysis.correction;
   const repMethod = session?.exercise.analysis.method;
+  // v1.4b: the replicate panel resamples under the same gap treatment
+  // as the tree; absent site_filter is pairwise, today's call exactly.
+  const repFilter = session?.exercise.analysis.site_filter;
   // A single replicate is fast on the main thread; when the run's own
   // estimate puts one replicate over ~2 s it goes through the worker
   // as a one-replicate job instead (spec §6.5).
@@ -513,6 +530,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         method: repMethod,
         seed: repSeed,
         index,
+        filter: repFilter,
       },
       {
         onDetail: (d) =>
@@ -524,7 +542,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
     return () => {
       void bootstrapClient.cancel(jobId);
     };
-  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed]);
+  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed, repFilter]);
   // The fast path: replicate_detail is one engine call, computed
   // synchronously like the pair panel's jttPairDetail.
   const repSync = useMemo(() => {
@@ -537,14 +555,40 @@ export function App({ exercise }: { exercise?: Exercise }) {
     ) {
       return null;
     }
-    return engine.replicateDetail(
+    return engine.replicateDetailFiltered(
       repAln,
       repModel,
       repMethod,
+      repFilter ?? { kind: "pairwise" },
       repSeed,
       repIndex,
     );
-  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed]);
+  }, [repIndex, repViaWorker, repAln, repModel, repMethod, repSeed, repFilter]);
+
+  // The active gap treatment (v1.4b spec §3.1): absent means pairwise.
+  const siteFilter = useMemo(
+    () =>
+      session?.exercise.analysis.site_filter ?? {
+        kind: "pairwise" as const,
+      },
+    [session?.exercise.analysis.site_filter],
+  );
+  // The mask the count line and the pair panel share: kept/removed
+  // column indices from the engine (science lives in Rust). On a
+  // filter error (NoSitesKept) every column counts as removed.
+  const sitesTotal =
+    session?.alignment?.seqs.reduce((m, s) => Math.max(m, s.length), 0) ??
+    0;
+  const siteMask = useMemo(() => {
+    const aln = session?.alignment ?? null;
+    return aln === null ? null : engine.siteMask(aln, siteFilter);
+  }, [session?.alignment, siteFilter]);
+  const sitesRemoved =
+    siteMask === null
+      ? 0
+      : siteMask.ok
+        ? siteMask.value.removed.length
+        : sitesTotal;
 
   // Focus rescue (§6.5): landing on a gated position disables the
   // stepper control under focus and the browser drops focus to <body>;
@@ -773,6 +817,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         sim={exerciseSim(session.exercise)}
         alphabet={session.alphabet}
         analysis={session.exercise.analysis}
+        sandbox={session.source === "sandbox"}
         locked={session.source === "sandbox" ? [] : session.exercise.locked}
         matrixView={session.matrixView}
         qAvailable={isNj && trace !== null}
@@ -792,6 +837,17 @@ export function App({ exercise }: { exercise?: Exercise }) {
           ) : undefined
         }
       />
+      {session.source === "sandbox" && (
+        <GapControl
+          value={siteFilter}
+          onChange={(f) =>
+            dispatch({ type: "setAnalysis", patch: { site_filter: f } })
+          }
+          removed={sitesRemoved}
+          total={sitesTotal}
+          locked={false}
+        />
+      )}
       {session.source === "sandbox" && (
         <ImportPanel session={session} dispatch={dispatch} />
       )}
@@ -1168,61 +1224,69 @@ export function App({ exercise }: { exercise?: Exercise }) {
           mode={session.mode}
           dispatch={dispatch}
           onClose={() => setPair(null)}
+          removed={
+            siteMask !== null && siteMask.ok && siteMask.value.removed.length > 0
+              ? new Set(siteMask.value.removed)
+              : undefined
+          }
+          removedBy={siteFilterName(siteFilter)}
         />
       )}
       {repIndex !== null &&
         session.alignment !== null &&
         drawnTree !== null && (
-          <ReplicatePanel
-            method={session.exercise.analysis.method}
-            taxa={session.alignment.labels}
-            index={repIndex}
-            total={Math.max(
-              1,
-              session.bootstrap.total > 0
-                ? session.bootstrap.total
-                : (session.bootstrap.settingsUsed?.replicates ??
-                    session.bootstrap.replicates),
-            )}
-            detail={
-              repViaWorker
-                ? repDetail !== null && repDetail.index === repIndex
-                  ? repDetail.result
-                  : null
-                : repSync
-            }
-            // "Your tree" is the COMPUTED tree — the same unrooted
-            // split set (UPGMA: rooted clusters) the engine compared
-            // the replicate against — not the displayed consensus,
-            // which collapses groupings and made the "missing" count
-            // read 0 while outlines still showed on the replicate.
-            // Display-rooted like the main view when that toggle is
-            // on, so coinciding groupings still line up.
-            original={(() => {
-              const base = session.bootstrap.support ?? inferred;
-              if (base === null || base === drawnInferred) {
-                return drawnTree;
+          <Suspense fallback={null}>
+            <ReplicatePanel
+              method={session.exercise.analysis.method}
+              taxa={session.alignment.labels}
+              index={repIndex}
+              total={Math.max(
+                1,
+                session.bootstrap.total > 0
+                  ? session.bootstrap.total
+                  : (session.bootstrap.settingsUsed?.replicates ??
+                      session.bootstrap.replicates),
+              )}
+              detail={
+                repViaWorker
+                  ? repDetail !== null && repDetail.index === repIndex
+                    ? repDetail.result
+                    : null
+                  : repSync
               }
-              if (showReroot) {
-                const r = engine.rerootOnOutgroup(
-                  base,
-                  reroot!.outgroup,
-                );
-                if (r.ok) return r.value.tree;
+              // "Your tree" is the COMPUTED tree — the same unrooted
+              // split set (UPGMA: rooted clusters) the engine compared
+              // the replicate against — not the displayed consensus,
+              // which collapses groupings and made the "missing" count
+              // read 0 while outlines still showed on the replicate.
+              // Display-rooted like the main view when that toggle is
+              // on, so coinciding groupings still line up.
+              original={(() => {
+                const base = session.bootstrap.support ?? inferred;
+                if (base === null || base === drawnInferred) {
+                  return drawnTree;
+                }
+                if (showReroot) {
+                  const r = engine.rerootOnOutgroup(
+                    base,
+                    reroot!.outgroup,
+                  );
+                  if (r.ok) return r.value.tree;
+                }
+                return base;
+              })()}
+              outgroup={showReroot ? reroot!.outgroup : null}
+              clampNegative={session.clampNegative}
+              leafSpacing={sharedSpacing}
+              textScale={textScale}
+              onNavigate={(i) =>
+                dispatch({ type: "setReplicateIndex", index: i })
               }
-              return base;
-            })()}
-            outgroup={showReroot ? reroot!.outgroup : null}
-            clampNegative={session.clampNegative}
-            leafSpacing={sharedSpacing}
-            textScale={textScale}
-            onNavigate={(i) =>
-              dispatch({ type: "setReplicateIndex", index: i })
-            }
-            onClose={() =>
-              dispatch({ type: "setReplicateIndex", index: null })
-            }
-          />
+              onClose={() =>
+                dispatch({ type: "setReplicateIndex", index: null })
+              }
+            />
+          </Suspense>
         )}
     </div>
   );
