@@ -79,7 +79,6 @@ export function NumberField({
   step,
   disabled,
   title,
-  integer = false,
   errorMessage,
   onCommit,
 }: {
@@ -92,11 +91,9 @@ export function NumberField({
   /** Tooltip explaining why the field is disabled (locked, or the
    * alignment can't be re-simulated). */
   title?: string;
-  /** Refuse non-integers too (v1.4b: the site-coverage cutoff). */
-  integer?: boolean;
   /** When set, an input that fails validation also shows this message
-   * next to the field (v1.4b κ and cutoff: refused with a message,
-   * last valid value kept). */
+   * next to the field (v1.4b κ: refused with a message, the last
+   * valid value kept). */
   errorMessage?: string;
   onCommit: (v: number) => void;
 }) {
@@ -125,11 +122,7 @@ export function NumberField({
           onChange={(e) => {
             setText(e.target.value);
             const v = e.target.valueAsNumber;
-            const ok =
-              Number.isFinite(v) &&
-              v >= min &&
-              v <= max &&
-              (!integer || Number.isInteger(v));
+            const ok = Number.isFinite(v) && v >= min && v <= max;
             setInvalid(!ok);
             if (ok) onCommit(v);
           }}
