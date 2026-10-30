@@ -819,6 +819,25 @@ button:disabled {
   opacity: 0.5;
 }
 
+/* A native select lays out at its widest option's width, not the
+ * selected one's — "K2P (dnadist, κ = 2.0)" made the Correction menu
+ * wider than the controls column and clipped its dropdown arrow
+ * (v1.4b Task 10 fix). min-width: 0 lets the field's controls shrink
+ * below their min-content and max-width caps them at the row, so no
+ * select or input in the column can cross its edge; the label keeps
+ * its own width and stays on one line where it fits. */
+.controls .field > select,
+.controls .field > input,
+.gap-control .field > input {
+  min-width: 0;
+}
+
+.controls select,
+.controls input,
+.gap-control input {
+  max-width: 100%;
+}
+
 button {
   cursor: pointer;
 }

@@ -142,6 +142,49 @@ test("under (pointer: coarse) the gap radios and the number inputs are ≥40×40
   await context.close();
 });
 
+test("at 1920 every model menu stays inside the controls column", async ({
+  browser,
+}) => {
+  // Regression for the clipped Correction dropdown arrow: a native
+  // select lays out at its widest option ("K2P (dnadist, κ = 2.0)"),
+  // which overflowed the 230 px column. Asserts the box, not the
+  // pixels, for the default correction and for K2P_PHYLIP selected.
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1920, height: 1080 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await openSandboxWithGaps(page);
+
+  const column = page.locator(".col-controls");
+  const colBox = await column.boundingBox();
+  expect(colBox).not.toBeNull();
+
+  for (const correction of [undefined, "K2P_PHYLIP"]) {
+    if (correction !== undefined) {
+      await page
+        .getByLabel("Distance correction")
+        .selectOption(correction);
+    }
+    const selects = column.locator("select");
+    const count = await selects.count();
+    expect(count, "selects in the controls column").toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await selects.nth(i).boundingBox();
+      expect(box).not.toBeNull();
+      const label =
+        (await selects.nth(i).getAttribute("aria-label")) ?? `select ${i}`;
+      expect(box!.x, `${label} left edge`).toBeGreaterThanOrEqual(colBox!.x);
+      expect(
+        box!.x + box!.width,
+        `${label} right edge (${correction ?? "default"})`,
+      ).toBeLessThanOrEqual(colBox!.x + colBox!.width);
+    }
+  }
+  await context.close();
+});
+
 test("a built-in lesson shows neither the gap control nor the new models", async ({
   page,
 }) => {
