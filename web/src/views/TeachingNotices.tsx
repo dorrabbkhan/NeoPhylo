@@ -11,6 +11,7 @@ import { engine } from "../engine";
 import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { NeoError } from "../engine/generated/NeoError";
+import type { SiteFilter } from "../engine/generated/SiteFilter";
 import type { Tree } from "../engine/generated/Tree";
 import type { Action, Session } from "../state/session";
 import { exerciseSim } from "../state/session";
@@ -46,12 +47,15 @@ function truePathLength(tree: Tree, a: number, b: number): number {
 }
 
 /** (p, true distance) for every pair of the alignment. The p values come
- * from the engine's uncorrected "P" distances — no distance math is
+ * from the engine's uncorrected "P" distances under the active gap
+ * treatment (v1.4b spec §6.2 — the observed p follows the same filter
+ * as the matrix; pairwise is the unchanged path) — no distance math is
  * reimplemented here. Pairs whose labels are absent from the true tree
  * (a mismatched import) are simply left out. */
 function chartPoints(
   alignment: Alignment,
   trueTree: Tree | null,
+  filter: SiteFilter,
 ): ChartPoint[] {
   if (trueTree === null) return [];
   const leaf = new Map<string, number>();
@@ -60,7 +64,7 @@ function chartPoints(
       leaf.set(node.label, id);
     }
   });
-  const pd = engine.distances(alignment, "P");
+  const pd = engine.distancesFiltered(alignment, "P", filter);
   if (!pd.ok) return [];
   const n = alignment.labels.length;
   const out: ChartPoint[] = [];
@@ -195,13 +199,23 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
     : 0;
 
   // Chart points are only needed while the saturation panel is on
-  // screen; the engine call is memoized on the pipeline inputs.
+  // screen; the engine call is memoized on the pipeline inputs. Absent
+  // site_filter means pairwise — the unchanged pre-v1.4b call.
+  const filter = useMemo(
+    () =>
+      session.exercise.analysis.site_filter ?? { kind: "pairwise" as const },
+    [session.exercise.analysis.site_filter],
+  );
   const points = useMemo(
     () =>
       session.alignment !== null
-        ? chartPoints(session.alignment, session.reference?.tree ?? null)
+        ? chartPoints(
+            session.alignment,
+            session.reference?.tree ?? null,
+            filter,
+          )
         : [],
-    [session.alignment, session.reference],
+    [session.alignment, session.reference, filter],
   );
 
   if (sat === null && !hasNegative && wrongClades === 0) return null;

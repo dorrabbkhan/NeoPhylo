@@ -27,6 +27,7 @@ import { engine } from "../engine";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { PairDetail } from "../engine/generated/PairDetail";
+import type { SiteFilter } from "../engine/generated/SiteFilter";
 import type { Result } from "../engine";
 import type { Action } from "../state/session";
 
@@ -405,4 +406,215 @@ describe("PairPanel wiring in App", () => {
     fireEvent.click(cell(0, 1));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+});
+
+// v1.4b plan Task 10 (spec §6.2): columns the gap filter removed get a
+// distinct marker in the site grid — separate from the non-comparable
+// dimming — and an accessible "removed by … deletion" description.
+describe("PairPanel — filter-removed columns", () => {
+  // Columns 1 and 3 (0-based) are gaps in at least one sequence; the
+  // mask's removed indices mark them.
+  it("marks removed columns distinctly from non-comparable dimming", () => {
+    const { container } = render(
+      <PairPanel
+        aln={ALN}
+        detail={{ ok: true, value: okDetail(ALN, 0, 1) }}
+        mode="concept"
+        dispatch={() => {}}
+        onClose={() => {}}
+        removed={new Set([1, 3])}
+        removedBy="complete"
+      />,
+    );
+    const cols = Array.from(container.querySelectorAll(".pair-col"));
+    expect(cols.length).toBe(9);
+    const removed = cols.filter((c) => c.classList.contains("removed"));
+    expect(removed.length).toBe(2);
+    expect(removed.map((c) => cols.indexOf(c))).toEqual([1, 3]);
+    // The removed marker is the engine-filter marker — neither the
+    // comparable-difference "×" nor the non-comparable dimming.
+    for (const c of removed) {
+      const { marker, markerText } = colCells(c);
+      expect(markerText).toBe("∅");
+      expect(marker.hasAttribute("data-missing")).toBe(false);
+    }
+    // The accessible description names the treatment.
+    expect(
+      container.querySelector(".pair-removed-note")?.textContent,
+    ).toContain("removed by complete deletion");
+  });
+
+  it("no removed prop → the grid is unchanged (pairwise path)", () => {
+    const { container } = renderPanel(ALN, {
+      ok: true,
+      value: okDetail(ALN, 0, 1),
+    });
+    expect(container.querySelectorAll(".pair-col.removed").length).toBe(0);
+    expect(container.querySelector(".pair-removed-note")).toBeNull();
+  });
+
+  it("an App-driven filtered session shows removed columns in the panel", async () => {
+    // Schema-4 protein exercise: column 0 has a gap in one sequence —
+    // complete deletion drops it.
+    const ex: Exercise = {
+      schema_version: 4,
+      id: "filtered-pair",
+      title: "Filtered pair",
+      alphabet: "protein",
+      data: {
+        kind: "embedded",
+        fasta: [
+          ">a",
+          "-KVLGELAK",
+          ">b",
+          "MKVLGRLAK",
+          ">c",
+          "MQVLGELTK",
+          ">d",
+          "MKALGELAK",
+        ].join("\n"),
+        source: { citation: "test", license: "test", accessions: [] },
+      },
+      reference: null,
+      analysis: {
+        correction: "Jtt",
+        method: "Nj",
+        site_filter: { kind: "complete" },
+      },
+      locked: [],
+      prompts: [],
+      bootstrap: null,
+    };
+    render(<App exercise={ex} />);
+    await screen.findByRole("grid", { name: "Distance matrix" });
+    fireEvent.click(
+      document.querySelector<SVGGElement>(
+        '[role="gridcell"][data-i="0"][data-j="1"]',
+      )!,
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.querySelectorAll(".pair-col.removed").length).toBe(1);
+    expect(dialog.textContent).toContain("removed by complete deletion");
+  });
+});
+
+// Owner decision (2026-10-30, option A): the panel's numbers follow the
+// gap treatment — p, Kimura and JTT come from jttPairDetailFiltered over
+// the kept columns, the same inputs as the matrix cell the student
+// clicked. An absent or pairwise site_filter is the unchanged
+// pre-v1.4b detail.
+describe("PairPanel — numbers follow the gap treatment", () => {
+  // Columns 0 (gap in a) and 1 (gap in d) are removed by complete
+  // deletion; for pair a–b that moves p from the unfiltered 1/8 to
+  // the filtered 1/7.
+  const FILTERED_FASTA = [
+    ">a",
+    "-KVLGELAK",
+    ">b",
+    "MKVLGRLAK",
+    ">c",
+    "MQVLGELTK",
+    ">d",
+    "M-ALGELAK",
+  ].join("\n");
+  const FILTERED_ALN = fastaAln(FILTERED_FASTA);
+  const COMPLETE = { kind: "complete" } as const;
+
+  const gapEx = (site_filter?: SiteFilter): Exercise => ({
+    schema_version: 4,
+    id: "filtered-pair-numbers",
+    title: "Filtered pair numbers",
+    alphabet: "protein",
+    data: {
+      kind: "embedded",
+      fasta: FILTERED_FASTA,
+      source: { citation: "test", license: "test", accessions: [] },
+    },
+    reference: null,
+    analysis: {
+      correction: "Jtt",
+      method: "Nj",
+      ...(site_filter === undefined ? {} : { site_filter }),
+    },
+    locked: [],
+    prompts: [],
+    bootstrap: null,
+  });
+
+  const cell = (i: number, j: number) =>
+    document.querySelector<SVGGElement>(
+      `[role="gridcell"][data-i="${i}"][data-j="${j}"]`,
+    )!;
+
+  const pairNumbers = (dialog: HTMLElement) =>
+    dialog.querySelector(".pair-numbers")?.textContent ?? "";
+
+  it("under complete deletion the panel's p equals the filtered P matrix cell", async () => {
+    render(<App exercise={gapEx(COMPLETE)} />);
+    await screen.findByRole("grid", { name: "Distance matrix" });
+    fireEvent.click(cell(0, 1));
+    const dialog = await screen.findByRole("dialog");
+
+    const mp = engine.distancesFiltered(FILTERED_ALN, "P", COMPLETE);
+    const mk = engine.distancesFiltered(FILTERED_ALN, "Kimura", COMPLETE);
+    const mj = engine.distancesFiltered(FILTERED_ALN, "Jtt", COMPLETE);
+    if (!mp.ok || !mk.ok || !mj.ok) {
+      throw new Error("filtered matrices failed");
+    }
+    const [cp, ck, cj] = [mp.value.cells[1], mk.value.cells[1], mj.value.cells[1]];
+    if (cp === "Saturated" || ck === "Saturated" || cj === "Saturated") {
+      throw new Error("expected finite cells");
+    }
+    // The removed column moved p off the unfiltered 1/8 = 0.125.
+    expect(cp.Value).toBeCloseTo(1 / 7);
+    const shown = pairNumbers(dialog);
+    expect(shown).toContain(cp.Value.toFixed(3));
+    expect(shown).toContain(ck.Value.toFixed(3));
+    expect(shown).toContain(cj.Value.toFixed(3));
+
+    // The grid stays consistent with the filtered counts: the columns
+    // neither ∅-removed nor non-comparable-dimmed are exactly the
+    // detail's comparable kept sites, and the × marks are its
+    // differences.
+    const detail = engine.jttPairDetailFiltered(FILTERED_ALN, 0, 1, COMPLETE);
+    if (!detail.ok) throw new Error("expected a PairDetail");
+    const cols = Array.from(dialog.querySelectorAll(".pair-col"));
+    const keptComparable = cols.filter(
+      (c) =>
+        !c.classList.contains("removed") &&
+        c.querySelectorAll("[data-missing]").length === 0,
+    );
+    expect(keptComparable.length).toBe(detail.value.comparable);
+    expect(
+      cols.filter(
+        (c) =>
+          !c.classList.contains("removed") &&
+          c.children[2].textContent?.trim() === "×",
+      ).length,
+    ).toBe(detail.value.differences);
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["pairwise", { kind: "pairwise" } as const],
+  ] satisfies [string, SiteFilter | undefined][])(
+    "with site_filter %s the panel's numbers are the unfiltered detail",
+    async (_name, site_filter) => {
+      render(<App exercise={gapEx(site_filter)} />);
+      await screen.findByRole("grid", { name: "Distance matrix" });
+      fireEvent.click(cell(0, 1));
+      const dialog = await screen.findByRole("dialog");
+
+      const unfiltered = okDetail(FILTERED_ALN, 0, 1);
+      expect(unfiltered.p).toBeCloseTo(0.125);
+      const shown = pairNumbers(dialog);
+      expect(shown).toContain(unfiltered.p.toFixed(3));
+      if (unfiltered.kimura !== "Saturated") {
+        expect(shown).toContain(unfiltered.kimura.Value.toFixed(3));
+      }
+      if (unfiltered.jtt !== "Saturated") {
+        expect(shown).toContain(unfiltered.jtt.Value.toFixed(3));
+      }
+    },
+  );
 });

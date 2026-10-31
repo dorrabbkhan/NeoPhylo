@@ -49,6 +49,12 @@ export interface PairPanelProps {
   /** Session dispatch — the in-panel ModeToggle calls `setMode`. */
   dispatch: Dispatch<Action>;
   onClose: () => void;
+  /** v1.4b spec §6.2: 0-based columns the site filter removed. They get
+   * the hatched ∅ marker — distinct from the non-comparable dimming —
+   * and the "removed by … deletion" note under the grid. */
+  removed?: ReadonlySet<number>;
+  /** The treatment name for the note, e.g. "complete", "partial 95%". */
+  removedBy?: string;
 }
 
 /** The 20 standard amino acids in engine state order; anything else
@@ -75,6 +81,8 @@ export function PairPanel({
   mode,
   dispatch,
   onClose,
+  removed,
+  removedBy,
 }: PairPanelProps) {
   const d = detail.ok ? detail.value : null;
   const labels =
@@ -131,28 +139,38 @@ export function PairPanel({
                 <div className="pair-seq-grid">
                   {seqA.split("").map((ca, k) => {
                     const cb = seqB[k];
-                    const comparable = STANDARD.has(ca) && STANDARD.has(cb);
+                    const off = removed?.has(k) ?? false;
+                    const comparable =
+                      !off && STANDARD.has(ca) && STANDARD.has(cb);
                     return (
-                      <div className="pair-col" key={k}>
+                      <div
+                        className={off ? "pair-col removed" : "pair-col"}
+                        key={k}
+                        title={
+                          off
+                            ? `removed by ${removedBy ?? "site-filter"} deletion`
+                            : undefined
+                        }
+                      >
                         <span className="pair-pos" aria-hidden="true">
                           {(k + 1) % 10 === 0 ? k + 1 : "\u00a0"}
                         </span>
                         <span
                           className={`pair-res${AA_CLASS[ca] ? ` ${AA_CLASS[ca]}` : ""}`}
-                          data-missing={comparable ? undefined : true}
+                          data-missing={off || comparable ? undefined : true}
                         >
                           {ca}
                         </span>
                         <span
                           className="pair-marker"
                           aria-hidden="true"
-                          data-missing={comparable ? undefined : true}
+                          data-missing={off || comparable ? undefined : true}
                         >
-                          {comparable && ca !== cb ? "×" : "\u00a0"}
+                          {off ? "∅" : comparable && ca !== cb ? "×" : "\u00a0"}
                         </span>
                         <span
                           className={`pair-res${AA_CLASS[cb] ? ` ${AA_CLASS[cb]}` : ""}`}
-                          data-missing={comparable ? undefined : true}
+                          data-missing={off || comparable ? undefined : true}
                         >
                           {cb}
                         </span>
@@ -162,6 +180,12 @@ export function PairPanel({
                 </div>
               </div>
             </div>
+
+            {removed !== undefined && removed.size > 0 && (
+              <p className="pair-removed-note">
+                Columns marked ∅ were removed by {removedBy} deletion.
+              </p>
+            )}
 
             <dl className="pair-numbers">
               <div>

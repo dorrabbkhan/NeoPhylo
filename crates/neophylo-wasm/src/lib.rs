@@ -269,6 +269,17 @@ pub fn jtt_pair_detail(aln: JsValue, i: usize, j: usize) -> JsValue {
     )
 }
 
+/// `jtt_pair_detail` under a site filter (v1.4b spec §3.1, §6.2): the
+/// pair panel's numbers follow the gap treatment. `{ "kind":
+/// "pairwise" }` is bit-identical to `jtt_pair_detail`.
+#[wasm_bindgen]
+pub fn jtt_pair_detail_filtered(aln: JsValue, i: usize, j: usize, filter: JsValue) -> JsValue {
+    to_js::<PairDetail>(arg::<Alignment>(aln, "aln").and_then(|a| {
+        arg::<SiteFilter>(filter, "filter")
+            .and_then(|f| neophylo_core::jtt_pair_detail_filtered(&a, i, j, f))
+    }))
+}
+
 /// Serialize a `DistanceMatrix` as PHYLIP `neighbor` input
 /// (v1.1 spec §3.2).
 #[wasm_bindgen]

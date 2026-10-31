@@ -866,3 +866,119 @@ describe("predict_branch gating and verdict (v1.2 Task 14)", () => {
     ).toBeNull();
   });
 });
+
+// v1.4b Task 10 (conductor note 4): the sandbox bootstrap and the
+// replicate panel use the same site filter as the tree — the
+// computed thing, not the drawn thing. `bootstrapClient.start` gets
+// `analysis.site_filter` as `BootstrapParams.filter` and the sync
+// replicate detail goes through `engine.replicateDetailFiltered`;
+// an absent/`{kind:"pairwise"}` filter keeps today's calls identical.
+describe("v1.4b site filter in bootstrap wiring", () => {
+  // Schema-4 embedded DNA exercise: column 0 has a gap in one sequence,
+  // so complete deletion drops it and the filtered tree differs.
+  const GAPPED_EX4: Exercise = {
+    schema_version: 4,
+    id: "gaps-boot",
+    title: "Gaps",
+    alphabet: "dna",
+    data: {
+      kind: "embedded",
+      fasta: [
+        ">a",
+        "-CGTACG",
+        ">b",
+        "ACGTACG",
+        ">c",
+        "ACGTACA",
+        ">d",
+        "ACGTACG",
+      ].join("\n"),
+      source: { citation: "t", license: "t", accessions: [] },
+    },
+    reference: null,
+    analysis: {
+      correction: "Jc69",
+      method: "Nj",
+      site_filter: { kind: "complete" },
+    },
+    locked: [],
+    prompts: [],
+    bootstrap: null,
+  };
+
+  it("filtered_bootstrap_params: start gets analysis.site_filter; a pairwise/absent filter keeps today's call", async () => {
+    render(<App exercise={GAPPED_EX4} />);
+    await screen.findByRole("grid", { name: "Distance matrix" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    stepToEnd(GAPPED_EX4);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    expect(startSpy()).toHaveBeenCalledTimes(1);
+    expect(startSpy().mock.calls[0][0].filter).toEqual({
+      kind: "complete",
+    });
+    cleanup();
+
+    // No site_filter → the param is absent/pairwise — the worker's
+    // `?? PAIRWISE` keeps the pre-v1.4b calls bit-identical.
+    render(<App exercise={NJ_BASICS} />);
+    await screen.findByRole("img", { name: "Inferred tree" });
+    stepToEnd(NJ_BASICS);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    const p = startSpy().mock.calls[1][0];
+    expect(p.filter ?? { kind: "pairwise" }).toEqual({ kind: "pairwise" });
+  });
+
+  it("filtered_bootstrap_original_tree: a complete-deletion run's original tree equals the tree shown", async () => {
+    render(<App exercise={GAPPED_EX4} />);
+    await screen.findByRole("grid", { name: "Distance matrix" });
+    fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
+    stepToEnd(GAPPED_EX4);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Run bootstrap/ }),
+    );
+    await screen.findByText(/Estimating/);
+    const p = startSpy().mock.calls[0][0];
+
+    // Drive the real job in-process (worker.ts is transport-free) and
+    // compare the result's original tree — the support tree's scaffold —
+    // with the session's computed tree (the matrix on screen is the
+    // filtered one).
+    const posted: { type: string; support?: Tree }[] = [];
+    const { runBootstrapJob } = await import("../engine/worker");
+    await runBootstrapJob(
+      p,
+      (m) => posted.push(m),
+      () => false,
+      () => Promise.resolve(true),
+    );
+    const result = posted.find((m) => m.type === "result");
+    expect(result?.support).toBeDefined();
+    const shown = engine.distancesFiltered(
+      p.alignment,
+      p.model,
+      p.filter ?? { kind: "pairwise" },
+    );
+    if (!shown.ok) throw new Error("distancesFiltered failed");
+    const shownTree = engine.buildTree(shown.value, p.method, {
+      trace: false,
+    });
+    if (!shownTree.ok) throw new Error("buildTree failed");
+    // `support` is the original tree plus support attrs — identical
+    // topology and lengths to the displayed computed tree.
+    const strip = (t: Tree): Tree => ({
+      ...t,
+      branches: t.branches.map((b) => ({ ...b, support: null })),
+    });
+    expect(strip(result!.support!)).toEqual(strip(shownTree.value.tree));
+    // Sanity: the filter actually engaged — the pairwise tree differs.
+    const plain = engine.distances(p.alignment, p.model);
+    if (!plain.ok) throw new Error("unreachable");
+    expect(shown.value).not.toEqual(plain.value);
+  });
+});

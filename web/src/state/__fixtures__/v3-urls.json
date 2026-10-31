@@ -1,0 +1,1372 @@
+{
+  "cases": [
+    {
+      "name": "lesson-pairwise-explicit",
+      "url": "/?lesson=nj-basics&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcokBcCmB9AZotDgE5qgDWiEAJmiAA5iIkDuy2IAvj0A",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "lesson-complete",
+      "url": "/?lesson=nj-basics&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcokBcCmB9AZotDgE5qgDWiEAJmiAMYD2AtgA7TY4gC%2BfQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.258983388966313
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.46213960456786274
+          },
+          {
+            "Value": 0.554655165097242
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.4313009193707582
+          },
+          {
+            "Value": 0.498176877799144
+          },
+          {
+            "Value": 0.20451299765575948
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.36990301681212834
+          },
+          {
+            "Value": 0.4242253951957392
+          },
+          {
+            "Value": 0.41721599838206114
+          },
+          {
+            "Value": 0.38813595893759034
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0.4771026943823741
+          },
+          {
+            "Value": 0.5630822200474362
+          },
+          {
+            "Value": 0.5588568567587442
+          },
+          {
+            "Value": 0.5099264653574436
+          },
+          {
+            "Value": 0.3505053838696889
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "lesson-poisson",
+      "url": "/?lesson=cytochrome-c&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcoDGB7ATjgphgC6JYRogAKWy8ZIAvg0A",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ],
+        "model": "Poisson",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.12136085700426748
+          },
+          {
+            "Value": 0.13217177310848308
+          },
+          {
+            "Value": 0.1670540846631662
+          },
+          {
+            "Value": 0.26236426446749117
+          },
+          {
+            "Value": 0.419853845560264
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.12136085700426748
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.11066556788751943
+          },
+          {
+            "Value": 0.14458122881110755
+          },
+          {
+            "Value": 0.19004360288786498
+          },
+          {
+            "Value": 0.46430560813109784
+          },
+          {
+            "Value": 0.48550781578170077
+          },
+          {
+            "Value": 0.4396982797504067
+          },
+          {
+            "Value": 0.13217177310848308
+          },
+          {
+            "Value": 0.11066556788751943
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.11179140598811668
+          },
+          {
+            "Value": 0.20173964265105623
+          },
+          {
+            "Value": 0.46430560813109784
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.4547361571149472
+          },
+          {
+            "Value": 0.1670540846631662
+          },
+          {
+            "Value": 0.14458122881110755
+          },
+          {
+            "Value": 0.11179140598811668
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.17848278048678892
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.48550781578170077
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.26236426446749117
+          },
+          {
+            "Value": 0.19004360288786498
+          },
+          {
+            "Value": 0.20173964265105623
+          },
+          {
+            "Value": 0.17848278048678892
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.49247648509779407
+          },
+          {
+            "Value": 0.49247648509779407
+          },
+          {
+            "Value": 0.37806613392005006
+          },
+          {
+            "Value": 0.419853845560264
+          },
+          {
+            "Value": 0.46430560813109784
+          },
+          {
+            "Value": 0.46430560813109784
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.49247648509779407
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5016931402027183
+          },
+          {
+            "Value": 0.5549968420791281
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.48550781578170077
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.48550781578170077
+          },
+          {
+            "Value": 0.49247648509779407
+          },
+          {
+            "Value": 0.5016931402027183
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4054651081081643
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.4396982797504067
+          },
+          {
+            "Value": 0.4547361571149472
+          },
+          {
+            "Value": 0.4700036292457356
+          },
+          {
+            "Value": 0.37806613392005006
+          },
+          {
+            "Value": 0.5549968420791281
+          },
+          {
+            "Value": 0.4054651081081643
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "lesson-k2p-kappa-2",
+      "url": "/?lesson=nj-basics&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcoDGB7ATjgphgC6JYRqgDSATAA4AKAFrNIrRSDmCVmtQL78ANCADWYWrTB9BQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": {
+          "K2pPhylip": {
+            "ratio": 2
+          }
+        },
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.28137989044189454
+          },
+          {
+            "Value": 0.5393796157836914
+          },
+          {
+            "Value": 0.5009187698364258
+          },
+          {
+            "Value": 0.4134808731079102
+          },
+          {
+            "Value": 0.5555775833129882
+          },
+          {
+            "Value": 0.28137989044189454
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6650565719604495
+          },
+          {
+            "Value": 0.591614112854004
+          },
+          {
+            "Value": 0.4874074172973633
+          },
+          {
+            "Value": 0.6738380813598635
+          },
+          {
+            "Value": 0.5393796157836914
+          },
+          {
+            "Value": 0.6650565719604495
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.21712017059326175
+          },
+          {
+            "Value": 0.47695964813232417
+          },
+          {
+            "Value": 0.6644120407104495
+          },
+          {
+            "Value": 0.5009187698364258
+          },
+          {
+            "Value": 0.591614112854004
+          },
+          {
+            "Value": 0.21712017059326175
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4390458297729492
+          },
+          {
+            "Value": 0.5959525680541993
+          },
+          {
+            "Value": 0.4134808731079102
+          },
+          {
+            "Value": 0.4874074172973633
+          },
+          {
+            "Value": 0.47695964813232417
+          },
+          {
+            "Value": 0.4390458297729492
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.38554882049560546
+          },
+          {
+            "Value": 0.5555775833129882
+          },
+          {
+            "Value": 0.6738380813598635
+          },
+          {
+            "Value": 0.6644120407104495
+          },
+          {
+            "Value": 0.5959525680541993
+          },
+          {
+            "Value": 0.38554882049560546
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "lesson-k2p-kappa-4",
+      "url": "/?lesson=nj-basics&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcoDGB7ATjgphgC6JYRqgDSATAA4AKAFrNIrRSDmCVmgCwBfAQBoQAazC1aYfkKA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F"
+        ],
+        "model": {
+          "K2pPhylip": {
+            "ratio": 4
+          }
+        },
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.30599816640218097
+          },
+          {
+            "Value": 0.6643785900539821
+          },
+          {
+            "Value": 0.6050428814358182
+          },
+          {
+            "Value": 0.47303994496663415
+          },
+          {
+            "Value": 0.6879311667548287
+          },
+          {
+            "Value": 0.30599816640218097
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.8942617840237091
+          },
+          {
+            "Value": 0.757480091518826
+          },
+          {
+            "Value": 0.5813962088690863
+          },
+          {
+            "Value": 0.9084586037529842
+          },
+          {
+            "Value": 0.6643785900539821
+          },
+          {
+            "Value": 0.8942617840237091
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.23048750559488934
+          },
+          {
+            "Value": 0.5649023056030275
+          },
+          {
+            "Value": 0.8843855328030059
+          },
+          {
+            "Value": 0.6050428814358182
+          },
+          {
+            "Value": 0.757480091518826
+          },
+          {
+            "Value": 0.23048750559488934
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.509828249613444
+          },
+          {
+            "Value": 0.7536867989434138
+          },
+          {
+            "Value": 0.47303994496663415
+          },
+          {
+            "Value": 0.5813962088690863
+          },
+          {
+            "Value": 0.5649023056030275
+          },
+          {
+            "Value": 0.509828249613444
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4337970945570205
+          },
+          {
+            "Value": 0.6879311667548287
+          },
+          {
+            "Value": 0.9084586037529842
+          },
+          {
+            "Value": 0.8843855328030059
+          },
+          {
+            "Value": 0.7536867989434138
+          },
+          {
+            "Value": 0.4337970945570205
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "sandbox-import-complete",
+      "url": "/?sb=1&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcokBcCmB9AZotDgE5qgDWiEAJmiAMYD2AtgA7TY4gC%2BfQA&d=N4IghgNglg5gdgWwKZwC4gFygmARkiAZ0wG0RUBGEAGnICYbyBmR1AFlYFZWA2VgdlYAOEAF1ahJAEdiGEiX4VqPftSFs1GldUXLVu9ZuWcjh7Qa0nzQvTqU8rqs49u7dD29q8nnnlx7d7E0C-YzCQ-httXw9DOI0zVVjLMPMlX0jQmJcLI2TUq39gpXckpw1cr3K7TzLamvzdNiLUuvdCgrzqyu6g6mbbRKNSmsMIkvtemvbBisnRuYac9JSZ-Ma%2BteqxkpsYuu88lx2F%2BqGt6b790y19eaGPNMuwk8PK4JsQgInXeceXAbxWbPb5Lepve6LJ7RBKwo7g7aLL6IsEZH6GQG3BptP4ok4DGZo4abeaZQ5VeGvA4%2BLH-bH9GldG7DKJJD7E1oI04UokQzpAx53X5GAaC0IUp5AgUtXIzNbHRaig7VbRKkEdTH0uV9Q7XOm6uHrDrI8Kks3M-UokJA7X8uHy03CwlY96nL7FYFNfxC3K%2BP1QlVCnn29EB056nHiBQrZkm30pAVCjKs4ViiPCh7U%2BHktnqkG5y2uGyasmMqUaAl7FJi11io3hT6Ql7Vjp8r3AxOe3HioNl2kF71gwt0qld7mBlkZpE6lUmAk-ClxmMRFPusGam0kznrHHbgfwzLz%2BkG8Ee0Ewzk2xv1NVtq5h-LXV0m8kdMZVplPW0XCVnqYSqZpS5ct82zVtc1LVEXXNNwU3fDlJQTacwRGEYMQVZtj1zIYiUrWMYyAi96wA%2BoemBc8IL6Dd%2By1GN9RaIikxDbMIOvW0KIQjDGKdHVW2Nc0Niyat91gliDx%2BEYONQgioQwk543EntOIbWioKnDlxgQwDDW0ykkOeMkg17JlZXNeC60jaho3IuSsQePtHSfLc02Enj8I7CoUzrD1k2PPjSL%2BFpOyJbIDPvITOk1IjGVVcDHUk2cRQchLTzU0TXwCzoXM5aSGTU7joSYvNouK5YTLMxUPXYt99OqjzMNC%2BsnOKup7LckcaIUySGNUI9nXDRZms03KMusC1d2fGcdFXGTyKMsIoonRDJ0ya19Ka1ZwtrP9HMNMq6VWiTnPmzM9Lytq2o4x8kQ-QsQJ-ZUBpvHarpRGsBN6uKCt3E5XmS5dnK%2B4zgywzoHsdX9Qc7UbPq0s6Xx27qsqC5CL3khcauU972sZNb1IdB1rvxgH4abZa0c255fr2z9yijNC4SPHDmJK2sTtcjL0Y0ps9RlDHppywLyryi5ziF4j-JKinkfymLJdzI8QZhuGSOhXHxaB7kUcwlKv1uichqOjleTPdkyM05rRVN7d1YhrjMca-ygJfA2aK-LcQrhUdvNCNdCoF10ubFrkpM2ODkNMvcA-5w65t2rLWq91H7btNz%2BpGEsYNm4OLLCiH2ZD22fbauMP2pz9bJqK3Mul2LFMdmyq8R26YraKJW%2BFoDNyZP6bfHBroLB3idZJ3uT1z4vZKSkWBLi3KG9BIPmLH7Cp4OrO466-n4IZgf1OD-0zuHN7E6j4LOooemecHtUu5p7b6WudM8YRsSfbXdNj%2Bma8OuNlsxJzl9OWqc1ZDiAVTN2-4oGpl3IJSGE9-LpzonOQc-VuKjkjqLSm54yoH3Wrg7B4De5YNTgvB2lMTTM2AlPSa9UkY-helVJsgcI4fQFouCqPdk5-y5JQ1y9DkG0zofzKWjJq7g3QhFFKeMTa%2Bx%2BOIthvMR6CwrqBImtd9xEgkYPEivJ9yTxUf7HcSkQaHyfoNGhw8%2BTmR8m7JhMtOyaR9tYjmtsWF5xzKpMhyit522ZGPeWeY8HR1lt-M6p0kHw3DkpWUM0j5vSLncK%2BZxB5mP0nouRjcH7u25lw1RkSnFZm4r4om0MO7GNCmg-ap8JZ7xGolYJX9RLNQ4UpJR69cndw6VQ%2Be3DaE4J4XeN%2BiV6yRIGQpUE4j24gNthg2auc1xkWlt7Hq8UppLjhsNBcS056hkyaJP2PojbGM8csjmp8uYIJUko3eCztn70HnKaZeMAhxKWQ0h8q9fY-zxBY6e2V4GDlMa5DJd07L8NJC3N%2BQLfmxhTEzNesNf6QQykjJWbdNmzwirU5aut7FooIVrMCmFF4s2tkTQm1s1x9Vmos8KkMylPTvo-Wkg45kwPOjTCJl8rK3x0kS9xoKyq3kxp4l%2BJMorVJJfiryBYpglNseNElXza6Kt8ItUIkqh4qxTsHF2qZrajlvI9dp-E4ZdNmayqG4L46kogf3bGfILyK3AaAkhoVD70WJV0guujLH-J%2Bg%2BVZNLlGtI2VsmJQty5DNBODHJsa2F2rBcI61eU%2BV91uTC0G1EcaKTpRy06h93nsONNMs5T1PGnQ6SRNm08CVhMIvNWtAKTVJwtIjJQLqZZwO1tIsmmjPnEvHg5AxeLcmHDVGRT1wDzEy0jvBEV0q-EJvcgdOJnN%2BUyLbTWMuVqQa2mjSM8pSSrK3MDTM5S6UpWFpZkclC9yVkRXLilKtRUuYKV7pdfaZqvWnI%2BQ45iSNPXGQzmy2q3Zh2d3-s%2Bh9FZMYkN6X5AVU0PAIuocM4WI0i6SxHSO4yhEf32PTZDfNs6c76GvEMRWXzxWRvij-Ihjy6J3vYo9C8fCPGUSxq2wZDE55ltgfK2VQiP3cO7gItyN7Q1ZkXRxRt7bLw0RzWNdFWT1nrKhf7c2ZNj3KI9cvSqYCl2XSWlx1mxyQMof0dZ0Nvb7mocJRtb1Yn-V0kzhh4au63RGxg8ZgzTd-Hgf7i%2BzdJN-afySeIcAEAAAOAALPASB0AYBAAAEzgGAEAABfLLQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2178191687981489
+          },
+          {
+            "Value": 0.3673053789591894
+          },
+          {
+            "Value": 0.4424856383933272
+          },
+          {
+            "Value": 0.39000000003152413
+          },
+          {
+            "Value": 0.498922510583183
+          },
+          {
+            "Value": 0.6076841393760086
+          },
+          {
+            "Value": 0.6015491358420605
+          },
+          {
+            "Value": 0.2178191687981489
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.43755951230925455
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.6652817270609421
+          },
+          {
+            "Value": 0.6923727083714377
+          },
+          {
+            "Value": 0.3673053789591894
+          },
+          {
+            "Value": 0.43755951230925455
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4883403244459434
+          },
+          {
+            "Value": 0.42297234259736094
+          },
+          {
+            "Value": 0.5428107157564968
+          },
+          {
+            "Value": 0.6138697414485215
+          },
+          {
+            "Value": 0.6719632857277743
+          },
+          {
+            "Value": 0.4424856383933272
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.4883403244459434
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0.5260502417374994
+          },
+          {
+            "Value": 0.6520945741425419
+          },
+          {
+            "Value": 0.7133530974032425
+          },
+          {
+            "Value": 0.39000000003152413
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.42297234259736094
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.5541961336392588
+          },
+          {
+            "Value": 0.6201067836297645
+          },
+          {
+            "Value": 0.498922510583183
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.5428107157564968
+          },
+          {
+            "Value": 0.5260502417374994
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0.48310470108993797
+          },
+          {
+            "Value": 0.6076841393760086
+          },
+          {
+            "Value": 0.6652817270609421
+          },
+          {
+            "Value": 0.6138697414485215
+          },
+          {
+            "Value": 0.6520945741425419
+          },
+          {
+            "Value": 0.5541961336392588
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6263961286619699
+          },
+          {
+            "Value": 0.6015491358420605
+          },
+          {
+            "Value": 0.6923727083714377
+          },
+          {
+            "Value": 0.6719632857277743
+          },
+          {
+            "Value": 0.7133530974032425
+          },
+          {
+            "Value": 0.6201067836297645
+          },
+          {
+            "Value": 0.48310470108993797
+          },
+          {
+            "Value": 0.6263961286619699
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "sandbox-import-partial-95",
+      "url": "/?sb=1&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcokBcCmB9AZotDgE5qgDWiEAJmiAA5gmaIwgA0IAxgK6YB7fPlwNumNAE4ArAF95QA&d=N4IghgNglg5gdgWwKZwC4gFygmARkiAZ0wG0RUBGEAGnICYbyBmR1AFlYFZWA2VgdlYAOEAF1ahJAEdiGEiX4VqPftSFs1GldUXLVu9ZuWcjh7Qa0nzQvTqU8rqs49u7dD29q8nnnlx7d7E0C-YzCQ-httXw9DOI0zVVjLMPMlX0jQmJcLI2TUq39gpXckpw1cr3K7TzLamvzdNiLUuvdCgrzqyu6g6mbbRKNSmsMIkvtemvbBisnRuYac9JSZ-Ma%2BteqxkpsYuu88lx2F%2BqGt6b790y19eaGPNMuwk8PK4JsQgInXeceXAbxWbPb5Lepve6LJ7RBKwo7g7aLL6IsEZH6GQG3BptP4ok4DGZo4abeaZQ5VeGvA4%2BLH-bH9GldG7DKJJD7E1oI04UokQzpAx53X5GAaC0IUp5AgUtXIzNbHRaig7VbRKkEdTH0uV9Q7XOm6uHrDrI8Kks3M-UokJA7X8uHy03CwlY96nL7FYFNfxC3K%2BP1QlVCnn29EB056nHiBQrZkm30pAVCjKs4ViiPCh7U%2BHktnqkG5y2uGyasmMqUaAl7FJi11io3hT6Ql7Vjp8r3AxOe3HioNl2kF71gwt0qld7mBlkZpE6lUmAk-ClxmMRFPusGam0kznrHHbgfwzLz%2BkG8Ee0Ewzk2xv1NVtq5h-LXV0m8kdMZVplPW0XCVnqYSqZpS5ct82zVtc1LVEXXNNwU3fDlJQTacwRGEYMQVZtj1zIYiUrWMYyAi96wA%2BoemBc8IL6Dd%2By1GN9RaIikxDbMIOvW0KIQjDGKdHVW2Nc0Niyat91gliDx%2BEYONQgioQwk543EntOIbWioKnDlxgQwDDW0ykkOeMkg17JlZXNeC60jaho3IuSsQePtHSfLc02Enj8I7CoUzrD1k2PPjSL%2BFpOyJbIDPvITOk1IjGVVcDHUk2cRQchLTzU0TXwCzoXM5aSGTU7joSYvNouK5YTLMxUPXYt99OqjzMNC%2BsnOKup7LckcaIUySGNUI9nXDRZms03KMusC1d2fGcdFXGTyKMsIoonRDJ0ya19Ka1ZwtrP9HMNMq6VWiTnPmzM9Lytq2o4x8kQ-QsQJ-ZUBpvHarpRGsBN6uKCt3E5XmS5dnK%2B4zgywzoHsdX9Qc7UbPq0s6Xx27qsqC5CL3khcauU972sZNb1IdB1rvxgH4abZa0c255fr2z9yijNC4SPHDmJK2sTtcjL0Y0ps9RlDHppywLyryi5ziF4j-JKinkfymLJdzI8QZhuGSOhXHxaB7kUcwlKv1uichqOjleTPdkyM05rRVN7d1YhrjMca-ygJfA2aK-LcQrhUdvNCNdCoF10ubFrkpM2ODkNMvcA-5w65t2rLWq91H7btNz%2BpGEsYNm4OLLCiH2ZD22fbauMP2pz9bJqK3Mul2LFMdmyq8R26YraKJW%2BFoDNyZP6bfHBroLB3idZJ3uT1z4vZKSkWBLi3KG9BIPmLH7Cp4OrO466-n4IZgf1OD-0zuHN7E6j4LOooemecHtUu5p7b6WudM8YRsSfbXdNj%2Bma8OuNlsxJzl9OWqc1ZDiAVTN2-4oGpl3IJSGE9-LpzonOQc-VuKjkjqLSm54yoH3Wrg7B4De5YNTgvB2lMTTM2AlPSa9UkY-helVJsgcI4fQFouCqPdk5-y5JQ1y9DkG0zofzKWjJq7g3QhFFKeMTa%2Bx%2BOIthvMR6CwrqBImtd9xEgkYPEivJ9yTxUf7HcSkQaHyfoNGhw8%2BTmR8m7JhMtOyaR9tYjmtsWF5xzKpMhyit522ZGPeWeY8HR1lt-M6p0kHw3DkpWUM0j5vSLncK%2BZxB5mP0nouRjcH7u25lw1RkSnFZm4r4om0MO7GNCmg-ap8JZ7xGolYJX9RLNQ4UpJR69cndw6VQ%2Be3DaE4J4XeN%2BiV6yRIGQpUE4j24gNthg2auc1xkWlt7Hq8UppLjhsNBcS056hkyaJP2PojbGM8csjmp8uYIJUko3eCztn70HnKaZeMAhxKWQ0h8q9fY-zxBY6e2V4GDlMa5DJd07L8NJC3N%2BQLfmxhTEzNesNf6QQykjJWbdNmzwirU5aut7FooIVrMCmFF4s2tkTQm1s1x9Vmos8KkMylPTvo-Wkg45kwPOjTCJl8rK3x0kS9xoKyq3kxp4l%2BJMorVJJfiryBYpglNseNElXza6Kt8ItUIkqh4qxTsHF2qZrajlvI9dp-E4ZdNmayqG4L46kogf3bGfILyK3AaAkhoVD70WJV0guujLH-J%2Bg%2BVZNLlGtI2VsmJQty5DNBODHJsa2F2rBcI61eU%2BV91uTC0G1EcaKTpRy06h93nsONNMs5T1PGnQ6SRNm08CVhMIvNWtAKTVJwtIjJQLqZZwO1tIsmmjPnEvHg5AxeLcmHDVGRT1wDzEy0jvBEV0q-EJvcgdOJnN%2BUyLbTWMuVqQa2mjSM8pSSrK3MDTM5S6UpWFpZkclC9yVkRXLilKtRUuYKV7pdfaZqvWnI%2BQ45iSNPXGQzmy2q3Zh2d3-s%2Bh9FZMYkN6X5AVU0PAIuocM4WI0i6SxHSO4yhEf32PTZDfNs6c76GvEMRWXzxWRvij-Ihjy6J3vYo9C8fCPGUSxq2wZDE55ltgfK2VQiP3cO7gItyN7Q1ZkXRxRt7bLw0RzWNdFWT1nrKhf7c2ZNj3KI9cvSqYCl2XSWlx1mxyQMof0dZ0Nvb7mocJRtb1Yn-V0kzhh4au63RGxg8ZgzTd-Hgf7i%2BzdJN-afySeIcAEAAAOAALPASB0AYBAAAEzgGAEAABfLLQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2178191687981489
+          },
+          {
+            "Value": 0.3673053789591894
+          },
+          {
+            "Value": 0.4424856383933272
+          },
+          {
+            "Value": 0.39000000003152413
+          },
+          {
+            "Value": 0.498922510583183
+          },
+          {
+            "Value": 0.6076841393760086
+          },
+          {
+            "Value": 0.6015491358420605
+          },
+          {
+            "Value": 0.2178191687981489
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.43755951230925455
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.6652817270609421
+          },
+          {
+            "Value": 0.6923727083714377
+          },
+          {
+            "Value": 0.3673053789591894
+          },
+          {
+            "Value": 0.43755951230925455
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4883403244459434
+          },
+          {
+            "Value": 0.42297234259736094
+          },
+          {
+            "Value": 0.5428107157564968
+          },
+          {
+            "Value": 0.6138697414485215
+          },
+          {
+            "Value": 0.6719632857277743
+          },
+          {
+            "Value": 0.4424856383933272
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.4883403244459434
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0.5260502417374994
+          },
+          {
+            "Value": 0.6520945741425419
+          },
+          {
+            "Value": 0.7133530974032425
+          },
+          {
+            "Value": 0.39000000003152413
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.42297234259736094
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0.5541961336392588
+          },
+          {
+            "Value": 0.6201067836297645
+          },
+          {
+            "Value": 0.498922510583183
+          },
+          {
+            "Value": 0.5371821715159459
+          },
+          {
+            "Value": 0.5428107157564968
+          },
+          {
+            "Value": 0.5260502417374994
+          },
+          {
+            "Value": 0.4727418419250815
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0.48310470108993797
+          },
+          {
+            "Value": 0.6076841393760086
+          },
+          {
+            "Value": 0.6652817270609421
+          },
+          {
+            "Value": 0.6138697414485215
+          },
+          {
+            "Value": 0.6520945741425419
+          },
+          {
+            "Value": 0.5541961336392588
+          },
+          {
+            "Value": 0.3113253150688773
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6263961286619699
+          },
+          {
+            "Value": 0.6015491358420605
+          },
+          {
+            "Value": 0.6923727083714377
+          },
+          {
+            "Value": 0.6719632857277743
+          },
+          {
+            "Value": 0.7133530974032425
+          },
+          {
+            "Value": 0.6201067836297645
+          },
+          {
+            "Value": 0.48310470108993797
+          },
+          {
+            "Value": 0.6263961286619699
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "sandbox-import-pairwise",
+      "url": "/?sb=1&s=0&m=concept&o=N4IghgdmA2CeDOBLeIBcokBcCmB9AZotDgE5qgDWiEAJmiAA5iIkDuy2IAvj0A&d=N4IghgNglg5gdgWwKZwC4gFygmARkiAZ0wG0RUBGEAGnICYbyBmR1AFlYFZWA2VgdlYAOEAF1ahJAEdiGEiX4VqPftSFs1GldUXLVu9ZuWcjh7Qa0nzQvTqU8rqs49u7dD29q8nnnlx7d7E0C-YzCQ-httXw9DOI0zVVjLMPMlX0jQmJcLI2TUq39gpXckpw1cr3K7TzLamvzdNiLUuvdCgrzqyu6g6mbbRKNSmsMIkvtemvbBisnRuYac9JSZ-Ma%2BteqxkpsYuu88lx2F%2BqGt6b790y19eaGPNMuwk8PK4JsQgInXeceXAbxWbPb5Lepve6LJ7RBKwo7g7aLL6IsEZH6GQG3BptP4ok4DGZo4abeaZQ5VeGvA4%2BLH-bH9GldG7DKJJD7E1oI04UokQzpAx53X5GAaC0IUp5AgUtXIzNbHRaig7VbRKkEdTH0uV9Q7XOm6uHrDrI8Kks3M-UokJA7X8uHy03CwlY96nL7FYFNfxC3K%2BP1QlVCnn29EB056nHiBQrZkm30pAVCjKs4ViiPCh7U%2BHktnqkG5y2uGyasmMqUaAl7FJi11io3hT6Ql7Vjp8r3AxOe3HioNl2kF71gwt0qld7mBlkZpE6lUmAk-ClxmMRFPusGam0kznrHHbgfwzLz%2BkG8Ee0Ewzk2xv1NVtq5h-LXV0m8kdMZVplPW0XCVnqYSqZpS5ct82zVtc1LVEXXNNwU3fDlJQTacwRGEYMQVZtj1zIYiUrWMYyAi96wA%2BoemBc8IL6Dd%2By1GN9RaIikxDbMIOvW0KIQjDGKdHVW2Nc0Niyat91gliDx%2BEYONQgioQwk543EntOIbWioKnDlxgQwDDW0ykkOeMkg17JlZXNeC60jaho3IuSsQePtHSfLc02Enj8I7CoUzrD1k2PPjSL%2BFpOyJbIDPvITOk1IjGVVcDHUk2cRQchLTzU0TXwCzoXM5aSGTU7joSYvNouK5YTLMxUPXYt99OqjzMNC%2BsnOKup7LckcaIUySGNUI9nXDRZms03KMusC1d2fGcdFXGTyKMsIoonRDJ0ya19Ka1ZwtrP9HMNMq6VWiTnPmzM9Lytq2o4x8kQ-QsQJ-ZUBpvHarpRGsBN6uKCt3E5XmS5dnK%2B4zgywzoHsdX9Qc7UbPq0s6Xx27qsqC5CL3khcauU972sZNb1IdB1rvxgH4abZa0c255fr2z9yijNC4SPHDmJK2sTtcjL0Y0ps9RlDHppywLyryi5ziF4j-JKinkfymLJdzI8QZhuGSOhXHxaB7kUcwlKv1uichqOjleTPdkyM05rRVN7d1YhrjMca-ygJfA2aK-LcQrhUdvNCNdCoF10ubFrkpM2ODkNMvcA-5w65t2rLWq91H7btNz%2BpGEsYNm4OLLCiH2ZD22fbauMP2pz9bJqK3Mul2LFMdmyq8R26YraKJW%2BFoDNyZP6bfHBroLB3idZJ3uT1z4vZKSkWBLi3KG9BIPmLH7Cp4OrO466-n4IZgf1OD-0zuHN7E6j4LOooemecHtUu5p7b6WudM8YRsSfbXdNj%2Bma8OuNlsxJzl9OWqc1ZDiAVTN2-4oGpl3IJSGE9-LpzonOQc-VuKjkjqLSm54yoH3Wrg7B4De5YNTgvB2lMTTM2AlPSa9UkY-helVJsgcI4fQFouCqPdk5-y5JQ1y9DkG0zofzKWjJq7g3QhFFKeMTa%2Bx%2BOIthvMR6CwrqBImtd9xEgkYPEivJ9yTxUf7HcSkQaHyfoNGhw8%2BTmR8m7JhMtOyaR9tYjmtsWF5xzKpMhyit522ZGPeWeY8HR1lt-M6p0kHw3DkpWUM0j5vSLncK%2BZxB5mP0nouRjcH7u25lw1RkSnFZm4r4om0MO7GNCmg-ap8JZ7xGolYJX9RLNQ4UpJR69cndw6VQ%2Be3DaE4J4XeN%2BiV6yRIGQpUE4j24gNthg2auc1xkWlt7Hq8UppLjhsNBcS056hkyaJP2PojbGM8csjmp8uYIJUko3eCztn70HnKaZeMAhxKWQ0h8q9fY-zxBY6e2V4GDlMa5DJd07L8NJC3N%2BQLfmxhTEzNesNf6QQykjJWbdNmzwirU5aut7FooIVrMCmFF4s2tkTQm1s1x9Vmos8KkMylPTvo-Wkg45kwPOjTCJl8rK3x0kS9xoKyq3kxp4l%2BJMorVJJfiryBYpglNseNElXza6Kt8ItUIkqh4qxTsHF2qZrajlvI9dp-E4ZdNmayqG4L46kogf3bGfILyK3AaAkhoVD70WJV0guujLH-J%2Bg%2BVZNLlGtI2VsmJQty5DNBODHJsa2F2rBcI61eU%2BV91uTC0G1EcaKTpRy06h93nsONNMs5T1PGnQ6SRNm08CVhMIvNWtAKTVJwtIjJQLqZZwO1tIsmmjPnEvHg5AxeLcmHDVGRT1wDzEy0jvBEV0q-EJvcgdOJnN%2BUyLbTWMuVqQa2mjSM8pSSrK3MDTM5S6UpWFpZkclC9yVkRXLilKtRUuYKV7pdfaZqvWnI%2BQ45iSNPXGQzmy2q3Zh2d3-s%2Bh9FZMYkN6X5AVU0PAIuocM4WI0i6SxHSO4yhEf32PTZDfNs6c76GvEMRWXzxWRvij-Ihjy6J3vYo9C8fCPGUSxq2wZDE55ltgfK2VQiP3cO7gItyN7Q1ZkXRxRt7bLw0RzWNdFWT1nrKhf7c2ZNj3KI9cvSqYCl2XSWlx1mxyQMof0dZ0Nvb7mocJRtb1Yn-V0kzhh4au63RGxg8ZgzTd-Hgf7i%2BzdJN-afySeIcAEAAAOAALPASB0AYBAAAEzgGAEAABfLLQA",
+      "step": 0,
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8"
+        ],
+        "model": "Jc69",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.22962516534441293
+          },
+          {
+            "Value": 0.39324473323866976
+          },
+          {
+            "Value": 0.4781976539362348
+          },
+          {
+            "Value": 0.4169185416333303
+          },
+          {
+            "Value": 0.5054829483391687
+          },
+          {
+            "Value": 0.5848212400475372
+          },
+          {
+            "Value": 0.5961201064873125
+          },
+          {
+            "Value": 0.22962516534441293
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.46774871442526567
+          },
+          {
+            "Value": 0.5538028291110497
+          },
+          {
+            "Value": 0.5005460133431481
+          },
+          {
+            "Value": 0.5548028428648311
+          },
+          {
+            "Value": 0.6596142774414486
+          },
+          {
+            "Value": 0.6850089162332986
+          },
+          {
+            "Value": 0.39324473323866976
+          },
+          {
+            "Value": 0.46774871442526567
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.5005460133431481
+          },
+          {
+            "Value": 0.4524681385785631
+          },
+          {
+            "Value": 0.5799824143752553
+          },
+          {
+            "Value": 0.6268090390020394
+          },
+          {
+            "Value": 0.6559524833081034
+          },
+          {
+            "Value": 0.4781976539362348
+          },
+          {
+            "Value": 0.5538028291110497
+          },
+          {
+            "Value": 0.5005460133431481
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.2977158138301918
+          },
+          {
+            "Value": 0.5569391271769931
+          },
+          {
+            "Value": 0.6384030865157015
+          },
+          {
+            "Value": 0.6931941761424989
+          },
+          {
+            "Value": 0.4169185416333303
+          },
+          {
+            "Value": 0.5005460133431481
+          },
+          {
+            "Value": 0.4524681385785631
+          },
+          {
+            "Value": 0.2977158138301918
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.492243510598407
+          },
+          {
+            "Value": 0.5606492751425605
+          },
+          {
+            "Value": 0.585409109692209
+          },
+          {
+            "Value": 0.5054829483391687
+          },
+          {
+            "Value": 0.5548028428648311
+          },
+          {
+            "Value": 0.5799824143752553
+          },
+          {
+            "Value": 0.5569391271769931
+          },
+          {
+            "Value": 0.492243510598407
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.30981469979192766
+          },
+          {
+            "Value": 0.4779500416241165
+          },
+          {
+            "Value": 0.5848212400475372
+          },
+          {
+            "Value": 0.6596142774414486
+          },
+          {
+            "Value": 0.6268090390020394
+          },
+          {
+            "Value": 0.6384030865157015
+          },
+          {
+            "Value": 0.5606492751425605
+          },
+          {
+            "Value": 0.30981469979192766
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.6077910478936803
+          },
+          {
+            "Value": 0.5961201064873125
+          },
+          {
+            "Value": 0.6850089162332986
+          },
+          {
+            "Value": 0.6559524833081034
+          },
+          {
+            "Value": 0.6931941761424989
+          },
+          {
+            "Value": 0.585409109692209
+          },
+          {
+            "Value": 0.4779500416241165
+          },
+          {
+            "Value": 0.6077910478936803
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    }
+  ]
+}

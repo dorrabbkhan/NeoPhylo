@@ -780,6 +780,11 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* A select too wide for the space next to its label wraps onto its
+   * own line under the label at its natural width rather than
+   * shrinking — a shrunk select ellipsizes the selected text
+   * ("Neighbor-Joinin", Task 10 corrective pass). */
+  flex-wrap: wrap;
   gap: 8px;
   margin: 6px 0;
   font-size: var(--size-sm);
@@ -817,6 +822,19 @@ button {
 .controls input:disabled,
 button:disabled {
   opacity: 0.5;
+}
+
+/* A native select lays out at its widest option's width, not the
+ * selected one's — "K2P (dnadist, κ = 2.0)" made the Correction menu
+ * wider than the controls column and clipped its dropdown arrow
+ * (v1.4b Task 10 fix). The row wraps it under its label instead of
+ * shrinking it (see .controls .field above); max-width still caps any
+ * control that can't fit even on its own line, so nothing in the
+ * column can cross its edge. */
+.controls select,
+.controls input,
+.gap-control input {
+  max-width: 100%;
 }
 
 button {
@@ -2755,6 +2773,87 @@ button,
   .editor-view-buttons button,
   .prompt-actions button,
   .prompt-add-row button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* ---- Gap treatment control and filter-removed columns (v1.4b Task 10,
+ * spec §3.1, §6.1–6.2) ---- */
+
+.gap-control {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  margin: 8px 0;
+  padding: 6px 10px;
+  font-size: var(--size-sm);
+}
+
+.gap-control legend {
+  font-size: var(--size-sm);
+  padding: 0 4px;
+}
+
+.gap-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.gap-control .field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.gap-control input[type="number"] {
+  width: 90px;
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.gap-count {
+  margin: 6px 0 2px;
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  margin: 2px 0 6px;
+  color: var(--color-danger);
+  font-size: var(--size-xs);
+}
+
+/* Filter-removed columns in the pair panel: hatched background plus the
+ * ∅ marker — distinct from the non-comparable dimming (spec §6.2). */
+.pair-col.removed {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--color-border) 3px,
+    var(--color-border) 4px
+  );
+}
+
+.pair-removed-note {
+  margin: 4px 0 8px;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+@media (pointer: coarse) {
+  /* Touch targets ≥ 40×40 (v1.4b Task 10, conductor note 7): the radio
+   * rows and the number inputs get the same floor as buttons. */
+  .gap-radio,
+  .gap-control input[type="number"],
+  .controls input[type="number"] {
     min-height: 40px;
     min-width: 40px;
   }
