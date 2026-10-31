@@ -6068,3 +6068,13 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   reproduces at HEAD without this change and between two same-code
   runs), so their baselines are untouched; the full visual project
   passes 89/89 without updating.
+- Pre-existing `LikelihoodCurve` tick-label clip fixed in this PR at
+  the owner's request (2026-10-31): the y-tick labels were
+  right-aligned at x = 33 against `PAD_L = 36`, so "-852.721" (48.5
+  units of ink) ran ~15.5 units off the svg's left edge and rendered
+  as "52.721"; the left pad is now sized from the label strings (8
+  units/char bound at the pinned 12 px axis font → padL = 64 for this
+  pair, leaving the label ~12.5 units inside the edge), and the
+  `log L(d)` title and `d̂` label baselines move inside the top edge
+  (they clipped ~3.5 units there). `LikelihoodCurve.test.tsx`
+  unchanged — no assertion depended on the old padding.
