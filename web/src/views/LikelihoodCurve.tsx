@@ -39,15 +39,10 @@ const PAD_T = 26;
 const PAD_B = 20;
 /** The y-axis window depth, in log units (checkpoint 11). */
 const LOG_WINDOW = 15;
-/** Axis labels are pinned to the 12 px token (inline in `axisLabel`):
- * the plot is a fixed 300×140 viewBox, so a larger font (presenter
- * mode) would overflow the padding its geometry is built around. */
 /** Upper bound on one glyph's ink width at 12 px: digits measure
  * ~7.9 units and "-"/"." less, so `len * CHAR_W` covers any label
  * fmt can produce. */
 const CHAR_W = 8;
-/** Baseline for the title row (13): keeps its ink inside the top edge
- * and above the top tick's label (12 px ink ≈ baseline −11.5 to +2.7). */
 
 /** One axis-label element with the pinned font. */
 const axisLabel = (
@@ -60,6 +55,9 @@ const axisLabel = (
 ) => (
   <text
     className={`axis-label ${cls}`}
+    /* Axis labels are pinned to the 12 px token: the plot is a fixed
+       300×140 viewBox, so a larger font (presenter mode) would
+       overflow the padding its geometry is built around. */
     style={{ fontSize: size.xs }}
     x={x}
     y={y}
@@ -152,6 +150,7 @@ export function LikelihoodCurve({
       className="likelihood-curve"
       role="img"
       aria-label={label}
+      // Must equal `0 0 ${W} ${H}` — written as a literal to save bytes.
       viewBox="0 0 300 140"
     >
       <path
@@ -161,6 +160,9 @@ export function LikelihoodCurve({
       <line className="axis" x1={padL} y1={PAD_T} x2={padL} y2={axisY} />
       {/* Ticks: d at 0, d̂ (the peak line) and the right edge; logL at
           the top and bottom of the window. */}
+      {/* Baseline for the title row (13): keeps its ink inside the top
+          edge and above the top tick's label (12 px ink ≈ baseline
+          −11.5 to +2.7). */}
       {axisLabel(2, 13, "log L(d)")}
       {yOk && (
         <>

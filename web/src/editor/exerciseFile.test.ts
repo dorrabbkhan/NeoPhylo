@@ -230,6 +230,9 @@ describe("shareLink", () => {
   });
 
   it("every shipped exercises file's share link fits under the limit", () => {
+    // 6 exercises + 3 labs (schema.json is filtered out): an empty glob
+    // must not let this test pass by checking nothing.
+    expect(exercisePaths().length).toBeGreaterThanOrEqual(9);
     for (const p of exercisePaths()) {
       const loaded = load(readFileSync(p, "utf8"));
       const r = shareLink({ exercise: loaded }, base);

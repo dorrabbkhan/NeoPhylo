@@ -6113,3 +6113,11 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `line.axis` because `LikelihoodCurve.test.tsx` locates it.
 - **Share-link limit resolved to 32,000** — see the dated line under
   the v1.4 Task 7 "Owner decision pending" entry above.
+- **Review polish (fix round 1, 2026-11-01):** outside the original
+  Files block — `web/src/views/editor/EditorPanel.tsx` now formats the
+  limit as `SHARE_LINK_MAX_LENGTH.toLocaleString("en-US")` so the
+  notice reads "32,000"; the two `editor.spec.ts` regexes use
+  `[\d,]+`, and `exerciseFile.test.ts` asserts the exercise glob is
+  non-empty (≥9 files) before the loop. Initial JS 120,164 B
+  (+1 B: the entry chunk embeds the lazy EditorPage chunk's content
+  hash); budget unchanged.

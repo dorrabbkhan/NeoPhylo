@@ -196,7 +196,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
     } else if ("tooLong" in r) {
       setNotice({
         level: "error",
-        text: `The share link would be over ${SHARE_LINK_MAX_LENGTH} characters — save the file and share that instead.`,
+        text: `The share link would be over ${SHARE_LINK_MAX_LENGTH.toLocaleString("en-US")} characters — save the file and share that instead.`,
       });
     } else {
       // Clipboard is convenience only (spec §5.4): never required —

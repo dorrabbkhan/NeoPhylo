@@ -941,7 +941,7 @@ test("an exercise too large for a share link still previews (fix round 3 handsha
   // The share link is over the limit — the message stays.
   await page.getByRole("button", { name: "Share link" }).click();
   await expect(page.getByRole("alert")).toContainText(
-    /over \d+ characters/i,
+    /over [\d,]+ characters/i,
   );
 
   // Preview is not a link: the handshake carries the draft, and the
@@ -989,7 +989,7 @@ test("a share link too long for the limit says so and offers the file (Review Fo
   await page.getByRole("button", { name: "Share link" }).click();
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
-  await expect(alert).toContainText(/too long|over \d+ characters/i);
+  await expect(alert).toContainText(/too long|over [\d,]+ characters/i);
   await expect(alert).toContainText(/save the file/i);
 });
 
