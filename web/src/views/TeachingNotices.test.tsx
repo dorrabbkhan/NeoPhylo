@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
+import type { SiteFilter } from "../engine/generated/SiteFilter";
 import type { Session } from "../state/session";
 import { exerciseSim, initialSession, reducer } from "../state/session";
 
@@ -448,4 +449,115 @@ describe("TeachingNotices — RF result", () => {
       ),
     ).toBeTruthy();
   });
+});
+
+// Owner decision (2026-10-30, option A): the saturation chart's p
+// values are the P distances under the active gap treatment — the same
+// filter as the matrix — and an absent or pairwise site_filter is the
+// unchanged pre-v1.4b call. Column 11 of the test alignment has a gap
+// in C: complete deletion removes it, which moves pair A–B's p from
+// the unfiltered 1/12 to 0.
+describe("TeachingNotices — chart p follows the gap treatment", () => {
+  const GAPPED_SAT_FASTA = [
+    ">A",
+    "ACGTACGTACGT",
+    ">B",
+    "ACGTACGTACGA",
+    ">C",
+    "TGCATGCATGC-",
+    ">D",
+    "TGCATGCATGCA",
+  ].join("\n");
+  const GAPPED_SAT_ALN: Alignment = (() => {
+    const r = engine.parseFasta(GAPPED_SAT_FASTA);
+    if (!r.ok) throw new Error("test alignment failed to parse");
+    return r.value;
+  })();
+
+  const gapSatEx = (site_filter?: SiteFilter): Exercise => ({
+    schema_version: 4,
+    id: "gap-sat",
+    title: "Gapped saturation",
+    alphabet: "dna",
+    data: {
+      kind: "embedded",
+      fasta: GAPPED_SAT_FASTA,
+      source: { citation: "test", license: "CC0", accessions: [] },
+    },
+    reference: {
+      newick: "((A:0.5,B:0.5):0.2,C:0.7,D:0.7);",
+      kind: "true",
+    },
+    analysis: {
+      correction: "Jc69",
+      method: "Nj",
+      ...(site_filter === undefined ? {} : { site_filter }),
+    },
+    locked: [],
+    prompts: [],
+    bootstrap: null,
+  });
+
+  // Invert SaturationChart's cy = PAD_T + (1 − p)·(H − PAD_T − PAD_B).
+  const decodeP = (cy: number) => 1 - (cy - 10) / 144;
+
+  const chartPs = () =>
+    Array.from(document.querySelectorAll("circle.point")).map((c) =>
+      decodeP(Number(c.getAttribute("cy"))),
+    );
+
+  const expectedPs = (site_filter: SiteFilter): number[] => {
+    const m = engine.distancesFiltered(GAPPED_SAT_ALN, "P", site_filter);
+    if (!m.ok) throw new Error("P matrix failed");
+    const n = GAPPED_SAT_ALN.labels.length;
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const cell = m.value.cells[i * n + j];
+        if (cell !== "Saturated") out.push(cell.Value);
+      }
+    }
+    return out;
+  };
+
+  it("under complete deletion the chart's p points are the filtered P cells", () => {
+    const s = loaded(gapSatEx({ kind: "complete" }));
+    expect(s.error?.kind).toBe("SaturatedMatrix");
+    renderNotices(s);
+
+    const expected = expectedPs({ kind: "complete" });
+    expect(expected.length).toBe(6);
+    const ps = chartPs();
+    expect(ps.length).toBe(expected.length);
+    ps.forEach((p, k) => expect(p).toBeCloseTo(expected[k], 10));
+
+    // Proof the filter — not the unfiltered call — drove the chart:
+    // pair A–B (the first point) has unfiltered p = 1/12 but
+    // filtered p = 0.
+    const plain = engine.distances(GAPPED_SAT_ALN, "P");
+    if (!plain.ok || plain.value.cells[1] === "Saturated") {
+      throw new Error("unfiltered P failed");
+    }
+    expect(plain.value.cells[1].Value).toBeCloseTo(1 / 12);
+    expect(ps[0]).toBeCloseTo(0);
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["pairwise", { kind: "pairwise" } as const],
+  ] satisfies [string, SiteFilter | undefined][])(
+    "with site_filter %s the chart's p points are the unfiltered P cells",
+    (_name, site_filter) => {
+      const s = loaded(gapSatEx(site_filter));
+      expect(s.error?.kind).toBe("SaturatedMatrix");
+      renderNotices(s);
+
+      const expected = expectedPs({ kind: "pairwise" });
+      const ps = chartPs();
+      expect(ps.length).toBe(expected.length);
+      ps.forEach((p, k) => expect(p).toBeCloseTo(expected[k], 10));
+      // Pair A–B keeps its unfiltered 1/12.
+      expect(ps[0]).toBeCloseTo(1 / 12);
+    },
+  );
 });

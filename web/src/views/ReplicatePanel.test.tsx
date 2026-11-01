@@ -579,9 +579,10 @@ describe("App 'Watch one replicate'", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: /Watch one replicate/ }),
     );
-    // Navigate to the first differing replicate.
+    // Navigate to the first differing replicate (the panel is a lazy
+    // chunk — await its first paint before driving it).
     const i = differingIndex();
-    const next = screen.getByRole("button", { name: "Next" });
+    const next = await screen.findByRole("button", { name: "Next" });
     for (let j = 0; j < i; j++) fireEvent.click(next);
     expect(
       await screen.findByText(

@@ -19,6 +19,7 @@ import {
   CORRECTIONS,
   exerciseSim,
   k2pLabel,
+  SANDBOX_MODELS,
   SIM_MODEL_NAMES,
   simModelName,
 } from "../state/session";
@@ -469,8 +470,236 @@ describe("Controls — exercise-prescribed v1.4 models", () => {
         ).toEqual(SIM_MODEL_NAMES[ex.alphabet]);
       }
       expect(optionValues("Distance correction"), `${f}: correction menu`).toEqual(
-        CORRECTIONS[ex.alphabet],
+        CORRECTIONS[ex.alphabet].filter((c) => !SANDBOX_MODELS.has(c)),
       );
     }
+  });
+});
+
+// v1.4b plan Task 10 (spec §6.1): the sandbox correction menu gains
+// F84, K2P_PHYLIP (with a κ input shown only for it) and Poisson, each
+// alphabet-scoped. Built-in lessons keep the old menu — the new models
+// show there only as the conditional option an exercise file
+// prescribes (Review Focus 4).
+describe("Controls — v1.4b sandbox models", () => {
+  it("sandbox menus gain the new models, lessons do not", () => {
+    render(<Controls {...props({ sandbox: true })} />);
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+      "F84",
+      "K2P_PHYLIP",
+    ]);
+    cleanup();
+    render(<Controls {...props()} />);
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Jc69",
+      "K80",
+    ]);
+    cleanup();
+    render(
+      <Controls
+        {...props({
+          sandbox: true,
+          alphabet: "protein" as Alphabet,
+          analysis: { correction: "Jtt", method: "Nj" },
+        })}
+      />,
+    );
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Kimura",
+      "Jtt",
+      "Poisson",
+    ]);
+    cleanup();
+    render(
+      <Controls
+        {...props({
+          alphabet: "protein" as Alphabet,
+          analysis: { correction: "Jtt", method: "Nj" },
+        })}
+      />,
+    );
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Kimura",
+      "Jtt",
+    ]);
+  });
+
+  it("an exercise-prescribed Poisson shows as a conditional option in a lesson", () => {
+    render(
+      <Controls
+        {...props({
+          alphabet: "protein" as Alphabet,
+          analysis: { correction: "Poisson", method: "Nj" },
+        })}
+      />,
+    );
+    const select = screen.getByLabelText(
+      "Distance correction",
+    ) as HTMLSelectElement;
+    expect(optionValues("Distance correction")).toEqual([
+      "P",
+      "Kimura",
+      "Jtt",
+      "Poisson",
+    ]);
+    expect(select.value).toBe("Poisson");
+  });
+
+  it("selecting F84 in the sandbox dispatches the F84 correction", () => {
+    const actions: Action[] = [];
+    render(
+      <Controls {...props({ sandbox: true, dispatch: (a) => actions.push(a) })} />,
+    );
+    fireEvent.change(screen.getByLabelText("Distance correction"), {
+      target: { value: "F84" },
+    });
+    expect(actions).toEqual([
+      { type: "setAnalysis", patch: { correction: "F84" } },
+    ]);
+  });
+
+  it("selecting K2P_PHYLIP dispatches the ratio-carrying correction", () => {
+    const actions: Action[] = [];
+    render(
+      <Controls {...props({ sandbox: true, dispatch: (a) => actions.push(a) })} />,
+    );
+    fireEvent.change(screen.getByLabelText("Distance correction"), {
+      target: { value: "K2P_PHYLIP" },
+    });
+    // Default κ is 2.0 — carried in both the enum and analysis.kappa.
+    expect(actions).toEqual([
+      {
+        type: "setAnalysis",
+        patch: { correction: { K2pPhylip: { ratio: 2 } }, kappa: 2 },
+      },
+    ]);
+  });
+
+  it("selecting Poisson in the sandbox dispatches the Poisson correction", () => {
+    const actions: Action[] = [];
+    render(
+      <Controls
+        {...props({
+          sandbox: true,
+          alphabet: "protein" as Alphabet,
+          analysis: { correction: "Jtt", method: "Nj" },
+          dispatch: (a) => actions.push(a),
+        })}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Distance correction"), {
+      target: { value: "Poisson" },
+    });
+    expect(actions).toEqual([
+      { type: "setAnalysis", patch: { correction: "Poisson" } },
+    ]);
+  });
+
+  it("the κ input appears only for K2P_PHYLIP", () => {
+    const { rerender } = render(<Controls {...props({ sandbox: true })} />);
+    expect(screen.queryByLabelText("Ratio (κ)")).toBeNull();
+    rerender(
+      <Controls
+        {...props({
+          sandbox: true,
+          analysis: { correction: "F84", method: "Nj" },
+        })}
+      />,
+    );
+    expect(screen.queryByLabelText("Ratio (κ)")).toBeNull();
+    rerender(
+      <Controls
+        {...props({
+          sandbox: true,
+          analysis: {
+            correction: { K2pPhylip: { ratio: 2 } },
+            kappa: 2,
+            method: "Nj",
+          },
+        })}
+      />,
+    );
+    expect((screen.getByLabelText("Ratio (κ)") as HTMLInputElement).value).toBe(
+      "2",
+    );
+  });
+
+  it.each(["0", "-1", "", "abc", "1e999"])(
+    "the κ input refuses %j with a message and dispatches nothing (Review Focus 4)",
+    (bad) => {
+      const actions: Action[] = [];
+      render(
+        <Controls
+          {...props({
+            sandbox: true,
+            analysis: {
+              correction: { K2pPhylip: { ratio: 2 } },
+              kappa: 2,
+              method: "Nj",
+            },
+            dispatch: (a) => actions.push(a),
+          })}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText("Ratio (κ)"), {
+        target: { value: bad },
+      });
+      expect(actions).toEqual([]);
+      expect(screen.getByRole("alert").textContent).toContain("κ");
+    },
+  );
+
+  it("a valid κ commits the new ratio", () => {
+    const actions: Action[] = [];
+    render(
+      <Controls
+        {...props({
+          sandbox: true,
+          analysis: {
+            correction: { K2pPhylip: { ratio: 2 } },
+            kappa: 2,
+            method: "Nj",
+          },
+          dispatch: (a) => actions.push(a),
+        })}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Ratio (κ)"), {
+      target: { value: "4" },
+    });
+    expect(actions).toEqual([
+      {
+        type: "setAnalysis",
+        patch: { correction: { K2pPhylip: { ratio: 4 } }, kappa: 4 },
+      },
+    ]);
+  });
+
+  it("the prescribed κ, not 2.0, fills the field", () => {
+    render(
+      <Controls
+        {...props({
+          sandbox: true,
+          analysis: {
+            correction: { K2pPhylip: { ratio: 4 } },
+            kappa: 4,
+            method: "Nj",
+          },
+        })}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Ratio (κ)") as HTMLInputElement).value,
+    ).toBe("4");
+    // The menu option labels the actual ratio.
+    expect(optionTexts("Distance correction")).toContain(
+      "K2P (dnadist, κ = 4.0)",
+    );
   });
 });

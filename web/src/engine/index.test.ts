@@ -184,6 +184,34 @@ describe("engine filtered wrappers", () => {
       expect(r.value.weights[5]).toBe(0);
     }
   });
+
+  it("jttPairDetailFiltered with pairwise equals jttPairDetail exactly", () => {
+    const aln = engine.parseFasta(">a\nMKVLGELAK\n>b\nMKVLGRLAK\n>c\nMQVLGELTK\n");
+    if (!aln.ok) throw new Error("test alignment failed to parse");
+    const filtered = engine.jttPairDetailFiltered(aln.value, 0, 1, PAIRWISE);
+    const plain = engine.jttPairDetail(aln.value, 0, 1);
+    expect(filtered.ok).toBe(true);
+    expect(plain.ok).toBe(true);
+    if (filtered.ok && plain.ok) {
+      expect(filtered.value).toEqual(plain.value);
+    }
+  });
+
+  it("jttPairDetailFiltered counts only the kept columns", () => {
+    const aln = engine.parseFasta(">a\nMKVLG\n>b\nMIVLG\n>c\n-KVLG\n");
+    if (!aln.ok) throw new Error("test alignment failed to parse");
+    const r = engine.jttPairDetailFiltered(aln.value, 0, 1, {
+      kind: "complete",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // Column 0 is removed by complete deletion: 4 comparable sites,
+      // one difference — the unfiltered detail counts 5 and p = 0.2.
+      expect(r.value.comparable).toBe(4);
+      expect(r.value.differences).toBe(1);
+      expect(r.value.p).toBe(0.25);
+    }
+  });
 });
 
 const SEQ_MEG = `#mega

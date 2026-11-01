@@ -17,6 +17,7 @@ use crate::dist::{label, Cell, DistModel};
 use crate::error::NeoError;
 use crate::model::jtt_spectral;
 use crate::seq::Alignment;
+use crate::site_filter::{site_mask, SiteFilter};
 
 /// Farthest distance reported by the JTT fit (spec §3.4: protdist
 /// writes -1 for pairs whose estimate runs past the search bound).
@@ -457,9 +458,78 @@ pub fn jtt_pair_detail(aln: &Alignment, i: usize, j: usize) -> Result<PairDetail
             b: label(&aln.labels, j),
         });
     }
+    Ok(pair_detail_from_counts(
+        i,
+        j,
+        &table,
+        comparable,
+        differences,
+    ))
+}
 
-    let jtt = jtt_ml(&table);
-    let cells = merge_counts(&table);
+/// `jtt_pair_detail` under a site filter (v1.4b spec §3.1, §6.2 — owner
+/// decision 2026-10-30: the pair panel's numbers follow the gap
+/// treatment). Only the columns `site_mask` keeps count toward the
+/// pair's comparable sites, differences, p and the JTT fit.
+///
+/// Errors come in the same order as `jtt_pair_detail` — alphabet, then
+/// index — followed by the filter's own errors (`NoSitesKept`, an
+/// invalid `cutoff_pct`), then `InsufficientOverlap` when the pair has
+/// no comparable kept site (never a NaN `p`). `SiteFilter::Pairwise`
+/// gives a `PairDetail` bit-identical to `jtt_pair_detail`.
+pub fn jtt_pair_detail_filtered(
+    aln: &Alignment,
+    i: usize,
+    j: usize,
+    filter: SiteFilter,
+) -> Result<PairDetail, NeoError> {
+    if aln.alphabet != Alphabet::Protein {
+        return Err(NeoError::ModelAlphabetMismatch {
+            model: DistModel::Jtt.name().to_string(),
+            alphabet: aln.alphabet,
+        });
+    }
+    let n = aln.seqs.len();
+    if i >= n || j >= n {
+        return Err(NeoError::InvalidExercise {
+            field: "pair".to_string(),
+            msg: format!("pair index out of range for {n} sequences"),
+        });
+    }
+    let mask = site_mask(aln, filter)?;
+    let (table, comparable, differences) =
+        pair_counts_weighted(&aln.seqs[i], &aln.seqs[j], &mask.weights);
+    if comparable == 0 {
+        return Err(NeoError::InsufficientOverlap {
+            a: label(&aln.labels, i),
+            b: label(&aln.labels, j),
+        });
+    }
+    let comparable = comparable.min(u64::from(u32::MAX)) as u32;
+    let differences = differences.min(u64::from(u32::MAX)) as u32;
+    Ok(pair_detail_from_counts(
+        i,
+        j,
+        &table,
+        comparable,
+        differences,
+    ))
+}
+
+/// The `PairDetail` assembly shared by `jtt_pair_detail` and
+/// `jtt_pair_detail_filtered`: the JTT fit, p and Kimura from the
+/// counts, the sampled likelihood curve and the sparse count table.
+/// `comparable` must be nonzero — callers reject the zero-overlap pair
+/// with `InsufficientOverlap`, so `p` can never be NaN.
+fn pair_detail_from_counts(
+    i: usize,
+    j: usize,
+    table: &[[u32; 20]; 20],
+    comparable: u32,
+    differences: u32,
+) -> PairDetail {
+    let jtt = jtt_ml(table);
+    let cells = merge_counts(table);
     let p = f64::from(differences) / f64::from(comparable);
     let kimura = kimura_from_p(p);
     let (d_hat, logl_hat, top) = match jtt {
@@ -489,7 +559,7 @@ pub fn jtt_pair_detail(aln: &Alignment, i: usize, j: usize) -> Result<PairDetail
         })
         .collect();
 
-    Ok(PairDetail {
+    PairDetail {
         a: i,
         b: j,
         comparable,
@@ -501,5 +571,5 @@ pub fn jtt_pair_detail(aln: &Alignment, i: usize, j: usize) -> Result<PairDetail
         curve,
         d_hat,
         logl_hat,
-    })
+    }
 }

@@ -14,6 +14,7 @@
 // small "below range" marker on the axis. Ticks label d at 0, d̂ and
 // the right edge, and logL at the top and bottom of the window.
 
+import { size } from "../design/tokens";
 import { fmt } from "../explain/math";
 
 export interface LikelihoodCurveProps {
@@ -31,12 +32,45 @@ export interface LikelihoodCurveProps {
 
 const W = 300;
 const H = 140;
-const PAD_L = 36;
 const PAD_R = 8;
-const PAD_T = 14;
+/** The top pad leaves a full text row above the top tick for the
+ * "log L(d)" title. */
+const PAD_T = 26;
 const PAD_B = 20;
 /** The y-axis window depth, in log units (checkpoint 11). */
 const LOG_WINDOW = 15;
+/** Axis labels are pinned to the 12 px token: the plot is a fixed
+ * 300×140 viewBox, so a larger font (presenter mode) would overflow
+ * the padding its geometry is built around. */
+const LABEL_STYLE = { fontSize: size.xs } as const;
+/** Upper bound on one glyph's ink width at 12 px: digits measure
+ * ~7.9 units and "-"/"." less, so `len * CHAR_W` covers any label
+ * fmt can produce. */
+const CHAR_W = 8;
+/** Baseline for the title row: keeps its ink inside the top edge and
+ * above the top tick's label (12 px ink ≈ baseline −11.5 to +2.7). */
+const TITLE_Y = 13;
+
+/** One axis-label element with the pinned font. */
+const axisLabel = (
+  x: number,
+  y: number,
+  s: string,
+  anchor?: "start" | "middle" | "end",
+  dy?: string,
+  cls = "",
+) => (
+  <text
+    className={`axis-label ${cls}`}
+    style={LABEL_STYLE}
+    x={x}
+    y={y}
+    textAnchor={anchor}
+    dy={dy}
+  >
+    {s}
+  </text>
+);
 
 export function LikelihoodCurve({
   curve,
@@ -51,9 +85,16 @@ export function LikelihoodCurve({
   }
   const yTop = loglHat !== null && !saturated ? loglHat : curveMax;
   const yBot = yTop - LOG_WINDOW;
+  const yOk = Number.isFinite(yTop);
+  const yTopS = yOk ? fmt(yTop) : "";
+  const yBotS = yOk ? fmt(yBot) : "";
+  // The y-tick labels are right-aligned at padL − 3; the pad must cover
+  // their widest ink width plus margin, else a multi-digit negative
+  // logL runs off the svg's left edge and loses its minus sign.
+  const padL = Math.max(36, CHAR_W * Math.max(yTopS.length, yBotS.length));
 
   const x = (d: number) =>
-    PAD_L + (xMax > 0 ? (d / xMax) * (W - PAD_L - PAD_R) : 0);
+    padL + (xMax > 0 ? (d / xMax) * (W - padL - PAD_R) : 0);
   const y = (l: number) => {
     const v = Number.isFinite(l) ? Math.min(Math.max(l, yBot), yTop) : yBot;
     return PAD_T + ((yTop - v) / LOG_WINDOW) * (H - PAD_T - PAD_B);
@@ -92,6 +133,15 @@ export function LikelihoodCurve({
     peak = { px: x(dHat), py: y(l0 + f * (l1 - l0)) };
   }
 
+  // The d̂ label floats above the marker: keep it right of the title
+  // and the y-tick labels, and inside the svg's right edge even for a
+  // wide estimate.
+  const dhatText = `d̂ = ${(dHat ?? 0).toFixed(3)}`;
+  const dhatX = Math.min(
+    Math.max((peak?.px ?? 0) + 6, padL + 9),
+    W - 2 - CHAR_W * dhatText.length,
+  );
+
   const label = saturated
     ? `Likelihood curve for log L(d): still rising at d = ${xMax.toFixed(1)}, no peak`
     : `Likelihood curve for log L(d): peak at distance ${(dHat ?? 0).toFixed(3)}`;
@@ -106,64 +156,37 @@ export function LikelihoodCurve({
     >
       <line
         className="axis"
-        x1={PAD_L}
+        x1={padL}
         y1={axisY}
         x2={W - PAD_R}
         y2={axisY}
       />
-      <line className="axis" x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={axisY} />
+      <line className="axis" x1={padL} y1={PAD_T} x2={padL} y2={axisY} />
       {/* Ticks: d at 0, d̂ (the peak line) and the right edge; logL at
           the top and bottom of the window. */}
-      <text className="axis-label" x={2} y={8}>
-        log L(d)
-      </text>
-      {Number.isFinite(yTop) && (
+      {axisLabel(2, TITLE_Y, "log L(d)")}
+      {yOk && (
         <>
-          <text
-            className="axis-label"
-            x={PAD_L - 3}
-            y={PAD_T}
-            textAnchor="end"
-            dy="0.32em"
-          >
-            {fmt(yTop)}
-          </text>
-          <text
-            className="axis-label"
-            x={PAD_L - 3}
-            y={axisY}
-            textAnchor="end"
-            dy="0.32em"
-          >
-            {fmt(yBot)}
-          </text>
+          {axisLabel(padL - 3, PAD_T, yTopS, "end", "0.32em")}
+          {axisLabel(padL - 3, axisY, yBotS, "end", "0.32em")}
           <line
             className="axis"
-            x1={PAD_L - 3}
+            x1={padL - 3}
             y1={PAD_T}
-            x2={PAD_L}
+            x2={padL}
             y2={PAD_T}
           />
         </>
       )}
-      <text
-        className="axis-label"
-        x={PAD_L}
-        y={H - 8}
-        textAnchor="middle"
-      >
-        0
-      </text>
+      {axisLabel(padL + 3, H - 8, "0", "middle")}
       <line
         className="axis"
-        x1={PAD_L}
+        x1={padL}
         y1={axisY}
-        x2={PAD_L}
+        x2={padL}
         y2={axisY + 3}
       />
-      <text className="axis-label" x={W - PAD_R} y={H - 8} textAnchor="end">
-        {fmt(xMax)}
-      </text>
+      {axisLabel(W - PAD_R, H - 8, fmt(xMax), "end")}
       <line
         className="axis"
         x1={W - PAD_R}
@@ -171,14 +194,7 @@ export function LikelihoodCurve({
         x2={W - PAD_R}
         y2={axisY + 3}
       />
-      <text
-        className="axis-label"
-        x={W - PAD_R}
-        y={axisY - 3}
-        textAnchor="end"
-      >
-        d
-      </text>
+      {axisLabel(W - PAD_R, axisY - 3, "d", "end")}
       {drawn.length > 0 && (
         <polyline className="curve" points={points} fill="none" />
       )}
@@ -203,25 +219,11 @@ export function LikelihoodCurve({
             y2={axisY}
           />
           <circle className="peak-marker" cx={peak.px} cy={peak.py} r={3.5} />
-          <text
-            className="axis-label"
-            x={Math.min(peak.px + 6, W - 40)}
-            y={peak.py - 6}
-          >
-            {`d̂ = ${(dHat ?? 0).toFixed(3)}`}
-          </text>
+          {axisLabel(dhatX, peak.py - 8, dhatText)}
         </g>
       )}
-      {saturated && (
-        <text
-          className="axis-label peak-none"
-          x={W - PAD_R}
-          y={PAD_T + 8}
-          textAnchor="end"
-        >
-          no peak: still rising
-        </text>
-      )}
+      {saturated &&
+        axisLabel(W - PAD_R, PAD_T + 8, "no peak: still rising", "end", undefined, "peak-none")}
     </svg>
   );
 }

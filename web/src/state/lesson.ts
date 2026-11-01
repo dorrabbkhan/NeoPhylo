@@ -94,15 +94,16 @@ function simModelAlphabet(m: SimModel): Alphabet {
 }
 
 /** Corrections the engine accepts for `a` — the menu list PLUS the
- * v1.4 exercise-prescribed models (F84 and K2P_PHYLIP, DNA-only and
- * never menu-selectable but legal in a file, Task 10 fix round 1: the
- * menu-membership check used to silently rewrite them to the default
- * on load). */
+ * exercise-prescribed ratio-carrying `K2pPhylip` (DNA-only, legal in
+ * a file, Task 10 fix round 1: the menu-membership check used to
+ * silently rewrite such models to the default on load — the same bug
+ * deferred from v1.4b Task 6 put `Poisson` at risk until it joined
+ * the list). */
 function correctionValidFor(
   c: Exercise["analysis"]["correction"],
   a: Alphabet,
 ): boolean {
-  if (typeof c === "object" || c === "F84") return a === "dna";
+  if (typeof c === "object") return a === "dna";
   return CORRECTIONS[a].includes(c);
 }
 

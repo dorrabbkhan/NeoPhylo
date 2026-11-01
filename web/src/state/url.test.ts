@@ -656,3 +656,156 @@ describe("URL v3 bootstrap block", () => {
     expect(s.bootstrap.status).toBe("running");
   });
 });
+
+// --- v1.4b Task 10: the v3 link corpus and URL overrides validation ---
+//
+// `__fixtures__/v3-urls.json` holds links written by the v1.4b state
+// fields — `analysis.site_filter` (pairwise/complete/partial), the
+// `Poisson` correction and `K2P_PHYLIP` with κ — plus the matrix each
+// restores to. Restore must be identical (v1.4b spec §4).
+// An `o=` override whose site_filter or κ is malformed is a restore
+// error with a message — like the existing `d=` failures — never a
+// silently dropped field (conductor note 6).
+
+const CAPTURED_V3: { cases: CapturedCase[] } = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), "src/state/__fixtures__/v3-urls.json"),
+    "utf8",
+  ),
+) as { cases: CapturedCase[] };
+
+describe("v3 link corpus", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const m = /\/exercises\/([^/]+)\.json$/.exec(String(input));
+      if (m === null) return new Response("not found", { status: 404 });
+      try {
+        return new Response(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              `../exercises/${decodeURIComponent(m[1])}.json`,
+            ),
+            "utf8",
+          ),
+        );
+      } catch {
+        return new Response("not found", { status: 404 });
+      }
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    history.replaceState(null, "", "/");
+  });
+
+  it("captured all listed cases", () => {
+    expect(CAPTURED_V3.cases.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(CAPTURED_V3.cases)(
+    "v3_urls_identical: $name restores the identical matrix and step",
+    async (c) => {
+      history.replaceState(null, "", c.url);
+      const r = await resolveInitial(null);
+      expect(r.toast).toBe(false);
+      expect(r.fromUrl).not.toBeNull();
+      if (r.exercise === null) throw new Error("resolveInitial found no exercise");
+      let s = reducer(initialSession(r.exercise), {
+        type: "load",
+        exercise: r.exercise,
+        source: "lesson",
+      });
+      if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl);
+      expect(s.step).toBe(c.step);
+      expect(JSON.parse(JSON.stringify(s.matrix))).toEqual(c.matrix);
+      expect(s.error?.kind ?? null).toBe(c.errorKind);
+    },
+  );
+});
+
+describe("URL overrides validation (v1.4b)", () => {
+  /** Encode `o` the way `encode` does, then decode the full link. */
+  function decodeOverrides(o: unknown): ReturnType<typeof decode> {
+    return decode(
+      "http://x/?lesson=nj-basics&o=" +
+        encodeURIComponent(
+          compressToEncodedURIComponent(JSON.stringify(o)),
+        ),
+    );
+  }
+
+  it("valid site_filter and kappa overrides decode", () => {
+    for (const o of [
+      { analysis: { site_filter: { kind: "pairwise" } } },
+      { analysis: { site_filter: { kind: "complete" } } },
+      { analysis: { site_filter: { kind: "partial", cutoff_pct: 95 } } },
+      { analysis: { site_filter: { kind: "partial", cutoff_pct: 0 } } },
+      { analysis: { site_filter: { kind: "partial", cutoff_pct: 100 } } },
+      { analysis: { correction: "Poisson" } },
+      {
+        analysis: {
+          correction: { K2pPhylip: { ratio: 4 } },
+          kappa: 4,
+        },
+      },
+      { analysis: { correction: "Jc69", kappa: 2 } },
+    ]) {
+      const d = decodeOverrides(o);
+      expect(d.ok, JSON.stringify(o)).toBe(true);
+    }
+  });
+
+  it.each([
+    ["cutoff 101", { site_filter: { kind: "partial", cutoff_pct: 101 } }],
+    ["cutoff -1", { site_filter: { kind: "partial", cutoff_pct: -1 } }],
+    ["cutoff 2.5", { site_filter: { kind: "partial", cutoff_pct: 2.5 } }],
+    ["cutoff null", { site_filter: { kind: "partial", cutoff_pct: null } }],
+    ["cutoff string", { site_filter: { kind: "partial", cutoff_pct: "95" } }],
+    ["cutoff missing on partial", { site_filter: { kind: "partial" } }],
+    ["cutoff on pairwise", { site_filter: { kind: "pairwise", cutoff_pct: 95 } }],
+    ["cutoff on complete", { site_filter: { kind: "complete", cutoff_pct: 95 } }],
+    ["unknown kind", { site_filter: { kind: "mega" } }],
+    ["kind missing", { site_filter: { cutoff_pct: 50 } }],
+    ["site_filter null", { site_filter: null }],
+    ["site_filter string", { site_filter: "complete" }],
+    ["site_filter array", { site_filter: ["partial", 95] }],
+    ["kappa 0", { kappa: 0 }],
+    ["kappa -1", { kappa: -1 }],
+    ["kappa string", { kappa: "2" }],
+    ["kappa null", { kappa: null }],
+    ["kappa array", { kappa: [2] }],
+  ])("an o= override with %s is a restore error", (_name, analysis) => {
+    const d = decodeOverrides({ analysis });
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.reason.length).toBeGreaterThan(0);
+  });
+
+  it("an #x= payload with a malformed overrides site_filter fails too", () => {
+    expect(
+      migrate({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        overrides: {
+          analysis: { site_filter: { kind: "partial", cutoff_pct: 101 } },
+        },
+      }),
+    ).toBeNull();
+    expect(
+      migrate({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        overrides: { analysis: { kappa: -2 } },
+      }),
+    ).toBeNull();
+    // The same malformed analysis inside a query-string o= reaches the
+    // same refusal through decode.
+    const d = decodeOverrides({
+      analysis: { site_filter: { kind: "partial" } },
+    });
+    expect(d.ok).toBe(false);
+  });
+});

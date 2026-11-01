@@ -50,6 +50,7 @@ export {
 export {
   CORRECTIONS,
   DIST_LABEL,
+  SANDBOX_MODELS,
   SIM_LABEL,
   SIM_MODEL_NAMES,
   distModelName,
@@ -57,6 +58,8 @@ export {
   k2pLabel,
   recompute,
   simModelName,
+  siteFilterName,
+  type CorrectionMenuName,
   type DistModelName,
   type SimModelName,
 } from "./analysis";

@@ -14,7 +14,7 @@ import {
   reducer,
 } from "./session";
 import type { Session } from "./session";
-import { encode } from "./url";
+import { decode, encode } from "./url";
 import { sessionUrlState } from "./urlRestore";
 
 // The spec §7 example exercise file.
@@ -985,5 +985,191 @@ describe("settings rebuild after the bootstrap stage (Task 13 owner fix)", () =>
     expect(next.step).toBe(0);
     // The counters are cleared like any non-bootstrap lesson.
     expect(next.bootstrap.completedRuns).toBe(0);
+  });
+});
+
+// v1.4b Task 10: the site filter lives in `analysis.site_filter` and
+// drives `recompute` (distancesFiltered); `{kind:"pairwise"}` and an
+// absent filter are bit-identical to the pre-v1.4b path. A loaded v4
+// protein exercise keeps `Poisson` through load/sandbox (the Task 6
+// note: correctionValidFor used to rewrite it to Jtt), and switching
+// to DNA data falls back to the DNA default with a notice
+// (Review Focus 4).
+describe("v1.4b site filter and Poisson in state", () => {
+  // Embedded DNA where b alone is missing at columns 2–3 ("ACNNACG"):
+  // complete deletion drops exactly those two columns; pairwise keeps
+  // them for every pair not involving b.
+  const GAPPED_FASTA = [
+    ">a",
+    "ACGTACG",
+    ">b",
+    "ACNNACG",
+    ">c",
+    "ACGTACA",
+    ">d",
+    "ACGTACG",
+  ].join("\\n");
+
+  function v4Exercise(siteFilter: string | null): Exercise {
+    const sf =
+      siteFilter === null
+        ? ""
+        : `, "site_filter": ${siteFilter}`;
+    return exercise(`{
+      "schema_version": 4, "id": "gaps", "title": "g", "summary": "s",
+      "alphabet": "dna",
+      "data": { "kind": "embedded", "fasta": "${GAPPED_FASTA}",
+        "source": { "citation": "t", "license": "t", "accessions": [] } },
+      "reference": null,
+      "analysis": { "correction": "JC69", "method": "NJ"${sf} }
+    }`);
+  }
+
+  function loadEx(ex: Exercise): Session {
+    return reducer(emptySession(ex), {
+      type: "load",
+      exercise: ex,
+      source: "lesson",
+    });
+  }
+
+  it("pairwise_is_absent: an explicit pairwise filter equals no filter", () => {
+    const plain = loadEx(v4Exercise(null));
+    const pairwise = loadEx(v4Exercise('{ "kind": "pairwise" }'));
+    expect(plain.error).toBeNull();
+    expect(pairwise.error).toBeNull();
+    expect(pairwise.exercise.analysis.site_filter).toEqual({
+      kind: "pairwise",
+    });
+    expect(pairwise.matrix).toEqual(plain.matrix);
+    expect(pairwise.result).toEqual(plain.result);
+  });
+
+  it("site_filter_drives_analysis: complete deletion changes the distances", () => {
+    const pairwise = loadEx(v4Exercise('{ "kind": "pairwise" }'));
+    const complete = loadEx(v4Exercise('{ "kind": "complete" }'));
+    expect(pairwise.error).toBeNull();
+    expect(complete.error).toBeNull();
+    // Columns 2–3 are missing in b — complete deletion drops them for
+    // every pair; pairwise drops them only inside pairs involving b.
+    // c and d differ only in kept column 6, so the matrices differ.
+    const dist = engine.distancesFiltered(complete.alignment!, "Jc69", {
+      kind: "complete",
+    });
+    if (!dist.ok) throw new Error("distancesFiltered failed");
+    expect(complete.matrix).toEqual(dist.value);
+    // The filtered matrix is the engine's, not the unfiltered one.
+    const unfiltered = engine.distances(complete.alignment!, "Jc69");
+    if (!unfiltered.ok) throw new Error("distances failed");
+    expect(complete.matrix).not.toEqual(unfiltered.value);
+    expect(pairwise.matrix).toEqual(unfiltered.value);
+  });
+
+  it("a setAnalysis site_filter patch recomputes with the filter", () => {
+    let s = loadEx(v4Exercise(null));
+    const before = s.matrix;
+    s = reducer(s, {
+      type: "setAnalysis",
+      patch: { site_filter: { kind: "complete" } },
+    });
+    expect(s.error).toBeNull();
+    expect(s.exercise.analysis.site_filter).toEqual({ kind: "complete" });
+    expect(s.matrix).not.toEqual(before);
+    // Clearing back to pairwise restores the unfiltered matrix.
+    s = reducer(s, {
+      type: "setAnalysis",
+      patch: { site_filter: { kind: "pairwise" } },
+    });
+    expect(s.matrix).toEqual(before);
+  });
+
+  it("all_gap_is_no_sites_kept: complete deletion on an all-gap alignment shows the message (Review Focus 1)", () => {
+    const allGap = exercise(`{
+      "schema_version": 4, "id": "allgap", "title": "g", "summary": "s",
+      "alphabet": "dna",
+      "data": { "kind": "embedded",
+        "fasta": ">a\\nA-G\\n>b\\n-AG\\n>c\\nAA-\\n>d\\nA-G",
+        "source": { "citation": "t", "license": "t", "accessions": [] } },
+      "reference": null,
+      "analysis": { "correction": "JC69", "method": "NJ",
+        "site_filter": { "kind": "complete" } }
+    }`);
+    const s = loadEx(allGap);
+    expect(s.error?.kind).toBe("NoSitesKept");
+    if (s.error?.kind === "NoSitesKept") {
+      expect(s.error.filter).toBe("complete");
+    }
+    // The tree area falls back to the empty state: no matrix, no tree.
+    expect(s.matrix).toBeNull();
+    expect(s.result).toBeNull();
+    // Switching back to pairwise recovers instead of staying stuck.
+    const recovered = reducer(s, {
+      type: "setAnalysis",
+      patch: { site_filter: { kind: "pairwise" } },
+    });
+    expect(recovered.error).toBeNull();
+    expect(recovered.result).not.toBeNull();
+  });
+
+  it("poisson_exercise_keeps_poisson: a loaded v4 protein exercise keeps Poisson (deferred Task 6 note)", () => {
+    const text = readFileSync(
+      resolve("src", "lessons", "__fixtures__", "v4-poisson-valid.json"),
+      "utf8",
+    );
+    const ex = exercise(text);
+    let s = loadEx(ex);
+    expect(s.error).toBeNull();
+    expect(s.exercise.analysis.correction).toBe("Poisson");
+    // Entering the sandbox must not rewrite it either.
+    s = reducer(s, { type: "enterSandbox" });
+    expect(s.exercise.analysis.correction).toBe("Poisson");
+    expect(s.notice).toBeNull();
+  });
+
+  it("poisson_to_dna_falls_back_with_notice: a Poisson sandbox on a DNA import switches to the DNA default (Review Focus 4)", () => {
+    const text = readFileSync(
+      resolve("src", "lessons", "__fixtures__", "v4-poisson-valid.json"),
+      "utf8",
+    );
+    const ex = exercise(text);
+    let s = reducer(loadEx(ex), { type: "enterSandbox" });
+    const parsed = engine.parseFasta(
+      ">a\nACGT\n>b\nACGA\n>c\nACGC\n>d\nACGA",
+    );
+    if (!parsed.ok) throw new Error("unreachable");
+    s = reducer(s, { type: "importAlignment", alignment: parsed.value });
+    expect(s.error).toBeNull();
+    expect(s.alphabet).toBe("dna");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    // The simulated exercise's JTT sim model switches too (Review
+    // Focus 4: never an invalid model for the new alphabet).
+    expect(s.notice).toBe(
+      "Switched correction to JC69 and the simulation model to JC69 " +
+        "because this data is now DNA.",
+    );
+  });
+
+  it("site_filter_survives_url_roundtrip: o= carries it and restore drives recompute", () => {
+    let s = loadEx(v4Exercise('{ "kind": "complete" }'));
+    s = reducer(s, { type: "enterSandbox" });
+    const state = sessionUrlState(s, { kind: "lesson" });
+    expect(state.overrides?.analysis?.site_filter).toEqual({
+      kind: "complete",
+    });
+    // Encode → decode keeps the filter inside the analysis override.
+    const d = decode(encode(state));
+    if (!d.ok) throw new Error("decode failed");
+    expect(d.state.overrides?.analysis?.site_filter).toEqual({
+      kind: "complete",
+    });
+    // Merging the overrides onto the exercise (resolveInitial's rule)
+    // makes the first recompute already filtered.
+    const ex = v4Exercise(null);
+    const merged: Exercise = {
+      ...ex,
+      analysis: { ...ex.analysis, ...d.state.overrides!.analysis },
+    };
+    const restored = loadEx(merged);
+    expect(restored.matrix).toEqual(s.matrix);
   });
 });

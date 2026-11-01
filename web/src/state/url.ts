@@ -108,6 +108,18 @@ export function decode(href: string): DecodeResult {
     } catch {
       return { ok: false, reason: "the shared state is not valid JSON" };
     }
+    // Same refusal as the `o=` path: a malformed site_filter or κ in
+    // the overrides is a restore error, never a dropped field.
+    if (
+      isRecord(raw) &&
+      isRecord(raw.overrides) &&
+      invalidAnalysisOverride(raw.overrides.analysis) !== null
+    ) {
+      return {
+        ok: false,
+        reason: invalidAnalysisOverride(raw.overrides.analysis)!,
+      };
+    }
     const state = migrate(raw);
     if (state === null) {
       return { ok: false, reason: "the shared state has an unsupported version" };
@@ -165,6 +177,8 @@ export function decode(href: string): DecodeResult {
     if (!isRecord(raw)) {
       return { ok: false, reason: "the overrides are not an object" };
     }
+    const bad = invalidAnalysisOverride(raw.analysis);
+    if (bad !== null) return { ok: false, reason: bad };
     state.overrides = raw as UrlState["overrides"];
   }
 
@@ -209,6 +223,51 @@ export function decode(href: string): DecodeResult {
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+/** The wire shape of `analysis.site_filter` (v1.4b spec §4):
+ * `{ "kind": "pairwise" | "complete" | "partial", "cutoff_pct": <integer
+ * 0–100> }`, with `cutoff_pct` present only for partial. Anything else —
+ * a null, a string, an array, an unknown kind, an out-of-range,
+ * non-integer or absent cutoff — is refused rather than dropped. */
+function invalidSiteFilter(x: unknown): string | null {
+  if (!isRecord(x)) return "the overrides' site filter is not an object";
+  const kind = x.kind;
+  const cutoff = x.cutoff_pct;
+  if (kind === "pairwise" || kind === "complete") {
+    return cutoff === undefined
+      ? null
+      : "the overrides' site filter has a cutoff only partial deletion uses";
+  }
+  if (kind === "partial") {
+    return typeof cutoff === "number" &&
+      Number.isInteger(cutoff) &&
+      cutoff >= 0 &&
+      cutoff <= 100
+      ? null
+      : "the overrides' partial-deletion cutoff is not a whole number from 0 to 100";
+  }
+  return "the overrides' site filter has an unknown kind";
+}
+
+/** `overrides.analysis` fields that must be right or refused (v1.4b):
+ * an invalid `site_filter` or κ makes the whole overrides block a
+ * restore error with a reason, like the `d=` failures — never a
+ * silently dropped field. Returns the reason, or null when valid. */
+function invalidAnalysisOverride(a: unknown): string | null {
+  if (a === undefined) return null;
+  if (!isRecord(a)) return "the overrides' analysis is not an object";
+  if (a.site_filter !== undefined) {
+    const bad = invalidSiteFilter(a.site_filter);
+    if (bad !== null) return bad;
+  }
+  if (
+    a.kappa !== undefined &&
+    (typeof a.kappa !== "number" || !Number.isFinite(a.kappa) || a.kappa <= 0)
+  ) {
+    return "the overrides' κ is not a positive number";
+  }
+  return null;
 }
 
 function validStep(x: unknown): x is number {
@@ -275,6 +334,12 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.x !== undefined && !isRecord(raw.x)) return null;
   if (raw.src !== undefined && raw.src !== "sandbox") return null;
   if (raw.overrides !== undefined && !isRecord(raw.overrides)) return null;
+  if (
+    raw.overrides !== undefined &&
+    invalidAnalysisOverride(raw.overrides.analysis) !== null
+  ) {
+    return null;
+  }
   if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
   // `bootstrap` exists only at v3; v1/v2 payloads migrate to defaults
   // (no block = replicates 100, seed 1, view "support", ran false).

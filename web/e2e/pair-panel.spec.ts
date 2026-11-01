@@ -99,6 +99,49 @@ test.describe("pair panel", () => {
     );
   });
 
+  test("every likelihood-curve axis label renders inside the svg", async ({
+    page,
+  }) => {
+    // Regression (Task 10 fix): the y tick labels were right-aligned at
+    // x = PAD_L − 3 with too little left padding, so a multi-digit
+    // negative logL like "-512.345" ran off the svg's left edge and
+    // lost its minus sign. Every label's box must lie inside the svg's.
+    await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const svg = dialog.locator("svg.likelihood-curve");
+    await expect(svg).toBeVisible();
+    const svgBox = await svg.boundingBox();
+    expect(svgBox).not.toBeNull();
+
+    const labels = svg.locator(".axis-label");
+    const count = await labels.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const label = labels.nth(i);
+      const box = await label.boundingBox();
+      const text = await label.textContent();
+      expect(box, `label "${text}" has a box`).not.toBeNull();
+      const eps = 1;
+      expect(
+        box!.x,
+        `label "${text}" is clipped on the left`,
+      ).toBeGreaterThanOrEqual(svgBox!.x - eps);
+      expect(
+        box!.x + box!.width,
+        `label "${text}" is clipped on the right`,
+      ).toBeLessThanOrEqual(svgBox!.x + svgBox!.width + eps);
+      expect(
+        box!.y,
+        `label "${text}" is clipped at the top`,
+      ).toBeGreaterThanOrEqual(svgBox!.y - eps);
+      expect(
+        box!.y + box!.height,
+        `label "${text}" is clipped at the bottom`,
+      ).toBeLessThanOrEqual(svgBox!.y + svgBox!.height + eps);
+    }
+  });
+
   test("has no serious axe violations while open", async ({ page }) => {
     await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
     await expect(page.getByRole("dialog")).toBeVisible();

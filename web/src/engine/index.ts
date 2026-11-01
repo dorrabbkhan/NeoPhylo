@@ -22,6 +22,7 @@ import init, {
   edit_set_length,
   edit_validate,
   jtt_pair_detail,
+  jtt_pair_detail_filtered,
   labels_need_quotes,
   load_exercise,
   merge_tallies,
@@ -202,6 +203,16 @@ export const engine = {
   },
   jttPairDetail(a: Alignment, i: number, j: number): Result<PairDetail> {
     return jtt_pair_detail(a, i, j);
+  },
+  /** `jttPairDetail` under a site filter (v1.4b spec §3.1, §6.2);
+   * `{ kind: "pairwise" }` is bit-identical to `jttPairDetail`. */
+  jttPairDetailFiltered(
+    a: Alignment,
+    i: number,
+    j: number,
+    filter: SiteFilter,
+  ): Result<PairDetail> {
+    return jtt_pair_detail_filtered(a, i, j, filter);
   },
   writePhylipMatrix(m: DistanceMatrix, names: NameMode = "Auto"): Result<string> {
     return write_phylip_matrix(m, names);

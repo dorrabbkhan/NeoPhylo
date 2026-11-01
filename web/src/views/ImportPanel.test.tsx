@@ -116,7 +116,7 @@ describe("ImportPanel — FASTA", () => {
   it('Review Focus 4: pasting two sequences shows "Need at least 3 sequences" and no tree', () => {
     const holder = renderPanel(sandbox(NJ_BASICS));
     paste(">a\nACGT\n>b\nACGT\n");
-    expect(screen.getByText("Need at least 3 sequences")).toBeTruthy();
+    expect(screen.getByText(/Need at least 3 sequences/)).toBeTruthy();
     expect(screen.getByTestId("inferred").textContent).toBe("false");
     expect(holder.s.error?.kind).toBe("TooFewTaxa");
   });
@@ -145,13 +145,55 @@ describe("ImportPanel — FASTA", () => {
   it("shows the UnequalLengths title for a ragged alignment", () => {
     renderPanel(sandbox(NJ_BASICS));
     paste(">a\nACGT\n>b\nACG\n>c\nACGT\n");
-    expect(screen.getByText("Sequences aren't aligned")).toBeTruthy();
+    expect(screen.getByText(/Sequences aren't aligned/)).toBeTruthy();
   });
 
   it("explains pairwise deletion under the import box", () => {
     renderPanel(sandbox(NJ_BASICS));
     expect(
       screen.getByText("Gaps and ambiguous bases are skipped pair by pair."),
+    ).toBeTruthy();
+  });
+});
+
+describe("ImportPanel — gap hint per site filter (v1.4b Task 10 fix 2)", () => {
+  const withFilter = (site_filter: Exercise["analysis"]["site_filter"]) =>
+    sandbox({
+      ...NJ_BASICS,
+      analysis: { ...NJ_BASICS.analysis, site_filter },
+    });
+
+  it("keeps the pairwise wording under an explicit pairwise filter", () => {
+    renderPanel(withFilter({ kind: "pairwise" }));
+    expect(
+      screen.getByText("Gaps and ambiguous bases are skipped pair by pair."),
+    ).toBeTruthy();
+  });
+
+  it("describes column removal under complete deletion", () => {
+    renderPanel(withFilter({ kind: "complete" }));
+    expect(
+      screen.getByText(
+        "Columns with a gap or ambiguous base in any sequence are removed (complete deletion).",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("names the coverage cutoff under partial deletion", () => {
+    renderPanel(withFilter({ kind: "partial", cutoff_pct: 80 }));
+    expect(
+      screen.getByText(
+        "Columns with less than 80% coverage are removed (partial deletion).",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("separates the NoSitesKept title from its body like the bootstrap panel does", () => {
+    renderPanel(withFilter({ kind: "complete" }));
+    // Every column carries a gap, so complete deletion keeps nothing.
+    paste(">a\n--AAAA\n>b\nAA--AA\n>c\nAAAA--\n");
+    expect(
+      screen.getByText("The gap filter removed every site."),
     ).toBeTruthy();
   });
 });
@@ -172,7 +214,7 @@ describe("ImportPanel — Newick", () => {
     paste("(x:0.1,y:0.2,z:0.3);");
     paste(">a\nACGT\n>b\nACGT\n>c\nACGT\n");
     expect(
-      screen.getByText("Tree and sequences have different names"),
+      screen.getByText(/Tree and sequences have different names/),
     ).toBeTruthy();
   });
 

@@ -23,10 +23,11 @@ import type { Dispatch } from "react";
 import { engine } from "../engine";
 import type { NameMode } from "../engine/generated/NameMode";
 import type { NeoError } from "../engine/generated/NeoError";
+import type { SiteFilter } from "../engine/generated/SiteFilter";
 import { errorMessage } from "../explain/errors";
 import { loadLesson } from "../lessons/loader";
 import type { Action, Session } from "../state/session";
-import { hasImportedData } from "../state/session";
+import { hasImportedData, siteFilterName } from "../state/session";
 
 import { EmptyState } from "./EmptyState";
 
@@ -52,6 +53,23 @@ function sampleError(detail: string): NeoError {
     field: "sample",
     msg: `could not load the sample (${detail})`,
   };
+}
+
+/** The hint under the box tracks the active site filter (v1.4b Task
+ * 10 fix round 2): "skipped pair by pair" is only true of pairwise
+ * deletion. Complete and partial describe the column removal their
+ * treatment performs — "(complete deletion)" names the filter the
+ * same way the GapControl count line does (`siteFilterName`); the
+ * partial sentence already carries the cutoff in "less than N%
+ * coverage", so its parenthetical stays "(partial deletion)". */
+function gapHint(f: SiteFilter): string {
+  if (f.kind === "complete") {
+    return `Columns with a gap or ambiguous base in any sequence are removed (${siteFilterName(f)} deletion).`;
+  }
+  if (f.kind === "partial") {
+    return `Columns with less than ${f.cutoff_pct}% coverage are removed (${f.kind} deletion).`;
+  }
+  return "Gaps and ambiguous bases are skipped pair by pair.";
 }
 
 export function ImportPanel({ session, dispatch }: ImportPanelProps) {
@@ -222,11 +240,13 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
       )}
       {msg !== null && (
         <p role="alert" className="error">
-          <strong>{msg.title}</strong> {msg.body}
+          <strong>{msg.title}.</strong> {msg.body}
         </p>
       )}
       <p className="import-hint">
-        Gaps and ambiguous bases are skipped pair by pair.
+        {gapHint(
+          session.exercise.analysis.site_filter ?? { kind: "pairwise" },
+        )}
       </p>
       <button
         type="button"
