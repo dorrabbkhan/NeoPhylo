@@ -36,6 +36,14 @@ const exerciseFiles = () =>
     .filter((f) => f.endsWith(".json") && f !== "schema.json")
     .sort();
 
+const exercisePaths = () => [
+  ...exerciseFiles().map((f) => resolve(EXERCISES, f)),
+  ...readdirSync(resolve(EXERCISES, "labs"))
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => resolve(EXERCISES, "labs", f)),
+];
+
 function load(text: string): Exercise {
   const r = engine.loadExercise(text);
   if (!r.ok) throw new Error(`fixture must load: ${JSON.stringify(r.error)}`);
@@ -221,11 +229,24 @@ describe("shareLink", () => {
     expect(r.url.length).toBeLessThanOrEqual(SHARE_LINK_MAX_LENGTH);
   });
 
+  it("every shipped exercises file's share link fits under the limit", () => {
+    for (const p of exercisePaths()) {
+      const loaded = load(readFileSync(p, "utf8"));
+      const r = shareLink({ exercise: loaded }, base);
+      expect(r, p).toHaveProperty("url");
+      if ("url" in r) {
+        expect(r.url.length, p).toBeLessThanOrEqual(SHARE_LINK_MAX_LENGTH);
+      }
+    }
+  });
+
   it("returns tooLong over the limit and never a truncated URL", () => {
     const ex = load(readFileSync(resolve(EXERCISES, "upgma-fails.json"), "utf8"));
-    // Deterministic, poorly compressible padding (Math.random is banned).
+    // Deterministic, poorly compressible padding (Math.random is
+    // banned). ~0.9 of it survives lz compression, so 1.5× the limit
+    // still produces a link over SHARE_LINK_MAX_LENGTH.
     let pad = "";
-    for (let i = 0; pad.length < SHARE_LINK_MAX_LENGTH; i++) {
+    for (let i = 0; pad.length < SHARE_LINK_MAX_LENGTH * 1.5; i++) {
       pad += i.toString(36) + "-";
     }
     const big: Exercise = { ...ex, title: ex.title + pad };

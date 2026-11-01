@@ -38,15 +38,16 @@ import type { SimSpec } from "../engine/generated/SimSpec";
 import { decode, encode } from "../state/url";
 
 /**
- * The maximum length of a share link. PROVISIONAL — owner decision
- * pending (docs/decisions.md): the plan pins `maxLength` to "the
- * existing browser-safe limit already used by that encoder", but the
- * `#x=` encoder in url.ts defines none. 8000 octets is the minimum
- * request-line length RFC 9110 §4.1 recommends servers support; every
- * built-in exercise encodes well under it (cytochrome-c ≈ 4,500
- * characters).
+ * The maximum length of a share link: 32,000 — resolved 2026-11-01,
+ * the value delegated by the owner to the conductor (docs/decisions.md).
+ * `#x=` is a URL fragment, never sent to the server, so request-line
+ * limits don't apply. The shipped lab packs already give links of
+ * 9.3k–10.9k characters (the 16S library alone ≈ 17.6k, lz-string,
+ * 2026-11-01) and the library cap (30 taxa × 2,000 sites) needs more;
+ * 32,000 stays under Slack's 40,000-char limit and far below browser
+ * URL limits (Chrome allows 2 MB).
  */
-export const SHARE_LINK_MAX_LENGTH = 8000;
+export const SHARE_LINK_MAX_LENGTH = 32_000;
 
 /**
  * The `schema_version` written on save: `CURRENT_SCHEMA_VERSION` in

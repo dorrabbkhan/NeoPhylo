@@ -39,17 +39,15 @@ const PAD_T = 26;
 const PAD_B = 20;
 /** The y-axis window depth, in log units (checkpoint 11). */
 const LOG_WINDOW = 15;
-/** Axis labels are pinned to the 12 px token: the plot is a fixed
- * 300×140 viewBox, so a larger font (presenter mode) would overflow
- * the padding its geometry is built around. */
-const LABEL_STYLE = { fontSize: size.xs } as const;
+/** Axis labels are pinned to the 12 px token (inline in `axisLabel`):
+ * the plot is a fixed 300×140 viewBox, so a larger font (presenter
+ * mode) would overflow the padding its geometry is built around. */
 /** Upper bound on one glyph's ink width at 12 px: digits measure
  * ~7.9 units and "-"/"." less, so `len * CHAR_W` covers any label
  * fmt can produce. */
 const CHAR_W = 8;
-/** Baseline for the title row: keeps its ink inside the top edge and
- * above the top tick's label (12 px ink ≈ baseline −11.5 to +2.7). */
-const TITLE_Y = 13;
+/** Baseline for the title row (13): keeps its ink inside the top edge
+ * and above the top tick's label (12 px ink ≈ baseline −11.5 to +2.7). */
 
 /** One axis-label element with the pinned font. */
 const axisLabel = (
@@ -62,7 +60,7 @@ const axisLabel = (
 ) => (
   <text
     className={`axis-label ${cls}`}
-    style={LABEL_STYLE}
+    style={{ fontSize: size.xs }}
     x={x}
     y={y}
     textAnchor={anchor}
@@ -78,7 +76,7 @@ export function LikelihoodCurve({
   loglHat,
   saturated,
 }: LikelihoodCurveProps) {
-  const xMax = curve.length > 0 ? curve[curve.length - 1][0] : 1;
+  const xMax = curve.at(-1)?.[0] ?? 1;
   let curveMax = -Infinity;
   for (const [, l] of curve) {
     if (Number.isFinite(l) && l > curveMax) curveMax = l;
@@ -134,9 +132,11 @@ export function LikelihoodCurve({
   }
 
   // The d̂ label floats above the marker: keep it right of the title
-  // and the y-tick labels, and inside the svg's right edge even for a
-  // wide estimate.
-  const dhatText = `d̂ = ${(dHat ?? 0).toFixed(3)}`;
+  // and the y-tick labels, and inside the svg's right edge. The
+  // combining circumflex (U+0302) after "d" lands on the stem and
+  // reads as "â", so the text is "d = …" and the hat is drawn as a
+  // separate path over the glyph.
+  const dhatText = `d = ${(dHat ?? 0).toFixed(3)}`;
   const dhatX = Math.min(
     Math.max((peak?.px ?? 0) + 6, padL + 9),
     W - 2 - CHAR_W * dhatText.length,
@@ -152,19 +152,16 @@ export function LikelihoodCurve({
       className="likelihood-curve"
       role="img"
       aria-label={label}
-      viewBox={`0 0 ${W} ${H}`}
+      viewBox="0 0 300 140"
     >
-      <line
+      <path
         className="axis"
-        x1={padL}
-        y1={axisY}
-        x2={W - PAD_R}
-        y2={axisY}
+        d={`M ${padL} ${axisY}H${W - PAD_R}M ${padL} ${axisY}v3M ${W - PAD_R} ${axisY}v3`}
       />
       <line className="axis" x1={padL} y1={PAD_T} x2={padL} y2={axisY} />
       {/* Ticks: d at 0, d̂ (the peak line) and the right edge; logL at
           the top and bottom of the window. */}
-      {axisLabel(2, TITLE_Y, "log L(d)")}
+      {axisLabel(2, 13, "log L(d)")}
       {yOk && (
         <>
           {axisLabel(padL - 3, PAD_T, yTopS, "end", "0.32em")}
@@ -179,40 +176,26 @@ export function LikelihoodCurve({
         </>
       )}
       {axisLabel(padL + 3, H - 8, "0", "middle")}
-      <line
-        className="axis"
-        x1={padL}
-        y1={axisY}
-        x2={padL}
-        y2={axisY + 3}
-      />
       {axisLabel(W - PAD_R, H - 8, fmt(xMax), "end")}
-      <line
-        className="axis"
-        x1={W - PAD_R}
-        y1={axisY}
-        x2={W - PAD_R}
-        y2={axisY + 3}
-      />
-      {axisLabel(W - PAD_R, axisY - 3, "d", "end")}
+      {/* The "d" axis name goes in the bottom tick row, centred clear
+          of the 0 and right-edge labels — at the axis's right end its
+          box met the curve's last vertex. */}
+      {axisLabel(W / 2, H - 8, "d", "middle")}
       {drawn.length > 0 && (
         <polyline className="curve" points={points} fill="none" />
       )}
       {below.length > 0 && (
-        <g className="below-range" aria-hidden="true">
-          {below.map((d, i) => (
-            <path
-              key={i}
-              className="below-range-mark"
-              d={`M ${x(d) - 2.5} ${axisY + 1} l 5 0 l -2.5 4 z`}
-            />
-          ))}
-        </g>
+        <path
+          className="below-range below-range-mark"
+          aria-hidden="true"
+          d={below.map((d) => `M ${x(d) - 2.5} ${axisY + 1}l5 0-2.5 4z`).join("")}
+        />
       )}
       {peak !== null && (
-        <g data-peak="true">
+        <>
           <line
             className="peak-line"
+            data-peak
             x1={peak.px}
             y1={peak.py}
             x2={peak.px}
@@ -220,7 +203,13 @@ export function LikelihoodCurve({
           />
           <circle className="peak-marker" cx={peak.px} cy={peak.py} r={3.5} />
           {axisLabel(dhatX, peak.py - 8, dhatText)}
-        </g>
+          {/* The d̂ hat: a small wedge centred over the d's bowl, above
+              the ascender (the label baseline is peak.py − 8). */}
+          <path
+            className="axis-label"
+            d={`M ${dhatX + 1} ${peak.py - 20}h4l-2-2z`}
+          />
+        </>
       )}
       {saturated &&
         axisLabel(W - PAD_R, PAD_T + 8, "no peak: still rising", "end", undefined, "peak-none")}

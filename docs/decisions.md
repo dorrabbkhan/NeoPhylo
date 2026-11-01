@@ -4330,6 +4330,14 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   request-line length); every `exercises/*.json` encodes under it
   (cytochrome-c ≈ 4,500 chars), pinned by a test. Tests derive their
   sizes from the constant, never a literal.
+  Resolved 2026-11-01: 32,000 (value delegated by the owner to the
+  conductor). `#x=` is a URL fragment and is never sent to the server,
+  so the RFC 9110 request-line reasoning doesn't apply. The shipped
+  lab packs already give links of 9.3k–10.9k characters; the 16S
+  library dataset alone gives ≈ 17.6k (lz-string measurement,
+  2026-11-01) and the library cap (30 taxa × 2,000 sites) needs more.
+  32,000 stays under Slack's 40,000-character message limit and far
+  below browser URL limits (Chrome allows 2 MB).
 - **`shareLink` returns `{ url } | { tooLong: true; maxLength } |
   { error: string }`:** the plan's signature is extended with
   `{ error }` because the link is built from the SAVED content — an
@@ -6078,3 +6086,30 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `log L(d)` title and `d̂` label baselines move inside the top edge
   (they clipped ~3.5 units there). `LikelihoodCurve.test.tsx`
   unchanged — no assertion depended on the old padding.
+
+## Post-v1.4b-Task-10 follow-ups (owner request 2026-11-01)
+
+- **`d̂` peak label no longer uses U+0302:** "d̂ = x.xxx" put the
+  combining circumflex on the `d`'s upright stroke and read as "â".
+  The text is now `d = x.xxx` and the hat is a small filled-wedge
+  `path.axis-label` centred over the d's bowl above the ascender
+  (the only path carrying the axis-label class; the e2e checks it
+  sits inside the d glyph's box and above it). The aria-label and
+  the `toFixed(3)` format are unchanged.
+- **`d` axis title moved off the axis's right end:** it sat at
+  (W − PAD_R, axisY − 3), where pair 2–3's curve ends inside its
+  box. It now sits centred in the bottom tick row (`axisLabel(W / 2,
+  H - 8, "d", "middle")`), clear of the `0` and right-edge tick
+  labels; a chromium test maps every `polyline.curve` vertex through
+  the svg's screen CTM and requires none inside the label's box
+  grown by 2 px.
+- **LikelihoodCurve DOM consolidated to fit the initial-JS budget**
+  (120,168 gz; main was 120,154): the hat had to share bytes, so the
+  x-axis and its two tick lines are one `path.axis`, the below-range
+  markers are one `path.below-range-mark` (class `below-range` kept
+  for the tests), the peak group is a fragment with `data-peak` on
+  the `peak-line`, and `TITLE_Y`/`LABEL_STYLE`/`yOk`/`xMax` were
+  inlined or tightened. No visual change; the y-axis stays a
+  `line.axis` because `LikelihoodCurve.test.tsx` locates it.
+- **Share-link limit resolved to 32,000** — see the dated line under
+  the v1.4 Task 7 "Owner decision pending" entry above.
