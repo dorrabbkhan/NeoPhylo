@@ -6217,3 +6217,6 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `distance-matrix .meg files are not supported yet (planned for
   v1.4c)` is a recognized format, not malformed input, so it renders
   in the notice area instead of the error line.
+- 22 existing `editor-*` baselines regenerated for the required Gap
+  treatment row in the editor settings (owner chose option A on
+  #133); no other baseline changed.
