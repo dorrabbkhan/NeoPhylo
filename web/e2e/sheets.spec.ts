@@ -103,22 +103,23 @@ async function withPairPanel(
   await expect(dialog).toHaveCount(0);
 }
 
-/** Open "Coming from PHYLIP?" — the More menu below 1024, the header
- * button at and above it — run `fn`, close via its own ×. */
+/** Open "Coming from PHYLIP?" — the More menu below 1024, the header's
+ * Guides menu at and above it (v1.4b Task 12, owner decision) — run
+ * `fn`, close via its own ×. */
 async function withPhylipHelp(
   page: Page,
   fn: (dialog: Locator) => Promise<void>,
 ) {
-  const direct = page.getByRole("button", { name: "Coming from PHYLIP?" });
-  if (await direct.isVisible()) {
-    await direct.click();
+  const guides = page.getByRole("button", { name: "Guides" });
+  if (await guides.isVisible()) {
+    await guides.click();
   } else {
     await page.getByRole("button", { name: "More" }).click();
-    await page
-      .getByRole("menu")
-      .getByRole("menuitem", { name: "Coming from PHYLIP?" })
-      .click();
   }
+  await page
+    .getByRole("menu")
+    .getByRole("menuitem", { name: "Coming from PHYLIP?" })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Coming from PHYLIP?" });
   await expect(dialog).toBeVisible();
   await fn(dialog);
@@ -377,9 +378,9 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
 
   const more = page.getByRole("button", { name: "More" });
   await expect(more).toBeVisible();
-  // The direct "Coming from PHYLIP?" header button is gone below 1024.
+  // The Guides menu is gone below 1024 — the More menu owns both guides.
   await expect(
-    page.getByRole("button", { name: "Coming from PHYLIP?" }),
+    page.getByRole("button", { name: "Guides" }),
   ).toHaveCount(0);
 
   await more.focus();
@@ -389,7 +390,8 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
   const items = menu.locator('[role="menuitem"]');
   await expect(items).toHaveText([
     "Coming from PHYLIP?",
-    "PHYLIP labs",
+    "Coming from MEGA?",
+    "Labs",
     "Take the tour",
     "Licenses",
     "Source code",

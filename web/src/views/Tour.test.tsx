@@ -184,7 +184,7 @@ describe("Tour — reopen from More (spec §6.7)", () => {
   it("More lists Take the tour and calls back into the app", () => {
     const onTakeTour = vi.fn();
     render(
-      <MoreMenu onOpenPhylipHelp={() => {}} onTakeTour={onTakeTour} />,
+      <MoreMenu onOpenPhylipHelp={() => {}} onOpenMegaHelp={() => {}} onTakeTour={onTakeTour} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(

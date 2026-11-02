@@ -1573,16 +1573,19 @@ a.labs-link {
   border-color: var(--color-accent-border);
 }
 
-.phylip-help .phylip-help-map {
+.phylip-help .phylip-help-map,
+.mega-help .phylip-help-map {
   margin: 8px 0 0;
   padding-left: 18px;
 }
 
-.phylip-help .phylip-help-map li {
+.phylip-help .phylip-help-map li,
+.mega-help .phylip-help-map li {
   margin: 0 0 8px;
 }
 
-.phylip-help code {
+.phylip-help code,
+.mega-help code {
   font-family: var(--font-mono);
 }
 
@@ -1932,13 +1935,34 @@ a.labs-link {
   border-color: var(--color-accent-border);
 }
 
-.more-menu {
+.more-menu,
+.guides-menu {
   position: relative;
+}
+
+/* v1.4b Task 12 (owner decision): the "Guides" button and list reuse
+ * the More menu's styling — same chip trigger, same dropdown. */
+.guides-menu > button {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.guides-menu > button:hover,
+.guides-menu > button:focus-visible,
+.guides-menu > button[aria-expanded="true"] {
+  border-color: var(--color-accent-border);
 }
 
 /* The More menu list drops below its button, right-aligned like the
  * Lessons menu's list — same row styling, menuitem roles. */
-.more-menu-list {
+.more-menu-list,
+.guides-menu-list {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -1953,7 +1977,8 @@ a.labs-link {
   overflow: hidden;
 }
 
-.more-menu-list [role="menuitem"] {
+.more-menu-list [role="menuitem"],
+.guides-menu-list [role="menuitem"] {
   font: inherit;
   text-align: left;
   padding: 8px 12px;
@@ -1965,14 +1990,29 @@ a.labs-link {
   cursor: pointer;
 }
 
-.more-menu-list [role="menuitem"]:last-child {
+.more-menu-list [role="menuitem"]:last-child,
+.guides-menu-list [role="menuitem"]:last-child {
   border-bottom: 0;
 }
 
 .more-menu-list [role="menuitem"]:hover,
-.more-menu-list [role="menuitem"]:focus-visible {
+.more-menu-list [role="menuitem"]:focus-visible,
+.guides-menu-list [role="menuitem"]:hover,
+.guides-menu-list [role="menuitem"]:focus-visible {
   background: var(--color-accent-bg);
   outline: none;
+}
+
+/* The guides' cross-link button (v1.4b Task 12): a button that reads
+ * as an inline link next to the note's real <a>. */
+.guide-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent-contrast);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Touch targets (§6.5): under a coarse pointer every interactive
@@ -2010,9 +2050,22 @@ a.labs-link {
   }
 
   .more-menu-list [role="menuitem"],
+  .guides-menu-list [role="menuitem"],
   .app-footer .repo-link {
     display: inline-flex;
     align-items: center;
+  }
+
+  /* v1.4b Task 12: the guide sheets' plain links and the cross-link
+   * buttons aren't covered by the generic rules above — the same
+   * ≥40×40 floor (conductor note 7). */
+  .phylip-note a,
+  .mega-help a,
+  .guide-link {
+    display: inline-flex;
+    align-items: center;
+    min-width: 40px;
+    min-height: 40px;
   }
 
   .matrix-wrap {

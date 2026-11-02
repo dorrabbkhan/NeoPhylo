@@ -1,13 +1,15 @@
-// The PHYLIP lab index, `?labs` (v1.4 plan Task 11, spec §6.5): every
-// registry lab as a card — title, the PHYLIP chain it reproduces, its
-// objectives and the settings it uses — linking to its `?lab=<id>`
-// page. The registry is empty until Task 12 ships the packs, so the
-// index shows a plain empty state rather than a broken page.
+// The lab index, `?labs` (v1.4 plan Task 11, spec §6.5; v1.4b Task
+// 12, spec §7.3): every registry lab as a card — title, the tool
+// chain it reproduces, its objectives and the settings it uses —
+// linking to its `?lab=<id>` page, grouped under "PHYLIP labs" and
+// "MEGA labs" (the owner's "Labs" rename, 2026-11-02). The MEGA group
+// is empty until the Task 13 handouts land, so it shows a short
+// coming-soon line rather than a bare heading.
 //
 // `LabPickList` is the same list in the compact form the editor's
-// "PHYLIP labs" sheet renders: title + chain + a "Load this lab"
-// button per row, with the load left to the caller (the editor, which
-// owns the unsaved-work question of Review Focus 5).
+// "Labs" sheet renders: title + chain + a "Load this lab" button per
+// row, with the load left to the caller (the editor, which owns the
+// unsaved-work question of Review Focus 5).
 //
 // Like the editor, this page is a lazy route (Root.tsx) — the registry
 // and its ajv import never enter the initial bundle.
@@ -18,8 +20,78 @@ import { Wordmark } from "../Wordmark";
 
 import "./labs.css";
 
+function LabCard({ lab }: { lab: LabSummary }) {
+  return (
+    <li className="lab-card">
+      <div className="lab-card-head">
+        <h2>{lab.title}</h2>
+        <p className="lab-chain">
+          {lab.chain.map((step, i) => (
+            <span key={i}>
+              {i > 0 && <span aria-hidden="true"> → </span>}
+              <code>{step}</code>
+            </span>
+          ))}
+        </p>
+      </div>
+      <ul className="lab-objectives">
+        {lab.objectives.map((o, i) => (
+          <li key={i}>{o}</li>
+        ))}
+      </ul>
+      <table className="lab-settings">
+        <thead>
+          <tr>
+            <th scope="col">Option</th>
+            <th scope="col">NeoPhylo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lab.settings.map((s, i) => (
+            <tr key={i}>
+              <td>{s.option}</td>
+              <td>{s.neophylo}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="lab-card-actions">
+        <a href={`?lab=${encodeURIComponent(lab.id)}`}>Open lab</a>
+      </p>
+    </li>
+  );
+}
+
+function LabGroup({
+  title,
+  labs,
+  empty,
+}: {
+  title: string;
+  labs: LabSummary[];
+  /** Shown under the heading when the group has no labs yet. */
+  empty?: string;
+}) {
+  return (
+    <section className="lab-group" aria-label={title}>
+      <h2 className="lab-group-title">{title}</h2>
+      {labs.length === 0 ? (
+        <p className="labs-empty lab-coming">{empty}</p>
+      ) : (
+        <ol className="lab-list">
+          {labs.map((lab) => (
+            <LabCard key={lab.id} lab={lab} />
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 export function LabIndex() {
   const labs = listLabs();
+  const phylipLabs = labs.filter((l) => l.tool === "phylip");
+  const megaLabs = labs.filter((l) => l.tool === "mega");
   return (
     <main className="lab-page lab-print">
       <header className="lab-page-head lab-nav">
@@ -35,64 +107,29 @@ export function LabIndex() {
         </a>
       </header>
       <div className="lab-main">
-        <h1>PHYLIP labs</h1>
+        <h1>Labs</h1>
         <p className="lab-intro">
-          Guided labs that reproduce the classic PHYLIP chains —
-          dnadist, protdist, seqboot, neighbor and consense — with the
-          PHYLIP default for every option next to the NeoPhylo setting
-          that matches it.
+          Guided labs that reproduce classic PHYLIP chains —
+          dnadist, protdist, seqboot, neighbor and consense — and MEGA
+          analyses, with the tool's default for every option next to
+          the NeoPhylo setting that matches it.
         </p>
         {labs.length === 0 ? (
           <p className="labs-empty">
-            No lab packs yet — the PHYLIP lab packs land with the next
+            No lab packs yet — the lab packs land with the next
             release. Until then,{" "}
             <a href="?editor">build your own exercise</a> or start from
             the Lessons menu in the app.
           </p>
         ) : (
-          <ol className="lab-list">
-            {labs.map((lab) => (
-              <li className="lab-card" key={lab.id}>
-                <div className="lab-card-head">
-                  <h2>{lab.title}</h2>
-                  <p className="lab-chain">
-                    {lab.chain.map((step, i) => (
-                      <span key={i}>
-                        {i > 0 && <span aria-hidden="true"> → </span>}
-                        <code>{step}</code>
-                      </span>
-                    ))}
-                  </p>
-                </div>
-                <ul className="lab-objectives">
-                  {lab.objectives.map((o, i) => (
-                    <li key={i}>{o}</li>
-                  ))}
-                </ul>
-                <table className="lab-settings">
-                  <thead>
-                    <tr>
-                      <th scope="col">Option</th>
-                      <th scope="col">NeoPhylo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lab.settings.map((s, i) => (
-                      <tr key={i}>
-                        <td>{s.option}</td>
-                        <td>{s.neophylo}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="lab-card-actions">
-                  <a href={`?lab=${encodeURIComponent(lab.id)}`}>
-                    Open lab
-                  </a>
-                </p>
-              </li>
-            ))}
-          </ol>
+          <>
+            <LabGroup title="PHYLIP labs" labs={phylipLabs} />
+            <LabGroup
+              title="MEGA labs"
+              labs={megaLabs}
+              empty="MEGA handouts are coming."
+            />
+          </>
         )}
       </div>
     </main>

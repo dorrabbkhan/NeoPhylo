@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "id": "mega-test-lab",
+  "title": "Test MEGA lab: K2P distances → NJ",
+  "summary": "E2E-only MEGA lab pack used by the lab framework tests.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "K80", "kappa": 2, "length": 60, "seed": 7 }
+  },
+  "analysis": {
+    "correction": "K80",
+    "method": "NJ",
+    "site_filter": { "kind": "partial", "cutoff_pct": 95 }
+  },
+  "lab": {
+    "id": "mega-test-lab",
+    "tool": "mega",
+    "title": "Test MEGA lab: distances → NJ",
+    "objectives": [
+      "Run MEGA's distance → NJ chain end to end",
+      "Match each MEGA menu setting to the NeoPhylo control"
+    ],
+    "handout_md": "## Goal\n\nRun the distance → NJ chain on the dataset, then answer the questions.\n\n## Steps\n\n1. Load the lab.\n2. Set the model the table lists.\n3. Record the tree.",
+    "settings": [
+      {
+        "option": "Distance model",
+        "mega_menu": "Distances → Compute pairwise distances",
+        "mega_setting": "Model: Kimura 2-parameter",
+        "neophylo": "Correction: K80"
+      },
+      {
+        "option": "Gap treatment",
+        "mega_menu": "Distances → Compute pairwise distances",
+        "mega_setting": "Gaps/Missing data: Partial deletion",
+        "neophylo": "Gap treatment: Partial, cutoff 95%"
+      },
+      {
+        "option": "Tree method",
+        "mega_menu": "Phylogeny → Construct/test NJ tree",
+        "mega_setting": "Statistical method: Neighbor-Joining",
+        "neophylo": "Method: NJ"
+      }
+    ],
+    "mega_note_md": "MEGA prints the matrix and the tree in its own windows; NeoPhylo draws both and keeps the settings on screen.",
+    "chain": ["Distances → Compute pairwise distances", "Phylogeny → NJ"]
+  }
+}

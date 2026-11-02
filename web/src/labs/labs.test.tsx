@@ -56,17 +56,15 @@ function titleField(): HTMLInputElement {
 }
 
 function openLabsSheet(): HTMLElement {
-  fireEvent.click(screen.getByRole("button", { name: "PHYLIP labs" }));
-  return screen.getByRole("dialog", { name: "PHYLIP labs" });
+  fireEvent.click(screen.getByRole("button", { name: "Labs" }));
+  return screen.getByRole("dialog", { name: "Labs" });
 }
 
-function clickLoadThisLab(sheet: HTMLElement) {
-  // Scope to the test lab's row — Task 12's shipped packs list their
-  // own "Load this lab" buttons alongside it.
-  const row = within(sheet)
-    .getByText("Test lab: dnadist → neighbor")
-    .closest("li");
-  if (row === null) throw new Error("test-lab row missing from the sheet");
+function clickLoadThisLab(sheet: HTMLElement, title = "Test lab: dnadist → neighbor") {
+  // Scope to the one lab's row — other packs list their own
+  // "Load this lab" buttons alongside it.
+  const row = within(sheet).getByText(title).closest("li");
+  if (row === null) throw new Error(`${title} row missing from the sheet`);
   fireEvent.click(
     within(row as HTMLElement).getByRole("button", {
       name: "Load this lab",
@@ -77,6 +75,7 @@ function clickLoadThisLab(sheet: HTMLElement) {
 describe("lab index and lab page", () => {
   it("the index lists the lab with its objectives and a link to its page", () => {
     render(<LabIndex />);
+    expect(screen.getByRole("heading", { name: "Labs" })).toBeTruthy();
     expect(
       screen.getByRole("heading", { name: "PHYLIP labs" }),
     ).toBeTruthy();
@@ -108,6 +107,41 @@ describe("lab index and lab page", () => {
     expect(screen.queryByText(/no lab packs/i)).toBeNull();
   });
 
+  it("groups the index under PHYLIP labs and MEGA labs; the empty MEGA group says handouts are coming", () => {
+    render(<LabIndex />);
+    expect(screen.getByRole("heading", { name: "Labs" })).toBeTruthy();
+    const phylip = screen.getByRole("heading", { name: "PHYLIP labs" });
+    const mega = screen.getByRole("heading", { name: "MEGA labs" });
+    // Each card sits under its own group's heading (DOM order).
+    const testCard = screen
+      .getByText("Test lab: dnadist → neighbor")
+      .closest("li");
+    const megaCard = screen
+      .getByText("Test MEGA lab: distances → NJ")
+      .closest("li");
+    if (testCard === null || megaCard === null) {
+      throw new Error("a lab card is missing from the index");
+    }
+    expect(
+      phylip.compareDocumentPosition(testCard) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      mega.compareDocumentPosition(megaCard) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The MEGA group lists labs, so no coming-soon line shows.
+    expect(screen.queryByText(/handouts are coming/i)).toBeNull();
+
+    // Without the e2e flag the MEGA group is empty and shows the
+    // short line instead of a bare heading.
+    window.localStorage.removeItem("neophylo-e2e");
+    cleanup();
+    render(<LabIndex />);
+    expect(screen.getByRole("heading", { name: "MEGA labs" })).toBeTruthy();
+    expect(screen.getByText(/MEGA handouts are coming/i)).toBeTruthy();
+  });
+
   it("the lab page renders the chain, objectives, settings table and handout", async () => {
     render(<LabPage id="test-lab" />);
     expect(
@@ -131,6 +165,38 @@ describe("lab index and lab page", () => {
     expect(load.getAttribute("href")).toMatch(/#x=/);
     expect(document.querySelector(".lab-controls")).toBeTruthy();
     expect(screen.getByRole("button", { name: /print/i })).toBeTruthy();
+  });
+
+  it("a MEGA lab page renders the MEGA settings columns and the MEGA note heading", async () => {
+    render(<LabPage id="mega-test-lab" />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Test MEGA lab: distances → NJ",
+      }),
+    ).toBeTruthy();
+    for (const col of ["Option", "MEGA menu", "MEGA setting", "NeoPhylo"]) {
+      expect(
+        screen.getByRole("columnheader", { name: col }),
+      ).toBeTruthy();
+    }
+    expect(
+      screen.queryByRole("columnheader", { name: "PHYLIP default" }),
+    ).toBeNull();
+    for (const cell of [
+      "Distances → Compute pairwise distances",
+      "Model: Kimura 2-parameter",
+      "Correction: K80",
+    ]) {
+      expect(screen.getAllByText(cell).length).toBeGreaterThan(0);
+    }
+    expect(
+      screen.getByRole("heading", {
+        name: "What MEGA shows you vs what NeoPhylo shows you",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText(/MEGA prints the matrix/)).toBeTruthy();
+    const load = screen.getByRole("link", { name: "Load this lab" });
+    expect(load.getAttribute("href")).toMatch(/#x=/);
   });
 
   it("an unknown lab page says so instead of throwing", async () => {
@@ -201,5 +267,32 @@ describe("load this lab in the editor (Review Focus 5)", () => {
     clickLoadThisLab(sheet2);
     expect(screen.queryByText(/unsaved/i)).toBeNull();
     expect(newickBox().value).toBe(expected);
+  });
+
+  it("the same ask-first flow covers a MEGA lab (Review Focus 5)", () => {
+    renderPanel("(X:0.1,Y:0.2);");
+    fireEvent.change(newickBox(), {
+      target: { value: "(X:0.5,Y:0.5);" },
+    });
+    fireEvent.keyDown(newickBox(), { key: "Enter" });
+    const expected = engine.writeNewick(parseTree(LAB_TREE));
+
+    const sheet = openLabsSheet();
+    clickLoadThisLab(sheet, "Test MEGA lab: distances → NJ");
+    expect(
+      screen.getAllByText(/unsaved/i).length,
+    ).toBeGreaterThan(0);
+    // Declining keeps the exact draft.
+    fireEvent.click(screen.getByRole("button", { name: /keep my work/i }));
+    expect(newickBox().value).toBe("(X:0.5,Y:0.5);");
+
+    clickLoadThisLab(sheet, "Test MEGA lab: distances → NJ");
+    fireEvent.click(screen.getByRole("button", { name: /replace/i }));
+    expect(newickBox().value).toBe(expected);
+    expect(titleField().value).toBe("Test MEGA lab: K2P distances → NJ");
+    expect(
+      (screen.getByRole("combobox", { name: "Model" }) as HTMLSelectElement)
+        .value,
+    ).toBe("K80");
   });
 });

@@ -105,6 +105,12 @@ const PhylipHelp = lazy(() =>
   import("./PhylipHelp").then((m) => ({ default: m.PhylipHelp })),
 );
 
+// "Coming from MEGA?" is a lazy chunk too (v1.4b Task 12 — the same
+// §8.2 rule): fetched on first open, never with the app.
+const MegaHelp = lazy(() =>
+  import("./MegaHelp").then((m) => ({ default: m.MegaHelp })),
+);
+
 // "Watch one replicate" is a lazy chunk too (v1.4b Task 10, owner
 // decision 2026-10-30 — the v1.3 Task 14 precedent): fetched on first
 // open, not with the app. Sheet's mount-time focus contract is
@@ -152,8 +158,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // (v1.1 spec §5.2): only cells whose labels are still taxon names —
   // not joined clusters u1, u2, … — resolve to alignment sequences.
   const [pair, setPair] = useState<[string, string] | null>(null);
-  // "Coming from PHYLIP?" help dialog, opened from the header (§5.5).
-  const [phylipHelp, setPhylipHelp] = useState(false);
+  // The open guide sheet — "Coming from PHYLIP?" or "Coming from
+  // MEGA?" (v1.4b Task 12, owner decision: the header's Guides menu
+  // opens either; each sheet cross-links to the other).
+  const [guide, setGuide] = useState<"phylip" | "mega" | null>(null);
   // The library's "Open dataset" sheet (v1.4b Task 11), opened from
   // the import panel — including inside the Settings drawer, which
   // closes behind it like the replicate panel's does.
@@ -931,7 +939,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
           link.kind === "lesson" ? session.exercise.id : null
         }
         onPickLesson={(id) => void onPickLesson(id)}
-        onOpenPhylipHelp={() => setPhylipHelp(true)}
+        onOpenPhylipHelp={() => setGuide("phylip")}
+        onOpenMegaHelp={() => setGuide("mega")}
         theme={session.theme}
         presenter={session.presenter}
         dispatch={dispatch}
@@ -1257,9 +1266,20 @@ export function App({ exercise }: { exercise?: Exercise }) {
           />
         </Suspense>
       )}
-      {phylipHelp && (
+      {guide === "phylip" && (
         <Suspense fallback={null}>
-          <PhylipHelp onClose={() => setPhylipHelp(false)} />
+          <PhylipHelp
+            onClose={() => setGuide(null)}
+            onOpenMegaHelp={() => setGuide("mega")}
+          />
+        </Suspense>
+      )}
+      {guide === "mega" && (
+        <Suspense fallback={null}>
+          <MegaHelp
+            onClose={() => setGuide(null)}
+            onOpenPhylipHelp={() => setGuide("phylip")}
+          />
         </Suspense>
       )}
       {session.tourStep !== null && (

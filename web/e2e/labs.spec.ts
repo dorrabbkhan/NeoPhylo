@@ -43,6 +43,7 @@ test("the lab index lists the test lab and links to its page; both pages are axe
   page,
 }) => {
   await page.goto("/?labs");
+  await expect(page.getByRole("heading", { name: "Labs" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "PHYLIP labs" }),
   ).toBeVisible();
@@ -313,11 +314,56 @@ test("the print view hides the controls and keeps the handout and settings table
   ).toBeVisible();
 });
 
+test("a MEGA lab groups under MEGA labs on the index and its page shows the MEGA columns and note heading", async ({
+  page,
+}) => {
+  await page.goto("/?labs");
+  await expect(
+    page.getByRole("heading", { name: "MEGA labs" }),
+  ).toBeVisible();
+  const megaCard = page.locator(".lab-card", {
+    hasText: "Test MEGA lab: distances → NJ",
+  });
+  await expect(megaCard).toBeVisible();
+  await megaCard.getByRole("link", { name: /open lab/i }).click();
+  await expect(
+    page.getByRole("heading", { name: "Test MEGA lab: distances → NJ" }),
+  ).toBeVisible();
+  for (const col of ["Option", "MEGA menu", "MEGA setting", "NeoPhylo"]) {
+    await expect(
+      page.getByRole("columnheader", { name: col }),
+    ).toBeVisible();
+  }
+  await expect(
+    page.getByRole("heading", {
+      name: "What MEGA shows you vs what NeoPhylo shows you",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/MEGA prints the matrix/)).toBeVisible();
+});
+
+test("a MEGA lab loads through its lab page into the app", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=mega-test-lab");
+  await expect(
+    page.getByRole("heading", { name: "Test MEGA lab: distances → NJ" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.locator(".app-header h1")).toContainText(
+    "Test MEGA lab: K2P distances → NJ",
+  );
+  await expect(page.getByLabel("Distance correction")).toHaveValue("K80");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+});
+
 test("a clean editor loads the lab without asking", async ({ page }) => {
   await page.goto("/?editor");
   await expect(NEWICK(page)).toBeVisible();
-  await page.getByRole("button", { name: "PHYLIP labs" }).click();
-  const sheet = page.getByRole("dialog", { name: "PHYLIP labs" });
+  await page.getByRole("button", { name: "Labs" }).click();
+  const sheet = page.getByRole("dialog", { name: "Labs" });
   await expect(sheet).toBeVisible();
   await expect(
     sheet.getByText("Test lab: dnadist → neighbor"),
@@ -344,8 +390,8 @@ test("with unsaved editor work Load this lab asks first; keep declines, replace 
   await newick.press("Enter");
   await page.getByLabel("Title").fill("My draft");
 
-  await page.getByRole("button", { name: "PHYLIP labs" }).click();
-  const sheet = page.getByRole("dialog", { name: "PHYLIP labs" });
+  await page.getByRole("button", { name: "Labs" }).click();
+  const sheet = page.getByRole("dialog", { name: "Labs" });
   await testLabRow(sheet)
     .getByRole("button", { name: "Load this lab" })
     .click();
@@ -413,25 +459,25 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
     ).toBeGreaterThanOrEqual(40);
   };
 
-  // The header's "PHYLIP labs" chip at the wide breakpoint.
+  // The header's "Labs" chip at the wide breakpoint.
   const headerLink = page.locator("a.labs-link");
   await expect(headerLink).toBeVisible();
-  await expectFloor(headerLink, 'header "PHYLIP labs" link at 1366 px');
+  await expectFloor(headerLink, 'header "Labs" link at 1366 px');
 
   // Its Settings-drawer mirror at the medium breakpoint.
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.getByRole("button", { name: "Settings" }).click();
   const drawerLink = page.locator("a.settings-drawer-labs");
   await expect(drawerLink).toBeVisible();
-  await expectFloor(drawerLink, 'drawer "PHYLIP labs" link at 1024 px');
+  await expectFloor(drawerLink, 'drawer "Labs" link at 1024 px');
   await page.keyboard.press("Escape");
 
   // And the More-menu item below 1024 px.
   await page.setViewportSize({ width: 768, height: 900 });
   await page.getByRole("button", { name: "More" }).click();
-  const moreItem = page.getByRole("menuitem", { name: "PHYLIP labs" });
+  const moreItem = page.getByRole("menuitem", { name: "Labs" });
   await expect(moreItem).toBeVisible();
-  await expectFloor(moreItem, 'More-menu "PHYLIP labs" item at 768 px');
+  await expectFloor(moreItem, 'More-menu "Labs" item at 768 px');
 
   // Every link and button the lab index and the lab page render —
   // wordmark, nav links, "Open lab", "Load this lab" and the print
@@ -454,9 +500,15 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/?labs");
   await expect(
-    page.getByRole("heading", { name: "PHYLIP labs" }),
+    page.getByRole("heading", { name: "Labs" }),
   ).toBeVisible();
   await checkAll("the lab index");
+
+  await page.goto("/?lab=mega-test-lab");
+  await expect(
+    page.getByRole("heading", { name: "Test MEGA lab: distances → NJ" }),
+  ).toBeVisible();
+  await checkAll("the MEGA lab page");
 
   await page.goto("/?lab=test-lab");
   await expect(
@@ -476,7 +528,7 @@ test("without the e2e flag the index lists only the shipped packs", async ({
   const page = await context.newPage();
   await page.goto("/?labs");
   await expect(
-    page.getByRole("heading", { name: "PHYLIP labs" }),
+    page.getByRole("heading", { name: "Labs" }),
   ).toBeVisible();
   await expect(page.getByText("dnadist → neighbor (F84)")).toBeVisible();
   await expect(page.getByText("protdist → neighbor (JTT)")).toBeVisible();
@@ -489,5 +541,121 @@ test("without the e2e flag the index lists only the shipped packs", async ({
     page.getByText("Test lab: dnadist → neighbor"),
   ).toHaveCount(0);
   await expect(page.getByText(/no lab packs/i)).toHaveCount(0);
+  await expect(
+    page.getByText(/MEGA handouts are coming/i),
+  ).toBeVisible();
+  await context.close();
+});
+
+// v1.4b Task 12 (owner decision, 2026-11-02): the header's "Coming
+// from PHYLIP?" button became a "Guides" menu holding both guides;
+// below 1024 px the More menu carries them. Each guide must be
+// reachable at every width.
+for (const vp of [
+  { w: 1366, h: 900 },
+  { w: 1024, h: 768 },
+  { w: 768, h: 1024 },
+]) {
+  test(`both guides are reachable at ${vp.w} px (${vp.w < 1024 ? "More menu" : "Guides menu"})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.goto("/?lesson=nj-basics");
+    await waitForApp(page);
+
+    const openMenu = async () => {
+      if (vp.w < 1024) {
+        await page.getByRole("button", { name: "More" }).click();
+      } else {
+        await page.getByRole("button", { name: "Guides" }).click();
+      }
+    };
+
+    for (const guide of ["Coming from PHYLIP?", "Coming from MEGA?"]) {
+      await openMenu();
+      await page.getByRole("menuitem", { name: guide }).click();
+      const dialog = page.getByRole("dialog", { name: guide });
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+    }
+  });
+}
+
+// v1.4b Task 12 (conductor note 7): every link/button in MegaHelp,
+// the Guides menu and the cross-links is ≥ 40×40 under a coarse
+// pointer — plain links are not covered by the generic coarse rule,
+// so this test enumerates a, button like the lab-pages pass above.
+test("under (pointer: coarse) every Guides menu, MegaHelp and cross-link target is ≥40×40", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await waitForApp(page);
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  const expectFloor = async (
+    target: import("@playwright/test").Locator,
+    name: string,
+  ) => {
+    const box = await target.boundingBox();
+    expect(box, `${name} has a bounding box`).not.toBeNull();
+    if (box === null) return;
+    expect(
+      box.width,
+      `${name} is at least 40 px wide (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(40);
+    expect(
+      box.height,
+      `${name} is at least 40 px tall (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(40);
+  };
+  const checkAll = async (
+    scope: import("@playwright/test").Locator | import("@playwright/test").Page,
+    what: string,
+  ) => {
+    const targets = scope.locator("a, button");
+    const count = await targets.count();
+    expect(count, `${what}: targets on screen`).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const target = targets.nth(i);
+      if (!(await target.isVisible())) continue;
+      const label =
+        (await target.getAttribute("aria-label")) ??
+        (await target.innerText().catch(() => "")).slice(0, 40) ??
+        `target ${i}`;
+      await expectFloor(target, `${what}: "${label}"`);
+    }
+  };
+
+  // The Guides menu itself.
+  await page.getByRole("button", { name: "Guides" }).click();
+  await checkAll(page.getByRole("menu"), "the Guides menu");
+
+  // MegaHelp: the sheet and everything inside it, including the
+  // "Coming from PHYLIP?" cross-link.
+  await page.getByRole("menuitem", { name: "Coming from MEGA?" }).click();
+  const mega = page.getByRole("dialog", { name: "Coming from MEGA?" });
+  await expect(mega).toBeVisible();
+  await checkAll(mega, "MegaHelp");
+  await mega.getByRole("button", { name: /Coming from PHYLIP\?/ }).click();
+
+  // PhylipHelp: same pass — its "Coming from MEGA?" cross-link is a
+  // plain-styled control too.
+  const phylip = page.getByRole("dialog", {
+    name: "Coming from PHYLIP?",
+  });
+  await expect(phylip).toBeVisible();
+  await checkAll(phylip, "PhylipHelp cross-link");
+
   await context.close();
 });

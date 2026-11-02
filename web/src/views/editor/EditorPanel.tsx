@@ -129,7 +129,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
     null,
   );
   const [notice, setNotice] = useState<Notice | null>(null);
-  // Task 11 (Review Focus 5): the "PHYLIP labs" sheet and the lab
+  // Task 11 (Review Focus 5): the "Labs" sheet and the lab
   // whose load is waiting on the unsaved-work question.
   const [labSheet, setLabSheet] = useState(false);
   const [pendingLab, setPendingLab] = useState<LabSummary | null>(null);
@@ -416,7 +416,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
             setLabSheet(true);
           }}
         >
-          PHYLIP labs
+          Labs
         </button>
         <label className="field import-field">
           <span>Import a file or #x= link</span>
@@ -578,11 +578,11 @@ export function EditorPanel({ model }: EditorPanelProps) {
           }}
         >
           <header className="editor-sheet-head">
-            <h2 id="lab-picker-title">PHYLIP labs</h2>
+            <h2 id="lab-picker-title">Labs</h2>
             <button
               type="button"
               className="close"
-              aria-label="Close the PHYLIP labs list"
+              aria-label="Close the labs list"
               onClick={() => {
                 setLabSheet(false);
                 setPendingLab(null);

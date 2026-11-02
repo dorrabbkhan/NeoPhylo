@@ -157,7 +157,7 @@ export function LabPage({ id }: { id: string }) {
           <Wordmark size="sm" />
         </a>
         <a className="lab-nav-link" href="?labs">
-          PHYLIP labs
+          Labs
         </a>
       </header>
       <div className="lab-main">
@@ -180,6 +180,10 @@ export function LabPage({ id }: { id: string }) {
 
 function LabContent({ lab }: { lab: LabExercise }) {
   const { lab: block } = lab;
+  // v1.4b Task 12 (spec §7.1): a mega lab swaps the settings columns
+  // (PHYLIP default → MEGA menu path + setting) and the note heading
+  // and field. PHYLIP labs render exactly as before.
+  const mega = block.tool === "mega";
   // "Load this lab" is the app's `#x=` link form: the whole exercise —
   // dataset, model, seed and bootstrap settings — travels in the
   // fragment (spec §6.2).
@@ -188,7 +192,7 @@ function LabContent({ lab }: { lab: LabExercise }) {
     <>
       <header className="lab-mast">
         <p className="lab-print-head">
-          NeoPhylo — PHYLIP lab handout
+          NeoPhylo — {mega ? "MEGA" : "PHYLIP"} lab handout
         </p>
         <h1>{block.title}</h1>
         <p className="lab-chain">
@@ -226,27 +230,47 @@ function LabContent({ lab }: { lab: LabExercise }) {
       </section>
       <section aria-labelledby="lab-settings-title">
         <h2 id="lab-settings-title">
-          Settings — PHYLIP default vs NeoPhylo
+          {mega ? "Settings — MEGA vs NeoPhylo" : "Settings — PHYLIP default vs NeoPhylo"}
         </h2>
         <table
           className="lab-settings"
-          aria-label="PHYLIP defaults and the matching NeoPhylo settings"
+          aria-label={
+            mega
+              ? "MEGA menu settings and the matching NeoPhylo settings"
+              : "PHYLIP defaults and the matching NeoPhylo settings"
+          }
         >
           <thead>
             <tr>
               <th scope="col">Option</th>
-              <th scope="col">PHYLIP default</th>
+              {mega ? (
+                <>
+                  <th scope="col">MEGA menu</th>
+                  <th scope="col">MEGA setting</th>
+                </>
+              ) : (
+                <th scope="col">PHYLIP default</th>
+              )}
               <th scope="col">NeoPhylo</th>
             </tr>
           </thead>
           <tbody>
-            {block.settings.map((s, i) => (
-              <tr key={i}>
-                <td>{s.option}</td>
-                <td>{s.phylip_default}</td>
-                <td>{s.neophylo}</td>
-              </tr>
-            ))}
+            {block.tool === "mega"
+              ? block.settings.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.option}</td>
+                    <td>{s.mega_menu}</td>
+                    <td>{s.mega_setting}</td>
+                    <td>{s.neophylo}</td>
+                  </tr>
+                ))
+              : block.settings.map((s, i) => (
+                  <tr key={i}>
+                    <td>{s.option}</td>
+                    <td>{s.phylip_default}</td>
+                    <td>{s.neophylo}</td>
+                  </tr>
+                ))}
           </tbody>
         </table>
       </section>
@@ -256,9 +280,15 @@ function LabContent({ lab }: { lab: LabExercise }) {
       </section>
       <section aria-labelledby="lab-note-title">
         <h2 id="lab-note-title">
-          What PHYLIP's outfile showed you vs NeoPhylo
+          {block.tool === "mega"
+            ? "What MEGA shows you vs what NeoPhylo shows you"
+            : "What PHYLIP's outfile showed you vs NeoPhylo"}
         </h2>
-        <Md source={block.phylip_note_md} />
+        <Md
+          source={
+            block.tool === "mega" ? block.mega_note_md : block.phylip_note_md
+          }
+        />
       </section>
       <footer className="lab-print-foot">
         Printed from NeoPhylo — {block.chain.join(" → ")} lab (

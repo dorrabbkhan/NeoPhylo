@@ -13,12 +13,17 @@ afterEach(cleanup);
 
 function setup() {
   const onOpenPhylipHelp = vi.fn();
+  const onOpenMegaHelp = vi.fn();
   const onTakeTour = vi.fn();
   const utils = render(
-    <MoreMenu onOpenPhylipHelp={onOpenPhylipHelp} onTakeTour={onTakeTour} />,
+    <MoreMenu
+      onOpenPhylipHelp={onOpenPhylipHelp}
+      onOpenMegaHelp={onOpenMegaHelp}
+      onTakeTour={onTakeTour}
+    />,
   );
   const button = utils.getByRole("button", { name: "More" });
-  return { ...utils, button, onOpenPhylipHelp, onTakeTour };
+  return { ...utils, button, onOpenPhylipHelp, onOpenMegaHelp, onTakeTour };
 }
 
 describe("MoreMenu", () => {
@@ -31,7 +36,8 @@ describe("MoreMenu", () => {
     );
     expect(labels).toEqual([
       "Coming from PHYLIP?",
-      "PHYLIP labs",
+      "Coming from MEGA?",
+      "Labs",
       "Take the tour",
       "Licenses",
       "Source code",
@@ -71,6 +77,15 @@ describe("MoreMenu", () => {
     fireEvent.click(button);
     fireEvent.click(getByRole("menuitem", { name: "Coming from PHYLIP?" }));
     expect(onOpenPhylipHelp).toHaveBeenCalledTimes(1);
+    expect(queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("Coming from MEGA? opens the MEGA guide and closes the menu", () => {
+    const { button, getByRole, queryByRole, onOpenMegaHelp } = setup();
+    fireEvent.click(button);
+    fireEvent.click(getByRole("menuitem", { name: "Coming from MEGA?" }));
+    expect(onOpenMegaHelp).toHaveBeenCalledTimes(1);
     expect(queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(button);
   });

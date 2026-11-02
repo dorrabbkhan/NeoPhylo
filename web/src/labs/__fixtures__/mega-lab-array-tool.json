@@ -1,0 +1,25 @@
+{
+  "schema_version": 4,
+  "id": "mega-lab-array-tool",
+  "title": "Lab with an array tool",
+  "summary": "tool must be \"phylip\" or \"mega\" — an array is refused.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "mega-lab-array-tool",
+    "tool": [],
+    "title": "Bad lab",
+    "objectives": ["tool: []"],
+    "handout_md": "Text.",
+    "settings": [
+      { "option": "Model", "phylip_default": "F84", "neophylo": "JC69" }
+    ],
+    "phylip_note_md": "Note.",
+    "chain": ["dnadist"]
+  }
+}
