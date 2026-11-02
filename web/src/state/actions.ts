@@ -21,7 +21,8 @@ export type Action =
   | { type: "setSim"; patch: Partial<SimSpec> }
   | { type: "setAnalysis"; patch: Partial<Exercise["analysis"]> }
   | { type: "setAlphabet"; alphabet: Alphabet }
-  | { type: "importAlignment"; alignment: Alignment }
+  | { type: "importAlignment"; alignment: Alignment; name?: string }
+  | { type: "importDataset"; id: string; title: string; alignment: Alignment }
   | { type: "importTree"; tree: Tree }
   | { type: "step"; to: number }
   | { type: "setMode"; mode: UiState["mode"] }

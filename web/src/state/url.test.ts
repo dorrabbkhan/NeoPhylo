@@ -809,3 +809,148 @@ describe("URL overrides validation (v1.4b)", () => {
     expect(d.ok).toBe(false);
   });
 });
+
+// --- Task 11: the `ds=` library-dataset link ------------------------
+//
+// A sandbox session showing an unmodified library dataset links as
+// `ds=<id>` instead of embedding `d=` data; a fetch failure, an
+// unknown id or `ds`+`d` together are restore errors (v1.4b plan
+// Task 11 / spec §5.3, conductor note 5).
+
+function stubLibraryFetch() {
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+    const m = /library\/([\w.-]+)$/.exec(String(input));
+    if (m === null) return new Response("not found", { status: 404 });
+    try {
+      return new Response(
+        readFileSync(
+          resolve(process.cwd(), `public/library/${m[1]}`),
+          "utf8",
+        ),
+      );
+    } catch {
+      return new Response("not found", { status: 404 });
+    }
+  });
+}
+
+describe("ds= library links", () => {
+  beforeEach(stubLibraryFetch);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    history.replaceState(null, "", "/");
+  });
+
+  it("encode writes ds= and decode restores it", () => {
+    const s: UrlState = {
+      v: 3,
+      step: 0,
+      mode: "concept",
+      src: "sandbox",
+      dataset: "globins",
+    };
+    const href = encode(s);
+    expect(href).toContain("ds=globins");
+    const d = decode(href);
+    expect(d.ok).toBe(true);
+    if (d.ok) expect(d.state.dataset).toBe("globins");
+  });
+
+  it("a session holding a library dataset syncs ds=, not d=", async () => {
+    history.replaceState(null, "", "/?sb=1&ds=globins");
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    expect(r.dataset?.id).toBe("globins");
+    if (r.exercise === null || r.fromUrl === null) {
+      throw new Error("resolveInitial found no exercise/state");
+    }
+    let s = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    s = applyUrlState(s, r.fromUrl, r.dataset);
+    expect(s.alignment?.labels).toHaveLength(23);
+    expect(s.libraryDataset).toBe("globins");
+    const written = encode(sessionUrlState(s, { kind: "lesson" }));
+    expect(written).toContain("ds=globins");
+    expect(written).not.toContain("d=");
+  });
+
+  it("a later file import drops ds= back to d=", async () => {
+    history.replaceState(null, "", "/?sb=1&ds=globins");
+    const r = await resolveInitial(null);
+    if (r.exercise === null || r.fromUrl === null) {
+      throw new Error("resolveInitial found no exercise/state");
+    }
+    let s = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    s = applyUrlState(s, r.fromUrl, r.dataset);
+    const fasta = ">a\nACGT\n>b\nACGA\n>c\nACGG\n";
+    const aln = engine.parseFasta(fasta);
+    if (!aln.ok) throw new Error("parseFasta failed");
+    s = reducer(s, { type: "importAlignment", alignment: aln.value });
+    expect(s.libraryDataset).toBeNull();
+    const written = encode(sessionUrlState(s, { kind: "lesson" }));
+    expect(written).toContain("d=");
+    expect(written).not.toContain("ds=");
+  });
+
+  it("ds and d together are a restore error", () => {
+    const d = decode("/?ds=globins&d=eJyrVspLzNVQSq0oUbJSUEpMLCktsVJKLS0CAA%3D%3D");
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.reason.length).toBeGreaterThan(0);
+  });
+
+  it("an unknown ds id is a restore error naming the id", async () => {
+    history.replaceState(null, "", "/?sb=1&ds=nope");
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(true);
+    expect(r.toastDetail).toBe("unknown library dataset 'nope'");
+    // Falls back to the default lesson, never a blank sandbox.
+    expect(r.exercise).not.toBeNull();
+  });
+
+  it("a fetch failure of a known id is a restore error, not a blank sandbox", async () => {
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("index.json")) {
+        return new Response(
+          readFileSync(
+            resolve(process.cwd(), "public/library/index.json"),
+            "utf8",
+          ),
+        );
+      }
+      return new Response("gone", { status: 500 });
+    });
+    history.replaceState(null, "", "/?sb=1&ds=globins");
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(true);
+    expect(r.toastDetail?.length).toBeGreaterThan(0);
+    expect(r.exercise).not.toBeNull();
+  });
+
+  it("ds= with o= overrides restores both", async () => {
+    const o = compressToEncodedURIComponent(
+      JSON.stringify({ analysis: { correction: "Poisson" } }),
+    );
+    history.replaceState(null, "", `/?sb=1&ds=globins&o=${o}`);
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    if (r.exercise === null || r.fromUrl === null) {
+      throw new Error("resolveInitial found no exercise/state");
+    }
+    let s = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    s = applyUrlState(s, r.fromUrl, r.dataset);
+    expect(s.libraryDataset).toBe("globins");
+    expect(s.exercise.analysis.correction).toBe("Poisson");
+    expect(s.source).toBe("sandbox");
+  });
+});

@@ -375,6 +375,9 @@ export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
         notice,
         alignment: tagged.value,
         alignmentOrigin: "imported",
+        // A reinterpreted alignment is no longer the library file —
+        // links fall back to `d=` (Task 11).
+        libraryDataset: null,
       }),
     ),
   );
@@ -391,6 +394,7 @@ export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
 export function applyImportAlignment(
   s: Session,
   alignment: Alignment,
+  name?: string,
 ): Session {
   return recompute(
     clearBootstrap(
@@ -402,9 +406,28 @@ export function applyImportAlignment(
         source: "sandbox",
         notice: null,
         reference: s.reference?.origin === "imported" ? s.reference : null,
+        // v1.4b Task 11: a fresh import is never a library dataset
+        // (importDataset sets its own id); `name` feeds the .meg title.
+        libraryDataset: null,
+        alignmentName: name ?? null,
       }),
     ),
   );
+}
+
+/** `importDataset` (v1.4b Task 11): a library dataset opens through
+ * exactly the import path, then records its id so links write `ds=`
+ * and its title for the `.meg` export. */
+export function applyImportDataset(
+  s: Session,
+  id: string,
+  title: string,
+  alignment: Alignment,
+): Session {
+  return {
+    ...applyImportAlignment(s, alignment, title),
+    libraryDataset: id,
+  };
 }
 
 /** `importTree`: the imported tree becomes the reference (kind
@@ -433,6 +456,8 @@ export function applyImportTree(s: Session, tree: Tree): Session {
         alignmentOrigin,
         alphabet,
         source: "sandbox",
+        libraryDataset: null,
+        alignmentName: null,
       }),
     ),
   );

@@ -4,7 +4,8 @@
 // the exact path a student's paste would.
 
 import { useState } from "react";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   cleanup,
@@ -15,6 +16,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { engine } from "../engine/index";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
@@ -66,6 +68,7 @@ function renderPanel(initial: Session) {
         <ImportPanel
           session={s}
           dispatch={(a) => setS((cur) => reducer(cur, a))}
+          onOpenDatasets={() => {}}
         />
         <div data-testid="inferred">{String(s.result !== null)}</div>
         <div data-testid="true-tree">{String(s.reference !== null)}</div>
@@ -92,7 +95,7 @@ describe("ImportPanel — visibility", () => {
       source: "lesson",
     });
     const { container } = render(
-      <ImportPanel session={s} dispatch={() => {}} />,
+      <ImportPanel session={s} dispatch={() => {}} onOpenDatasets={() => {}} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -365,5 +368,68 @@ describe("ImportPanel — empty state and samples (v1.3 Task 12, spec §6.8)", (
     );
     expect(holder.s.alignment?.labels).toHaveLength(8);
     expect(screen.getByTestId("inferred").textContent).toBe("true");
+  });
+});
+
+describe("ImportPanel — .meg (v1.4b Task 11)", () => {
+  const MEG_DIR = resolve(
+    process.cwd(),
+    "../crates/neophylo-core/tests/meg_inputs",
+  );
+  const files = readdirSync(MEG_DIR).filter((f) => f.endsWith(".meg"));
+
+  it("accepts .meg in the file picker", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    const input = document.querySelector<HTMLInputElement>(
+      '.import-panel input[type="file"]',
+    );
+    expect(input?.accept).toContain(".meg");
+  });
+
+  it.each(files)(
+    "%s gives the parser's result or its line-numbered error",
+    (name) => {
+      const text = readFileSync(resolve(MEG_DIR, name), "utf8");
+      const expected = engine.parseMeg(text);
+      const holder = renderPanel(sandbox(NJ_BASICS));
+      paste(text);
+      if (expected.ok) {
+        expect(holder.s.alignment?.labels).toEqual(
+          expected.value.alignment.labels,
+        );
+      } else if (expected.error.kind === "Parse") {
+        // The matrix refusal is a notice, not an error line.
+        if (expected.error.msg.startsWith("distance-matrix")) {
+          expect(
+            screen.getByText(/planned for v1\.4c/),
+          ).toBeTruthy();
+        } else {
+          expect(
+            document.querySelector(".import-panel .error")?.textContent,
+          ).toContain(`line ${expected.error.line}`);
+        }
+      }
+    },
+  );
+
+  it("shows parser notices for ignored commands", () => {
+    const text = readFileSync(resolve(MEG_DIR, "commands.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    paste(text);
+    expect(screen.getAllByText(/ignored !\w+ command/).length).toBeGreaterThan(0);
+  });
+
+  it("opens the dataset sheet through the Open dataset button", () => {
+    const onOpenDatasets = vi.fn();
+    const s = sandbox(NJ_BASICS);
+    render(
+      <ImportPanel
+        session={s}
+        dispatch={() => {}}
+        onOpenDatasets={onOpenDatasets}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Open dataset/ }));
+    expect(onOpenDatasets).toHaveBeenCalledTimes(1);
   });
 });

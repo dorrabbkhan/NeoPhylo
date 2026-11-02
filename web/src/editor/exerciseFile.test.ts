@@ -286,3 +286,83 @@ describe("shareLink", () => {
     expect(r).not.toHaveProperty("url");
   });
 });
+
+describe("schema 4 save (v1.4b Task 11)", () => {
+  const STARTER = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
+
+  /** A minimal v4 exercise file's analysis block for import. */
+  function v4File(analysis: Record<string, unknown>): string {
+    return JSON.stringify({
+      schema_version: 4,
+      id: "v4",
+      title: "v4",
+      summary: "v4",
+      alphabet: "protein",
+      data: {
+        kind: "simulated",
+        true_tree: STARTER,
+        sim: { model: "JTT", length: 100, seed: 1 },
+      },
+      analysis,
+    });
+  }
+
+  it("a saved file with a site_filter or Poisson is schema 4 and validates", () => {
+    const ex = load(v4File({
+      correction: "JTT",
+      method: "NJ",
+      site_filter: { kind: "partial", cutoff_pct: 95 },
+    }));
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as {
+      schema_version: number;
+      analysis: Record<string, unknown>;
+    };
+    expect(file.schema_version).toBe(4);
+    expect(file.analysis.site_filter).toEqual({
+      kind: "partial",
+      cutoff_pct: 95,
+    });
+    expect(validate(file), "the saved file validates against schema.json")
+      .toBe(true);
+    // Import → save → reload is identical (the deferred Task-6 hole).
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    expect(back.value.analysis).toEqual(ex.analysis);
+  });
+
+  it("an explicit {kind: pairwise} filter survives import → save", () => {
+    const ex = load(v4File({
+      correction: "JTT",
+      method: "NJ",
+      site_filter: { kind: "pairwise" },
+    }));
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(file.schema_version).toBe(4);
+    expect(
+      (file.analysis as Record<string, unknown>).site_filter,
+    ).toEqual({ kind: "pairwise" });
+  });
+
+  it("a Poisson correction saves as schema 4", () => {
+    const ex = load(v4File({ correction: "Poisson", method: "NJ" }));
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(file.schema_version).toBe(4);
+    expect(validate(file)).toBe(true);
+  });
+
+  it("no v4 fields saves schema 3 as today", () => {
+    const ex = load(
+      readFileSync(resolve(EXERCISES, "nj-basics.json"), "utf8"),
+    );
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    expect((JSON.parse(saved.json) as Record<string, unknown>).schema_version)
+      .toBe(3);
+  });
+});

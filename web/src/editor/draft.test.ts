@@ -456,3 +456,104 @@ describe("import → save preserves uneditable fields", () => {
     expect(preservedFieldNames(EMPTY_PRESERVED)).toEqual([]);
   });
 });
+
+describe("site filter and Poisson (v1.4b Task 11)", () => {
+  /** A schema-4 file loaded through the engine, with the requested
+   * analysis fields (protein so Poisson is legal). */
+  function v4Exercise(
+    siteFilter: Record<string, unknown> | null,
+    correction = "JTT",
+  ): Exercise {
+    const r = engine.loadExercise(
+      JSON.stringify({
+        schema_version: 4,
+        id: "v4",
+        title: "v4",
+        summary: "v4",
+        alphabet: "protein",
+        data: {
+          kind: "simulated",
+          true_tree: STARTER,
+          sim: { model: "JTT", length: 100, seed: 1 },
+        },
+        analysis: {
+          correction,
+          method: "NJ",
+          ...(siteFilter !== null ? { site_filter: siteFilter } : {}),
+        },
+      }),
+    );
+    if (!r.ok) throw new Error(JSON.stringify(r.error));
+    return r.value;
+  }
+
+  it("settingsFromExercise maps a v4 partial site filter", () => {
+    const r = settingsFromExercise(
+      v4Exercise({ kind: "partial", cutoff_pct: 95 }),
+    );
+    if ("error" in r) throw new Error(r.error);
+    expect(r.settings.siteFilter).toEqual({ kind: "partial" });
+    expect(r.settings.cutoff).toBe("95");
+  });
+
+  it("an explicit pairwise filter round-trips instead of dropping", () => {
+    const r = settingsFromExercise(v4Exercise({ kind: "pairwise" }));
+    if ("error" in r) throw new Error(r.error);
+    expect(r.settings.siteFilter).toEqual({ kind: "pairwise" });
+    const state = buildExerciseState(tree(), r.settings, []);
+    expect(state.exercise.analysis.site_filter).toEqual({
+      kind: "pairwise",
+    });
+    expect(state.exercise.schema_version).toBe(4);
+  });
+
+  it("settingsFromExercise maps a Poisson correction", () => {
+    const r = settingsFromExercise(v4Exercise(null, "Poisson"));
+    if ("error" in r) throw new Error(r.error);
+    expect(r.settings.model).toBe("Poisson");
+    const state = buildExerciseState(tree(), r.settings, []);
+    expect(state.exercise.analysis.correction).toBe("Poisson");
+    expect(state.exercise.schema_version).toBe(4);
+  });
+
+  it("schema_version is 4 only when a v4 field is used", () => {
+    expect(
+      buildExerciseState(tree(), settings({ model: "Poisson" }), [])
+        .exercise.schema_version,
+    ).toBe(4);
+    expect(
+      buildExerciseState(
+        tree(),
+        settings({ siteFilter: { kind: "complete" } }),
+        [],
+      ).exercise.schema_version,
+    ).toBe(4);
+    expect(
+      buildExerciseState(tree(), settings({}), []).exercise.schema_version,
+    ).toBe(3);
+  });
+
+  it.each(["101", "-1", "2.5", ""])(
+    "the partial cutoff refuses %s with a message",
+    (cutoff) => {
+      expect(
+        verdict(
+          settings({ siteFilter: { kind: "partial" }, cutoff }),
+          "cutoff",
+        ),
+      ).toBe("error");
+    },
+  );
+
+  it("a valid partial cutoff writes cutoff_pct", () => {
+    const state = buildExerciseState(
+      tree(),
+      settings({ siteFilter: { kind: "partial" }, cutoff: "80" }),
+      [],
+    );
+    expect(state.exercise.analysis.site_filter).toEqual({
+      kind: "partial",
+      cutoff_pct: 80,
+    });
+  });
+});

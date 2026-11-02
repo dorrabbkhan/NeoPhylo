@@ -44,6 +44,11 @@ export interface UrlState {
     alignment?: Alignment;
     trueTree?: string;
   };
+  /** A library dataset id, written `ds=<id>` (v1.4b Task 11): the
+   * sandbox shows the unmodified library file, so the link names it
+   * instead of embedding the data. Mutually exclusive with `d=` —
+   * both together are a restore error. */
+  dataset?: string;
   /** Bootstrap settings (v1.2 spec §6.1, URL v3). `ran` records that a
    * run was requested so reopening the link can auto-start it —
    * results themselves are never stored in links. */
@@ -80,6 +85,9 @@ export function encode(s: UrlState): string {
   }
   if (s.imported !== undefined) {
     p.set("d", compressToEncodedURIComponent(JSON.stringify(s.imported)));
+  }
+  if (s.dataset !== undefined) {
+    p.set("ds", s.dataset);
   }
   if (s.bootstrap !== undefined) {
     p.set("b", compressToEncodedURIComponent(JSON.stringify(s.bootstrap)));
@@ -198,6 +206,21 @@ export function decode(href: string): DecodeResult {
       return { ok: false, reason: "the imported data is not an object" };
     }
     state.imported = normalizeImported(raw);
+  }
+
+  const dsParam = params.get("ds");
+  if (dsParam !== null) {
+    if (dsParam === "") {
+      return { ok: false, reason: "empty library dataset id" };
+    }
+    if (state.imported !== undefined) {
+      return {
+        ok: false,
+        reason:
+          "a link cannot carry both a library dataset (ds=) and imported data (d=)",
+      };
+    }
+    state.dataset = dsParam;
   }
 
   const bParam = params.get("b");

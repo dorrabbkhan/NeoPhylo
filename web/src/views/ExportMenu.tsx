@@ -10,6 +10,7 @@
 import { useState } from "react";
 
 import { engine } from "../engine/index";
+import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { DistModel } from "../engine/generated/DistModel";
@@ -54,6 +55,10 @@ export interface ExportMenuProps {
    * screen theme" is checked; the default is the light print palette
    * (v1.3 spec §7.3). */
   theme: ThemeName;
+  /** The `.meg` export's `!Title`: the dataset or file name (v1.4b
+   * Task 11) — the session's alignmentName, else the exercise
+   * title. */
+  title?: string;
 }
 
 /** Trigger a browser download of `content` under `filename`. */
@@ -98,6 +103,7 @@ export function ExportMenu({
   figure,
   bootstrap,
   theme,
+  title = "neophylo",
 }: ExportMenuProps) {
   const [busy, setBusy] = useState(false);
   // Which figure export last failed, so each failure shows its own
@@ -119,6 +125,10 @@ export function ExportMenu({
   // Review Focus 1: set when a figure export's names reach outside
   // every bundled font subset.
   const [fontWarning, setFontWarning] = useState(false);
+  // `.meg` export (v1.4b Task 11): the whitespace→underscore rename
+  // notice and a refused write's engine message.
+  const [megNote, setMegNote] = useState<string | null>(null);
+  const [megError, setMegError] = useState<string | null>(null);
   const needsQuotes =
     (tree !== null && engine.labelsNeedQuotes(tree)) ||
     (consensusTree !== null && engine.labelsNeedQuotes(consensusTree));
@@ -235,6 +245,35 @@ export function ExportMenu({
     );
   };
 
+  // `.meg` (v1.4b spec §6.3): the lazy export chunk writes the
+  // alignment; labels with whitespace come out with underscores —
+  // never silently, so the notice names the renames; a refused write
+  // shows the engine's error message.
+  const onMeg = async () => {
+    setMegNote(null);
+    setMegError(null);
+    const { megAlignment } = await import("../export/meg");
+    const r = megAlignment(alignment as Alignment, title);
+    if (!r.ok) {
+      const m = errorMessage(r.error);
+      setMegError(`${m.title} ${m.body}`);
+      return;
+    }
+    download(
+      "alignment.meg",
+      new Blob([r.value.text], { type: "text/plain" }),
+    );
+    const renamed = r.value.renamed;
+    if (renamed.length > 0) {
+      setMegNote(
+        `${renamed.length} taxon name${renamed.length > 1 ? "s" : ""} ` +
+          `contain${renamed.length > 1 ? "" : "s"} spaces; they are ` +
+          `written with underscores ` +
+          `(${renamed.map(([, to]) => to).join(", ")})`,
+      );
+    }
+  };
+
   // spec §6.8 + checkpoint 15: tree items follow the current display
   // and say so in their names — the rerooted outgroup view, the
   // unrooted computed view, or nothing when no toggle exists (UPGMA
@@ -292,6 +331,13 @@ export function ExportMenu({
         >
           Distance matrix (PHYLIP)
         </button>
+        <button
+          type="button"
+          disabled={alignment === null}
+          onClick={() => void onMeg()}
+        >
+          Alignment (.meg)
+        </button>
       </div>
       <label className="export-theme-match">
         <input
@@ -344,6 +390,16 @@ export function ExportMenu({
             )}
           </ul>
         </div>
+      )}
+      {megNote !== null && (
+        <div className="phylip-note" role="status">
+          <p>{megNote}</p>
+        </div>
+      )}
+      {megError !== null && (
+        <p role="status" className="export-error">
+          {megError}
+        </p>
       )}
       {phylipNote !== null && (
         <div className="phylip-note" role="status">

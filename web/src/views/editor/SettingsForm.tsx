@@ -34,6 +34,7 @@ const MODEL_OPTIONS: { value: EditorSettings["model"]; label: string }[] =
     { value: "K2P_PHYLIP", label: k2pLabel(2) },
     { value: "Kimura", label: "Kimura" },
     { value: "JTT", label: "JTT" },
+    { value: "Poisson", label: "Poisson" },
   ];
 
 const BASE_NAMES = ["A", "C", "G", "T"] as const;
@@ -151,12 +152,52 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           </select>
         </label>
       </div>
-      {(settings.model === "Kimura" || settings.model === "JTT") && (
+      {(settings.model === "Kimura" ||
+        settings.model === "JTT" ||
+        settings.model === "Poisson") && (
         <p className="editor-hint">
           A protein exercise: sequences are simulated under JTT and
-          corrected with {settings.model === "Kimura" ? "Kimura" : "JTT"}.
+          corrected with {settings.model}.
         </p>
       )}
+      <div className="settings-row">
+        <label className="field">
+          <span>Gap treatment</span>
+          <select
+            aria-label="Gap treatment"
+            value={settings.siteFilter?.kind ?? "default"}
+            onChange={(e) => {
+              const v = e.target.value;
+              patch({
+                siteFilter:
+                  v === "default"
+                    ? null
+                    : ({ kind: v } as NonNullable<
+                        EditorSettings["siteFilter"]
+                      >),
+              });
+            }}
+          >
+            <option value="default">Default (pairwise deletion)</option>
+            <option value="pairwise">Pairwise deletion</option>
+            <option value="complete">Complete deletion</option>
+            <option value="partial">Partial deletion</option>
+          </select>
+        </label>
+        {settings.siteFilter?.kind === "partial" && (
+          <label className="field">
+            <span>Site coverage cutoff (%)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={settings.cutoff}
+              aria-invalid={hasError("cutoff") || undefined}
+              onChange={(e) => patch({ cutoff: e.target.value })}
+            />
+          </label>
+        )}
+      </div>
+      <FieldProblems problems={problems} field="cutoff" />
       {settings.model === "K2P_PHYLIP" && (
         <>
           <div className="settings-row">

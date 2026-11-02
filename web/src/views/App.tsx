@@ -124,6 +124,12 @@ const PairPanel = lazy(() =>
   import("./PairPanel").then((m) => ({ default: m.PairPanel })),
 );
 
+// The "Open dataset" sheet is a lazy chunk too (v1.4b Task 11, the
+// initial-JS budget): fetched on first open, never with the app.
+const DatasetSheet = lazy(() =>
+  import("./DatasetSheet").then((m) => ({ default: m.DatasetSheet })),
+);
+
 const NO_HIGHLIGHT = new Set<number>();
 
 /** Bootstrap view → the consensus kind its tab draws (v1.2 spec §6.8). */
@@ -148,6 +154,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [pair, setPair] = useState<[string, string] | null>(null);
   // "Coming from PHYLIP?" help dialog, opened from the header (§5.5).
   const [phylipHelp, setPhylipHelp] = useState(false);
+  // The library's "Open dataset" sheet (v1.4b Task 11), opened from
+  // the import panel — including inside the Settings drawer, which
+  // closes behind it like the replicate panel's does.
+  const [datasetSheet, setDatasetSheet] = useState(false);
   // The last replicate detail delivered by a worker job (spec §6.5);
   // keyed by replicate index so a stale result can't paint the panel.
   const [repDetail, setRepDetail] = useState<{
@@ -196,7 +206,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
       setPair(null);
       setLink(r.link);
       if (r.toast) {
-        setToast("This link couldn't be opened — showing the default lesson.");
+        setToast(
+          "This link couldn't be opened — showing the default lesson." +
+            (r.toastDetail !== undefined ? ` ${r.toastDetail}` : ""),
+        );
       }
       if (r.exercise === null) {
         setSession(null);
@@ -207,7 +220,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         exercise: r.exercise,
         source: "lesson",
       });
-      if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl);
+      if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl, r.dataset);
       // First-visit tour (spec §6.7): once per device on a plain visit
       // — suppressed by a `lesson=` step link, any `#x=` state, a
       // prop-driven exercise (unit tests) or the tourSeen flag.
@@ -859,7 +872,14 @@ export function App({ exercise }: { exercise?: Exercise }) {
         />
       )}
       {session.source === "sandbox" && (
-        <ImportPanel session={session} dispatch={dispatch} />
+        <ImportPanel
+          session={session}
+          dispatch={dispatch}
+          onOpenDatasets={() => {
+            dispatch({ type: "setDrawer", open: false });
+            setDatasetSheet(true);
+          }}
+        />
       )}
       <ExportMenu
         tree={drawnTree}
@@ -895,6 +915,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         }}
         bootstrap={exportBootstrap}
         theme={session.theme}
+        title={session.alignmentName ?? session.exercise.title}
       />
     </>
   );
@@ -1218,6 +1239,23 @@ export function App({ exercise }: { exercise?: Exercise }) {
         >
           {controlsSections}
         </SettingsDrawer>
+      )}
+      {datasetSheet && (
+        <Suspense fallback={null}>
+          <DatasetSheet
+            confirmReplace={hasImportedData(session)}
+            onOpen={(ds, aln) => {
+              dispatch({
+                type: "importDataset",
+                id: ds.id,
+                title: ds.title,
+                alignment: aln,
+              });
+              setDatasetSheet(false);
+            }}
+            onClose={() => setDatasetSheet(false)}
+          />
+        </Suspense>
       )}
       {phylipHelp && (
         <Suspense fallback={null}>

@@ -34,6 +34,23 @@ const FOUR_TAXA = [
   "ACGAACGAACGTACCTACTA",
 ].join("\n");
 
+/** The gap-treatment scenes' gapped inputs (v1.4b Task 11). */
+const JC8_GAPS = fileURLToPath(
+  new URL("../../fixtures/inputs/jc8_gaps.fasta", import.meta.url),
+);
+
+/** A small gapped protein alignment for the removed-columns scene. */
+const GAPPED_PROTEIN = [
+  ">p1",
+  "MKALIV-GLM",
+  ">p2",
+  "MK-LIVAGLM",
+  ">p3",
+  "MKALIVAG-M",
+  ">p4",
+  "M-ALIVAGLM",
+].join("\n");
+
 /** Deterministic frame for the screenshot: fonts settled and nothing
  * mid-scroll — the window and every scrollable element reset to 0.
  * Every scene's setup calls this as its last step; a scene that wants
@@ -470,6 +487,94 @@ export const SCENES: {
       await expect(page.locator(".lab-print-head")).toBeVisible();
       await expect(page.locator(".lab-controls")).toBeHidden();
       await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4b Task 11: the dataset-library sheet — a centered dialog at
+    // 1920, full-screen below 1024 px (opened via the Settings drawer
+    // there, which closes behind it).
+    name: "dataset-sheet",
+    setup: async (page) => {
+      await page.goto("/");
+      await waitForApp(page);
+      await page.getByRole("radio", { name: "Sandbox" }).click();
+      const gear = page.getByRole("button", { name: "Settings" });
+      if (await gear.isVisible()) {
+        await gear.click();
+        const dlg = page.getByRole("dialog", { name: "Settings" });
+        await expect(dlg).toBeVisible();
+        await dlg.getByRole("button", { name: /Open dataset/ }).click();
+      } else {
+        await page.getByRole("button", { name: /Open dataset/ }).click();
+      }
+      const sheet = page.getByRole("dialog", { name: "Open dataset" });
+      await expect(sheet.locator(".dataset-row")).toHaveCount(5);
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4b Task 11: the gap-treatment control with Partial selected —
+    // the radios, the cutoff input and the removed-site count.
+    name: "gap-partial",
+    setup: async (page) => {
+      await page.goto("/");
+      await waitForApp(page);
+      await page.getByRole("radio", { name: "Sandbox" }).click();
+      const gear = page.getByRole("button", { name: "Settings" });
+      if (await gear.isVisible()) {
+        await gear.click();
+        const dlg = page.getByRole("dialog", { name: "Settings" });
+        await expect(dlg).toBeVisible();
+        await dlg
+          .locator('.import-panel input[type="file"]')
+          .setInputFiles(JC8_GAPS);
+        await dlg.getByRole("radio", { name: "Partial deletion" }).click();
+        await expect(dlg.locator(".gap-count")).toContainText(
+          "sites removed by partial 95% deletion",
+        );
+      } else {
+        await page
+          .locator('.import-panel input[type="file"]')
+          .setInputFiles(JC8_GAPS);
+        await page.getByRole("radio", { name: "Partial deletion" }).click();
+        await expect(page.locator(".gap-count")).toContainText(
+          "sites removed by partial 95% deletion",
+        );
+      }
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4b Task 11: the pair panel's removed columns under complete
+    // deletion on a gapped protein alignment.
+    name: "pair-panel-removed",
+    setup: async (page) => {
+      await page.goto("/");
+      await waitForApp(page);
+      await page.getByRole("radio", { name: "Sandbox" }).click();
+      const scope = async (fn: (s: Locator) => Promise<void>) => {
+        const gear = page.getByRole("button", { name: "Settings" });
+        if (await gear.isVisible()) {
+          await gear.click();
+          const dlg = page.getByRole("dialog", { name: "Settings" });
+          await expect(dlg).toBeVisible();
+          await fn(dlg);
+          await page.keyboard.press("Escape");
+          await expect(dlg).toHaveCount(0);
+        } else {
+          await fn(page.locator(".col-controls"));
+        }
+      };
+      await scope(async (s) => {
+        await s.locator(".import-panel textarea").fill(GAPPED_PROTEIN);
+        await s.getByRole("button", { name: "Import", exact: true }).click();
+      });
+      await scope(async (s) => {
+        await s.getByRole("radio", { name: "Complete deletion" }).click();
+      });
+      await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+      await expect(page.locator(".pair-removed-note")).toBeVisible();
       await settleFrame(page);
     },
   },

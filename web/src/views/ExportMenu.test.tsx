@@ -648,3 +648,94 @@ describe("ExportMenu figure-export failure (v1.3 fix round 1)", () => {
     }
   });
 });
+
+describe("ExportMenu .meg (v1.4b Task 11)", () => {
+  const MEG_LABEL = "Alignment (.meg)";
+
+  /** Capture the downloaded blob's text, not just the name. */
+  function captureDownload(): { names: string[]; texts: Promise<string>[] } {
+    const names: string[] = [];
+    const texts: Promise<string>[] = [];
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      if (blob instanceof Blob) texts.push(blob.text());
+      return "blob:fake";
+    });
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        names.push(this.download);
+      },
+    );
+    return { names, texts };
+  }
+
+  function renderMenu(alignment: Parameters<typeof ExportMenu>[0]["alignment"] = ALN) {
+    render(
+      <ExportMenu
+        tree={null}
+        alignment={alignment}
+        correction="Jc69"
+        method="Nj"
+        clampNegative={false}
+        matrix={null}
+        theme="light"
+        treeView={{ kind: "plain" }}
+        consensusTree={null}
+        bootstrap={null}
+        title="test-data"
+      />,
+    );
+  }
+
+  it("is disabled while no alignment exists", () => {
+    renderMenu(null);
+    expect(screen.getByRole("button", { name: MEG_LABEL })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("export then import is the same alignment", async () => {
+    const { names, texts } = captureDownload();
+    renderMenu();
+    fireEvent.click(screen.getByRole("button", { name: MEG_LABEL }));
+    await waitFor(() => expect(names).toEqual(["alignment.meg"]));
+    const text = await texts[0];
+    expect(text.startsWith("#mega")).toBe(true);
+    expect(text).toContain("!Title test-data;");
+    const back = engine.parseMeg(text);
+    expect(back.ok).toBe(true);
+    if (back.ok) {
+      expect(back.value.alignment.labels).toEqual(ALN.labels);
+      expect(back.value.alignment.seqs).toEqual(ALN.seqs);
+    }
+  });
+
+  it("names with spaces are written with underscores, with a notice", async () => {
+    const { texts } = captureDownload();
+    const spaced: typeof ALN = {
+      ...ALN,
+      labels: ["Homo sapiens", "Mus musculus", "c"],
+    };
+    renderMenu(spaced);
+    fireEvent.click(screen.getByRole("button", { name: MEG_LABEL }));
+    await screen.findByText(
+      /2 taxon names contain spaces; they are written with underscores/,
+    );
+    const text = await texts[0];
+    expect(text).toContain("#Homo_sapiens");
+    const back = engine.parseMeg(text);
+    if (!back.ok) throw new Error("re-parse failed");
+    expect(back.value.alignment.labels[0]).toBe("Homo_sapiens");
+  });
+
+  it("a refused export shows the engine's error message", async () => {
+    const clashing: typeof ALN = {
+      ...ALN,
+      labels: ["a b", "a_b", "c"],
+    };
+    renderMenu(clashing);
+    fireEvent.click(screen.getByRole("button", { name: MEG_LABEL }));
+    await screen.findByText(/both map to 'a_b' in \.meg output/);
+  });
+});

@@ -2858,3 +2858,107 @@ button,
     min-width: 40px;
   }
 }
+
+/* ---- Dataset library sheet (v1.4b Task 11, spec §5.3, §6.4) ---- */
+
+.dataset-sheet {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  color: var(--color-text);
+  font-size: var(--size-sm);
+}
+
+.dataset-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dataset-sheet-head h2 {
+  margin: 0;
+}
+
+.dataset-loading {
+  margin: 12px 0;
+}
+
+.dataset-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dataset-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.dataset-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dataset-open:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.dataset-title {
+  font-weight: 600;
+  font-size: var(--size-md);
+}
+
+.dataset-meta,
+.dataset-goodfor {
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.dataset-prov {
+  font-size: var(--size-sm);
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  /* Touch targets ≥ 40×40 (v1.4b Task 11, conductor note 8): dataset
+   * rows, their open buttons, the provenance links and the confirm
+   * actions get the same floor as every other control. */
+  .dataset-row,
+  .dataset-open,
+  .dataset-prov,
+  .dataset-sheet .close,
+  .dataset-sheet .lab-confirm-actions button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .dataset-prov {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
