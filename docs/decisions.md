@@ -4330,6 +4330,14 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   request-line length); every `exercises/*.json` encodes under it
   (cytochrome-c ≈ 4,500 chars), pinned by a test. Tests derive their
   sizes from the constant, never a literal.
+  Resolved 2026-11-01: 32,000 (value delegated by the owner to the
+  conductor). `#x=` is a URL fragment and is never sent to the server,
+  so the RFC 9110 request-line reasoning doesn't apply. The shipped
+  lab packs already give links of 9.3k–10.9k characters; the 16S
+  library dataset alone gives ≈ 17.6k (lz-string measurement,
+  2026-11-01) and the library cap (30 taxa × 2,000 sites) needs more.
+  32,000 stays under Slack's 40,000-character message limit and far
+  below browser URL limits (Chrome allows 2 MB).
 - **`shareLink` returns `{ url } | { tooLong: true; maxLength } |
   { error: string }`:** the plan's signature is extended with
   `{ error }` because the link is built from the SAVED content — an
@@ -6078,3 +6086,59 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `log L(d)` title and `d̂` label baselines move inside the top edge
   (they clipped ~3.5 units there). `LikelihoodCurve.test.tsx`
   unchanged — no assertion depended on the old padding.
+
+## Post-v1.4b-Task-10 follow-ups (owner request 2026-11-01)
+
+- **`d̂` peak label no longer uses U+0302:** "d̂ = x.xxx" put the
+  combining circumflex on the `d`'s upright stroke and read as "â".
+  The text is now `d = x.xxx` and the hat is a small filled-wedge
+  `path.axis-label` centred over the d's bowl above the ascender
+  (the only path carrying the axis-label class; the e2e checks it
+  sits inside the d glyph's box and above it). The aria-label and
+  the `toFixed(3)` format are unchanged.
+- **`d` axis title moved off the axis's right end:** it sat at
+  (W − PAD_R, axisY − 3), where pair 2–3's curve ends inside its
+  box. It now sits centred in the bottom tick row (`axisLabel(W / 2,
+  H - 8, "d", "middle")`), clear of the `0` and right-edge tick
+  labels; a chromium test maps every `polyline.curve` vertex through
+  the svg's screen CTM and requires none inside the label's box
+  grown by 2 px.
+- **LikelihoodCurve DOM consolidated to fit the initial-JS budget**
+  (120,168 gz; main was 120,154): the hat had to share bytes, so the
+  x-axis and its two tick lines are one `path.axis`, the below-range
+  markers are one `path.below-range-mark` (class `below-range` kept
+  for the tests), the peak group is a fragment with `data-peak` on
+  the `peak-line`, and `TITLE_Y`/`LABEL_STYLE`/`yOk`/`xMax` were
+  inlined or tightened. No visual change; the y-axis stays a
+  `line.axis` because `LikelihoodCurve.test.tsx` locates it.
+- **Share-link limit resolved to 32,000** — see the dated line under
+  the v1.4 Task 7 "Owner decision pending" entry above.
+- **Review polish (fix round 1, 2026-11-01):** outside the original
+  Files block — `web/src/views/editor/EditorPanel.tsx` now formats the
+  limit as `SHARE_LINK_MAX_LENGTH.toLocaleString("en-US")` so the
+  notice reads "32,000"; the two `editor.spec.ts` regexes use
+  `[\d,]+`, and `exerciseFile.test.ts` asserts the exercise glob is
+  non-empty (≥9 files) before the loop. Initial JS 120,164 B
+  (+1 B: the entry chunk embeds the lazy EditorPage chunk's content
+  hash); budget unchanged.
+- **Fix round 2 (owner request 2026-11-02):** two LikelihoodCurve
+  label collisions, both in `web/src/views/LikelihoodCurve.tsx`.
+  (A) A peak at the top of the window put the `d = …` label's
+  baseline (peak.py − 8 ≈ 18) and hat on the `log L(d)` title's row,
+  and with padL = 36 + d̂ ≈ 0 the left clamp (padL + 9 = 45) started
+  the label inside the title's ink (≈ x 48). The clamp gains a fixed
+  floor `2 + CHAR_W * "log L(d)".length + 4` = 70 — the title
+  measures 42.4 units in pinned chromium, so the CHAR_W bound covers
+  Firefox too, and the right clamp still wins for wide estimates.
+  (B) The bottom tick row (`0`, right-edge value, centred `d`)
+  moved from baseline `H − 8` (132) to `H − 4` (136): the below-range
+  markers span axisY + 1 … axisY + 5 (121–125) and the old baseline
+  put digit ink at ≈ y 123, touching them; at 136 the ink stays
+  ≥ 1 unit clear of the markers and inside the 140 edge. PAD_B, H
+  and the marker geometry are unchanged. Tests first (fail on
+  90017f8): `LikelihoodCurve.test.tsx` asserts the padL = 36
+  scenario and the ≥ 70 floor, and that every bottom-row baseline
+  − 10 clears axisY + 5 with the baseline ≤ H − 1. The `geometry`
+  helper's y-axis lookup was extracted as `yAxisLine` (equivalent).
+  Initial JS 120,161 B (−3 B); visual project 89/89 without
+  baseline changes.

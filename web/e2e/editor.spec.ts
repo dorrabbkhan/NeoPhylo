@@ -924,8 +924,11 @@ test("an exercise too large for a share link still previews (fix round 3 handsha
   await page.getByRole("button", { name: "Add note" }).click();
   // Deterministic, poorly compressible padding (Math.random is banned)
   // — the prompt alone pushes the #x= link past SHARE_LINK_MAX_LENGTH.
+  // SHARE_LINK_MAX_LENGTH itself can't be imported (exerciseFile.ts
+  // pulls in the wasm engine); it is 32_000 and this pad compresses to
+  // ~0.9× its length, so 1.5× the limit stays over after compression.
   let pad = "";
-  for (let i = 0; pad.length < 9000; i++) {
+  for (let i = 0; pad.length < 32_000 * 1.5; i++) {
     pad += i.toString(36) + "-";
   }
   await page
@@ -938,7 +941,7 @@ test("an exercise too large for a share link still previews (fix round 3 handsha
   // The share link is over the limit — the message stays.
   await page.getByRole("button", { name: "Share link" }).click();
   await expect(page.getByRole("alert")).toContainText(
-    /over \d+ characters/i,
+    /over [\d,]+ characters/i,
   );
 
   // Preview is not a link: the handshake carries the draft, and the
@@ -973,9 +976,11 @@ test("a share link too long for the limit says so and offers the file (Review Fo
   await page.goto("/?editor");
   // Deterministic, poorly compressible padding (Math.random is banned)
   // — the same construction exerciseFile.test.ts uses to pass the
-  // SHARE_LINK_MAX_LENGTH limit.
+  // SHARE_LINK_MAX_LENGTH limit (32_000, kept in sync by hand — the e2e
+  // can't import it without pulling in the wasm engine; ~0.9 of this
+  // pad survives lz compression, so 1.5× the limit stays over).
   let pad = "";
-  for (let i = 0; pad.length < 9000; i++) {
+  for (let i = 0; pad.length < 32_000 * 1.5; i++) {
     pad += i.toString(36) + "-";
   }
   await page
@@ -984,7 +989,7 @@ test("a share link too long for the limit says so and offers the file (Review Fo
   await page.getByRole("button", { name: "Share link" }).click();
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
-  await expect(alert).toContainText(/too long|over \d+ characters/i);
+  await expect(alert).toContainText(/too long|over [\d,]+ characters/i);
   await expect(alert).toContainText(/save the file/i);
 });
 
