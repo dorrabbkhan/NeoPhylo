@@ -137,6 +137,7 @@
   "chain": [
    "dnadist",
    "neighbor"
-  ]
+  ],
+  "minutes": 25
  }
 }

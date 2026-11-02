@@ -95,7 +95,7 @@ describe("lab index and lab page", () => {
     expect(link.getAttribute("href")).toBe("?lab=test-lab");
   });
 
-  it("with the e2e flag off only shipped labs list — packs 1, 2 and 3", () => {
+  it("with the e2e flag off only shipped labs list — the PHYLIP packs and MEGA handout 1", () => {
     window.localStorage.removeItem("neophylo-e2e");
     render(<LabIndex />);
     expect(screen.getByText("dnadist → neighbor (F84)")).toBeTruthy();
@@ -103,8 +103,34 @@ describe("lab index and lab page", () => {
     expect(
       screen.getByText("seqboot → dnadist → neighbor → consense"),
     ).toBeTruthy();
+    // Task 13 handout 1 is a shipped lab: it lists without the flag
+    // and the MEGA group's coming-soon line is gone.
+    expect(screen.getByText("MEGA: JC69 vs K2P on primate mtDNA")).toBeTruthy();
     expect(screen.queryByText("Test lab: dnadist → neighbor")).toBeNull();
     expect(screen.queryByText(/no lab packs/i)).toBeNull();
+    expect(screen.queryByText(/MEGA handouts are coming/i)).toBeNull();
+  });
+
+  it("a lab card shows its time estimate only when the block declares minutes", () => {
+    // v1.4b Task 13 handout 1 (spec §7.3, owner decision 2026-11-02):
+    // "About N min" rides the index card; mega-test-lab declares no
+    // minutes and shows nothing.
+    render(<LabIndex />);
+    const withMin = screen
+      .getByText("MEGA: JC69 vs K2P on primate mtDNA")
+      .closest("li");
+    const withoutMin = screen
+      .getByText("Test MEGA lab: distances → NJ")
+      .closest("li");
+    if (withMin === null || withoutMin === null) {
+      throw new Error("a lab card is missing from the index");
+    }
+    expect(
+      within(withMin as HTMLElement).getByText(/^About \d+ min$/),
+    ).toBeTruthy();
+    expect(
+      within(withoutMin as HTMLElement).queryByText(/About \d+ min/),
+    ).toBeNull();
   });
 
   it("groups the index under PHYLIP labs and MEGA labs; the empty MEGA group says handouts are coming", () => {
@@ -133,13 +159,14 @@ describe("lab index and lab page", () => {
     // The MEGA group lists labs, so no coming-soon line shows.
     expect(screen.queryByText(/handouts are coming/i)).toBeNull();
 
-    // Without the e2e flag the MEGA group is empty and shows the
-    // short line instead of a bare heading.
+    // Without the e2e flag the MEGA group still lists the shipped
+    // handout — the coming-soon line stays off (Task 13 handout 1).
     window.localStorage.removeItem("neophylo-e2e");
     cleanup();
     render(<LabIndex />);
     expect(screen.getByRole("heading", { name: "MEGA labs" })).toBeTruthy();
-    expect(screen.getByText(/MEGA handouts are coming/i)).toBeTruthy();
+    expect(screen.getByText("MEGA: JC69 vs K2P on primate mtDNA")).toBeTruthy();
+    expect(screen.queryByText(/MEGA handouts are coming/i)).toBeNull();
   });
 
   it("the lab page renders the chain, objectives, settings table and handout", async () => {

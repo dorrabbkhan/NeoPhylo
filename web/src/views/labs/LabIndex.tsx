@@ -33,6 +33,9 @@ function LabCard({ lab }: { lab: LabSummary }) {
             </span>
           ))}
         </p>
+        {lab.minutes !== undefined && (
+          <p className="lab-minutes">About {lab.minutes} min</p>
+        )}
       </div>
       <ul className="lab-objectives">
         {lab.objectives.map((o, i) => (

@@ -90,6 +90,15 @@ describe("lab registry", () => {
     ["mega-lab-array-chain-item", /chain/],
     // a phylip lab (tool absent) missing phylip_note_md
     ["phylip-lab-no-note", /phylip_note_md/],
+    // lab.minutes (v1.4b Task 13 handout 1, spec §7.3): optional
+    // integer 5–180 on either tool — null, array, float, out of range
+    // and a string are each refused naming the field.
+    ["mega-lab-null-minutes", /minutes/],
+    ["mega-lab-array-minutes", /minutes/],
+    ["mega-lab-float-minutes", /minutes/],
+    ["mega-lab-low-minutes", /minutes/],
+    ["mega-lab-high-minutes", /minutes/],
+    ["mega-lab-string-minutes", /minutes/],
   ];
   for (const [id, path] of REFUSALS) {
     it(`refuses ${id} naming its field path`, () => {
@@ -104,13 +113,25 @@ describe("lab registry", () => {
     });
   }
 
-  it("with the e2e flag off only shipped labs list — packs 1, 2 and 3", () => {
+  it("with the e2e flag off only shipped labs list — the three PHYLIP packs and MEGA handout 1", () => {
     window.localStorage.removeItem("neophylo-e2e");
     expect(listLabs().map((l) => l.id)).toEqual([
       "dnadist-neighbor",
+      "mega-jc69-vs-k2p",
       "protdist-neighbor",
       "seqboot-consense",
     ]);
+  });
+
+  it("listLabs carries lab.minutes when the block declares it", () => {
+    // mega-jc69-vs-k2p ships minutes (Task 13 handout 1); the e2e-only
+    // mega-test-lab has none, and minutes stays off its summary.
+    const lab = listLabs().find((l) => l.id === "mega-jc69-vs-k2p");
+    expect(lab?.minutes).toBeGreaterThanOrEqual(5);
+    expect(lab?.minutes).toBeLessThanOrEqual(180);
+    expect(
+      listLabs().find((l) => l.id === "mega-test-lab")?.minutes,
+    ).toBeUndefined();
   });
 
   it("loadLab returns the exercise and the lab block for a valid lab file", () => {

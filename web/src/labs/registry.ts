@@ -56,6 +56,10 @@ export type LabBlock = {
   objectives: string[];
   handout_md: string;
   chain: string[];
+  /** Optional whole-session estimate (v1.4b spec §7.3, schema
+   * `lab.minutes` — integer 5–180): the index card shows
+   * "About N min"; absent shows nothing. */
+  minutes?: number;
 } & (
   | {
       tool?: "phylip";
@@ -79,6 +83,8 @@ export interface LabSummary {
   objectives: string[];
   settings: LabSetting[];
   chain: string[];
+  /** lab.minutes, when the block declares it. */
+  minutes?: number;
   /** True for exercises/labs/ files, false for the e2e fixtures. */
   shipped: boolean;
 }
@@ -216,6 +222,7 @@ export function listLabs(): LabSummary[] {
       objectives: r.lab.objectives,
       settings: r.lab.settings,
       chain: r.lab.chain,
+      ...(r.lab.minutes !== undefined ? { minutes: r.lab.minutes } : {}),
       shipped: file.shipped,
     });
   }

@@ -84,6 +84,14 @@
   margin: 0 0 var(--space-8);
 }
 
+/* spec §7.3's time estimate — "About N min" on the index card only
+ * (it stays off the lab page, so the printed handout is unchanged). */
+.lab-minutes {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0;
+}
+
 .lab-chain code,
 .lab-md code {
   font-family: var(--font-mono);

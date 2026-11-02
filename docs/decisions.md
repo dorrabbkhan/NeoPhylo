@@ -6296,3 +6296,52 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   treatment at 1024–1279 and in presenter mode. Pinned by a
   `sheets.spec.ts` bounding-box e2e at four viewports; no snapshot
   scene opens a menu, so no baseline changed.
+
+## v1.4b Task 13 (handout 1): MEGA lab "JC69 vs K2P" + `lab.minutes`
+
+- **Files outside the Files block:**
+  - `exercises/schema.json` — the owner-deferred §7.3 time-estimate
+    field: optional `lab.minutes` (integer 5–180) on either lab tool
+    (owner decision 2026-11-02, per-task note).
+  - `web/src/labs/registry.ts`, `web/src/labs/registry.test.ts` —
+    `minutes` on `LabBlock`/`LabSummary` and the refusal pins for
+    `null`, `[]`, `2.5`, `4`, `181` and `"30"` (each naming `minutes`),
+    matching every other lab key's pin set.
+  - `web/src/labs/__fixtures__/mega-lab-*-minutes.json` (6 new) — the
+    refusal fixtures those pins read.
+  - `web/src/views/labs/LabIndex.tsx`, `web/src/views/labs/labs.css` —
+    "About N min" on the index card when `minutes` is declared and no
+    line when it is not; the lab page is untouched, so the printed
+    handout (and every `lab-*-print` frame) does not change.
+  - `web/src/labs/labs.test.tsx` — the card-estimate unit test and the
+    shipped-listing updates (a MEGA lab now lists without the e2e
+    flag, so the group's coming-soon line is gone).
+  - `exercises/labs/{dnadist-neighbor,protdist-neighbor,seqboot-consense}.json`
+    — content-only `minutes` additions on the shipped PHYLIP packs
+    (25, 25, 40), the same estimate scale the per-task note asks the
+    MEGA handouts to use; no other byte changed.
+  - `web/e2e/labs.spec.ts`, `web/e2e/a11y.spec.ts` — the conductor
+    note's Review Focus 5/7 coverage: the shipped handout lists under
+    "MEGA labs" without the flag, "Load this lab" loads JC69 + NJ +
+    pairwise into the sandbox and replays the fixture's printed
+    JC69/pairwise row, the unsaved-work confirmation keeps a declined
+    draft, the coarse-pointer ≥40×40 pass covers the handout page, and
+    axe scans the real lab page.
+  - `docs/decisions.md` — this entry.
+- **Gap treatment:** the handout's runs use pairwise deletion —
+  MEGA's own default and the treatment the cited `.mao` files declare.
+- **Dataset wording:** `primate-mtdna` is the mitochondrial control
+  region (D-loop) of the Horai (1995) accessions — the same public
+  records as MEGA's example data, not that file's whole mtDNA
+  alignment (over the library's site cap). The handout says so and
+  routes the cross-check through a `.meg` export opened in MEGA; the
+  `mtCDNA` token never appears (test-pinned).
+- **Comparison tolerances:** the packs test reuses the
+  `parity_mega_library.rs` rule verbatim — distances within 0.5 ulp of
+  MEGA's 8-decimal print; NJ on MEGA's printed matrix is topology-only
+  (the fixture trees were computed at full precision, so 8-decimal
+  rounding propagates ~1e-9); NJ on the engine's own matrix is full
+  parity, per-value `max(0.5·10^-d, 8·EPSILON·max(1,|v|))` lengths.
+- **`minutes` values:** 30 for this handout (two distance runs + two
+  NJ builds + questions at ~25 PHYLIP-pack scale plus the model
+  switch); the owner judges the scale.
