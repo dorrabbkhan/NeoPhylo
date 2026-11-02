@@ -20,3 +20,10 @@
   it explains the tie, and its test uses the tie-aware comparison from
   `parity_mega_library.rs`. The same applies to support for `Chimp_HBB|Human_HBB`
   (identical sequences over the kept sites) if a handout mentions it.
+- Time estimates (spec §7.3, deferred from Task 12, owner decision 2026-11-02): handout 1's PR adds an optional
+  `minutes` field to the lab block (integer, 5–180; `null`/array/float/out-of-range refusals pinned with a field path
+  like the other keys), carries it through the registry types, and shows "About N min" on the lab index card when
+  present (no text when absent). All four MEGA handouts set it, and the same PR sets it on the three shipped PHYLIP
+  packs (a content-only edit of those JSON files, listed in decisions.md). The estimate counts a student working
+  through the chain once, not reading time alone. Lab-index frames may change only for that line; check that the
+  `lab-*-print` frames do not change (the estimate stays off the printed handout).

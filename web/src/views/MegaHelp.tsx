@@ -84,7 +84,7 @@ export function MegaHelp({ onClose, onOpenPhylipHelp }: MegaHelpProps) {
         under all three gap treatments, and the NJ and UPGMA trees
         built on them, on the datasets in the test corpus. MEGA&apos;s
         other models (Tamura-Nei, LogDet, gamma-rate variants) have no
-        NeoPhylo equivalent yet.
+        NeoPhylo equivalent.
       </p>
       <p className="phylip-note">
         Bootstrap: both programs remove filtered sites before

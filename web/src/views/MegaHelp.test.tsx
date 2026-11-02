@@ -62,6 +62,12 @@ describe("MegaHelp", () => {
     // probability.
     expect(panel.textContent).toMatch(/sampling noise|random/i);
     expect(panel.textContent).not.toMatch(/probabilit/i);
+    // Models without a NeoPhylo equivalent are named as such — no
+    // "yet" roadmap promise (owner decision 2026-11-02).
+    expect(panel.textContent).toMatch(
+      /MEGA's\s+other\s+models\s+\(Tamura-Nei,\s+LogDet,\s+gamma-rate\s+variants\)\s+have\s+no\s+NeoPhylo\s+equivalent\./,
+    );
+    expect(panel.textContent).not.toMatch(/\byet\b/i);
   });
 
   it("moves focus into the dialog and closes on Escape", () => {

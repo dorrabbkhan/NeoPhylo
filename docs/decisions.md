@@ -6261,6 +6261,8 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     regenerated: presenter mode hides only the Settings button and
     controls column, not the header, so the Guides menu is visible
     there. No `lab-*-print` frame changed.
+  - `docs/conductor/notes/v1.4b/task13.md` — the owner-deferred Task
+    13 time-estimate note (fix round 2).
 - **`GuidesMenu` lives in `MoreMenu.tsx`:** the Files block already
   names that file; it shares a parameterized `MenuButton` with
   `MoreMenu` so the menu-button contract (keyboard, Escape, focus
@@ -6270,8 +6272,9 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **Lab index "time estimates":** spec §7.3 lists them but the lab
   schema carries no time field and the three shipped packs may not be
   edited this task — the index shows the existing card content
-  (objectives, settings, chain) grouped by tool. A `time` field is a
-  Task-13 follow-up.
+  (objectives, settings, chain) grouped by tool. The owner deferred it
+  to Task 13 handout 1 (an optional `minutes` field on the lab block;
+  see the Task 13 conductor note).
 - **MEGA lab note/table text:** heading is exactly "What MEGA shows
   you vs what NeoPhylo shows you"; columns "Option", "MEGA menu",
   "MEGA setting", "NeoPhylo". PHYLIP labs render the same DOM as
