@@ -610,14 +610,18 @@ test("under (pointer: coarse) every Guides menu, MegaHelp and cross-link target 
     const box = await target.boundingBox();
     expect(box, `${name} has a bounding box`).not.toBeNull();
     if (box === null) return;
+    // Gecko reports a 40 px box as 39.99998 — unit-conversion noise in
+    // the layout value, not a short target; 0.05 absorbs it while a
+    // genuinely smaller control still fails.
+    const floor = 40 - 0.05;
     expect(
       box.width,
       `${name} is at least 40 px wide (got ${box.width}×${box.height})`,
-    ).toBeGreaterThanOrEqual(40);
+    ).toBeGreaterThanOrEqual(floor);
     expect(
       box.height,
       `${name} is at least 40 px tall (got ${box.width}×${box.height})`,
-    ).toBeGreaterThanOrEqual(40);
+    ).toBeGreaterThanOrEqual(floor);
   };
   const checkAll = async (
     scope: import("@playwright/test").Locator | import("@playwright/test").Page,
