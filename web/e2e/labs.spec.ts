@@ -43,7 +43,7 @@ test("the lab index lists the test lab and links to its page; both pages are axe
   page,
 }) => {
   await page.goto("/?labs");
-  await expect(page.getByRole("heading", { name: "Labs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Labs", exact: true })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "PHYLIP labs" }),
   ).toBeVisible();
@@ -500,7 +500,7 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/?labs");
   await expect(
-    page.getByRole("heading", { name: "Labs" }),
+    page.getByRole("heading", { name: "Labs", exact: true }),
   ).toBeVisible();
   await checkAll("the lab index");
 
@@ -528,7 +528,7 @@ test("without the e2e flag the index lists only the shipped packs", async ({
   const page = await context.newPage();
   await page.goto("/?labs");
   await expect(
-    page.getByRole("heading", { name: "Labs" }),
+    page.getByRole("heading", { name: "Labs", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("dnadist → neighbor (F84)")).toBeVisible();
   await expect(page.getByText("protdist → neighbor (JTT)")).toBeVisible();
