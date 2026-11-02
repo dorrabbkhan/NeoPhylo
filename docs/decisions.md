@@ -6121,3 +6121,24 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   non-empty (≥9 files) before the loop. Initial JS 120,164 B
   (+1 B: the entry chunk embeds the lazy EditorPage chunk's content
   hash); budget unchanged.
+- **Fix round 2 (owner request 2026-11-02):** two LikelihoodCurve
+  label collisions, both in `web/src/views/LikelihoodCurve.tsx`.
+  (A) A peak at the top of the window put the `d = …` label's
+  baseline (peak.py − 8 ≈ 18) and hat on the `log L(d)` title's row,
+  and with padL = 36 + d̂ ≈ 0 the left clamp (padL + 9 = 45) started
+  the label inside the title's ink (≈ x 48). The clamp gains a fixed
+  floor `2 + CHAR_W * "log L(d)".length + 4` = 70 — the title
+  measures 42.4 units in pinned chromium, so the CHAR_W bound covers
+  Firefox too, and the right clamp still wins for wide estimates.
+  (B) The bottom tick row (`0`, right-edge value, centred `d`)
+  moved from baseline `H − 8` (132) to `H − 4` (136): the below-range
+  markers span axisY + 1 … axisY + 5 (121–125) and the old baseline
+  put digit ink at ≈ y 123, touching them; at 136 the ink stays
+  ≥ 1 unit clear of the markers and inside the 140 edge. PAD_B, H
+  and the marker geometry are unchanged. Tests first (fail on
+  90017f8): `LikelihoodCurve.test.tsx` asserts the padL = 36
+  scenario and the ≥ 70 floor, and that every bottom-row baseline
+  − 10 clears axisY + 5 with the baseline ≤ H − 1. The `geometry`
+  helper's y-axis lookup was extracted as `yAxisLine` (equivalent).
+  Initial JS 120,161 B (−3 B); visual project 89/89 without
+  baseline changes.

@@ -25,6 +25,24 @@ const CURVE: [number, number][] = Array.from({ length: 60 }, (_, k) => {
   return [d, -30 - Math.abs(d - 0.4) * 10];
 });
 
+/** Curve peaked at d = 0 with logL̂ = −1: both window ticks format to
+ * ≤ 3 glyphs ("-1", "-16"), so padL stays at its 36 minimum and the
+ * d̂ label's left clamp decides where it starts. */
+const PEAK_AT_ZERO: [number, number][] = Array.from(
+  { length: 60 },
+  (_, k) => {
+    const d = k / 59;
+    return [d, -1 - 2 * d];
+  },
+);
+
+/** Curve peaked at d = 0.5 (logL̂ = −5) whose sample at k = 26 — just
+ * under the centred "d" title — dips below the −20 window floor. */
+const MID_DIP: [number, number][] = Array.from({ length: 60 }, (_, k) => {
+  const d = k / 59;
+  return [d, k === 26 ? -50 : -5 - Math.abs(d - 0.5) * 10];
+});
+
 /** Vitest runs with cwd = web/, so fixtures live at ../fixtures. */
 const readRepoFile = (rel: string): string =>
   readFileSync(resolve(`../${rel}`), "utf8");
@@ -35,13 +53,17 @@ const detailOf = (aln: Alignment, i: number, j: number): PairDetail => {
   return d.value;
 };
 
-/** Plot geometry from the rendered svg: the vertical axis line spans
- * [top, base]; the peak marker's cy is the peak's height. */
-const geometry = (svg: SVGSVGElement) => {
-  const yAxis = Array.from(svg.querySelectorAll("line.axis")).find(
+/** The vertical axis `line.axis` (x1 = x2 = padL, y2 = axisY). */
+const yAxisLine = (svg: SVGSVGElement) =>
+  Array.from(svg.querySelectorAll("line.axis")).find(
     (l) => l.getAttribute("x1") === l.getAttribute("x2") &&
       Number(l.getAttribute("y1")) < Number(l.getAttribute("y2")),
   )!;
+
+/** Plot geometry from the rendered svg: the vertical axis line spans
+ * [top, base]; the peak marker's cy is the peak's height. */
+const geometry = (svg: SVGSVGElement) => {
+  const yAxis = yAxisLine(svg);
   const top = Number(yAxis.getAttribute("y1"));
   const base = Number(yAxis.getAttribute("y2"));
   const ys = svg
@@ -146,5 +168,71 @@ describe("LikelihoodCurve", () => {
     );
     expect(screen.getByText("no peak: still rising")).toBeTruthy();
     expect(container.querySelector("[data-peak]")).toBeNull();
+  });
+
+  it("starts the d̂ label right of the title's ink", () => {
+    // Owner follow-up A (2026-11-02): a peak at the top of the window
+    // puts the label on the title's row, and with padL = 36 + d̂ = 0
+    // the old clamp (padL + 9 = 45) started it inside the "log L(d)"
+    // ink (which reaches ≈ x 48). The floor is the title bound the
+    // component uses: x = 2 + CHAR_W (8) × 8 glyphs + 4 gap = 70.
+    const { container } = render(
+      <LikelihoodCurve
+        curve={PEAK_AT_ZERO}
+        dHat={0}
+        loglHat={-1}
+        saturated={false}
+      />,
+    );
+    const svg = container.querySelector("svg")!;
+    // The scenario really gives the minimum left pad (fmt's "-1" and
+    // "-16" are ≤ 4 glyphs).
+    expect(Number(yAxisLine(svg).getAttribute("x1"))).toBe(36);
+    const dhat = Array.from(svg.querySelectorAll(".axis-label")).find(
+      (t) => t.textContent?.startsWith("d = "),
+    )!;
+    expect(dhat).not.toBeNull();
+    expect(Number(dhat.getAttribute("x"))).toBeGreaterThanOrEqual(
+      2 + 8 * "log L(d)".length + 4,
+    );
+  });
+
+  it("keeps the bottom tick row clear of the below-range markers", () => {
+    // Owner follow-up B (2026-11-02): the row's baseline sat at
+    // H − 8, so digit ink reached ≈ y 123 and touched the marker
+    // triangles (axisY + 1 … axisY + 5).
+    const { container } = render(
+      <LikelihoodCurve
+        curve={MID_DIP}
+        dHat={0.5}
+        loglHat={-5}
+        saturated={false}
+      />,
+    );
+    const svg = container.querySelector("svg")!;
+    const axisY = Number(yAxisLine(svg).getAttribute("y2"));
+
+    // The scenario really put a marker under the centred "d" title
+    // (marker path: M x(d)−2.5 axisY+1 l5 0 −2.5 4 z).
+    const mark = svg.querySelector(".below-range")!;
+    expect(mark).not.toBeNull();
+    const apexes = Array.from(
+      mark.getAttribute("d")!.matchAll(/M ([\d.]+) /g),
+      (m) => Number(m[1]) + 2.5,
+    );
+    expect(apexes.some((ax) => Math.abs(ax - 150) < 10)).toBe(true);
+
+    // Every bottom-row label (baseline below axisY): 12 px digit and
+    // ascender ink reaches at most 10 units up, so baseline − 10 must
+    // clear the marker apexes, and the baseline stays inside the svg.
+    const bottom = Array.from(svg.querySelectorAll("text.axis-label")).filter(
+      (t) => Number(t.getAttribute("y")) > axisY,
+    );
+    expect(bottom.map((t) => t.textContent)).toEqual(["0", "1", "d"]);
+    for (const t of bottom) {
+      const baseline = Number(t.getAttribute("y"));
+      expect(baseline - 10).toBeGreaterThan(axisY + 5);
+      expect(baseline).toBeLessThanOrEqual(139);
+    }
   });
 });

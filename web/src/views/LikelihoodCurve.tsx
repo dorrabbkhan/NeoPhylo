@@ -133,10 +133,18 @@ export function LikelihoodCurve({
   // and the y-tick labels, and inside the svg's right edge. The
   // combining circumflex (U+0302) after "d" lands on the stem and
   // reads as "â", so the text is "d = …" and the hat is drawn as a
-  // separate path over the glyph.
+  // separate path over the glyph. A peak at the top of the window
+  // puts the label on the title's row, so the floor is the title's
+  // ink bound (x = 2, "log L(d)" at CHAR_W units/glyph) plus a
+  // 4-unit gap — the title measures ≈ 42 units in chromium, so
+  // CHAR_W covers Firefox's wider digits too.
   const dhatText = `d = ${(dHat ?? 0).toFixed(3)}`;
   const dhatX = Math.min(
-    Math.max((peak?.px ?? 0) + 6, padL + 9),
+    Math.max(
+      (peak?.px ?? 0) + 6,
+      padL + 9,
+      2 + CHAR_W * "log L(d)".length + 4,
+    ),
     W - 2 - CHAR_W * dhatText.length,
   );
 
@@ -177,12 +185,15 @@ export function LikelihoodCurve({
           />
         </>
       )}
-      {axisLabel(padL + 3, H - 8, "0", "middle")}
-      {axisLabel(W - PAD_R, H - 8, fmt(xMax), "end")}
+      {/* Bottom-row baseline H − 4: digit ink (≤ 10 units up) clears
+          the below-range markers (axisY + 5) and stays inside the
+          svg's bottom edge. */}
+      {axisLabel(padL + 3, H - 4, "0", "middle")}
+      {axisLabel(W - PAD_R, H - 4, fmt(xMax), "end")}
       {/* The "d" axis name goes in the bottom tick row, centred clear
           of the 0 and right-edge labels — at the axis's right end its
           box met the curve's last vertex. */}
-      {axisLabel(W / 2, H - 8, "d", "middle")}
+      {axisLabel(W / 2, H - 4, "d", "middle")}
       {drawn.length > 0 && (
         <polyline className="curve" points={points} fill="none" />
       )}
