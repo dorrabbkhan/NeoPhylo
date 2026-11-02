@@ -79,7 +79,6 @@ import { GapControl } from "./GapControl";
 import { Header } from "./Header";
 import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
-import { PairPanel } from "./PairPanel";
 import { PromptCard } from "./PromptCard";
 import { SettingsDrawer } from "./SettingsDrawer";
 import {
@@ -114,6 +113,15 @@ const PhylipHelp = lazy(() =>
 // working offline after first load.
 const ReplicatePanel = lazy(() =>
   import("./ReplicatePanel").then((m) => ({ default: m.ReplicatePanel })),
+);
+
+// The pair panel is a lazy chunk too (owner decision 2026-11-02 —
+// the v1.3 Task 14 / v1.4b Task 10 precedent): fetched on first open,
+// not with the app. Sheet's mount-time focus contract is unchanged —
+// it runs when the chunk resolves — and the SW's `**/*.js` precache
+// keeps it working offline after first load.
+const PairPanel = lazy(() =>
+  import("./PairPanel").then((m) => ({ default: m.PairPanel })),
 );
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -1220,19 +1228,23 @@ export function App({ exercise }: { exercise?: Exercise }) {
         <Tour step={session.tourStep} dispatch={dispatch} />
       )}
       {pairDetail !== null && session.alignment !== null && (
-        <PairPanel
-          aln={session.alignment}
-          detail={pairDetail}
-          mode={session.mode}
-          dispatch={dispatch}
-          onClose={() => setPair(null)}
-          removed={
-            siteMask !== null && siteMask.ok && siteMask.value.removed.length > 0
-              ? new Set(siteMask.value.removed)
-              : undefined
-          }
-          removedBy={siteFilterName(siteFilter)}
-        />
+        <Suspense fallback={null}>
+          <PairPanel
+            aln={session.alignment}
+            detail={pairDetail}
+            mode={session.mode}
+            dispatch={dispatch}
+            onClose={() => setPair(null)}
+            removed={
+              siteMask !== null &&
+              siteMask.ok &&
+              siteMask.value.removed.length > 0
+                ? new Set(siteMask.value.removed)
+                : undefined
+            }
+            removedBy={siteFilterName(siteFilter)}
+          />
+        </Suspense>
       )}
       {repIndex !== null &&
         session.alignment !== null &&

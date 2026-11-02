@@ -6142,3 +6142,27 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   helper's y-axis lookup was extracted as `yAxisLine` (equivalent).
   Initial JS 120,161 B (−3 B); visual project 89/89 without
   baseline changes.
+
+## Lazy PairPanel (owner request 2026-11-02)
+
+- **Why:** initial JS sat at 120,161 B of the 120,168 B gz budget —
+  7 B of headroom before v1.4b Task 11. `App.tsx` imported
+  `PairPanel` eagerly, pulling `LikelihoodCurve`, `explain/pair` and
+  `MathLine` into the entry chunk.
+- **What:** `PairPanel` is now a `React.lazy` chunk on the
+  `PhylipHelp` (v1.3 Task 14) / `ReplicatePanel` (v1.4b Task 10)
+  precedent — fetched on first open, rendered under
+  `<Suspense fallback={null}>` so Sheet's mount-time focus contract
+  still runs when the chunk resolves; the SW `**/*.js` precache keeps
+  it working offline. Props and open conditions unchanged; `MathLine`
+  and `ModeToggle` stay in the entry chunk via `ExplanationPanel` /
+  `BootstrapPanel` (left as-is).
+- **Sizes:** initial JS 120,161 B (main) → 118,143 B; new
+  `PairPanel-*.js` chunk 2,542 B gz (6.05 kB raw), not modulepreloaded
+  from `index.html`.
+- **Tests adjusted:** none — no unit test renders `App` and opens the
+  pair panel, so nothing needed an `await`/`findBy` change;
+  `PairPanel.test.tsx` untouched. Pinned-image chromium e2e covering
+  the panel: pair-panel, gaps, tour, presenter, protein-lessons,
+  sheets, theme, a11y (72/72) and bootstrap (9/9, incl. the offline SW
+  test); visual 89/89 with no baseline changes.
