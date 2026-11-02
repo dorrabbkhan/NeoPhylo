@@ -55,12 +55,16 @@
         "objectives",
         "handout_md",
         "settings",
-        "phylip_note_md",
         "chain"
       ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
+        "tool": {
+          "enum": ["phylip", "mega"],
+          "default": "phylip",
+          "description": "The tool family the lab teaches (v1.4b spec 7.1). Absent means phylip, so v1.4 lab files are unchanged; \"mega\" switches the settings rows and the note field below."
+        },
         "objectives": {
           "type": "array",
           "items": { "type": "string" },
@@ -74,26 +78,62 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["option", "phylip_default", "neophylo"],
+            "required": ["option", "neophylo"],
             "properties": {
               "option": { "type": "string" },
               "phylip_default": { "type": "string" },
+              "mega_menu": { "type": "string" },
+              "mega_setting": { "type": "string" },
               "neophylo": { "type": "string" }
             }
           },
-          "description": "One row per PHYLIP option: its PHYLIP default and the matching NeoPhylo setting."
+          "description": "One row per option. PHYLIP labs (tool absent or \"phylip\") carry phylip_default per row; MEGA labs carry mega_menu and mega_setting per row (v1.4b spec 7.1)."
         },
         "phylip_note_md": {
           "type": "string",
-          "description": "The \"what PHYLIP's outfile showed you vs what NeoPhylo shows you\" note, in markdown."
+          "description": "The \"what PHYLIP's outfile showed you vs what NeoPhylo shows you\" note, in markdown. Required on PHYLIP labs."
+        },
+        "mega_note_md": {
+          "type": "string",
+          "description": "The \"what MEGA shows you vs what NeoPhylo shows you\" note, in markdown. Required on MEGA labs (v1.4b spec 7.1)."
         },
         "chain": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "The PHYLIP programs the lab reproduces, in order (e.g. dnadist → neighbor)."
+          "description": "The programs or menu steps the lab reproduces, in order — PHYLIP programs (dnadist → neighbor) for phylip labs, MEGA menu steps for mega labs."
         }
       },
-      "description": "v1.4 spec 6.2: optional lab-pack block. Absent on ordinary exercises; a file under exercises/labs/ without it is refused at load by the lab registry."
+      "allOf": [
+        {
+          "if": {
+            "properties": { "tool": { "const": "mega" } },
+            "required": ["tool"]
+          },
+          "then": {
+            "required": ["mega_note_md"],
+            "properties": {
+              "settings": {
+                "items": {
+                  "type": "object",
+                  "required": ["mega_menu", "mega_setting"]
+                }
+              }
+            }
+          },
+          "else": {
+            "required": ["phylip_note_md"],
+            "properties": {
+              "settings": {
+                "items": {
+                  "type": "object",
+                  "required": ["phylip_default"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "v1.4 spec 6.2: optional lab-pack block. Absent on ordinary exercises; a file under exercises/labs/ without it is refused at load by the lab registry. v1.4b: tool selects the lab family — phylip (default) needs phylip_note_md and phylip_default rows; mega needs mega_note_md and mega_menu/mega_setting rows."
     }
   },
   "allOf": [

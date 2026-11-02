@@ -1,0 +1,30 @@
+{
+  "schema_version": 4,
+  "id": "mega-lab-phylip-note",
+  "title": "MEGA lab carrying a PHYLIP note",
+  "summary": "A MEGA lab that wrongly carries phylip_note_md instead of mega_note_md.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "mega-lab-phylip-note",
+    "tool": "mega",
+    "title": "Bad MEGA lab",
+    "objectives": ["A mega lab must carry mega_note_md"],
+    "handout_md": "Text.",
+    "settings": [
+      {
+        "option": "Model",
+        "mega_menu": "Distances",
+        "mega_setting": "Kimura 2-parameter",
+        "neophylo": "K80"
+      }
+    ],
+    "phylip_note_md": "A PHYLIP note on a MEGA lab.",
+    "chain": ["Distances"]
+  }
+}

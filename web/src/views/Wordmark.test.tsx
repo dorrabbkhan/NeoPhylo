@@ -39,6 +39,7 @@ describe("Header", () => {
         currentLessonId={null}
         onPickLesson={() => {}}
         onOpenPhylipHelp={() => {}}
+        onOpenMegaHelp={() => {}}
         theme="light"
         presenter={false}
         dispatch={() => {}}

@@ -26,29 +26,56 @@ import { engine, type Result } from "../engine/index";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
 
-/** One row of the lab's settings table (spec §6.2). */
-export interface LabSetting {
+/** One row of a PHYLIP lab's settings table (spec §6.2). */
+export interface LabSettingPhylip {
   option: string;
   phylip_default: string;
   neophylo: string;
 }
 
-/** The exercise file's `lab` block (schema_version 3). */
-export interface LabBlock {
+/** One row of a MEGA lab's settings table (v1.4b spec §7.1): the MEGA
+ * menu path and the setting it names, next to the NeoPhylo control. */
+export interface LabSettingMega {
+  option: string;
+  mega_menu: string;
+  mega_setting: string;
+  neophylo: string;
+}
+
+export type LabSetting = LabSettingPhylip | LabSettingMega;
+
+/** The exercise file's `lab` block, discriminated on `tool` (v1.4b
+ * spec §7.1): absent means a PHYLIP lab, so v1.4 lab files are
+ * unchanged; a "mega" lab carries MEGA settings rows and the
+ * mega_note_md field the lab page renders in place of
+ * phylip_note_md. `chain` is the PHYLIP programs or the MEGA menu
+ * steps the lab reproduces, in order. */
+export type LabBlock = {
   id: string;
   title: string;
   objectives: string[];
   handout_md: string;
-  settings: LabSetting[];
-  phylip_note_md: string;
   chain: string[];
-}
+} & (
+  | {
+      tool?: "phylip";
+      settings: LabSettingPhylip[];
+      phylip_note_md: string;
+    }
+  | {
+      tool: "mega";
+      settings: LabSettingMega[];
+      mega_note_md: string;
+    }
+);
 
 /** One lab as the index lists it. `id` is the registry key — the lab
  * file's name without .json, which the `?lab=` route uses. */
 export interface LabSummary {
   id: string;
   title: string;
+  /** The resolved tool family — an absent `tool` field means phylip. */
+  tool: "phylip" | "mega";
   objectives: string[];
   settings: LabSetting[];
   chain: string[];
@@ -185,6 +212,7 @@ export function listLabs(): LabSummary[] {
     out.push({
       id: file.id,
       title: r.lab.title,
+      tool: r.lab.tool === "mega" ? "mega" : "phylip",
       objectives: r.lab.objectives,
       settings: r.lab.settings,
       chain: r.lab.chain,

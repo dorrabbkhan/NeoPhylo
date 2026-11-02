@@ -53,7 +53,7 @@ export function SettingsDrawer({
       {children}
       {labsHref !== undefined && (
         <a className="settings-drawer-labs" href={labsHref}>
-          PHYLIP labs
+          Labs
         </a>
       )}
       {onTakeTour !== undefined && (

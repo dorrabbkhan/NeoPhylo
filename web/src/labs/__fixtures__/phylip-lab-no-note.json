@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "id": "phylip-lab-no-note",
+  "title": "PHYLIP lab missing its note",
+  "summary": "A phylip lab must carry phylip_note_md.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "phylip-lab-no-note",
+    "title": "Bad lab",
+    "objectives": ["phylip_note_md missing"],
+    "handout_md": "Text.",
+    "settings": [
+      { "option": "Model", "phylip_default": "F84", "neophylo": "JC69" }
+    ],
+    "chain": ["dnadist"]
+  }
+}

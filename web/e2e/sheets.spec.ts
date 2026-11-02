@@ -103,22 +103,23 @@ async function withPairPanel(
   await expect(dialog).toHaveCount(0);
 }
 
-/** Open "Coming from PHYLIP?" — the More menu below 1024, the header
- * button at and above it — run `fn`, close via its own ×. */
+/** Open "Coming from PHYLIP?" — the More menu below 1024, the header's
+ * Guides menu at and above it (v1.4b Task 12, owner decision) — run
+ * `fn`, close via its own ×. */
 async function withPhylipHelp(
   page: Page,
   fn: (dialog: Locator) => Promise<void>,
 ) {
-  const direct = page.getByRole("button", { name: "Coming from PHYLIP?" });
-  if (await direct.isVisible()) {
-    await direct.click();
+  const guides = page.getByRole("button", { name: "Guides" });
+  if (await guides.isVisible()) {
+    await guides.click();
   } else {
     await page.getByRole("button", { name: "More" }).click();
-    await page
-      .getByRole("menu")
-      .getByRole("menuitem", { name: "Coming from PHYLIP?" })
-      .click();
   }
+  await page
+    .getByRole("menu")
+    .getByRole("menuitem", { name: "Coming from PHYLIP?" })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Coming from PHYLIP?" });
   await expect(dialog).toBeVisible();
   await fn(dialog);
@@ -377,9 +378,9 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
 
   const more = page.getByRole("button", { name: "More" });
   await expect(more).toBeVisible();
-  // The direct "Coming from PHYLIP?" header button is gone below 1024.
+  // The Guides menu is gone below 1024 — the More menu owns both guides.
   await expect(
-    page.getByRole("button", { name: "Coming from PHYLIP?" }),
+    page.getByRole("button", { name: "Guides" }),
   ).toHaveCount(0);
 
   await more.focus();
@@ -389,7 +390,8 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
   const items = menu.locator('[role="menuitem"]');
   await expect(items).toHaveText([
     "Coming from PHYLIP?",
-    "PHYLIP labs",
+    "Coming from MEGA?",
+    "Labs",
     "Take the tour",
     "Licenses",
     "Source code",
@@ -413,6 +415,62 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
   await expect(dialog).toBeVisible();
   await expectFullScreen(page, dialog);
 });
+
+// v1.4b Task 12 fix round 1 (conductor screenshot `more-menu-768.png`):
+// the header wraps below 1024 — and below 1280 in presenter mode — so
+// a menu button can land on a wrapped row's left edge, where a list
+// right-aligned to it fell off the viewport's left edge. The open list
+// must stay fully on screen wherever the button sits. The lesson per
+// row is chosen so the wrap really does land the button on a left edge
+// at that viewport (a short title leaves it mid-row and the old
+// right-aligned list would still pass).
+for (const vp of [
+  { w: 768, h: 1024, menu: "More", path: "/?lesson=cytochrome-c" },
+  { w: 375, h: 812, menu: "More", path: "/?lesson=upgma-fails" },
+  { w: 1024, h: 768, menu: "Guides", path: "/?lesson=nj-basics" },
+  { w: 1366, h: 900, menu: "Guides", path: "/?lesson=nj-basics" },
+] as const) {
+  test(`the open ${vp.menu} menu list stays inside the viewport at ${vp.w}×${vp.h}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.goto(vp.path);
+    await waitForApp(page);
+
+    await page.getByRole("button", { name: vp.menu }).click();
+    const menu = page.getByRole("menu", { name: vp.menu });
+    await expect(menu).toBeVisible();
+    const box = await menu.boundingBox();
+    expect(box, "the open list has a bounding box").not.toBeNull();
+    if (box === null) return;
+    expect(box.x, "the list's left edge is on screen").toBeGreaterThanOrEqual(0);
+    expect(
+      box.x + box.width,
+      "the list's right edge is on screen",
+    ).toBeLessThanOrEqual(vp.w);
+
+    const items = menu.getByRole("menuitem");
+    const count = await items.count();
+    expect(count, "the list has menuitems").toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const item = items.nth(i);
+      await expect(item).toBeVisible();
+      const ib = await item.boundingBox();
+      expect(ib, `menuitem ${i} has a bounding box`).not.toBeNull();
+      if (ib === null) continue;
+      expect(ib.x, `menuitem ${i} left edge`).toBeGreaterThanOrEqual(0);
+      expect(
+        ib.x + ib.width,
+        `menuitem ${i} right edge`,
+      ).toBeLessThanOrEqual(vp.w);
+      expect(ib.y, `menuitem ${i} top edge`).toBeGreaterThanOrEqual(0);
+      expect(
+        ib.y + ib.height,
+        `menuitem ${i} bottom edge`,
+      ).toBeLessThanOrEqual(vp.h);
+    }
+  });
+}
 
 test("Review Focus 4, real input: a real click switches theme with the pair panel open mid-run, and with the replicate panel open", async ({
   page,

@@ -1,0 +1,30 @@
+{
+  "schema_version": 4,
+  "id": "mega-lab-null-chain-item",
+  "title": "MEGA lab with a null chain item",
+  "summary": "chain items must be strings — null is refused.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "mega-lab-null-chain-item",
+    "tool": "mega",
+    "title": "Bad MEGA lab",
+    "objectives": ["chain item: null"],
+    "handout_md": "Text.",
+    "settings": [
+      {
+        "option": "Model",
+        "mega_menu": "Distances",
+        "mega_setting": "Kimura 2-parameter",
+        "neophylo": "K80"
+      }
+    ],
+    "mega_note_md": "Note.",
+    "chain": [null]
+  }
+}

@@ -1,10 +1,12 @@
 // App header (v1.3 spec §6.3): the skip link, wordmark, lesson title,
 // the link-restore toast, the Lesson|Sandbox mode switch, the Lessons
-// menu, "Coming from PHYLIP?", the theme toggle and the presenter
-// toggle. Task 10: a "Skip to content" link is the page's first
-// focusable element; below 1280 px the Settings button opens the
-// controls drawer (§6.4); below 1024 px "Coming from PHYLIP?",
-// Licenses, Source code and Help live in the More menu (§6.3).
+// menu, the Guides menu, the theme toggle and the presenter toggle.
+// Task 10: a "Skip to content" link is the page's first focusable
+// element; below 1280 px the Settings button opens the controls drawer
+// (§6.4); below 1024 px both guides, Labs, Licenses, Source code and
+// Help live in the More menu (§6.3). v1.4b Task 12 (owner decision,
+// 2026-11-02): the "Coming from PHYLIP?" button became the two-item
+// "Guides" menu and the labs link was renamed "Labs".
 // Task 11 (§6.6): presenter mode hides the Settings button — the
 // controls are unreachable by design — while the two toggles stay.
 // Task 12 round 3 (§6.7, owner decision B, 2026-10-24): "Take the
@@ -19,7 +21,7 @@ import type { ThemeName } from "../design/tokens";
 import type { Action, Session } from "../state/session";
 
 import { LessonsMenu } from "./LessonsMenu";
-import { MoreMenu } from "./MoreMenu";
+import { GuidesMenu, MoreMenu } from "./MoreMenu";
 import { PresenterToggle } from "./PresenterToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { Wordmark } from "./Wordmark";
@@ -35,6 +37,8 @@ export interface HeaderProps {
   currentLessonId: string | null;
   onPickLesson: (id: string) => void;
   onOpenPhylipHelp: () => void;
+  /** Opens the "Coming from MEGA?" guide (v1.4b Task 12). */
+  onOpenMegaHelp: () => void;
   theme: ThemeName;
   /** Presenter mode flag (§6.6): scales the app 1.5× and hides the
    * controls column and the drawer button. */
@@ -55,6 +59,7 @@ export function Header({
   currentLessonId,
   onPickLesson,
   onOpenPhylipHelp,
+  onOpenMegaHelp,
   theme,
   presenter,
   dispatch,
@@ -138,21 +143,23 @@ export function Header({
           per-width pattern as "Take the tour" (§6.7). */}
       {!belowWide && (
         <a className="labs-link" href="?labs">
-          PHYLIP labs
+          Labs
         </a>
       )}
+      {/* v1.4b Task 12 (owner decision, 2026-11-02): the two guides
+          live behind one "Guides" menu-button where the bare "Coming
+          from PHYLIP?" button sat; below 1024 the More menu carries
+          both items. */}
       {!belowMedium && (
-        <button
-          type="button"
-          className="phylip-help-open"
-          onClick={onOpenPhylipHelp}
-        >
-          Coming from PHYLIP?
-        </button>
+        <GuidesMenu
+          onOpenPhylipHelp={onOpenPhylipHelp}
+          onOpenMegaHelp={onOpenMegaHelp}
+        />
       )}
       {belowMedium && (
         <MoreMenu
           onOpenPhylipHelp={onOpenPhylipHelp}
+          onOpenMegaHelp={onOpenMegaHelp}
           onTakeTour={() => dispatch({ type: "tourStart" })}
         />
       )}

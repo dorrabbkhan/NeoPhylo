@@ -224,6 +224,38 @@ test("a loaded lesson still works offline", async ({
   await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
 });
 
+/* ---- Task 12: MegaHelp + a MEGA lab page axe scans (v1.4b) ---- */
+
+test("axe: the MEGA guide and a MEGA lab page have no serious violations", async ({
+  page,
+  context,
+}) => {
+  // The fixture MEGA lab joins the registry only under the e2e flag.
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo-e2e", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+  await page.goto("/?lesson=nj-basics");
+  await waitForApp(page);
+  await page.getByRole("button", { name: "Guides" }).click();
+  await page
+    .getByRole("menuitem", { name: "Coming from MEGA?" })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Coming from MEGA?" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "Coming from MEGA?");
+
+  await page.goto("/?lab=mega-test-lab");
+  await expect(
+    page.getByRole("heading", { name: "Test MEGA lab: distances → NJ" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the MEGA lab page");
+});
+
 /* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */
 
 test("axe: the dataset sheet and the gap control have no serious violations", async ({

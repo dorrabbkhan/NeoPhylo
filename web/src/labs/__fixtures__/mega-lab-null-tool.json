@@ -1,0 +1,25 @@
+{
+  "schema_version": 4,
+  "id": "mega-lab-null-tool",
+  "title": "Lab with a null tool",
+  "summary": "tool must be \"phylip\" or \"mega\" — null is refused.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "mega-lab-null-tool",
+    "tool": null,
+    "title": "Bad lab",
+    "objectives": ["tool: null"],
+    "handout_md": "Text.",
+    "settings": [
+      { "option": "Model", "phylip_default": "F84", "neophylo": "JC69" }
+    ],
+    "phylip_note_md": "Note.",
+    "chain": ["dnadist"]
+  }
+}

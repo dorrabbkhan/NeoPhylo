@@ -67,9 +67,11 @@ describe("PhylipHelp", () => {
 });
 
 describe("header entry", () => {
-  it('opens from a "Coming from PHYLIP?" button in the header', async () => {
+  it('opens from the header\'s Guides menu — "Coming from PHYLIP?" item (v1.4b Task 12)', async () => {
     render(<App exercise={EXERCISE} />);
-    const open = await screen.findByRole("button", {
+    const guides = await screen.findByRole("button", { name: "Guides" });
+    fireEvent.click(guides);
+    const open = screen.getByRole("menuitem", {
       name: "Coming from PHYLIP?",
     });
     // jsdom doesn't focus a button on click; a keyboard user would have
@@ -78,9 +80,10 @@ describe("header entry", () => {
     fireEvent.click(open);
     // The dialog is a lazy chunk (v1.3 Task 14): the open is async.
     const dialog = await screen.findByRole("dialog");
-    // Focus moved into the panel; closing returns it to the button.
+    // Focus moved into the panel; closing returns it to the Guides
+    // button (the menu item is unmounted with the closed menu).
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(document.activeElement).toBe(open);
+    expect(document.activeElement).toBe(guides);
   });
 });

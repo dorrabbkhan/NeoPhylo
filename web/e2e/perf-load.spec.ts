@@ -112,9 +112,12 @@ test.describe("lazy KaTeX chunk", () => {
 
     // The PHYLIP help chunk is requested only on open (the §8.2 trim):
     // one fetch for the click, none on re-open — still under the 1.2 s
-    // delay route above, which keeps the async open observable.
+    // delay route above, which keeps the async open observable. The
+    // entry is the Guides menu's "Coming from PHYLIP?" item (v1.4b
+    // Task 12, owner decision).
+    await page.getByRole("button", { name: "Guides" }).click();
     await page
-      .getByRole("button", { name: "Coming from PHYLIP?" })
+      .getByRole("menuitem", { name: "Coming from PHYLIP?" })
       .click();
     const dialog = page.getByRole("dialog", {
       name: "Coming from PHYLIP?",
@@ -133,8 +136,9 @@ test.describe("lazy KaTeX chunk", () => {
       .getByRole("button", { name: "Close PHYLIP help" })
       .click();
     await expect(dialog).toHaveCount(0);
+    await page.getByRole("button", { name: "Guides" }).click();
     await page
-      .getByRole("button", { name: "Coming from PHYLIP?" })
+      .getByRole("menuitem", { name: "Coming from PHYLIP?" })
       .click();
     await expect(dialog).toBeVisible();
     expect(
@@ -256,8 +260,12 @@ test("after one online load, Math renders offline with KaTeX's own fonts", async
 
   // The PhylipHelp chunk is precached by the same `**/*.js` glob, so
   // "Coming from PHYLIP?" opens offline on first use — never requested
-  // during the online load above.
-  await page.getByRole("button", { name: "Coming from PHYLIP?" }).click();
+  // during the online load above. The entry is the Guides menu's item
+  // (v1.4b Task 12, owner decision).
+  await page.getByRole("button", { name: "Guides" }).click();
+  await page
+    .getByRole("menuitem", { name: "Coming from PHYLIP?" })
+    .click();
   await expect(
     page.getByRole("dialog", { name: "Coming from PHYLIP?" }),
   ).toBeVisible();

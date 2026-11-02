@@ -29,6 +29,7 @@ function setup(breakpoint: Breakpoint, presenter = false) {
       currentLessonId={null}
       onPickLesson={() => {}}
       onOpenPhylipHelp={() => {}}
+      onOpenMegaHelp={() => {}}
       theme="light"
       presenter={presenter}
       dispatch={dispatch}
@@ -55,6 +56,40 @@ describe("Header — Take the tour (§6.7)", () => {
     expect(
       screen.queryByRole("button", { name: "Take the tour" }),
     ).toBeNull();
+  });
+});
+
+describe("Header — Guides menu and Labs link (v1.4b Task 12, owner decision)", () => {
+  it("shows a Guides menu button at and above 1024, never the bare help buttons", () => {
+    for (const bp of ["wide", "medium"] as const) {
+      cleanup();
+      setup(bp);
+      expect(
+        screen.getByRole("button", { name: "Guides" }),
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "Coming from PHYLIP?" }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Coming from MEGA?" }),
+      ).toBeNull();
+    }
+  });
+
+  it("shows no Guides button below 1024 — the More menu owns the guides there", () => {
+    for (const bp of ["narrow", "compact"] as const) {
+      cleanup();
+      setup(bp);
+      expect(screen.queryByRole("button", { name: "Guides" })).toBeNull();
+    }
+  });
+
+  it('shows the renamed "Labs" link only at the wide breakpoint', () => {
+    setup("wide");
+    expect(screen.getByRole("link", { name: "Labs" })).toBeTruthy();
+    cleanup();
+    setup("medium");
+    expect(screen.queryByRole("link", { name: "Labs" })).toBeNull();
   });
 });
 

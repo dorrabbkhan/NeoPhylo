@@ -11,9 +11,12 @@ import { Sheet } from "./Sheet";
 
 export interface PhylipHelpProps {
   onClose: () => void;
+  /** Opens "Coming from MEGA?" (v1.4b Task 12): the cross-link swaps
+   * this sheet for the other guide. */
+  onOpenMegaHelp?: () => void;
 }
 
-export function PhylipHelp({ onClose }: PhylipHelpProps) {
+export function PhylipHelp({ onClose, onOpenMegaHelp }: PhylipHelpProps) {
   return (
     <Sheet
       className="pair-panel phylip-help"
@@ -56,9 +59,22 @@ export function PhylipHelp({ onClose }: PhylipHelpProps) {
         </li>
       </ul>
       <p className="phylip-note">
-        The <a href="?labs">PHYLIP labs</a> walk through the classic
-        chains — each lab's settings table maps every PHYLIP default to
-        its NeoPhylo setting.
+        The <a href="?labs">labs</a> walk through the classic chains —
+        each lab's settings table maps every PHYLIP default to its
+        NeoPhylo setting.
+        {onOpenMegaHelp !== undefined && (
+          <>
+            {" "}
+            Working in MEGA?{" "}
+            <button
+              type="button"
+              className="guide-link"
+              onClick={onOpenMegaHelp}
+            >
+              Coming from MEGA?
+            </button>
+          </>
+        )}
       </p>
     </Sheet>
   );
