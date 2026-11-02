@@ -133,7 +133,7 @@ describe("lab index and lab page", () => {
     ).toBeNull();
   });
 
-  it("groups the index under PHYLIP labs and MEGA labs; the empty MEGA group says handouts are coming", () => {
+  it("groups the index under PHYLIP labs and MEGA labs; the shipped MEGA handout keeps the coming-soon line off", () => {
     render(<LabIndex />);
     expect(screen.getByRole("heading", { name: "Labs" })).toBeTruthy();
     const phylip = screen.getByRole("heading", { name: "PHYLIP labs" });
