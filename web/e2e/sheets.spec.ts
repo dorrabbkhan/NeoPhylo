@@ -416,6 +416,62 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
   await expectFullScreen(page, dialog);
 });
 
+// v1.4b Task 12 fix round 1 (conductor screenshot `more-menu-768.png`):
+// the header wraps below 1024 — and below 1280 in presenter mode — so
+// a menu button can land on a wrapped row's left edge, where a list
+// right-aligned to it fell off the viewport's left edge. The open list
+// must stay fully on screen wherever the button sits. The lesson per
+// row is chosen so the wrap really does land the button on a left edge
+// at that viewport (a short title leaves it mid-row and the old
+// right-aligned list would still pass).
+for (const vp of [
+  { w: 768, h: 1024, menu: "More", path: "/?lesson=cytochrome-c" },
+  { w: 375, h: 812, menu: "More", path: "/?lesson=upgma-fails" },
+  { w: 1024, h: 768, menu: "Guides", path: "/?lesson=nj-basics" },
+  { w: 1366, h: 900, menu: "Guides", path: "/?lesson=nj-basics" },
+] as const) {
+  test(`the open ${vp.menu} menu list stays inside the viewport at ${vp.w}×${vp.h}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp.w, height: vp.h });
+    await page.goto(vp.path);
+    await waitForApp(page);
+
+    await page.getByRole("button", { name: vp.menu }).click();
+    const menu = page.getByRole("menu", { name: vp.menu });
+    await expect(menu).toBeVisible();
+    const box = await menu.boundingBox();
+    expect(box, "the open list has a bounding box").not.toBeNull();
+    if (box === null) return;
+    expect(box.x, "the list's left edge is on screen").toBeGreaterThanOrEqual(0);
+    expect(
+      box.x + box.width,
+      "the list's right edge is on screen",
+    ).toBeLessThanOrEqual(vp.w);
+
+    const items = menu.getByRole("menuitem");
+    const count = await items.count();
+    expect(count, "the list has menuitems").toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const item = items.nth(i);
+      await expect(item).toBeVisible();
+      const ib = await item.boundingBox();
+      expect(ib, `menuitem ${i} has a bounding box`).not.toBeNull();
+      if (ib === null) continue;
+      expect(ib.x, `menuitem ${i} left edge`).toBeGreaterThanOrEqual(0);
+      expect(
+        ib.x + ib.width,
+        `menuitem ${i} right edge`,
+      ).toBeLessThanOrEqual(vp.w);
+      expect(ib.y, `menuitem ${i} top edge`).toBeGreaterThanOrEqual(0);
+      expect(
+        ib.y + ib.height,
+        `menuitem ${i} bottom edge`,
+      ).toBeLessThanOrEqual(vp.h);
+    }
+  });
+}
+
 test("Review Focus 4, real input: a real click switches theme with the pair panel open mid-run, and with the replicate panel open", async ({
   page,
 }) => {

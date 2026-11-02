@@ -73,10 +73,10 @@ function LabGroup({
   empty?: string;
 }) {
   return (
-    <section className="lab-group" aria-label={title}>
-      <h2 className="lab-group-title">{title}</h2>
+    <section aria-label={title}>
+      <h2>{title}</h2>
       {labs.length === 0 ? (
-        <p className="labs-empty lab-coming">{empty}</p>
+        <p className="labs-empty">{empty}</p>
       ) : (
         <ol className="lab-list">
           {labs.map((lab) => (

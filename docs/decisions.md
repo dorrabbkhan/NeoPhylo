@@ -6238,10 +6238,14 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
     More-menu pattern, the link-styled `.guide-link` cross-link
     button, and ≥40×40 coarse-pointer floors for the guide sheets'
     plain links (not covered by the generic rule).
-  - `web/src/labs/__fixtures__/*.json` (8 new) — the fixture MEGA lab
-    plus the refusal pins (`tool` null/array, `mega_note_md` null,
-    `mega_menu` null/array, phylip lab missing `phylip_note_md`);
-    fixture labs join only under the e2e flag, per conductor note 2.
+  - `web/src/labs/__fixtures__/*.json` (13 new) — the fixture MEGA lab
+    plus the refusal pins (`tool` null/array, `mega_note_md`
+    null/array, `mega_menu`/`mega_setting` null/array, MEGA `chain`
+    item null/array, phylip lab missing `phylip_note_md`); fixture
+    labs join only under the e2e flag, per conductor note 2. The
+    `mega_setting` and `mega_note_md`-array/chain-item pins are fix
+    round 1 — the plan's Global Constraints want a null and an array
+    pin on every new key.
   - `web/src/labs/labs.test.tsx`,
     `web/src/views/{Header,MoreMenu,PhylipHelp,Tour,Wordmark}.test.tsx`,
     `web/e2e/{labs,sheets,perf-load,a11y}.spec.ts` — new coverage and
@@ -6262,7 +6266,7 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `MoreMenu` so the menu-button contract (keyboard, Escape, focus
   return, `role="menu"`) is literally the same code, not a copy —
   and the initial-JS cost stays small (budget 120,168 B gz;
-  measured 120,071 B).
+  measured 120,073 B after fix round 1).
 - **Lab index "time estimates":** spec §7.3 lists them but the lab
   schema carries no time field and the three shipped packs may not be
   edited this task — the index shows the existing card content
@@ -6278,3 +6282,14 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   MEGA-JTT model ships); bootstrap agrees only within sampling noise
   (different RNGs; sites removed before resampling). No tolerance or
   decimal-count literals; support never called a probability.
+- **More/Guides menu clip (fix round 1):** the open More list fell off
+  the viewport's left edge below 1024 — a wrapped row puts the button
+  on the left edge while `.more-menu-list { right: 0 }` right-aligned
+  the list to it. Pre-existing on main (the conductor reproduced it
+  there) but now the list is the only <1024 path to the MEGA guide.
+  Fixed in CSS only: the header is the list's containing block where
+  the header can wrap, so the list anchors to the header's content
+  edge wherever the button sits; the Guides list gets the same
+  treatment at 1024–1279 and in presenter mode. Pinned by a
+  `sheets.spec.ts` bounding-box e2e at four viewports; no snapshot
+  scene opens a menu, so no baseline changed.

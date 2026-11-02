@@ -582,6 +582,39 @@ for (const vp of [
   });
 }
 
+// v1.4b Task 12 fix round 1 (plan Step 1): "reachable from the PHYLIP
+// guide" means clicking through — each guide's cross-link swaps the
+// open sheet for the other guide's.
+test("each guide's cross-link opens the other guide", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/?lesson=nj-basics");
+  await waitForApp(page);
+
+  await page.getByRole("button", { name: "Guides" }).click();
+  await page
+    .getByRole("menuitem", { name: "Coming from PHYLIP?" })
+    .click();
+  const phylip = page.getByRole("dialog", {
+    name: "Coming from PHYLIP?",
+  });
+  await expect(phylip).toBeVisible();
+
+  await phylip
+    .getByRole("button", { name: "Coming from MEGA?" })
+    .click();
+  const mega = page.getByRole("dialog", { name: "Coming from MEGA?" });
+  await expect(mega).toBeVisible();
+  await expect(phylip).toHaveCount(0);
+
+  await mega
+    .getByRole("button", { name: "Coming from PHYLIP?" })
+    .click();
+  await expect(phylip).toBeVisible();
+  await expect(mega).toHaveCount(0);
+});
+
 // v1.4b Task 12 (conductor note 7): every link/button in MegaHelp,
 // the Guides menu and the cross-links is ≥ 40×40 under a coarse
 // pointer — plain links are not covered by the generic coarse rule,

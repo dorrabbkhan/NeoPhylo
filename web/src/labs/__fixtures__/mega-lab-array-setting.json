@@ -1,0 +1,30 @@
+{
+  "schema_version": 4,
+  "id": "mega-lab-array-setting",
+  "title": "MEGA lab with an array mega_setting",
+  "summary": "settings items need mega_setting as a string — [] is refused.",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 30, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "lab": {
+    "id": "mega-lab-array-setting",
+    "tool": "mega",
+    "title": "Bad MEGA lab",
+    "objectives": ["mega_setting: []"],
+    "handout_md": "Text.",
+    "settings": [
+      {
+        "option": "Model",
+        "mega_menu": "Distances",
+        "mega_setting": [],
+        "neophylo": "K80"
+      }
+    ],
+    "mega_note_md": "Note.",
+    "chain": ["Distances"]
+  }
+}

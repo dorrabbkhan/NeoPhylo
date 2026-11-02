@@ -78,6 +78,16 @@ describe("lab registry", () => {
     ["mega-lab-null-menu", /mega_menu/],
     // a settings item's mega_menu: []
     ["mega-lab-array-menu", /mega_menu/],
+    // a settings item's mega_setting: null
+    ["mega-lab-null-setting", /mega_setting/],
+    // a settings item's mega_setting: []
+    ["mega-lab-array-setting", /mega_setting/],
+    // mega_note_md: [] on an otherwise valid mega lab
+    ["mega-lab-array-note", /mega_note_md/],
+    // a MEGA lab's chain item: null
+    ["mega-lab-null-chain-item", /chain/],
+    // a MEGA lab's chain item: []
+    ["mega-lab-array-chain-item", /chain/],
     // a phylip lab (tool absent) missing phylip_note_md
     ["phylip-lab-no-note", /phylip_note_md/],
   ];

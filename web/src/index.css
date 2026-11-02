@@ -71,6 +71,11 @@ p {
 }
 
 .app-header {
+  /* v1.4b Task 12 fix round 1: the header is the containing block for
+   * the More/Guides lists wherever the header can wrap (below 1024,
+   * and presenter mode at any width) — a list anchored to a button on
+   * a wrapped row's left edge fell off the viewport's left edge. */
+  position: relative;
   padding: 10px 16px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -2001,6 +2006,49 @@ a.labs-link {
 .guides-menu-list [role="menuitem"]:focus-visible {
   background: var(--color-accent-bg);
   outline: none;
+}
+
+/* v1.4b Task 12 fix round 1 (conductor finding — the clip existed on
+ * main): below 1024 the header wraps, and the More button can land on
+ * a wrapped row's left edge — a list right-aligned to it then falls
+ * off the viewport's left edge, and the list is the only <1024 path
+ * to the guides. position: static moves the list's containing block
+ * up to .app-header, so it anchors to the header's left content edge
+ * and stays inside the viewport wherever the button sits. */
+@media (width < 1024px) {
+  .more-menu {
+    position: static;
+  }
+
+  .more-menu-list {
+    left: var(--space-16);
+    right: auto;
+    max-width: calc(100vw - var(--space-16) * 2);
+  }
+}
+
+/* The Guides list takes the same fix where its button can land on a
+ * wrapped row's edge: 1024–1279 (the row can wrap in presenter mode)
+ * and presenter mode at any width. Its button lives on the header's
+ * right side, so the list anchors to the right content edge. */
+@media (1024px <= width < 1280px) {
+  .guides-menu {
+    position: static;
+  }
+
+  .guides-menu-list {
+    left: auto;
+    right: var(--space-16);
+  }
+}
+
+:root[data-presenter] .guides-menu {
+  position: static;
+}
+
+:root[data-presenter] .guides-menu-list {
+  left: auto;
+  right: var(--space-16);
 }
 
 /* The guides' cross-link button (v1.4b Task 12): a button that reads
