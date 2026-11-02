@@ -6220,3 +6220,61 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - 22 existing `editor-*` baselines regenerated for the required Gap
   treatment row in the editor settings (owner chose option A on
   #133); no other baseline changed.
+
+## v1.4b Task 12: MEGA labs framework, "Coming from MEGA?", Guides menu
+
+- **Files outside the Files block:**
+  - `web/src/views/App.tsx` — MegaHelp is a `React.lazy` chunk on the
+    PhylipHelp precedent (initial-JS budget); the open guide lives in
+    one `guide` state so the cross-links swap sheets.
+  - `web/src/views/SettingsDrawer.tsx` — the owner's "Labs" rename
+    covers the drawer's 1024–1279 lab link (owner decision
+    2026-11-02: "Guides" menu, "Labs" rename, re-baselined 1920/1024
+    header frames).
+  - `web/src/views/editor/EditorPanel.tsx` — the editor's lab-picker
+    button, sheet title and close label renamed "Labs"; the sheet now
+    lists both families.
+  - `web/src/index.css` — `.guides-menu` styles reusing the
+    More-menu pattern, the link-styled `.guide-link` cross-link
+    button, and ≥40×40 coarse-pointer floors for the guide sheets'
+    plain links (not covered by the generic rule).
+  - `web/src/labs/__fixtures__/*.json` (8 new) — the fixture MEGA lab
+    plus the refusal pins (`tool` null/array, `mega_note_md` null,
+    `mega_menu` null/array, phylip lab missing `phylip_note_md`);
+    fixture labs join only under the e2e flag, per conductor note 2.
+  - `web/src/labs/labs.test.tsx`,
+    `web/src/views/{Header,MoreMenu,PhylipHelp,Tour,Wordmark}.test.tsx`,
+    `web/e2e/{labs,sheets,perf-load,a11y}.spec.ts` — new coverage and
+    the name/path updates the owner's header decision requires;
+    no assertion removed or weakened.
+  - `web/e2e/__screenshots__/` — regenerated the header-bearing
+    1920×1080/1024×768 frames (owner-approved re-baselining,
+    2026-11-02) plus, beyond the enumerated set: every `editor-*`
+    frame (the lab-picker button is a navigation entry the rename
+    covers — it opens a sheet that lists MEGA labs) and
+    `editor-preview-1280x800` (the popup shows the app header at the
+    wide breakpoint). `bootstrap-basics-final-presenter-1920x1080`
+    regenerated: presenter mode hides only the Settings button and
+    controls column, not the header, so the Guides menu is visible
+    there. No `lab-*-print` frame changed.
+- **`GuidesMenu` lives in `MoreMenu.tsx`:** the Files block already
+  names that file; it shares a parameterized `MenuButton` with
+  `MoreMenu` so the menu-button contract (keyboard, Escape, focus
+  return, `role="menu"`) is literally the same code, not a copy —
+  and the initial-JS cost stays small (budget 120,168 B gz;
+  measured 120,071 B).
+- **Lab index "time estimates":** spec §7.3 lists them but the lab
+  schema carries no time field and the three shipped packs may not be
+  edited this task — the index shows the existing card content
+  (objectives, settings, chain) grouped by tool. A `time` field is a
+  Task-13 follow-up.
+- **MEGA lab note/table text:** heading is exactly "What MEGA shows
+  you vs what NeoPhylo shows you"; columns "Option", "MEGA menu",
+  "MEGA setting", "NeoPhylo". PHYLIP labs render the same DOM as
+  before (existing assertions unmodified).
+- **MegaHelp numbers:** names only what the parity tests pin — p,
+  JC69, K80 and Poisson distances under all three gap treatments;
+  JTT is validated against PHYLIP's protdist, not MEGA (#117: no
+  MEGA-JTT model ships); bootstrap agrees only within sampling noise
+  (different RNGs; sites removed before resampling). No tolerance or
+  decimal-count literals; support never called a probability.
