@@ -87,6 +87,16 @@ export async function loadDataset(id: string): Promise<Result<Alignment>> {
   } catch (e) {
     return datasetError(e instanceof Error ? e.message : String(e));
   }
+  return loadDatasetFrom(list, id);
+}
+
+/** The fetch+parse half of `loadDataset` given an already-read index —
+ * the `ds=` restore path reads index.json once for both the existence
+ * check and the row's title (v1.4b Task 11). */
+export async function loadDatasetFrom(
+  list: DatasetSummary[],
+  id: string,
+): Promise<Result<Alignment>> {
   if (!list.some((d) => d.id === id)) {
     return datasetError(`unknown library dataset '${id}'`);
   }

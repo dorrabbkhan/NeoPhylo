@@ -92,24 +92,26 @@ export function ImportPanel({
 }: ImportPanelProps) {
   const [text, setText] = useState("");
   const [localError, setLocalError] = useState<NeoError | null>(null);
-  // The last pasted PHYLIP text and the name mode the parse used, so
+  // The last pasted PHYLIP text, the name mode the parse used and the
+  // import's `name` (a picked file's name, undefined for a paste), so
   // the Strict/Relaxed toggle can re-parse without re-pasting.
   const [phylip, setPhylip] = useState<{
     text: string;
     namesUsed: NameMode;
+    name?: string;
   } | null>(null);
   // `.meg` parser notices — ignored !commands, auto-detected alphabet
   // and the matrix-file refusal pointing at v1.4c (v1.4b Task 11).
   const [megNotices, setMegNotices] = useState<string[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // The picked file's name, for the importAlignment action's `name`
-  // (the `.meg` export's !Title); pastes and samples have none or
-  // their own. Reset by every successful non-file import.
-  const lastName = useRef<string | undefined>(undefined);
 
   if (session.source !== "sandbox") return null;
 
-  const importText = (input: string) => {
+  // `name` is the picked file's name for the importAlignment action
+  // (the `.meg` export's !Title); a paste passes none. It is an
+  // argument, not state, so a failed or tree-shaped file can't leave
+  // its name behind for a later import to pick up (Task 11 fix).
+  const importText = (input: string, name?: string) => {
     const t = input.trimStart();
     if (t === "") {
       setLocalError(null);
@@ -127,13 +129,12 @@ export function ImportPanel({
       dispatch({
         type: "importAlignment",
         alignment: r.value,
-        name: lastName.current,
+        name,
       });
-      lastName.current = undefined;
     } else if (looksLikeMeg(input)) {
-      importMeg(input);
+      importMeg(input, name);
     } else if (looksLikePhylip(input)) {
-      importPhylip(input, "Auto");
+      importPhylip(input, "Auto", name);
     } else {
       const r = engine.parseNewick(input);
       if (!r.ok) {
@@ -146,28 +147,27 @@ export function ImportPanel({
     }
   };
 
-  const importPhylip = (input: string, names: NameMode) => {
+  const importPhylip = (input: string, names: NameMode, name?: string) => {
     const r = engine.parsePhylip(input, names);
     if (!r.ok) {
       setLocalError(r.error);
       return;
     }
     setLocalError(null);
-    setPhylip({ text: input, namesUsed: r.value.names_used });
+    setPhylip({ text: input, namesUsed: r.value.names_used, name });
     setMegNotices(null);
     dispatch({
       type: "importAlignment",
       alignment: r.value.alignment,
-      name: lastName.current,
+      name,
     });
-    lastName.current = undefined;
   };
 
   // `.meg` (v1.4b Task 11): notices ride the session's notice area;
   // the matrix-file refusal is a recognized format, not malformed
   // input, so it reads as a notice pointing at v1.4c rather than an
   // error line. Every other error shows the engine's line number.
-  const importMeg = (input: string) => {
+  const importMeg = (input: string, name?: string) => {
     const r = engine.parseMeg(input);
     if (!r.ok) {
       setPhylip(null);
@@ -189,14 +189,12 @@ export function ImportPanel({
     dispatch({
       type: "importAlignment",
       alignment: r.value.alignment,
-      name: lastName.current,
+      name,
     });
-    lastName.current = undefined;
   };
 
   const onFile = async (file: File) => {
-    lastName.current = file.name;
-    importText(await file.text());
+    importText(await file.text(), file.name);
     // Reset so picking the same file again still fires onChange.
     if (fileRef.current !== null) fileRef.current.value = "";
   };
@@ -311,7 +309,9 @@ export function ImportPanel({
               type="button"
               role="radio"
               aria-checked={phylip.namesUsed === mode}
-              onClick={() => importPhylip(phylip.text, mode)}
+              onClick={() =>
+                importPhylip(phylip.text, mode, phylip.name)
+              }
             >
               {mode} names
             </button>

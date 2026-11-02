@@ -297,6 +297,69 @@ describe("ImportPanel — file input", () => {
     );
     expect(screen.getByTestId("inferred").textContent).toBe("true");
   });
+
+  // The file's name belongs to its own import attempt (v1.4b Task 11
+  // fix): a file that never dispatches importAlignment — a parse
+  // failure or a tree — must not leave its name behind for a later
+  // paste to pick up as its .meg !Title.
+  it("a file that fails to parse doesn't leak its name into a later paste", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["(a:0.1,b:0.2"], "bad.nwk")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Couldn't read",
+      ),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
+
+  it("a .meg refusal doesn't leak its name into a later paste", async () => {
+    const matrix = readFileSync(
+      resolve(
+        process.cwd(),
+        "../crates/neophylo-core/tests/meg_inputs/matrix.meg",
+      ),
+      "utf8",
+    );
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([matrix], "matrix.meg")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByText(/planned for v1\.4c/)).toBeTruthy(),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
+
+  it("a file that imports as a tree doesn't leak its name into a later paste", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: {
+        files: [new File(["(a:0.1,b:0.2,c:0.3);"], "tree.nwk")],
+      },
+    });
+    // The sandbox already holds the lesson's reference (A–E); the file
+    // has landed once its a–c leaves replace it.
+    await waitFor(() =>
+      expect(
+        holder.s.reference?.tree.nodes
+          .filter((n) => n.children.length === 0)
+          .map((n) => n.label),
+      ).toEqual(["a", "b", "c"]),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
 });
 
 describe("ImportPanel — empty state and samples (v1.3 Task 12, spec §6.8)", () => {

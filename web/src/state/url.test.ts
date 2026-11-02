@@ -933,6 +933,37 @@ describe("ds= library links", () => {
     expect(r.exercise).not.toBeNull();
   });
 
+  // v1.4b Task 11 fix: an engine parse failure has no InvalidExercise
+  // msg, so the toast must be built into a readable sentence naming
+  // the dataset — never the bare error kind ("Parse").
+  it("a parse failure of a known id toasts a sentence naming the dataset", async () => {
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("index.json")) {
+        return new Response(
+          readFileSync(
+            resolve(process.cwd(), "public/library/index.json"),
+            "utf8",
+          ),
+        );
+      }
+      if (url.endsWith("globins.fasta")) {
+        return new Response("this is not fasta");
+      }
+      return new Response("not found", { status: 404 });
+    });
+    history.replaceState(null, "", "/?sb=1&ds=globins");
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(true);
+    expect(r.toastDetail).toContain("globins");
+    // A sentence, not an error-kind name.
+    expect(r.toastDetail).not.toBe("Parse");
+    expect(r.toastDetail).not.toBe("UnsupportedCharacter");
+    expect(r.toastDetail).toContain(" ");
+    // The default lesson loads, never a blank sandbox.
+    expect(r.exercise?.id).toBe("nj-basics");
+  });
+
   it("ds= with o= overrides restores both", async () => {
     const o = compressToEncodedURIComponent(
       JSON.stringify({ analysis: { correction: "Poisson" } }),
@@ -953,4 +984,34 @@ describe("ds= library links", () => {
     expect(s.exercise.analysis.correction).toBe("Poisson");
     expect(s.source).toBe("sandbox");
   });
+
+  // v1.4b Task 11 fix: pin `ds=` + `o=` for the gap treatment — the
+  // analysis override re-applied after the dataset lands must carry a
+  // site filter too, not just a correction model.
+  it.each([
+    { kind: "partial", cutoff_pct: 95 },
+    { kind: "complete" },
+  ] as Exercise["analysis"]["site_filter"][])(
+    "ds= with an o= site filter %o restores the dataset and the filter",
+    async (site_filter) => {
+      const o = compressToEncodedURIComponent(
+        JSON.stringify({ analysis: { site_filter } }),
+      );
+      history.replaceState(null, "", `/?sb=1&ds=16s-rrna&o=${o}`);
+      const r = await resolveInitial(null);
+      expect(r.toast).toBe(false);
+      if (r.exercise === null || r.fromUrl === null) {
+        throw new Error("resolveInitial found no exercise/state");
+      }
+      let s = reducer(initialSession(r.exercise), {
+        type: "load",
+        exercise: r.exercise,
+        source: "lesson",
+      });
+      s = applyUrlState(s, r.fromUrl, r.dataset);
+      expect(s.libraryDataset).toBe("16s-rrna");
+      expect(s.exercise.analysis.site_filter).toEqual(site_filter);
+      expect(s.source).toBe("sandbox");
+    },
+  );
 });

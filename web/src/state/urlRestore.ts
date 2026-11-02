@@ -7,9 +7,10 @@
 import { engine } from "../engine";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Exercise } from "../engine/generated/Exercise";
+import { errorMessage } from "../explain/errors";
 import { defaultLessonJson } from "../lessons/default";
 import { loadLesson } from "../lessons/loader";
-import { listDatasets, loadDataset } from "../library/registry";
+import { listDatasets, loadDatasetFrom } from "../library/registry";
 
 import { decode } from "./url";
 import type { UrlState } from "./url";
@@ -91,16 +92,21 @@ export async function resolveInitial(
   let dataset: ResolvedDataset | undefined;
   if (fromUrl?.dataset !== undefined) {
     const id = fromUrl.dataset;
-    const [summaries, r] = await Promise.all([
-      listDatasets().catch(() => null),
-      loadDataset(id),
-    ]);
-    if (!r.ok || summaries === null) {
-      const msg = !r.ok
-        ? r.error.kind === "InvalidExercise"
-          ? r.error.msg
-          : r.error.kind
-        : "the dataset index could not be loaded";
+    // index.json is read once for the id check, the row's title and
+    // (inside loadDatasetFrom) the fetch precondition — Task 11 fix.
+    const summaries = await listDatasets().catch(() => null);
+    const r =
+      summaries === null ? null : await loadDatasetFrom(summaries, id);
+    if (summaries === null || r === null || !r.ok) {
+      // A registry-level failure carries a ready sentence in `msg`
+      // (unknown id, fetch problem); an engine parse failure doesn't,
+      // so build one from errorMessage — never the bare error kind.
+      const msg =
+        r !== null && !r.ok
+          ? r.error.kind === "InvalidExercise"
+            ? r.error.msg
+            : `Dataset "${id}" could not be imported: ${errorMessage(r.error).body}`
+          : "the dataset index could not be loaded";
       const def = engine.loadExercise(defaultLessonJson);
       return {
         exercise: def.ok ? def.value : null,
