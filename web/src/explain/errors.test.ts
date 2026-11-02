@@ -119,6 +119,23 @@ describe("errorMessage", () => {
     ).toBe("JTT is for protein; this data is DNA. Choose p, JC69 or K80.");
   });
 
+  it("gives a .meg Parse error the MEGA hint, not the FASTA/Newick one (v1.4b Task 11 fix round 2)", () => {
+    const m = errorMessage(
+      {
+        kind: "Parse",
+        line: 1,
+        col: 1,
+        msg: "expected '#mega' on the first line",
+      },
+      "meg",
+    );
+    expect(m.title).toBe("Couldn't read line 1");
+    expect(m.body).toBe(
+      'expected \'#mega\' on the first line (line 1, column 1). Check the MEGA file: it starts with #mega, has a !Format line and one #name per sequence.',
+    );
+    expect(m.body).not.toContain("FASTA");
+  });
+
   it("tells the user to align ragged sequences first (Review Focus 2)", () => {
     expect(
       errorMessage({

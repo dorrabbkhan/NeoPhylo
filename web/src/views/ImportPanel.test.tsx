@@ -475,6 +475,53 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
     },
   );
 
+  // A picked file's .meg extension routes it to the .meg parser on
+  // its name alone (Task 11 fix round 2): a file saved without the
+  // #mega line gets the engine's missing-header error — with the MEGA
+  // hint — instead of a Newick error. Pasted text keeps the #mega
+  // sniff, so the same content pasted is a Newick error.
+  it("a picked *.meg file without #mega gets the .meg error, not Newick's", async () => {
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([text], "no_mega_header.meg")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected '#mega' on the first line",
+      ),
+    );
+    const alert = screen.getByRole("alert").textContent;
+    expect(alert).toContain("Check the MEGA file");
+    expect(alert).not.toContain("FASTA");
+  });
+
+  it("the picked-file .meg extension check is case-insensitive", async () => {
+    // No #mega line: only the ".MEG" name can route this to the .meg
+    // parser, so the missing-header error proves the check ran.
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([text], "NOHDR.MEG")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected '#mega' on the first line",
+      ),
+    );
+  });
+
+  it("pasted text without #mega is still not .meg (sniff unchanged)", () => {
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    paste(text);
+    const alert = screen.getByRole("alert").textContent;
+    expect(alert).not.toContain("Check the MEGA file");
+    expect(alert).toContain("FASTA");
+  });
+
   it("shows parser notices for ignored commands", () => {
     const text = readFileSync(resolve(MEG_DIR, "commands.meg"), "utf8");
     renderPanel(sandbox(NJ_BASICS));

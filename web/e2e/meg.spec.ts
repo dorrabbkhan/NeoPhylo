@@ -54,8 +54,27 @@ test("ignored commands and a matrix file show notices", async ({ page }) => {
 
 test("a malformed .meg shows the engine's line number", async ({ page }) => {
   await openSandbox(page);
-  await pasteImport(page, meg("no_mega_header.meg"));
-  await expect(page.locator(".import-panel .error")).toContainText("line 1");
+  // The `"` comment opens on line 4 of unterminated_comment.meg — the
+  // error must come from the .meg parser (a file without #mega pasted
+  // here goes to Newick and would also report line 1).
+  await pasteImport(page, meg("unterminated_comment.meg"));
+  await expect(page.locator(".import-panel .error")).toContainText("line 4");
+});
+
+test("a picked .meg file without #mega gets the engine's .meg error", async ({
+  page,
+}) => {
+  await openSandbox(page);
+  // The extension alone routes the file to the .meg parser, so a file
+  // saved without the header gets the missing-#mega error (line 1)
+  // and the MEGA hint — not a Newick error.
+  await page
+    .locator('.import-panel input[type="file"]')
+    .setInputFiles(`${MEG_DIR}no_mega_header.meg`);
+  const error = page.locator(".import-panel .error");
+  await expect(error).toContainText("expected '#mega' on the first line");
+  await expect(error).toContainText("Check the MEGA file");
+  await expect(error).not.toContainText("FASTA");
 });
 
 test("export then import is the same alignment", async ({ page }) => {

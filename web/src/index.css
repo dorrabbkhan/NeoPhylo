@@ -2943,6 +2943,14 @@ button,
   white-space: nowrap;
 }
 
+/* The unsaved-work confirm reuses the labs' .lab-confirm markup, but
+ * labs.css only loads with the lazy labs chunk — without this rule the
+ * two buttons render inline and touch (Task 11 fix round 2). */
+.dataset-sheet .lab-confirm-actions {
+  display: flex;
+  gap: var(--space-8);
+}
+
 @media (pointer: coarse) {
   /* Touch targets ≥ 40×40 (v1.4b Task 11, conductor note 8): dataset
    * rows, their open buttons, the provenance links and the confirm

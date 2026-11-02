@@ -116,10 +116,18 @@ test("under (pointer: coarse) the sheet's rows, buttons and links are ≥40×40"
   await page.getByRole("radio", { name: "Sandbox" }).click();
   // Below 1024 px the import panel lives in the Settings drawer.
   await page.getByRole("button", { name: "Settings" }).click();
-  await page
-    .getByRole("dialog", { name: "Settings" })
-    .getByRole("button", { name: /Open dataset/ })
+  const drawer = page.getByRole("dialog", { name: "Settings" });
+  // Import a small alignment so a picked dataset triggers the
+  // unsaved-work confirm — its buttons get the same ≥40×40 floor
+  // (Task 11 fix round 2).
+  await drawer
+    .locator(".import-panel textarea")
+    .fill(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+  await drawer
+    .locator(".import-panel")
+    .getByRole("button", { name: "Import", exact: true })
     .click();
+  await drawer.getByRole("button", { name: /Open dataset/ }).click();
   const sheet = page.getByRole("dialog", { name: "Open dataset" });
   await expect(sheet.locator(".dataset-row")).toHaveCount(5);
 
@@ -133,6 +141,20 @@ test("under (pointer: coarse) the sheet's rows, buttons and links are ≥40×40"
       (await targets.nth(i).innerText().catch(() => "")) || `t${i}`;
     expect(box.width, `${name} ≥40 wide`).toBeGreaterThanOrEqual(40);
     expect(box.height, `${name} ≥40 tall`).toBeGreaterThanOrEqual(40);
+  }
+
+  await sheet.getByRole("button", { name: /Vertebrate globins/ }).click();
+  await expect(
+    sheet.getByText("Replace your unsaved work?"),
+  ).toBeVisible();
+  const confirmButtons = sheet.locator(".lab-confirm-actions button");
+  await expect(confirmButtons).toHaveCount(2);
+  for (let i = 0; i < 2; i++) {
+    const box = await confirmButtons.nth(i).boundingBox();
+    expect(box).not.toBeNull();
+    const name = await confirmButtons.nth(i).innerText();
+    expect(box!.width, `${name} ≥40 wide`).toBeGreaterThanOrEqual(40);
+    expect(box!.height, `${name} ≥40 tall`).toBeGreaterThanOrEqual(40);
   }
   await context.close();
 });

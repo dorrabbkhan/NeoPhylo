@@ -91,7 +91,13 @@ export function ImportPanel({
   onOpenDatasets,
 }: ImportPanelProps) {
   const [text, setText] = useState("");
-  const [localError, setLocalError] = useState<NeoError | null>(null);
+  // `meg` marks an error from the .meg import path so errorMessage
+  // shows the MEGA hint instead of the FASTA/Newick one (Task 11 fix
+  // round 2); it rides with the error so it can't outlive it.
+  const [localError, setLocalError] = useState<{
+    error: NeoError;
+    meg?: boolean;
+  } | null>(null);
   // The last pasted PHYLIP text, the name mode the parse used and the
   // import's `name` (a picked file's name, undefined for a paste), so
   // the Strict/Relaxed toggle can re-parse without re-pasting.
@@ -117,10 +123,18 @@ export function ImportPanel({
       setLocalError(null);
       return;
     }
+    // A picked file named *.meg goes to the .meg parser on its
+    // extension alone (Task 11 fix round 2): the #mega sniff only
+    // applies to pasted text, so a file saved without the header gets
+    // the engine's missing-#mega error, not a Newick one.
+    if (name !== undefined && /\.meg$/i.test(name)) {
+      importMeg(input, name);
+      return;
+    }
     if (t.startsWith(">")) {
       const r = engine.parseFasta(input);
       if (!r.ok) {
-        setLocalError(r.error);
+        setLocalError({ error: r.error });
         return;
       }
       setLocalError(null);
@@ -138,7 +152,7 @@ export function ImportPanel({
     } else {
       const r = engine.parseNewick(input);
       if (!r.ok) {
-        setLocalError(r.error);
+        setLocalError({ error: r.error });
         return;
       }
       setLocalError(null);
@@ -150,7 +164,7 @@ export function ImportPanel({
   const importPhylip = (input: string, names: NameMode, name?: string) => {
     const r = engine.parsePhylip(input, names);
     if (!r.ok) {
-      setLocalError(r.error);
+      setLocalError({ error: r.error });
       return;
     }
     setLocalError(null);
@@ -179,7 +193,7 @@ export function ImportPanel({
         setMegNotices([r.error.msg]);
       } else {
         setMegNotices(null);
-        setLocalError(r.error);
+        setLocalError({ error: r.error, meg: true });
       }
       return;
     }
@@ -206,7 +220,7 @@ export function ImportPanel({
   const importSampleFasta = (fasta: string, name: string) => {
     const r = engine.parseFasta(fasta);
     if (!r.ok) {
-      setLocalError(r.error);
+      setLocalError({ error: r.error });
       return;
     }
     setLocalError(null);
@@ -218,29 +232,36 @@ export function ImportPanel({
         `${import.meta.env.BASE_URL}samples/weak-support.fasta`,
       );
       if (!res.ok) {
-        setLocalError(sampleError(`sample fetch failed (HTTP ${res.status})`));
+        setLocalError({
+          error: sampleError(`sample fetch failed (HTTP ${res.status})`),
+        });
         return;
       }
       importSampleFasta(await res.text(), "weak-support");
     } catch (e) {
-      setLocalError(sampleError(String(e)));
+      setLocalError({ error: sampleError(String(e)) });
     }
   };
   const onCytochromeC = async () => {
     const r = await loadLesson("cytochrome-c");
     if (!r.ok || r.value.data.kind !== "embedded") {
-      setLocalError(sampleError("the cytochrome-c lesson is unavailable"));
+      setLocalError({
+        error: sampleError("the cytochrome-c lesson is unavailable"),
+      });
       return;
     }
     importSampleFasta(r.value.data.fasta, "cytochrome-c");
   };
 
   const shown =
-    localError ??
+    localError?.error ??
     (session.error !== null && session.error.kind !== "SaturatedMatrix"
       ? session.error
       : null);
-  const msg = shown !== null ? errorMessage(shown) : null;
+  const msg =
+    shown !== null
+      ? errorMessage(shown, localError?.meg === true ? "meg" : undefined)
+      : null;
 
   return (
     <section className="import-panel" aria-label="Import data">
