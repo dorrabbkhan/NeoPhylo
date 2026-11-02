@@ -70,6 +70,14 @@ export interface AnalysisState {
   /** Draw the NJ tree rooted on the reference's outgroup at the final
    * step (v1.2 spec §6.7); false shows the computed unrooted layout. */
   rerootDisplay: boolean;
+  /** The library dataset id the imported alignment came from (v1.4b
+   * Task 11): `sessionUrlState` writes it as `ds=` instead of
+   * embedding the data. Cleared by anything that changes the data
+   * (import, tree, alphabet override, load). */
+  libraryDataset: string | null;
+  /** Display name for the imported data — file name, dataset title or
+   * sample name — used as the `.meg` export's `!Title`. */
+  alignmentName: string | null;
 }
 
 /** The initial analysis slice for `initialSession`: nothing computed
@@ -93,6 +101,8 @@ export function analysisInitial(exercise: Exercise): AnalysisState {
     hover: null,
     notice: null,
     rerootDisplay: true,
+    libraryDataset: null,
+    alignmentName: null,
   };
 }
 
@@ -115,6 +125,8 @@ export function analysisSlice(s: Session): AnalysisState {
     hover: s.hover,
     notice: s.notice,
     rerootDisplay: s.rerootDisplay,
+    libraryDataset: s.libraryDataset,
+    alignmentName: s.alignmentName,
   };
 }
 
@@ -165,6 +177,8 @@ export function analysisReducer(
         notice: null,
         alignmentOrigin:
           a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
+        libraryDataset: null,
+        alignmentName: null,
       };
     }
     case "step": {

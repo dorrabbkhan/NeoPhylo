@@ -17,12 +17,18 @@ function nameList(labels: string[]): string {
   return labels.map((l) => `"${l}"`).join(", ");
 }
 
-export function errorMessage(e: NeoError): ErrorMessage {
+/** `format` marks the import path the error came from when the kind
+ * alone can't tell: "meg" swaps the Parse body's FASTA/Newick hint for
+ * a MEGA one (v1.4b Task 11 fix round 2). Every other kind ignores it. */
+export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
   switch (e.kind) {
     case "Parse":
       return {
         title: `Couldn't read line ${e.line}`,
-        body: `${e.msg} (line ${e.line}, column ${e.col}). Check that FASTA records start with ">" and that a Newick tree ends with ";".`,
+        body:
+          format === "meg"
+            ? `${e.msg} (line ${e.line}, column ${e.col}). Check the MEGA file: it starts with #mega, has a !Format line and one #name per sequence.`
+            : `${e.msg} (line ${e.line}, column ${e.col}). Check that FASTA records start with ">" and that a Newick tree ends with ";".`,
       };
     case "UnequalLengths":
       return {

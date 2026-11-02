@@ -23,6 +23,7 @@ import {
   applyEnterSandbox,
   applyExitSandbox,
   applyImportAlignment,
+  applyImportDataset,
   applyImportTree,
   applyLoad,
   applySetAlphabet,
@@ -105,7 +106,9 @@ export function reducer(s: Session, a: Action): Session {
     case "setAlphabet":
       return applySetAlphabet(s, a.alphabet);
     case "importAlignment":
-      return applyImportAlignment(s, a.alignment);
+      return applyImportAlignment(s, a.alignment, a.name);
+    case "importDataset":
+      return applyImportDataset(s, a.id, a.title, a.alignment);
     case "importTree":
       return applyImportTree(s, a.tree);
     case "setBranchScale":

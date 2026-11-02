@@ -34,15 +34,28 @@ import { EmptyState } from "./EmptyState";
 export interface ImportPanelProps {
   session: Session;
   dispatch: Dispatch<Action>;
+  /** Opens the dataset-library sheet (v1.4b Task 11); App renders it
+   * at the shell level so it also works over the Settings drawer. */
+  onOpenDatasets: () => void;
 }
 
-const ACCEPT = ".fasta,.fa,.fas,.nwk,.tre,.phy,.phylip,.txt";
+const ACCEPT = ".fasta,.fa,.fas,.nwk,.tre,.phy,.phylip,.meg,.txt";
 
 /** True when the first non-blank line is a PHYLIP header `n m`
  * (v1.1 spec §5.1): one or more digits, whitespace, digits. */
 function looksLikePhylip(input: string): boolean {
   const first = input.split(/\r?\n/).find((l) => l.trim() !== "") ?? "";
   return /^\s*\d+\s+\d+/.test(first);
+}
+
+/** True when the first non-blank line starts with `#mega`
+ * (case-insensitive), after a BOM is stripped (v1.4b Task 11; the
+ * parser's own header check decides from there). */
+function looksLikeMeg(input: string): boolean {
+  const stripped = input.replace(/^\uFEFF/, "");
+  const first =
+    stripped.split(/\r?\n/).find((l) => l.trim() !== "") ?? "";
+  return first.trimStart().toLowerCase().startsWith("#mega");
 }
 
 /** A fetch/lookup failure for a §6.8 sample button, as a NeoError so
@@ -72,40 +85,74 @@ function gapHint(f: SiteFilter): string {
   return "Gaps and ambiguous bases are skipped pair by pair.";
 }
 
-export function ImportPanel({ session, dispatch }: ImportPanelProps) {
+export function ImportPanel({
+  session,
+  dispatch,
+  onOpenDatasets,
+}: ImportPanelProps) {
   const [text, setText] = useState("");
-  const [localError, setLocalError] = useState<NeoError | null>(null);
-  // The last pasted PHYLIP text and the name mode the parse used, so
+  // `meg` marks an error from the .meg import path so errorMessage
+  // shows the MEGA hint instead of the FASTA/Newick one (Task 11 fix
+  // round 2); it rides with the error so it can't outlive it.
+  const [localError, setLocalError] = useState<{
+    error: NeoError;
+    meg?: boolean;
+  } | null>(null);
+  // The last pasted PHYLIP text, the name mode the parse used and the
+  // import's `name` (a picked file's name, undefined for a paste), so
   // the Strict/Relaxed toggle can re-parse without re-pasting.
   const [phylip, setPhylip] = useState<{
     text: string;
     namesUsed: NameMode;
+    name?: string;
   } | null>(null);
+  // `.meg` parser notices — ignored !commands, auto-detected alphabet
+  // and the matrix-file refusal pointing at v1.4c (v1.4b Task 11).
+  const [megNotices, setMegNotices] = useState<string[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (session.source !== "sandbox") return null;
 
-  const importText = (input: string) => {
+  // `name` is the picked file's name for the importAlignment action
+  // (the `.meg` export's !Title); a paste passes none. It is an
+  // argument, not state, so a failed or tree-shaped file can't leave
+  // its name behind for a later import to pick up (Task 11 fix).
+  const importText = (input: string, name?: string) => {
     const t = input.trimStart();
     if (t === "") {
       setLocalError(null);
       return;
     }
+    // A picked file named *.meg goes to the .meg parser on its
+    // extension alone (Task 11 fix round 2): the #mega sniff only
+    // applies to pasted text, so a file saved without the header gets
+    // the engine's missing-#mega error, not a Newick one.
+    if (name !== undefined && /\.meg$/i.test(name)) {
+      importMeg(input, name);
+      return;
+    }
     if (t.startsWith(">")) {
       const r = engine.parseFasta(input);
       if (!r.ok) {
-        setLocalError(r.error);
+        setLocalError({ error: r.error });
         return;
       }
       setLocalError(null);
       setPhylip(null);
-      dispatch({ type: "importAlignment", alignment: r.value });
+      setMegNotices(null);
+      dispatch({
+        type: "importAlignment",
+        alignment: r.value,
+        name,
+      });
+    } else if (looksLikeMeg(input)) {
+      importMeg(input, name);
     } else if (looksLikePhylip(input)) {
-      importPhylip(input, "Auto");
+      importPhylip(input, "Auto", name);
     } else {
       const r = engine.parseNewick(input);
       if (!r.ok) {
-        setLocalError(r.error);
+        setLocalError({ error: r.error });
         return;
       }
       setLocalError(null);
@@ -114,19 +161,54 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
     }
   };
 
-  const importPhylip = (input: string, names: NameMode) => {
+  const importPhylip = (input: string, names: NameMode, name?: string) => {
     const r = engine.parsePhylip(input, names);
     if (!r.ok) {
-      setLocalError(r.error);
+      setLocalError({ error: r.error });
       return;
     }
     setLocalError(null);
-    setPhylip({ text: input, namesUsed: r.value.names_used });
-    dispatch({ type: "importAlignment", alignment: r.value.alignment });
+    setPhylip({ text: input, namesUsed: r.value.names_used, name });
+    setMegNotices(null);
+    dispatch({
+      type: "importAlignment",
+      alignment: r.value.alignment,
+      name,
+    });
+  };
+
+  // `.meg` (v1.4b Task 11): notices ride the session's notice area;
+  // the matrix-file refusal is a recognized format, not malformed
+  // input, so it reads as a notice pointing at v1.4c rather than an
+  // error line. Every other error shows the engine's line number.
+  const importMeg = (input: string, name?: string) => {
+    const r = engine.parseMeg(input);
+    if (!r.ok) {
+      setPhylip(null);
+      if (
+        r.error.kind === "Parse" &&
+        r.error.msg.startsWith("distance-matrix")
+      ) {
+        setLocalError(null);
+        setMegNotices([r.error.msg]);
+      } else {
+        setMegNotices(null);
+        setLocalError({ error: r.error, meg: true });
+      }
+      return;
+    }
+    setLocalError(null);
+    setPhylip(null);
+    setMegNotices(r.value.notices.length > 0 ? r.value.notices : null);
+    dispatch({
+      type: "importAlignment",
+      alignment: r.value.alignment,
+      name,
+    });
   };
 
   const onFile = async (file: File) => {
-    importText(await file.text());
+    importText(await file.text(), file.name);
     // Reset so picking the same file again still fires onChange.
     if (fileRef.current !== null) fileRef.current.value = "";
   };
@@ -135,14 +217,14 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
   // public/samples (regenerated by scripts/samples/weak_support.py);
   // cytochrome c reuses the lesson file's embedded alignment. A fetch
   // or parse failure lands in the panel's normal error line.
-  const importSampleFasta = (fasta: string) => {
+  const importSampleFasta = (fasta: string, name: string) => {
     const r = engine.parseFasta(fasta);
     if (!r.ok) {
-      setLocalError(r.error);
+      setLocalError({ error: r.error });
       return;
     }
     setLocalError(null);
-    dispatch({ type: "importAlignment", alignment: r.value });
+    dispatch({ type: "importAlignment", alignment: r.value, name });
   };
   const onWeakSupport = async () => {
     try {
@@ -150,29 +232,36 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
         `${import.meta.env.BASE_URL}samples/weak-support.fasta`,
       );
       if (!res.ok) {
-        setLocalError(sampleError(`sample fetch failed (HTTP ${res.status})`));
+        setLocalError({
+          error: sampleError(`sample fetch failed (HTTP ${res.status})`),
+        });
         return;
       }
-      importSampleFasta(await res.text());
+      importSampleFasta(await res.text(), "weak-support");
     } catch (e) {
-      setLocalError(sampleError(String(e)));
+      setLocalError({ error: sampleError(String(e)) });
     }
   };
   const onCytochromeC = async () => {
     const r = await loadLesson("cytochrome-c");
     if (!r.ok || r.value.data.kind !== "embedded") {
-      setLocalError(sampleError("the cytochrome-c lesson is unavailable"));
+      setLocalError({
+        error: sampleError("the cytochrome-c lesson is unavailable"),
+      });
       return;
     }
-    importSampleFasta(r.value.data.fasta);
+    importSampleFasta(r.value.data.fasta, "cytochrome-c");
   };
 
   const shown =
-    localError ??
+    localError?.error ??
     (session.error !== null && session.error.kind !== "SaturatedMatrix"
       ? session.error
       : null);
-  const msg = shown !== null ? errorMessage(shown) : null;
+  const msg =
+    shown !== null
+      ? errorMessage(shown, localError?.meg === true ? "meg" : undefined)
+      : null;
 
   return (
     <section className="import-panel" aria-label="Import data">
@@ -214,7 +303,17 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
             }}
           />
         </label>
+        <button type="button" onClick={onOpenDatasets}>
+          Open dataset…
+        </button>
       </div>
+      {megNotices !== null && (
+        <div className="phylip-note" role="status">
+          {megNotices.map((n) => (
+            <p key={n}>{n}</p>
+          ))}
+        </div>
+      )}
       {phylip !== null && (
         <div
           className="phylip-names"
@@ -231,7 +330,9 @@ export function ImportPanel({ session, dispatch }: ImportPanelProps) {
               type="button"
               role="radio"
               aria-checked={phylip.namesUsed === mode}
-              onClick={() => importPhylip(phylip.text, mode)}
+              onClick={() =>
+                importPhylip(phylip.text, mode, phylip.name)
+              }
             >
               {mode} names
             </button>

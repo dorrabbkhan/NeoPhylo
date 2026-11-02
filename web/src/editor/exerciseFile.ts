@@ -142,14 +142,18 @@ function analysisToFile(
 ): Record<string, unknown> {
   const method = a.method === "Nj" ? "NJ" : "UPGMA";
   const c = a.correction;
-  if (typeof c === "string") {
-    return { correction: correctionName(c), method };
-  }
-  return {
-    correction: "K2P_PHYLIP",
-    method,
-    kappa: a.kappa ?? c.K2pPhylip.ratio,
-  };
+  const out: Record<string, unknown> =
+    typeof c === "string"
+      ? { correction: correctionName(c), method }
+      : {
+          correction: "K2P_PHYLIP",
+          method,
+          kappa: a.kappa ?? c.K2pPhylip.ratio,
+        };
+  // Schema 4 only: never write the key (not even null) at v3 (v1.4b
+  // Task 11; the serde gap rule from Task 6).
+  if (a.site_filter !== undefined) out.site_filter = a.site_filter;
+  return out;
 }
 
 function promptToFile(
@@ -170,11 +174,18 @@ function promptToFile(
   return out;
 }
 
+/** The file needs schema 4 exactly when it carries a v4-only field —
+ * `analysis.site_filter` or the "Poisson" correction (v1.4b Task 11);
+ * anything else writes today's version (3). */
+function needsSchema4(a: Exercise["analysis"]): boolean {
+  return a.site_filter !== undefined || a.correction === "Poisson";
+}
+
 /** Wire `Exercise` → the file object schema.json validates. */
 function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   const ex = state.exercise;
   const file: Record<string, unknown> = {
-    schema_version: CURRENT_SCHEMA_VERSION,
+    schema_version: needsSchema4(ex.analysis) ? 4 : CURRENT_SCHEMA_VERSION,
     id: ex.id,
     title: ex.title,
     alphabet: ex.alphabet,

@@ -4,7 +4,8 @@
 // the exact path a student's paste would.
 
 import { useState } from "react";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   cleanup,
@@ -15,6 +16,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { engine } from "../engine/index";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
@@ -66,6 +68,7 @@ function renderPanel(initial: Session) {
         <ImportPanel
           session={s}
           dispatch={(a) => setS((cur) => reducer(cur, a))}
+          onOpenDatasets={() => {}}
         />
         <div data-testid="inferred">{String(s.result !== null)}</div>
         <div data-testid="true-tree">{String(s.reference !== null)}</div>
@@ -92,7 +95,7 @@ describe("ImportPanel — visibility", () => {
       source: "lesson",
     });
     const { container } = render(
-      <ImportPanel session={s} dispatch={() => {}} />,
+      <ImportPanel session={s} dispatch={() => {}} onOpenDatasets={() => {}} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -294,6 +297,69 @@ describe("ImportPanel — file input", () => {
     );
     expect(screen.getByTestId("inferred").textContent).toBe("true");
   });
+
+  // The file's name belongs to its own import attempt (v1.4b Task 11
+  // fix): a file that never dispatches importAlignment — a parse
+  // failure or a tree — must not leave its name behind for a later
+  // paste to pick up as its .meg !Title.
+  it("a file that fails to parse doesn't leak its name into a later paste", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["(a:0.1,b:0.2"], "bad.nwk")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Couldn't read",
+      ),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
+
+  it("a .meg refusal doesn't leak its name into a later paste", async () => {
+    const matrix = readFileSync(
+      resolve(
+        process.cwd(),
+        "../crates/neophylo-core/tests/meg_inputs/matrix.meg",
+      ),
+      "utf8",
+    );
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([matrix], "matrix.meg")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByText(/planned for v1\.4c/)).toBeTruthy(),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
+
+  it("a file that imports as a tree doesn't leak its name into a later paste", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: {
+        files: [new File(["(a:0.1,b:0.2,c:0.3);"], "tree.nwk")],
+      },
+    });
+    // The sandbox already holds the lesson's reference (A–E); the file
+    // has landed once its a–c leaves replace it.
+    await waitFor(() =>
+      expect(
+        holder.s.reference?.tree.nodes
+          .filter((n) => n.children.length === 0)
+          .map((n) => n.label),
+      ).toEqual(["a", "b", "c"]),
+    );
+    paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
+    expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
+    expect(holder.s.alignmentName).toBeNull();
+  });
 });
 
 describe("ImportPanel — empty state and samples (v1.3 Task 12, spec §6.8)", () => {
@@ -365,5 +431,115 @@ describe("ImportPanel — empty state and samples (v1.3 Task 12, spec §6.8)", (
     );
     expect(holder.s.alignment?.labels).toHaveLength(8);
     expect(screen.getByTestId("inferred").textContent).toBe("true");
+  });
+});
+
+describe("ImportPanel — .meg (v1.4b Task 11)", () => {
+  const MEG_DIR = resolve(
+    process.cwd(),
+    "../crates/neophylo-core/tests/meg_inputs",
+  );
+  const files = readdirSync(MEG_DIR).filter((f) => f.endsWith(".meg"));
+
+  it("accepts .meg in the file picker", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    const input = document.querySelector<HTMLInputElement>(
+      '.import-panel input[type="file"]',
+    );
+    expect(input?.accept).toContain(".meg");
+  });
+
+  it.each(files)(
+    "%s gives the parser's result or its line-numbered error",
+    (name) => {
+      const text = readFileSync(resolve(MEG_DIR, name), "utf8");
+      const expected = engine.parseMeg(text);
+      const holder = renderPanel(sandbox(NJ_BASICS));
+      paste(text);
+      if (expected.ok) {
+        expect(holder.s.alignment?.labels).toEqual(
+          expected.value.alignment.labels,
+        );
+      } else if (expected.error.kind === "Parse") {
+        // The matrix refusal is a notice, not an error line.
+        if (expected.error.msg.startsWith("distance-matrix")) {
+          expect(
+            screen.getByText(/planned for v1\.4c/),
+          ).toBeTruthy();
+        } else {
+          expect(
+            document.querySelector(".import-panel .error")?.textContent,
+          ).toContain(`line ${expected.error.line}`);
+        }
+      }
+    },
+  );
+
+  // A picked file's .meg extension routes it to the .meg parser on
+  // its name alone (Task 11 fix round 2): a file saved without the
+  // #mega line gets the engine's missing-header error — with the MEGA
+  // hint — instead of a Newick error. Pasted text keeps the #mega
+  // sniff, so the same content pasted is a Newick error.
+  it("a picked *.meg file without #mega gets the .meg error, not Newick's", async () => {
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([text], "no_mega_header.meg")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected '#mega' on the first line",
+      ),
+    );
+    const alert = screen.getByRole("alert").textContent;
+    expect(alert).toContain("Check the MEGA file");
+    expect(alert).not.toContain("FASTA");
+  });
+
+  it("the picked-file .meg extension check is case-insensitive", async () => {
+    // No #mega line: only the ".MEG" name can route this to the .meg
+    // parser, so the missing-header error proves the check ran.
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: { files: [new File([text], "NOHDR.MEG")] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected '#mega' on the first line",
+      ),
+    );
+  });
+
+  it("pasted text without #mega is still not .meg (sniff unchanged)", () => {
+    const text = readFileSync(resolve(MEG_DIR, "no_mega_header.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    paste(text);
+    const alert = screen.getByRole("alert").textContent;
+    expect(alert).not.toContain("Check the MEGA file");
+    expect(alert).toContain("FASTA");
+  });
+
+  it("shows parser notices for ignored commands", () => {
+    const text = readFileSync(resolve(MEG_DIR, "commands.meg"), "utf8");
+    renderPanel(sandbox(NJ_BASICS));
+    paste(text);
+    expect(screen.getAllByText(/ignored !\w+ command/).length).toBeGreaterThan(0);
+  });
+
+  it("opens the dataset sheet through the Open dataset button", () => {
+    const onOpenDatasets = vi.fn();
+    const s = sandbox(NJ_BASICS);
+    render(
+      <ImportPanel
+        session={s}
+        dispatch={() => {}}
+        onOpenDatasets={onOpenDatasets}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Open dataset/ }));
+    expect(onOpenDatasets).toHaveBeenCalledTimes(1);
   });
 });

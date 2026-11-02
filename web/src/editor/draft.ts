@@ -38,7 +38,8 @@ export type EditorModelChoice =
   | "F84"
   | "K2P_PHYLIP"
   | "Kimura"
-  | "JTT";
+  | "JTT"
+  | "Poisson";
 
 export interface EditorSettings {
   id: string;
@@ -55,6 +56,13 @@ export interface EditorSettings {
   seed: string;
   length: string;
   method: Method;
+  /** MEGA gap treatment (v1.4b Task 11): null = the file carries no
+   * `analysis.site_filter` (the default pairwise path). An explicit
+   * `{kind:"pairwise"}` is a real v4 field that round-trips. */
+  siteFilter: { kind: "pairwise" } | { kind: "complete" } | { kind: "partial" } | null;
+  /** The partial-deletion site-coverage cutoff, as typed (only used
+   * when siteFilter is partial). */
+  cutoff: string;
 }
 
 export const DEFAULT_SETTINGS: EditorSettings = {
@@ -68,11 +76,19 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   seed: "1",
   length: "300",
   method: "Nj",
+  siteFilter: null,
+  cutoff: "95",
 };
 
 export interface SettingProblem {
   /** The form field the message belongs to. */
-  field: "kappa" | "baseFreqs" | "seed" | "length" | "title";
+  field:
+    | "kappa"
+    | "baseFreqs"
+    | "seed"
+    | "length"
+    | "title"
+    | "cutoff";
   level: "error" | "warning";
   msg: string;
 }
@@ -149,6 +165,16 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
       }
     }
   }
+  if (s.siteFilter?.kind === "partial") {
+    const c = parseDecimal(s.cutoff);
+    if (c === null || !Number.isInteger(c) || c < 0 || c > 100) {
+      out.push({
+        field: "cutoff",
+        level: "error",
+        msg: `the site-coverage cutoff must be a whole number from 0 to 100 (got "${s.cutoff.trim() || "empty"}").`,
+      });
+    }
+  }
   const seed = parseDecimal(s.seed);
   if (seed === null || !Number.isInteger(seed) || seed < 0) {
     out.push({
@@ -221,6 +247,12 @@ const PRESETS: Record<EditorModelChoice, Preset> = {
     correction: () => "Kimura",
   },
   JTT: { alphabet: "protein", sim: () => "Jtt", correction: () => "Jtt" },
+  // v1.4b Task 11: MEGA's Poisson correction, simulated under JTT.
+  Poisson: {
+    alphabet: "protein",
+    sim: () => "Jtt",
+    correction: () => "Poisson",
+  },
 };
 
 /** Leaves of the ROOT component only — the alignment's taxa (detached
@@ -300,9 +332,17 @@ export function buildExerciseState(
   if (s.model === "K2P_PHYLIP") {
     analysis.kappa = parseDecimal(s.kappa) ?? NaN;
   }
+  if (s.siteFilter !== null) {
+    analysis.site_filter =
+      s.siteFilter.kind === "partial"
+        ? { kind: "partial", cutoff_pct: parseDecimal(s.cutoff) ?? NaN }
+        : s.siteFilter;
+  }
   const atStep = bootstrapStep(tree, s.method);
   const exercise: Exercise = {
-    schema_version: 3,
+    // Schema 4 exactly when a v4 field is used (v1.4b Task 11):
+    // Poisson or any site_filter — including an explicit pairwise.
+    schema_version: s.model === "Poisson" || s.siteFilter !== null ? 4 : 3,
     id: s.id.trim() || "exercise",
     title: s.title,
     alphabet: preset.alphabet,
@@ -389,6 +429,7 @@ export function settingsFromExercise(
     kappa = String(c.K2pPhylip.ratio);
   } else if (model === "Jtt" && c === "Kimura") choice = "Kimura";
   else if (model === "Jtt" && c === "Jtt") choice = "JTT";
+  else if (model === "Jtt" && c === "Poisson") choice = "Poisson";
   else {
     const simName =
       typeof model === "string" ? model : Object.keys(model)[0];
@@ -412,6 +453,17 @@ export function settingsFromExercise(
       seed: String(sim.seed),
       length: String(sim.length),
       method: ex.analysis.method,
+      // v1.4b Task 11: the site filter is a real setting now, not a
+      // dropped field — an explicit {kind:"pairwise"} from a v4 file
+      // round-trips as Some instead of becoming absent.
+      siteFilter:
+        ex.analysis.site_filter === undefined
+          ? null
+          : { kind: ex.analysis.site_filter.kind },
+      cutoff:
+        ex.analysis.site_filter?.kind === "partial"
+          ? String(ex.analysis.site_filter.cutoff_pct)
+          : "95",
     },
     prompts: ex.prompts,
     // Fields the form can't edit ride along verbatim so a save writes

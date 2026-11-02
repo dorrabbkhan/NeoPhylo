@@ -6166,3 +6166,57 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   the panel: pair-panel, gaps, tour, presenter, protein-lessons,
   sheets, theme, a11y (72/72) and bootstrap (9/9, incl. the offline SW
   test); visual 89/89 with no baseline changes.
+
+## v1.4b Task 11: `.meg` import/export, dataset library, `ds=` links, editor options
+
+- **Files outside the Files block:**
+  - `web/src/export/meg.ts` (new) — the plan's `.meg` item needs a
+    lazy export chunk on the `phylip.ts`/`rscript.ts` precedent
+    (conductor note 3 keeps the writer out of the initial bundle);
+    the Files block named no export module.
+  - `web/src/state/actions.ts`, `web/src/state/analysis.ts`,
+    `web/src/state/lesson.ts`, `web/src/state/session.ts` — the `ds=`
+    link needs to know the alignment is an unmodified library file:
+    the `importDataset` action and the `libraryDataset` /
+    `alignmentName` session fields (cleared by every data-changing
+    action, so links fall back to `d=`). `alignmentName` also feeds
+    the `.meg` `!Title` (the "dataset or file name" the interface
+    line requires — file imports pass the picked file's name).
+  - `web/src/views/App.tsx` — the sheet mounts at shell level as a
+    `React.lazy` chunk (the conductor's initial-JS note) with the
+    unsaved-work confirm flag, the `importDataset` dispatch, the
+    `ds=` toast detail and the `.meg` title prop.
+  - `web/src/editor/draft.ts` + `draft.test.ts`,
+    `web/src/editor/exerciseFile.ts` + `exerciseFile.test.ts` — the
+    deferred Task-6 hole (conductor note 7): `site_filter` and
+    `Poisson` now round-trip import → save, and `schema_version` is 4
+    exactly when a v4 field is used.
+  - `web/e2e/visualScenes.ts` (the block names `visual.spec.ts`) —
+    the scene registry lives in this separate module; the three new
+    scenes land where every other scene is defined.
+  - `web/src/index.css` — the sheet's row/link styles and the
+    ≥ 40×40 coarse-pointer rules for rows, buttons and the
+    provenance `<a>` (conductor note 8); `visual.spec.ts` untouched.
+  - `web/e2e/a11y.spec.ts` — Step 1 explicitly says "extend
+    `web/e2e/a11y.spec.ts`".
+- **Provenance "source" column:** `index.json` carries no `source`
+  field, so the sheet reads each dataset's `<id>.json` (same origin)
+  via `loadProvenance` (conductor note 2, option a).
+- **Unsaved-work predicate:** "unsaved sandbox work" =
+  `hasImportedData(session)` — the same condition the sandbox→lesson
+  `window.confirm` uses; declining keeps alignment, model and filter
+  exactly (the confirm only gates the dispatch).
+- **`ds=` + `o=`:** analysis overrides are re-applied after the
+  dataset lands — the resolve-time merge could otherwise reconcile
+  e.g. `Poisson` back to the default lesson's DNA alphabet before the
+  protein file arrives (pinned test). Sim overrides stay
+  exercise-level; a dataset never re-simulates.
+- **`.meg` title order:** `session.alignmentName` (file name, dataset
+  title or sample name) → `session.exercise.title` → `"neophylo"`.
+- **Matrix-file refusal as notice:** `parseMeg`'s Parse error
+  `distance-matrix .meg files are not supported yet (planned for
+  v1.4c)` is a recognized format, not malformed input, so it renders
+  in the notice area instead of the error line.
+- 22 existing `editor-*` baselines regenerated for the required Gap
+  treatment row in the editor settings (owner chose option A on
+  #133); no other baseline changed.

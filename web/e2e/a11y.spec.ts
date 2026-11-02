@@ -223,3 +223,20 @@ test("a loaded lesson still works offline", async ({
   await stepToEnd(page);
   await expect(page.locator(".stepper-rf")).toHaveText("matches the true tree in every clade");
 });
+
+/* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */
+
+test("axe: the dataset sheet and the gap control have no serious violations", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  // The gap control is on screen with Partial selected.
+  await page.getByRole("radio", { name: "Partial deletion" }).click();
+  await page.getByRole("button", { name: /Open dataset/ }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Open dataset" }).locator(".dataset-row"),
+  ).toHaveCount(5);
+  await expectNoSeriousViolations(page, "dataset sheet + gap control");
+});
