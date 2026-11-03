@@ -6339,3 +6339,8 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   at 13.7% error). The offline SW tests (a11y, bootstrap) pass, so
   the precache covers the lazy chunk. `visual` 107/107, no baseline
   changed.
+- **Fix round 2:** the `perf-load` export-writer spec now asserts the
+  final step fetches exactly the `BootstrapPanel` chunk (and no
+  writer), then counts writer chunks against a post-step snapshot —
+  separating the final-step `BootstrapPanel` fetch from the
+  export-writer count.

@@ -173,6 +173,25 @@ test.describe("lazy export writer chunks", () => {
     // (PHYLIP) and the alignment (R script) — all present at the end.
     await stepToEnd(page);
 
+    // Reaching the final step mounts the lazy BootstrapPanel, which
+    // fetches its own chunk (PR #137). In this build that dynamic
+    // import resolves to exactly one new chunk — everything it
+    // statically imports is already an initial chunk — and none of
+    // what stepping fetched may be an export writer.
+    const stepChunks = jsChunkRequests.filter((u) => !initialChunks.has(u));
+    expect(
+      stepChunks,
+      `stepping to the end fetched more than the BootstrapPanel chunk: ${stepChunks.join(", ")}`,
+    ).toHaveLength(1);
+    expect(stepChunks[0]).toContain("/assets/BootstrapPanel-");
+    for (const w of ["svg", "png", "rscript", "phylip"]) {
+      expect(
+        stepChunks.some((u) => u.startsWith(`/assets/${w}-`)),
+        `stepping to the end must not fetch the ${w} writer`,
+      ).toBe(false);
+    }
+    const beforeExport = new Set(jsChunkRequests);
+
     // No writer-shaped chunk loaded with the app.
     const writer = (name: string) =>
       jsChunkRequests.filter((u) => u.startsWith(`/assets/${name}-`));
@@ -211,7 +230,7 @@ test.describe("lazy export writer chunks", () => {
     expect(writer("svg")).toHaveLength(1);
 
     expect(
-      jsChunkRequests.filter((u) => !initialChunks.has(u)),
+      jsChunkRequests.filter((u) => !beforeExport.has(u)),
       "exactly the four writer chunks were fetched",
     ).toHaveLength(4);
   });
