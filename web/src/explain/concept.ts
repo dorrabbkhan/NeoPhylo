@@ -50,8 +50,8 @@ export function conceptText(
     const a = at(labels, s.active[s.chosen[0]]);
     const b = at(labels, s.active[s.chosen[1]]);
     const text =
-      `${a} and ${b} are joined next: after accounting for how far each ` +
-      "is from everything else, they are the closest pair.";
+      `${a} and ${b} are joined next: they have the lowest Q, their ` +
+      "distance corrected for how far each sits from everything else.";
     if (!s.tie) return text;
     return s.active.length === 4
       ? `${text}\n${FOUR_NODE_TIE}`
