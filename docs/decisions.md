@@ -6297,6 +6297,38 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `sheets.spec.ts` bounding-box e2e at four viewports; no snapshot
   scene opens a menu, so no baseline changed.
 
+## v1.4b ad-hoc: NJ concept line names Q (owner request 2026-11-03)
+
+- **Why:** the generic Neighbor-Joining step line in the Concept
+  panel said the joined pair "are the closest pair", which is false
+  whenever NJ's Q picks a pair that is not the matrix minimum — on
+  the MEGA handout-1 data the orangutans join first while the two
+  chimpanzees are the closest pair.
+- **Old → new:** "`{a}` and `{b}` are joined next: after accounting
+  for how far each is from everything else, they are the closest
+  pair." → "`{a}` and `{b}` are joined next: they have the lowest Q,
+  their distance corrected for how far each sits from everything
+  else." The tie lines, the final three-way join text and the UPGMA
+  line (which really does join the closest pair) are unchanged.
+- **Expectations:** `web/src/explain/concept.test.ts` updated to the
+  new string verbatim; no e2e spec asserts the line (no "joined next"
+  match in `web/e2e` — `lesson.spec.ts` only carries comments about
+  the premise). Exercises that mention "the closest pair"
+  (`nj-basics`, `upgma-fails`, the three PHYLIP lab reveals/handouts)
+  all rely on the closest-pair-vs-Q distinction and are consistent
+  with the new wording; none were edited.
+- **Baselines regenerated (owner-approved for frames showing this
+  line only):** `editor-preview-{1920x1080,1280x800}-{light,dark}`,
+  `dataset-sheet-1920x1080-{light,dark}`,
+  `gap-partial-1920x1080-{light,dark}` and
+  `pair-panel-removed-1920x1080-{light,dark}` — 10 frames, all at
+  ≥1280 px where the Concept panel is visible (below that it sits in
+  the Settings drawer). Each failing diff was opened and confirmed to
+  touch only the Concept panel's NJ line before regenerating; the
+  full `visual` project then passed 107/107 in the pinned image.
+- **Files outside the Files block:** this entry
+  (`docs/decisions.md`).
+
 ## Lazy BootstrapPanel (owner request 2026-11-03)
 
 - **Why:** on PR #136's head the initial JS sat at 120,160 B of the

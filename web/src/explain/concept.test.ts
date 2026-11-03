@@ -64,7 +64,7 @@ describe("conceptText (Wikipedia 5-taxon NJ)", () => {
     const t = conceptText(njTrace, 0, njNames);
     expect(t).toContain("a and b");
     expect(t).toContain(
-      "a and b are joined next: after accounting for how far each is from everything else, they are the closest pair.",
+      "a and b are joined next: they have the lowest Q, their distance corrected for how far each sits from everything else.",
     );
   });
 
