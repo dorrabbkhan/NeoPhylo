@@ -6345,3 +6345,32 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - **`minutes` values:** 30 for this handout (two distance runs + two
   NJ builds + questions at ~25 PHYLIP-pack scale plus the model
   switch); the owner judges the scale.
+
+### Fix round 1 (review)
+
+- **Files outside the Files block:**
+  - `web/src/views/MatrixHeatmap.tsx` — the axis-label clipping fix:
+    row and rotated column labels used to overflow a fixed 90 px band
+    ("Pan_troglodytes" lost leading characters on the left, the last
+    column's rotated "Hylobates_lar" ran off the viewBox's right
+    edge). The bands are now reserved from the longest label's width
+    using the layout code's 0.62em/char estimate (conservative for the
+    bundled faces, so the bands only ever over-reserve — a
+    DOM-measuring variant was dropped when it pushed the initial-JS
+    bundle 191 B over the v1.3 budget; the estimate variant costs
+    ~90 B). The shipped 90 px band stays the floor — margins grow
+    only where a label's reserved extent overflows its old room, so
+    every already-fitting label set keeps the exact old geometry and
+    no visual baseline moves.
+  - `web/e2e/matrix-labels.spec.ts` — the pin: on the shipped MEGA
+    handout at 1920×1080, 1366×768 and 768×1024 every row-label and
+    column-label bounding box must lie inside the heatmap svg's own
+    rect and inside the viewport. Verified to fail without the fix.
+- **Settings table:** the "nothing is left to a default" claim now
+  holds — the NJ run's `.mao`-declared options (Analysis, Scope, the
+  bootstrap count, Substitutions Type, Substitutions to Include,
+  Rates among Sites, Pattern among Lineages) were added as rows in
+  `.mao` order. A packs test now parses each `.mao`'s
+  `[AnalysisSettings]` section and requires every non-administrative
+  option (section separators and the execution-time cap excluded) to
+  appear as a row of its own menu family — for both run families.

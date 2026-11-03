@@ -996,6 +996,26 @@ function maoUnion(paths: string[]): Map<string, Set<string>> {
   return out;
 }
 
+/** One .mao file's `key = value` pairs inside a single `[section]` —
+ * the AnalysisSettings block is the analysis dialog's serialization,
+ * the section the handout's "nothing is left to a default" claim is
+ * about (fix round 1). */
+function maoSection(path: string, section: string): Map<string, string> {
+  const out = new Map<string, string>();
+  let inside = false;
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const sec = /^\s*\[([^\]]+)\]\s*$/.exec(line);
+    if (sec !== null) {
+      inside = sec[1].trim() === section;
+      continue;
+    }
+    if (!inside) continue;
+    const m = /^([^=;]+?)\s*=\s*(.+?)\s*$/.exec(line);
+    if (m !== null) out.set(m[1], m[2]);
+  }
+  return out;
+}
+
 /** Lengths printed in a Newick, sorted, each with its decimal count —
  * MEGA trims trailing zeros, so the tolerance is per value (the
  * fixtures/mega README rule + the floating-point floor
@@ -1164,6 +1184,41 @@ describe("lab pack mega-jc69-vs-k2p", () => {
     expect(pack.exercise.analysis.correction).toBe("Jc69");
     expect(sawMethod, "a settings row must name the Method control").toBe(true);
     expect(sawFilter, "a settings row must name the Gap treatment control").toBe(true);
+  });
+
+  it("lists every option the .mao runs set — nothing is left to a default", () => {
+    // The handout's claim, pinned against the .mao files' own
+    // [AnalysisSettings] sections (the analysis dialog's
+    // serialization): every option of both run families must appear
+    // as a row of its own menu family. The only keys the table never
+    // lists are MEGA's section separators (serialized "Key = ====")
+    // and the execution-time cap — a runtime limit, not an analysis
+    // option (fix round 1: the NJ run's Scope/Rates/Substitutions
+    // rows were missing).
+    const SKIP = new Set(["Has Time Limit", "Maximum Execution Time"]);
+    const missing: string[] = [];
+    for (const [menuRe, maos] of [
+      [/distance/i, DIST_MAOS],
+      [/phylogeny/i, NJ_MAOS],
+    ] as const) {
+      const rows = pack.lab.settings.filter(
+        (r) => "mega_setting" in r && menuRe.test(r.mega_menu),
+      );
+      for (const mao of maos) {
+        for (const [key, value] of maoSection(mao, "AnalysisSettings")) {
+          if (SKIP.has(key) || /^=+$/.test(value)) continue;
+          if (
+            !rows.some(
+              (r) =>
+                "mega_setting" in r && r.mega_setting.startsWith(`${key}:`),
+            )
+          ) {
+            missing.push(`${key} (${mao.split("/").pop()})`);
+          }
+        }
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it.each(["JC69", "K80"] as const)(
@@ -1336,6 +1391,77 @@ describe("lab pack mega-jc69-vs-k2p", () => {
       .sort();
     expect(pair).toEqual(["Pongo_abelii", "Pongo_pygmaeus"]);
   });
+
+  it("the prompt texts never state the K80 result before the student runs it", () => {
+    // Every prompt fires during the handout's JC69 half — none may
+    // answer step 5's split comparison or the first discussion
+    // question ("did the model change every distance?") before the
+    // student runs K80 (fix round 1).
+    const text = pack.exercise.prompts
+      .map((p) => [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"))
+      .join("\n");
+    for (const phrase of ["same splits", "come back", "every distance"]) {
+      expect(text, `prompt text must not contain "${phrase}"`).not.toContain(
+        phrase,
+      );
+    }
+  });
+
+  it.each([
+    { kind: "pairwise" },
+    { kind: "complete" },
+    { kind: "partial", cutoff_pct: 95 },
+  ] as SiteFilter[])(
+    "the closing note names each of the JC69 tree's four splits ($kind)",
+    (filter) => {
+      // The step-5 note must describe the tree the student just read:
+      // every non-trivial split in words, with no rooting implication
+      // ("outside", "outgroup" — the gibbon sits inside the
+      // orangutan-side grouping, it is not an outlier). The split set
+      // is computed from the engine's own JC69 NJ tree under every
+      // gap treatment the sandbox offers — the same four splits on
+      // all of them — never hard-coded. Each split is named by its
+      // smaller side so the pinned phrase reads the same whichever
+      // side the canonical key picked.
+      const aln = packAlignment(pack.exercise);
+      const note = pack.exercise.prompts.find((p) => p.at_step === 5);
+      if (note === undefined) {
+        throw new Error("the lab must carry the step-5 closing note");
+      }
+      const PHRASES: Record<string, string> = {
+        "Pan_paniscus|Pan_troglodytes": "the two chimpanzees together",
+        "Homo_sapiens|Pan_paniscus|Pan_troglodytes":
+          "human joined with the chimpanzees",
+        "Pongo_abelii|Pongo_pygmaeus": "the two orangutans together",
+        "Hylobates_lar|Pongo_abelii|Pongo_pygmaeus":
+          "the orangutans with the gibbon",
+      };
+      const dm = megaDistances(aln, "Jc69", filter);
+      const keys = treeGroupingKeys(nj(dm), dm.labels);
+      expect(keys.size, "the JC69 NJ tree has four splits").toBe(4);
+      for (const key of keys) {
+        const side = key.split("|");
+        const comp = dm.labels.filter((l) => !side.includes(l));
+        const compKey = [...comp].sort().join("|");
+        const canon =
+          side.length < comp.length
+            ? key
+            : comp.length < side.length
+              ? compKey
+              : [key, compKey].sort()[0];
+        const phrase = PHRASES[canon];
+        expect(
+          phrase,
+          `no phrase pinned for split ${canon}`,
+        ).not.toBeUndefined();
+        expect(
+          note.concept,
+          `the note must describe split ${canon}`,
+        ).toContain(phrase);
+      }
+      expect(note.concept).not.toMatch(/outgroup|outside/i);
+    },
+  );
 
   it("never implies MEGA's own example file prints these numbers", () => {
     // Conductor rule (per-task note): the dataset is the D-loop

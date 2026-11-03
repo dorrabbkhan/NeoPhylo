@@ -39,8 +39,8 @@
   {
    "at_step": 5,
    "type": "note",
-   "concept": "The tree is complete \u2014 an unrooted NJ tree on the JC69 matrix. Read it by its splits: the two chimpanzees together, the two orangutans together, the African apes together \u2014 and the gibbon outside every grouping.",
-   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match. The handout's next step re-runs this under K80 \u2014 on this data the model moves every distance but the same splits come back."
+   "concept": "The tree is complete \u2014 an unrooted NJ tree on the JC69 matrix. Read it by its splits: the two chimpanzees together; human joined with the chimpanzees; the two orangutans together; and a fourth split between the African apes \u2014 human, the chimpanzees and gorilla \u2014 and the orangutans with the gibbon.",
+   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match. The handout's next step re-runs this under K80: compare the split sets, not the branch lengths."
   }
  ],
  "lab": {
@@ -115,10 +115,40 @@
     "neophylo": "not reported \u2014 NeoPhylo shows the distances only"
    },
    {
+    "option": "Analysis (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Analysis: Phylogeny Reconstruction",
+    "neophylo": "the tree-building step \u2014 trees come after the matrix"
+   },
+   {
+    "option": "Scope (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Scope: All Selected Taxa",
+    "neophylo": "every loaded taxon \u2014 the whole alignment"
+   },
+   {
     "option": "Tree method",
     "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
     "mega_setting": "Statistical Method: Neighbor-joining",
     "neophylo": "Method: NJ"
+   },
+   {
+    "option": "Test of phylogeny",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Test of Phylogeny: None",
+    "neophylo": "none \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Bootstrap replicates (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "No. of Bootstrap Replications: Not Applicable",
+    "neophylo": "n/a \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Substitution kinds (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Substitutions Type: Nucleotide",
+    "neophylo": "n/a \u2014 the alphabet is DNA, read from the data"
    },
    {
     "option": "Tree model, run 1",
@@ -133,10 +163,22 @@
     "neophylo": "Correction: K80"
    },
    {
-    "option": "Test of phylogeny",
+    "option": "Substitutions counted (tree)",
     "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
-    "mega_setting": "Test of Phylogeny: None",
-    "neophylo": "none \u2014 no bootstrap in this lab"
+    "mega_setting": "Substitutions to Include: d: Transitions + Transversions",
+    "neophylo": "every correction counts both kinds"
+   },
+   {
+    "option": "Rates across sites (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
    },
    {
     "option": "Gaps and missing data (tree)",
