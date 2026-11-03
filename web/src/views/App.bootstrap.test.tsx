@@ -129,7 +129,7 @@ describe("bootstrap panel wiring", () => {
     expect(screen.queryByText("How sure are we?")).toBeNull();
     stepToEnd(NJ_BASICS);
     expect(
-      screen.getByRole("heading", { name: "How sure are we?" }),
+      await screen.findByRole("heading", { name: "How sure are we?" }),
     ).toBeTruthy();
   });
 

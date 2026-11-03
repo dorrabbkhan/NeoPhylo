@@ -69,7 +69,6 @@ import { applyTheme } from "../design/theme";
 import { PRESENTER_SCALE } from "../design/tokens";
 import { useBreakpoint } from "../design/breakpoints";
 import { AlphabetBadge } from "./AlphabetBadge";
-import { BootstrapPanel } from "./BootstrapPanel";
 import { ConsensusTabs } from "./ConsensusTabs";
 import { consensusKind, viewLabel } from "./consensusTabs";
 import { Controls } from "./Controls";
@@ -134,6 +133,16 @@ const PairPanel = lazy(() =>
 // initial-JS budget): fetched on first open, never with the app.
 const DatasetSheet = lazy(() =>
   import("./DatasetSheet").then((m) => ({ default: m.DatasetSheet })),
+);
+
+// The bootstrap panel is a lazy chunk too (owner decision 2026-11-03 —
+// the v1.3 Task 14 / v1.4b precedent): it first renders when a run
+// reaches its final step — it hosts the "Run bootstrap" button, so it
+// is never in the first frame of any view — and its chunk is fetched
+// then, not with the app. The SW's `**/*.js` precache keeps it working
+// offline after first load.
+const BootstrapPanel = lazy(() =>
+  import("./BootstrapPanel").then((m) => ({ default: m.BootstrapPanel })),
 );
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -857,14 +866,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
         dispatch={dispatch}
         bootstrapPanel={
           atFinal && inferred !== null ? (
-            <BootstrapPanel
-              session={session}
-              dispatch={dispatch}
-              runGated={promptGate.branchGating !== null}
-              locked={
-                session.source === "sandbox" ? [] : session.exercise.locked
-              }
-            />
+            <Suspense fallback={null}>
+              <BootstrapPanel
+                session={session}
+                dispatch={dispatch}
+                runGated={promptGate.branchGating !== null}
+                locked={
+                  session.source === "sandbox" ? [] : session.exercise.locked
+                }
+              />
+            </Suspense>
           ) : undefined
         }
       />

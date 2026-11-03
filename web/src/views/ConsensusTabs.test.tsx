@@ -139,7 +139,9 @@ async function renderDoneRun(ex: Exercise) {
   render(<App exercise={ex} />);
   await screen.findByRole("img", { name: "Inferred tree" });
   stepToEnd();
-  fireEvent.click(screen.getByRole("button", { name: /Run bootstrap/ }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Run bootstrap/ }),
+  );
   await screen.findByText(/Estimating/);
   const original = loaded(ex).result!.tree;
   act(() => {
