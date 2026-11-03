@@ -561,7 +561,9 @@ describe("App 'Watch one replicate'", () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     stepToEnd();
-    fireEvent.click(screen.getByRole("button", { name: /Run bootstrap/ }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Run bootstrap/ }),
+    );
     await screen.findByText(/Estimating/);
     act(() =>
       runHandlers!.onEstimate({ msPerReplicate: 5, totalMs: 500 }),

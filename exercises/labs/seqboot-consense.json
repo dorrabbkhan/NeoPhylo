@@ -239,6 +239,7 @@
    "dnadist",
    "neighbor",
    "consense"
-  ]
+  ],
+  "minutes": 40
  }
 }

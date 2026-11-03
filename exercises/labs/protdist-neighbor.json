@@ -122,6 +122,7 @@
   "chain": [
    "protdist",
    "neighbor"
-  ]
+  ],
+  "minutes": 25
  }
 }

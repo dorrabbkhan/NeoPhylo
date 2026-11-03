@@ -491,6 +491,29 @@ export const SCENES: {
     },
   },
   {
+    // v1.4b Task 13 handout 1: the MEGA lab's print view — same fullPage
+    // treatment as the PHYLIP packs (owner asked for it on #136).
+    name: "lab-mega-jc69-vs-k2p-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?lab=mega-jc69-vs-k2p");
+      await expect(
+        page.getByRole("heading", {
+          name: "MEGA: JC69 vs K2P on primate mtDNA",
+        }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await expect(page.locator(".lab-controls")).toBeHidden();
+      await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
     // v1.4b Task 11: the dataset-library sheet — a centered dialog at
     // 1920, full-screen below 1024 px (opened via the Settings drawer
     // there, which closes behind it).
