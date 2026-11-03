@@ -6374,3 +6374,9 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   `[AnalysisSettings]` section and requires every non-administrative
   option (section separators and the execution-time cap excluded) to
   appear as a row of its own menu family — for both run families.
+
+### Fix round 2 (owner request on #136)
+
+- New visual scene `lab-mega-jc69-vs-k2p-print` (4 new baselines, spec
+  §8 print view), added at the owner's request on #136; no existing
+  baseline changed.
