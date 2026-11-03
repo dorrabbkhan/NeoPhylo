@@ -6296,3 +6296,44 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   treatment at 1024–1279 and in presenter mode. Pinned by a
   `sheets.spec.ts` bounding-box e2e at four viewports; no snapshot
   scene opens a menu, so no baseline changed.
+
+## Lazy BootstrapPanel (owner request 2026-11-03)
+
+- **Why:** on PR #136's head the initial JS sat at 120,160 B of the
+  120,168 B gz budget — 8 B of headroom. `App.tsx` imported
+  `BootstrapPanel` eagerly even though it only renders once a
+  bootstrap run exists.
+- **What:** `BootstrapPanel` is now a `React.lazy` chunk on the
+  `PhylipHelp` (v1.3 Task 14) / `ReplicatePanel` (v1.4b Task 10) /
+  `PairPanel` (owner request 2026-11-02) precedent — fetched on first
+  use, rendered under `<Suspense fallback={null}>` inside the
+  `bootstrapPanel` prop. Props and the `atFinal && inferred !== null`
+  condition unchanged; the SW `**/*.js` precache keeps it working
+  offline after first load.
+- **Candidates measured** (initial JS gz, main → lazy):
+  `BootstrapPanel` 120,067 → 119,139 (saved 928 B; chunk
+  `BootstrapPanel-*.js` 1,745 B gz, not modulepreloaded — a shared
+  `engine-*.js` chunk it pulls into initial JS eats part of the
+  entry-chunk saving); `ConsensusTabs` → 119,730 (saved 337 B);
+  `Tour` → 119,200 (saved 867 B; eligible — `visual.spec.ts` seeds
+  `neophylo.tourSeen`, so it never renders in a snapshot scene's
+  first frame). `BootstrapPanel` won, so only it went lazy.
+- **Tests adjusted:** three synchronous queries that are the first in
+  their file to reach the panel now `await screen.findByRole` —
+  `App.bootstrap.test.tsx` ("shows the panel only at the final
+  stepper position": the "How sure are we?" heading),
+  `ConsensusTabs.test.tsx` (`renderDoneRun` helper: the
+  /Run bootstrap/ button), `ReplicatePanel.test.tsx` ("the
+  Strict-consensus view does not feed the count": the
+  /Run bootstrap/ button). Later `getByRole` calls in the same files
+  stay synchronous because `React.lazy` resolves the chunk once per
+  module registry. No assertion loosened or deleted.
+- **Verification:** initial JS 120,067 B (main) → 119,139 B.
+  Pinned-image chromium e2e reaching the panel: bootstrap,
+  bootstrap-lesson, bootstrap-sequencing, perf-bootstrap, tour,
+  presenter, sheets, a11y — 78/79, the one failure being
+  perf-bootstrap's 30% ETA budget under 11-way worker contention
+  (estimate inflated, not a code regression; it passed in isolation
+  at 13.7% error). The offline SW tests (a11y, bootstrap) pass, so
+  the precache covers the lazy chunk. `visual` 107/107, no baseline
+  changed.
