@@ -6505,14 +6505,33 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   real). NJ stays exact everywhere — verified: the engine's NJ tree
   equals the fixture's split set exactly under all three filters.
 - **Tree claims in the text:** the closing note (step 21, the last
-  NJ join) names five groupings — the six alpha globins, the ten
-  mammalian beta globins, the identical human–chimp pair, mouse with
-  rat, cow with sheep — each pinned as a computed split of the
-  engine's NJ tree under every gap treatment. The handout never
-  states the NJ-vs-UPGMA outcome before the student builds the
-  second tree (questions only), never calls the UPGMA trees
-  identical, and explains the tie where it discusses agreement —
-  all test-pinned.
+  NJ join) names its groupings — the six alpha globins, the ten
+  mammalian beta globins (mouse and rat excluded, their pair the
+  next split out to make twelve), the identical human–chimp betas,
+  the mouse–rat pair, the cow–sheep pair — each an exact computed
+  split of the engine's NJ tree under every pickable model × every
+  gap treatment, and of the fixture NJ trees (fix round 1 widened
+  the pin from Poisson × filters to models × filters × methods and
+  fixed the ten-vs-twelve count). The prompts' claims are scoped to
+  the run they describe — prompts fire at stepper positions under
+  whichever method/model/filter the student has selected (verified
+  in the app: the at_step-1 prompt shows at UPGMA step 0 and the
+  step-21 note at UPGMA position 20, mid-run) — so the reveal names
+  Human_HBA–Horse_HBA under "NJ on the Poisson matrix", Cow_HBA–
+  Human_HBA under JTT, and the identical betas under UPGMA, and the
+  closing note says the UPGMA run is mid-run there, never "the tree
+  is complete". The handout never states the NJ-vs-UPGMA outcome
+  before the student builds the second tree (questions only), never
+  calls the UPGMA trees identical, and explains the tie where it
+  discusses agreement — all test-pinned.
+- **Drawing claim (fix round 1):** the mega_note's "NeoPhylo draws
+  each tree as computed: NJ unrooted" was wrong — the tree view
+  draws the finished NJ tree as a rectangular phylogram from an
+  arbitrary root (verified by screenshot at the final step), the
+  same convention as MEGA's NJ display; the note now says so and
+  tells the student to read it as unrooted. The "unestimable cell
+  shows ∞" claim is verified in code (MatrixHeatmap renders
+  saturated cells as ∞).
 - **`minutes`:** 30 — one distance run plus two tree builds and a
   23-taxon comparison, on the same scale as handout 1's 30 (two
   distance runs + two NJ builds on 7 taxa); the owner judges the

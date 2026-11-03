@@ -2026,23 +2026,38 @@ describe("lab pack mega-nj-vs-upgma", () => {
     ).toBe(true);
   });
 
-  it.each([
+  // Every correction the lab's protein menu offers the student (P,
+  // Kimura and JTT always; Poisson here because the lab prescribes
+  // it — CORRECTIONS.protein minus SANDBOX_MODELS, plus the
+  // prescribed model as the conditional option) times every gap
+  // treatment the Gap control offers. The prompts show at stepper
+  // positions, not per run, so every scoped claim must hold under
+  // each of these — and the loop pins the engine's answers so the
+  // scoping can't rot.
+  const PICKABLE_MODELS: DistModel[] = ["P", "Kimura", "Jtt", "Poisson"];
+  const STUDENT_FILTERS: SiteFilter[] = [
     { kind: "pairwise" },
     { kind: "complete" },
     { kind: "partial", cutoff_pct: 95 },
-  ] as SiteFilter[])(
-    "pins the prompts' claims under $kind deletion too",
-    (filter) => {
-      // The predict_pair reveal: NJ opens with the mammalian-alpha
-      // pair Human_HBA–Horse_HBA even though the matrix's closest pair
-      // is the identical Human_HBB–Chimp_HBB (distance zero); and
-      // UPGMA, which joins the closest pair, opens with them. All
-      // three claims are read off the engine on the pack's alignment
-      // under every gap treatment the sandbox offers.
+  ];
+
+  it.each(
+    PICKABLE_MODELS.flatMap((model) =>
+      STUDENT_FILTERS.map((filter) => ({ model, filter })),
+    ),
+  )(
+    "the prompt's first-join claims hold under $model / $filter.kind",
+    ({ model, filter }) => {
+      // The predict_pair reveal's scoped claims, read off the engine
+      // on the pack's alignment: the closest matrix pair is the
+      // identical Human_HBB–Chimp_HBB under everything; NJ's first
+      // join is Human_HBA–Horse_HBA under every model BUT JTT, where
+      // the same Q rule opens Cow_HBA–Human_HBA; UPGMA's first merge
+      // is the identical beta pair under everything.
       const aln = packAlignment(pack.exercise);
-      const dm = megaDistances(aln, "Poisson", filter);
-      let best = { d: Infinity, i: -1, j: -1 };
+      const dm = megaDistances(aln, model, filter);
       const labels = dm.labels;
+      let best = { d: Infinity, i: -1, j: -1 };
       for (let i = 0; i < labels.length; i++) {
         for (let j = i + 1; j < labels.length; j++) {
           const c = dm.cells[i * labels.length + j];
@@ -2051,42 +2066,65 @@ describe("lab pack mega-nj-vs-upgma", () => {
           }
         }
       }
+      const run = `${typeof model === "string" ? model : "?"}/${filter.kind}`;
       expect(
         [labels[best.i], labels[best.j]].sort(),
-        `closest pair under Poisson/${filter.kind}`,
+        `closest pair under ${run}`,
       ).toEqual(["Chimp_HBB", "Human_HBB"]);
 
-      const tr = engine.buildTree(dm, "Nj", { trace: true });
-      if (!tr.ok) throw new Error("buildTree failed");
-      const trace = tr.value.trace;
-      if (trace === null || !("Nj" in trace)) {
-        throw new Error("NJ trace missing");
-      }
-      const first = trace.Nj.steps[0];
-      const njPair = [first.chosen[0], first.chosen[1]]
-        .map((pos) => labels[first.active[pos]])
-        .sort();
-      expect(njPair, `first NJ join under Poisson/${filter.kind}`).toEqual([
-        "Horse_HBA",
-        "Human_HBA",
-      ]);
-
-      const tr2 = engine.buildTree(dm, "Upgma", { trace: true });
-      if (!tr2.ok) throw new Error("buildTree failed");
-      const trace2 = tr2.value.trace;
-      if (trace2 === null || !("Upgma" in trace2)) {
-        throw new Error("UPGMA trace missing");
-      }
-      const firstU = trace2.Upgma.steps[0];
-      const upgmaPair = [firstU.chosen[0], firstU.chosen[1]]
-        .map((pos) => labels[firstU.active[pos]])
-        .sort();
-      expect(upgmaPair, `first UPGMA merge under Poisson/${filter.kind}`).toEqual([
+      const firstJoin = (method: "Nj" | "Upgma"): string[] => {
+        const tr = engine.buildTree(dm, method, { trace: true });
+        if (!tr.ok) throw new Error("buildTree failed");
+        const trace = tr.value.trace;
+        const first =
+          trace === null
+            ? null
+            : "Nj" in trace
+              ? trace.Nj.steps[0]
+              : trace.Upgma.steps[0];
+        if (first === null) throw new Error(`${method} trace missing`);
+        return [first.chosen[0], first.chosen[1]]
+          .map((pos) => labels[first.active[pos]])
+          .sort();
+      };
+      expect(firstJoin("Nj"), `first NJ join under ${run}`).toEqual(
+        model === "Jtt"
+          ? ["Cow_HBA", "Human_HBA"]
+          : ["Horse_HBA", "Human_HBA"],
+      );
+      expect(firstJoin("Upgma"), `first UPGMA merge under ${run}`).toEqual([
         "Chimp_HBB",
         "Human_HBB",
       ]);
     },
   );
+
+  it("the reveal names each first join only inside its own run's scope", () => {
+    // The prompt shows under whichever method, model and filter the
+    // student has selected when it fires — every pair the reveal
+    // names must sit in a sentence that names its own run, so the
+    // text is true on screen under all of them (fix round 1: an
+    // unscoped "joins first under Q" named the NJ pair while the
+    // verdict line showed the UPGMA pair).
+    const predict = pack.exercise.prompts.find(
+      (p) => p.type === "predict_pair",
+    );
+    const reveal = predict?.reveal;
+    if (reveal === null || reveal === undefined || reveal === "") {
+      throw new Error("the lab must carry a predict_pair prompt with a reveal");
+    }
+    const sentences = reveal.split(/(?<=[.:;!?])\s+/);
+    const scoped = (pair: RegExp, scope: RegExp, what: string): void => {
+      const hit = sentences.find((s) => pair.test(s));
+      expect(
+        hit !== undefined && scope.test(hit),
+        `the reveal's ${what} claim must sit in a sentence scoped to its run`,
+      ).toBe(true);
+    };
+    scoped(/Human_HBA and Horse_HBA/, /NJ|Poisson/, "NJ first join");
+    scoped(/Cow_HBA and Human_HBA/, /JTT/, "JTT divergence");
+    scoped(/identical betas/, /UPGMA/, "UPGMA first merge");
+  });
 
   it("the first join on MEGA's printed matrix is the alpha pair, as the reveal says", () => {
     // NJ replays the same first join on the exact printed matrix
@@ -2116,36 +2154,39 @@ describe("lab pack mega-nj-vs-upgma", () => {
     expect(pairU).toEqual(["Chimp_HBB", "Human_HBB"]);
   });
 
-  it.each([
-    { kind: "pairwise" },
-    { kind: "complete" },
-    { kind: "partial", cutoff_pct: 95 },
-  ] as SiteFilter[])(
-    "the closing note's groupings are splits of the NJ tree ($kind)",
-    (filter) => {
-      // The step-21 note describes the finished NJ tree: every
-      // grouping it names must be a real split of the engine's NJ tree
-      // under every gap treatment the sandbox offers (the student can
-      // switch the filter before reading it). Each pinned phrase maps
-      // a canonical split key to the note's wording — the smaller side
-      // names the split either way the key canonicalized.
+  // The step-21 note's named groupings, each mapped to the exact
+  // split it names (fix round 1: every grouping named must be an
+  // exact split — the ten mammalian betas exclude mouse and rat,
+  // whose own pair is the next split out to make twelve). The pinned
+  // phrase is the note's wording; the canonical key is the smaller
+  // side either way it canonicalizes.
+  const NOTE_PHRASES: Record<string, string> = {
+    "Chicken_HBAA|Cow_HBA|Horse_HBA|Human_HBA|Mouse_HBA|Xenopus_HBA1":
+      "the six alpha globins together",
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB":
+      "the ten mammalian beta globins together",
+    "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Mouse_HBB1|Pig_HBB|Rabbit_HBB|Rat_HBB1|Sheep_HBB":
+      "twelve mammalian betas",
+    "Chimp_HBB|Human_HBB": "identical human–chimp betas",
+    "Mouse_HBB1|Rat_HBB1": "mouse–rat pair",
+    "Cow_HBB|Sheep_HBB": "cow–sheep pair",
+  };
+
+  it.each(
+    PICKABLE_MODELS.flatMap((model) =>
+      STUDENT_FILTERS.map((filter) => ({ model, filter })),
+    ),
+  )(
+    "the closing note's groupings are exact splits of the NJ tree ($model/$filter.kind)",
+    ({ model, filter }) => {
       const aln = packAlignment(pack.exercise);
       const note = pack.exercise.prompts.find((p) => p.at_step === 21);
       if (note === undefined) {
         throw new Error("the lab must carry the step-21 closing note");
       }
-      const PHRASES: Record<string, string> = {
-        "Chicken_HBAA|Cow_HBA|Horse_HBA|Human_HBA|Mouse_HBA|Xenopus_HBA1":
-          "the six alpha globins together",
-        "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB":
-          "the ten mammalian beta globins together",
-        "Chimp_HBB|Human_HBB": "identical human–chimp betas",
-        "Mouse_HBB1|Rat_HBB1": "mouse with rat",
-        "Cow_HBB|Sheep_HBB": "cow with sheep",
-      };
-      const dm = megaDistances(aln, "Poisson", filter);
+      const dm = megaDistances(aln, model, filter);
       const keys = treeGroupingKeys(nj(dm), dm.labels);
-      for (const [split, phrase] of Object.entries(PHRASES)) {
+      for (const [split, phrase] of Object.entries(NOTE_PHRASES)) {
         const comp = dm.labels
           .filter((l) => !split.split("|").includes(l))
           .sort()
@@ -2166,11 +2207,40 @@ describe("lab pack mega-nj-vs-upgma", () => {
     },
   );
 
+  it.each(STUDENT_FILTERS)(
+    "the named groupings are exact splits of MEGA's printed NJ tree too ($kind)",
+    (filter) => {
+      // The same six groupings, read off the fixture trees — the
+      // note's claims are MEGA's splits, not just the engine's.
+      const note = pack.exercise.prompts.find((p) => p.at_step === 21);
+      if (note === undefined) {
+        throw new Error("the lab must carry the step-21 closing note");
+      }
+      const fname =
+        filter.kind === "partial" ? `partial${filter.cutoff_pct}` : filter.kind;
+      const run = fx.distances[`Poisson/${fname}`];
+      const keys = treeGroupingKeys(
+        parse(fx.trees[`nj/Poisson/${fname}`]),
+        run.labels,
+      );
+      for (const [split, phrase] of Object.entries(NOTE_PHRASES)) {
+        const comp = run.labels
+          .filter((l) => !split.split("|").includes(l))
+          .sort()
+          .join("|");
+        expect(
+          keys.has(split) || keys.has(comp),
+          `the fixture NJ tree must contain the split behind "${phrase}"`,
+        ).toBe(true);
+      }
+    },
+  );
+
   it("the prompt texts never state the UPGMA comparison before the student runs it", () => {
-    // Every prompt fires during the handout's NJ half — none may
-    // answer step 5's "where do the two trees disagree" before the
-    // student builds the UPGMA tree (the reveal may set up the
-    // closest-pair contrast, never the outcome).
+    // The prompts show at fixed stepper positions under whichever run
+    // is on screen — none may answer step 5's "where do the two trees
+    // disagree" before the student builds the UPGMA tree (the reveal
+    // may set up the closest-pair contrast, never the outcome).
     const text = pack.exercise.prompts
       .map((p) => [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"))
       .join("\n");
