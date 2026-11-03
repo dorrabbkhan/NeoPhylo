@@ -6301,15 +6301,17 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 
 - **Why:** on PR #136's head the initial JS sat at 120,160 B of the
   120,168 B gz budget — 8 B of headroom. `App.tsx` imported
-  `BootstrapPanel` eagerly even though it only renders once a
-  bootstrap run exists.
+  `BootstrapPanel` eagerly even though it first renders only when a
+  run reaches its final step — it hosts the "Run bootstrap" button —
+  so it is never in the first frame of any view.
 - **What:** `BootstrapPanel` is now a `React.lazy` chunk on the
   `PhylipHelp` (v1.3 Task 14) / `ReplicatePanel` (v1.4b Task 10) /
-  `PairPanel` (owner request 2026-11-02) precedent — fetched on first
-  use, rendered under `<Suspense fallback={null}>` inside the
-  `bootstrapPanel` prop. Props and the `atFinal && inferred !== null`
-  condition unchanged; the SW `**/*.js` precache keeps it working
-  offline after first load.
+  `PairPanel` (owner request 2026-11-02) precedent — fetched when a
+  run reaches its final step, rendered under
+  `<Suspense fallback={null}>` inside the `bootstrapPanel` prop.
+  Props and the `atFinal && inferred !== null` condition unchanged;
+  the SW `**/*.js` precache keeps it working offline after first
+  load.
 - **Candidates measured** (initial JS gz, main → lazy):
   `BootstrapPanel` 120,067 → 119,139 (saved 928 B; chunk
   `BootstrapPanel-*.js` 1,745 B gz, not modulepreloaded — a shared

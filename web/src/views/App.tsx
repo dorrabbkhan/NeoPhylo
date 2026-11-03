@@ -136,9 +136,11 @@ const DatasetSheet = lazy(() =>
 );
 
 // The bootstrap panel is a lazy chunk too (owner decision 2026-11-03 —
-// the v1.3 Task 14 / v1.4b precedent): it only renders once a bootstrap
-// run exists, so it is fetched on first use, not with the app. The SW's
-// `**/*.js` precache keeps it working offline after first load.
+// the v1.3 Task 14 / v1.4b precedent): it first renders when a run
+// reaches its final step — it hosts the "Run bootstrap" button, so it
+// is never in the first frame of any view — and its chunk is fetched
+// then, not with the app. The SW's `**/*.js` precache keeps it working
+// offline after first load.
 const BootstrapPanel = lazy(() =>
   import("./BootstrapPanel").then((m) => ({ default: m.BootstrapPanel })),
 );
