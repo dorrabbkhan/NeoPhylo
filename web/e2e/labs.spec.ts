@@ -418,6 +418,63 @@ test("the shipped MEGA handout loads JC69 + NJ + pairwise into the sandbox", asy
   }
 });
 
+// Task 13 handout 2: the second shipped MEGA handout loads through its
+// lab page the same way — Poisson, NJ and pairwise deletion on the
+// embedded globins alignment. The matrix row is the fixture's printed
+// Poisson/pairwise row at the displayed 3-decimal precision, read from
+// the fixture.
+test("the shipped NJ-vs-UPGMA handout loads Poisson + NJ + pairwise into the sandbox", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/mega/library/globins.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    distances: Record<string, { labels: string[]; matrix: (number | null)[][] }>;
+  };
+  const run = fx.distances["Poisson/pairwise"];
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=mega-nj-vs-upgma");
+  await expect(
+    page.getByRole("heading", { name: "MEGA: NJ vs UPGMA on vertebrate globins" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.getByLabel("Distance correction")).toHaveValue("Poisson");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+
+  // The gap treatment is the lab's pairwise deletion — visible on the
+  // sandbox's gap control once Sandbox keeps the loaded settings.
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await expect(
+    page.getByRole("radio", { name: "Pairwise deletion" }),
+  ).toBeChecked();
+  // Pairwise keeps every column: 0 of the alignment's 156 removed.
+  await expect(page.locator(".gap-count")).toContainText(
+    "0 of 156 sites removed by pairwise deletion",
+  );
+
+  // One whole row of cells at the displayed 3-decimal precision — the
+  // grid's per-cell aria-labels carry the value.
+  const n = run.labels.length;
+  for (let j = 0; j < n; j++) {
+    const v = run.matrix[0][j];
+    if (v === null) throw new Error("n/c cell in the Poisson row");
+    const shown = j === 0 ? "0.000" : v.toFixed(3);
+    await expect(
+      page.locator(
+        `g[role="gridcell"][aria-label="${run.labels[0]}, ${run.labels[j]}: ${shown}"]`,
+      ),
+      `cell ${run.labels[0]}/${run.labels[j]} shows ${shown}`,
+    ).toBeVisible();
+  }
+});
+
 // Task 13 handout 1 (Review Focus 5): the editor's lab sheet lists the
 // shipped MEGA handout too — loading it over unsaved work asks first
 // and declining keeps the draft.
@@ -436,6 +493,33 @@ test("with unsaved editor work, Load this lab on the MEGA handout asks first", a
   const row = sheet
     .locator("li")
     .filter({ hasText: "MEGA: JC69 vs K2P on primate mtDNA" });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: "Load this lab" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Replace your unsaved work?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /keep my work/i }).click();
+  await expect(newick).toHaveValue("(X:0.5,Y:0.5,Z:0.5);");
+  await expect(page.getByLabel("Title")).toHaveValue("My draft");
+});
+
+// Task 13 handout 2 gets the same Review Focus 5 pass: the row is the
+// shipped NJ-vs-UPGMA handout's own, and declining keeps the draft.
+test("with unsaved editor work, Load this lab on the NJ-vs-UPGMA handout asks first", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await expect(newick).toBeVisible();
+  await newick.fill("(X:0.5,Y:0.5,Z:0.5);");
+  await newick.press("Enter");
+  await page.getByLabel("Title").fill("My draft");
+
+  await page.getByRole("button", { name: "Labs" }).click();
+  const sheet = page.getByRole("dialog", { name: "Labs" });
+  const row = sheet
+    .locator("li")
+    .filter({ hasText: "MEGA: NJ vs UPGMA on vertebrate globins" });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Load this lab" }).click();
   await expect(
@@ -597,12 +681,18 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   ).toBeVisible();
   await checkAll("the MEGA lab page");
 
-  // The shipped MEGA handout's page gets the same pass (Task 13).
+  // The shipped MEGA handouts' pages get the same pass (Task 13).
   await page.goto("/?lab=mega-jc69-vs-k2p");
   await expect(
     page.getByRole("heading", { name: "MEGA: JC69 vs K2P on primate mtDNA" }),
   ).toBeVisible();
   await checkAll("the shipped MEGA lab page");
+
+  await page.goto("/?lab=mega-nj-vs-upgma");
+  await expect(
+    page.getByRole("heading", { name: "MEGA: NJ vs UPGMA on vertebrate globins" }),
+  ).toBeVisible();
+  await checkAll("the shipped NJ-vs-UPGMA lab page");
 
   await page.goto("/?lab=test-lab");
   await expect(
@@ -631,10 +721,13 @@ test("without the e2e flag the index lists only the shipped packs", async ({
       name: "seqboot → dnadist → neighbor → consense",
     }),
   ).toBeVisible();
-  // Task 13 handout 1 is a shipped lab: it lists under "MEGA labs"
+  // The Task 13 handouts are shipped labs: both list under "MEGA labs"
   // without the flag and the coming-soon line is gone.
   await expect(
     page.getByText("MEGA: JC69 vs K2P on primate mtDNA"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("MEGA: NJ vs UPGMA on vertebrate globins"),
   ).toBeVisible();
   await expect(
     page.getByText("Test lab: dnadist → neighbor"),

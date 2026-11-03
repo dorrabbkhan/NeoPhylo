@@ -1472,3 +1472,730 @@ describe("lab pack mega-jc69-vs-k2p", () => {
     expect(text).not.toMatch(/mtCDNA/i);
   });
 });
+
+function upgma(m: DistanceMatrix): Tree {
+  const r = engine.buildTree(m, "Upgma", { trace: false });
+  if (!r.ok) throw new Error(`buildTree failed: ${JSON.stringify(r.error)}`);
+  return r.value.tree;
+}
+
+/** One edge in a printed Newick: the (sorted) clade below it, the
+ * length and its decimal count — MEGA trims trailing zeros, so the
+ * per-value tolerance reads the decimals off the text. Port of
+ * parity_mega_library.rs NwkScan. */
+interface NwkEdge {
+  clade: string[];
+  len: number;
+  dec: number;
+}
+
+function nwkEdges(text: string): NwkEdge[] {
+  const edges: NwkEdge[] = [];
+  let pos = 0;
+  const ws = () => {
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+  };
+  const subtree = (): string[] => {
+    ws();
+    let leaves: string[];
+    if (text[pos] === "(") {
+      pos++;
+      leaves = [];
+      for (;;) {
+        leaves = leaves.concat(subtree());
+        ws();
+        const c = text[pos];
+        if (c === ",") pos++;
+        else if (c === ")") {
+          pos++;
+          break;
+        } else throw new Error(`expected ',' or ')' at ${pos}`);
+      }
+      // Optional internal label (ignored): skip to ':' ',' ')' ';'.
+      while (pos < text.length && !":[,);".includes(text[pos])) pos++;
+    } else {
+      const start = pos;
+      while (pos < text.length && !":[,);".includes(text[pos])) pos++;
+      leaves = [text.slice(start, pos).trim()];
+    }
+    if (pos < text.length && text[pos] === ":") {
+      pos++;
+      const start = pos;
+      while (pos < text.length && /[0-9.+\-eE]/.test(text[pos])) pos++;
+      const tok = text.slice(start, pos);
+      const dot = tok.indexOf(".");
+      const dec =
+        dot === -1 ? 0 : (tok.slice(dot + 1).match(/^\d+/)?.[0].length ?? 0);
+      leaves.sort();
+      edges.push({ clade: leaves.slice(), len: Number(tok), dec });
+    }
+    return leaves;
+  };
+  subtree();
+  return edges;
+}
+
+/** A rooted tree's clade → printed edge length map (UPGMA fixture
+ * trees), keyed by the sorted leaf set below each edge. The root
+ * carries no edge, as in parity_mega_library.rs edge_map(rooted). */
+function rootedEdgeMap(nwk: string): Map<string, NwkEdge> {
+  const out = new Map<string, NwkEdge>();
+  for (const e of nwkEdges(nwk)) out.set(e.clade.join("|"), e);
+  return out;
+}
+
+/** The same clade → length map for an engine tree: each non-root
+ * node's leaf set against its branch length. */
+function rootedCladeMap(t: Tree): Map<string, number> {
+  const sets = leafSetsOf(t);
+  const out = new Map<string, number>();
+  for (let id = 0; id < t.nodes.length; id++) {
+    if (id === t.root) continue;
+    const len = t.branches[id].length;
+    if (len === null) throw new Error("an edge carries no length");
+    out.set([...(sets.get(id) ?? [])].sort().join("|"), len);
+  }
+  return out;
+}
+
+function sameKeys(a: Map<string, unknown>, b: Map<string, unknown>): boolean {
+  return a.size === b.size && [...a.keys()].every((k) => b.has(k));
+}
+
+/** One merge in a fixture's rooted UPGMA newick: the clade it forms,
+ * its two child edges and the node's printed height above the leaves
+ * (the mean of the two child derivations — the replay re-derives each
+ * side). Port of parity_mega_library.rs MegaMerge. */
+interface MegaMerge {
+  clade: string[];
+  children: [NwkEdge, NwkEdge];
+  height: number;
+}
+
+/** Decompose a rooted UPGMA newick into its merge sequence, ordered by
+ * increasing height then clade size (port of mega_merges). */
+function megaMerges(ctx: string, nwk: string, allLabels: string[]): MegaMerge[] {
+  const edgeMap = rootedEdgeMap(nwk);
+  const clades = [...edgeMap.values()].map((e) => e.clade);
+  const root = [...allLabels].sort();
+  const internals = clades.filter((c) => c.length >= 2);
+  internals.push(root);
+  const uniq = [
+    ...new Map(internals.map((c) => [c.join("|"), c])).values(),
+  ];
+  uniq.sort((a, b) => a.length - b.length);
+  const subset = (a: string[], b: string[]) => a.every((x) => b.includes(x));
+  const heightOf = new Map<string, number>();
+  const merges: MegaMerge[] = [];
+  for (const s of uniq) {
+    // Children = the maximal proper sub-clades among the edge clades
+    // (a child may be a single leaf).
+    const children = clades.filter(
+      (c) =>
+        c.length < s.length &&
+        subset(c, s) &&
+        !clades.some(
+          (o) =>
+            o.length < s.length &&
+            c.length < o.length &&
+            subset(c, o) &&
+            subset(o, s),
+        ),
+    );
+    if (children.length !== 2) {
+      throw new Error(
+        `${ctx}: clade ${s} has ${children.length} children (want a binary rooted tree)`,
+      );
+    }
+    const deriv = children.map(
+      (c) => (heightOf.get(c.join("|")) ?? 0) + edgeMap.get(c.join("|"))!.len,
+    );
+    const height = (deriv[0] + deriv[1]) / 2;
+    heightOf.set(s.join("|"), height);
+    merges.push({
+      clade: s,
+      children: [
+        edgeMap.get(children[0].join("|"))!,
+        edgeMap.get(children[1].join("|"))!,
+      ],
+      height,
+    });
+  }
+  merges.sort(
+    (a, b) => a.height - b.height || a.clade.length - b.clade.length,
+  );
+  return merges;
+}
+
+/** Replay MEGA's printed UPGMA tree on the engine's full-precision
+ * matrix (parity_mega_library.rs replay_mega_upgma, owner ruling on
+ * #126): at every merge MEGA's pair must be *a* minimum-distance pair
+ * — exact `===`, the ties are exact rationals like 17/142 — and each
+ * cluster's height must equal half that distance within `lenTol`.
+ * Throws on the first broken step; returns whether the replay saw a
+ * step with more than one minimal pair (a mismatch without a tie
+ * stays a failure). */
+function replayMegaUpgma(ctx: string, nwk: string, ours: DistanceMatrix): boolean {
+  const merges = megaMerges(ctx, nwk, ours.labels);
+  const n = ours.labels.length;
+  let d = ours.cells.map((c) => {
+    if (c === "Saturated") throw new Error(`${ctx}: tree over an n/c cell`);
+    return c.Value;
+  });
+  let members: string[][] = ours.labels.map((l) => [l]);
+  let sizes = new Array<number>(n).fill(1);
+  const heights = new Map<string, number>();
+  let sawTie = false;
+  for (const m of merges) {
+    const k = members.length;
+    const find = (c: string[]) =>
+      members.findIndex((x) => x.join("|") === c.join("|"));
+    const ci = find(m.children[0].clade);
+    const cj = find(m.children[1].clade);
+    if (ci === -1 || cj === -1 || ci === cj) {
+      throw new Error(`${ctx}: a child of ${m.clade} is not an active cluster`);
+    }
+    let best = Infinity;
+    let minimal = 0;
+    for (let i = 0; i < k; i++) {
+      for (let j = i + 1; j < k; j++) {
+        const v = d[i * k + j];
+        if (v < best) {
+          best = v;
+          minimal = 1;
+        } else if (v === best) minimal++;
+      }
+    }
+    const dij = d[ci * k + cj];
+    if (dij !== best) {
+      throw new Error(
+        `${ctx}: MEGA merges ${m.children[0].clade} + ${m.children[1].clade} at distance ${dij} but the step minimum is ${best} — not a tie resolution`,
+      );
+    }
+    sawTie ||= minimal > 1;
+    const h = best / 2;
+    for (const child of m.children) {
+      const hVia = (heights.get(child.clade.join("|")) ?? 0) + child.len;
+      const tol = lenTol(hVia, child.dec);
+      if (Math.abs(hVia - h) > tol) {
+        throw new Error(
+          `${ctx}: cluster ${m.clade} height ${hVia} vs half the merge distance ${h} (tol ${tol})`,
+        );
+      }
+    }
+    heights.set(m.clade.join("|"), m.height);
+    // Agglomerate exactly like algos/upgma.rs (size-weighted means,
+    // remaining clusters keep their order, the new one last).
+    const remaining = [...Array(k).keys()].filter((x) => x !== ci && x !== cj);
+    const [si, sj] = [sizes[ci], sizes[cj]];
+    const newRow = remaining.map(
+      (x) => (si * d[ci * k + x] + sj * d[cj * k + x]) / (si + sj),
+    );
+    const nk = k - 1;
+    const nd = new Array<number>(nk * nk).fill(0);
+    remaining.forEach((a, x) => {
+      remaining.forEach((b, y) => {
+        nd[x * nk + y] = d[a * k + b];
+      });
+      nd[x * nk + nk - 1] = newRow[x];
+      nd[(nk - 1) * nk + x] = newRow[x];
+    });
+    d = nd;
+    const union = [...members[ci], ...members[cj]].sort();
+    if (union.join("|") !== m.clade.join("|")) {
+      throw new Error(`${ctx}: MEGA clade ${m.clade} is not the union of its children`);
+    }
+    members = [...remaining.map((x) => members[x]), union];
+    sizes = [...remaining.map((x) => sizes[x]), si + sj];
+  }
+  if (members.length !== 1) {
+    throw new Error(`${ctx}: replay left ${members.length} clusters after all merges`);
+  }
+  return sawTie;
+}
+
+/** The exact UPGMA comparison (parity_mega_library.rs
+ * upgma_match_kind's exact arm): rooted-clade topology on MEGA's
+ * printed matrix, then topology plus every branch length on the
+ * engine's own matrix within per-value lenTol. Throws on failure so
+ * the tie-aware replay can run. */
+function upgmaExactMatch(
+  ctx: string,
+  nwk: string,
+  megaDm: DistanceMatrix,
+  ours: DistanceMatrix,
+): void {
+  const exp = rootedEdgeMap(nwk);
+  const printed = rootedCladeMap(upgma(megaDm));
+  if (!sameKeys(exp, printed)) {
+    throw new Error(`${ctx}: printed-matrix topology differs`);
+  }
+  const act = rootedCladeMap(upgma(ours));
+  if (!sameKeys(exp, act)) {
+    throw new Error(`${ctx}: topology differs from MEGA`);
+  }
+  for (const [clade, e] of exp) {
+    const g = act.get(clade)!;
+    const tol = lenTol(e.len, e.dec);
+    if (Math.abs(g - e.len) > tol) {
+      throw new Error(`${ctx}: clade ${clade} length ${g} vs MEGA ${e.len} (tol ${tol})`);
+    }
+  }
+}
+
+/** A fixture run's printed matrix as a DistanceMatrix (panics on n/c
+ * cells — tree fixtures only exist for complete matrices). */
+function megaPrintedMatrix(
+  run: { labels: string[]; matrix: (number | null)[][] },
+  model: DistModel,
+): DistanceMatrix {
+  const cells: Cell[] = [];
+  for (const row of run.matrix) {
+    for (const v of row) {
+      if (v === null) throw new Error("tree over a matrix with n/c cells");
+      cells.push({ Value: v });
+    }
+  }
+  return { labels: run.labels, model, cells };
+}
+
+describe("lab pack mega-nj-vs-upgma", () => {
+  const loaded = loadLab("mega-nj-vs-upgma");
+  if (!loaded.ok) throw new Error(`pack must load: ${JSON.stringify(loaded.error)}`);
+  const pack = loaded.value;
+  const fx = loadMegaFixture("globins");
+  // The library FASTA the pack embeds — read from the shipped file.
+  const libraryText = readFileSync(
+    resolve("..", "web/public/library/globins.fasta"),
+    "utf8",
+  );
+  const DIST_MAOS = [
+    resolve(FIXTURES, "mega", "mao", "dist_protein_poisson_pairwise.mao"),
+  ];
+  const NJ_MAOS = [
+    resolve(FIXTURES, "mega", "mao", "nj_protein_poisson_pairwise.mao"),
+  ];
+  const UPGMA_MAOS = [
+    resolve(FIXTURES, "mega", "mao", "upgma_protein_poisson_pairwise.mao"),
+  ];
+
+  it("loads through loadLab and its lab block validates", () => {
+    expect(pack.lab.id).toBe("mega-nj-vs-upgma");
+    if (pack.lab.tool !== "mega") throw new Error("the pack is a MEGA lab");
+    expect(pack.exercise.schema_version).toBe(4);
+    expect(pack.exercise.alphabet).toBe("protein");
+    // The lab's starting run is NJ (the handout's first tree); the
+    // handout's step 4 switches the Method control to UPGMA.
+    expect(pack.exercise.analysis.correction).toBe("Poisson");
+    expect(pack.exercise.analysis.method).toBe("Nj");
+    // One gap treatment for the handout's runs (conductor note):
+    // pairwise deletion, MEGA's own default.
+    expect(pack.exercise.analysis.site_filter).toEqual({ kind: "pairwise" });
+    expect(pack.exercise.data.kind).toBe("embedded");
+    expect(pack.lab.minutes).toBeGreaterThanOrEqual(5);
+    expect(pack.lab.minutes).toBeLessThanOrEqual(180);
+    expect(pack.lab.settings.length).toBeGreaterThan(0);
+    expect(pack.lab.objectives.length).toBeGreaterThan(0);
+  });
+
+  it("embeds web/public/library/globins.fasta byte for byte (names and residues)", () => {
+    if (pack.exercise.data.kind !== "embedded") throw new Error("unreachable");
+    const embedded = fastaRecords(pack.exercise.data.fasta);
+    const committed = fastaRecords(libraryText);
+    expect(embedded).toEqual(committed);
+    expect(embedded.length).toBe(23);
+    expect(embedded.map(([name]) => name)).toEqual(
+      fx.distances["Poisson/pairwise"].labels,
+    );
+    for (const [, seq] of embedded) expect(seq.length).toBe(156);
+  });
+
+  it("every settings-table row cites a setting the named .mao run declares", () => {
+    // spec §7.1: the rows' mega_setting is "<.mao key>: <.mao value>";
+    // mega_menu names the run family — distance rows are checked
+    // against the dist .mao, "UPGMA" menu rows against the UPGMA .mao,
+    // the remaining Phylogeny rows against the NJ .mao.
+    const dist = maoUnion(DIST_MAOS);
+    const nj = maoUnion(NJ_MAOS);
+    const upgma = maoUnion(UPGMA_MAOS);
+    const saw = { dist: 0, nj: 0, upgma: 0 };
+    for (const row of pack.lab.settings) {
+      if (!("mega_setting" in row)) throw new Error("not a MEGA row");
+      const split = /:\s/.exec(row.mega_setting);
+      if (split === null) {
+        throw new Error(`mega_setting "${row.mega_setting}" is not "Key: Value"`);
+      }
+      const key = row.mega_setting.slice(0, split.index);
+      const value = row.mega_setting.slice(split.index + 2).trim();
+      const [family, name] = /distance/i.test(row.mega_menu)
+        ? ([dist, "dist"] as const)
+        : /upgma/i.test(row.mega_menu)
+          ? ([upgma, "upgma"] as const)
+          : ([nj, "nj"] as const);
+      saw[name]++;
+      const values = family.get(key);
+      expect(
+        values !== undefined && values.has(value),
+        `row "${row.option}" cites ${key}: ${value} — not in the .mao family`,
+      ).toBe(true);
+    }
+    expect(saw.dist).toBeGreaterThan(0);
+    expect(saw.nj).toBeGreaterThan(0);
+    expect(saw.upgma).toBeGreaterThan(0);
+  });
+
+  it("the model and method rows name the three runs' settings exactly as the .mao files do", () => {
+    // One distance run and two tree runs; each tree family's
+    // Statistical Method row must equal its own .mao's value, and the
+    // model rows the Poisson model's.
+    const njMao = maoSettings(NJ_MAOS[0]);
+    const upgmaMao = maoSettings(UPGMA_MAOS[0]);
+    const rows = pack.lab.settings.filter(
+      (r): r is Extract<typeof r, { mega_setting: string }> =>
+        "mega_setting" in r,
+    );
+    const methodRows = rows.filter((r) =>
+      /statistical method/i.test(r.mega_setting),
+    );
+    const njRow = methodRows.find((r) => /upgma/i.test(r.mega_menu) === false);
+    const upgmaRow = methodRows.find((r) => /upgma/i.test(r.mega_menu));
+    expect(njRow?.mega_setting).toBe(
+      `Statistical Method: ${njMao.get("Statistical Method")}`,
+    );
+    expect(upgmaRow?.mega_setting).toBe(
+      `Statistical Method: ${upgmaMao.get("Statistical Method")}`,
+    );
+    expect(njMao.get("Statistical Method")).toBe("Neighbor-joining");
+    expect(upgmaMao.get("Statistical Method")).toBe("UPGMA");
+    // Every Model/Method row cites the Poisson model — the handout's
+    // one distance model for all three runs.
+    const modelRows = rows.filter((r) => /model\/method/i.test(r.mega_setting));
+    expect(modelRows.length).toBeGreaterThan(0);
+    for (const r of modelRows) {
+      expect(r.mega_setting).toBe("Model/Method: Poisson model");
+    }
+  });
+
+  it("settings-table rows naming a NeoPhylo control agree with the exercise", () => {
+    const corrections = new Set<string>();
+    const methods = new Set<string>();
+    let sawFilter = false;
+    for (const row of pack.lab.settings) {
+      if (row.neophylo.startsWith("Correction:")) {
+        const m = /^Correction: (\S+)/.exec(row.neophylo);
+        if (m === null) {
+          throw new Error(`bad Correction row "${row.neophylo}"`);
+        }
+        corrections.add(m[1]);
+      }
+      if (row.neophylo.startsWith("Method:")) {
+        const m = /^Method: (\S+)/.exec(row.neophylo);
+        if (m === null) throw new Error(`bad Method row "${row.neophylo}"`);
+        methods.add(m[1]);
+      }
+      if (row.neophylo.startsWith("Gap treatment:")) {
+        sawFilter = true;
+        expect(row.neophylo).toMatch(/Pairwise/i);
+        expect(pack.exercise.analysis.site_filter).toEqual({
+          kind: "pairwise",
+        });
+      }
+    }
+    // The one distance model the three runs share.
+    expect(corrections).toEqual(new Set(["Poisson"]));
+    // Both tree methods appear; the lab loads NJ (the first run) and
+    // the handout's step switches UPGMA in.
+    expect(methods).toEqual(new Set(["NJ", "UPGMA"]));
+    expect(pack.exercise.analysis.method).toBe("Nj");
+    expect(sawFilter, "a settings row must name the Gap treatment control").toBe(true);
+  });
+
+  it("lists every option the .mao runs set — nothing is left to a default", () => {
+    // Same pin as handout 1: every non-administrative
+    // [AnalysisSettings] key of each run family must appear as a row
+    // of that menu family.
+    const SKIP = new Set(["Has Time Limit", "Maximum Execution Time"]);
+    const missing: string[] = [];
+    for (const [menuRe, maos] of [
+      [/distance/i, DIST_MAOS],
+      [/upgma/i, UPGMA_MAOS],
+      [/nj/i, NJ_MAOS],
+    ] as const) {
+      const rows = pack.lab.settings.filter(
+        (r) => "mega_setting" in r && menuRe.test(r.mega_menu),
+      );
+      for (const mao of maos) {
+        for (const [key, value] of maoSection(mao, "AnalysisSettings")) {
+          if (SKIP.has(key) || /^=+$/.test(value)) continue;
+          if (
+            !rows.some(
+              (r) =>
+                "mega_setting" in r && r.mega_setting.startsWith(`${key}:`),
+            )
+          ) {
+            missing.push(`${key} (${mao.split("/").pop()})`);
+          }
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("reproduces MEGA's printed Poisson matrix within its precision", () => {
+    const aln = packAlignment(pack.exercise);
+    const got = megaDistances(aln, "Poisson", { kind: "pairwise" });
+    const want = fx.distances["Poisson/pairwise"];
+    expect(got.labels).toEqual(want.labels);
+    const n = want.labels.length;
+    const tol = 0.5 * Math.pow(10, -fx.precision.distances); // 8 decimals → 0.5e-8
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const w = want.matrix[i][j];
+        const cell = got.cells[i * n + j];
+        expect(
+          w === null
+            ? cell === "Saturated"
+            : cell !== "Saturated" && Math.abs(cell.Value - w) <= tol,
+          `cell ${want.labels[i]}/${want.labels[j]}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("NJ on MEGA's printed Poisson matrix gives the fixture tree's splits", () => {
+    // Topology only on the printed matrix (parity_mega_library.rs
+    // check_printed_topology): the fixture trees were computed at full
+    // precision, so the 8-decimal rounding propagates ~1e-9.
+    const run = fx.distances["Poisson/pairwise"];
+    const got = nj(megaPrintedMatrix(run, "Poisson"));
+    const want = parse(fx.trees["nj/Poisson/pairwise"]);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error(`compare failed: ${JSON.stringify(r.error)}`);
+    expect(r.value.rf).toBe(0);
+  });
+
+  it("NJ on the engine's own Poisson matrix gives the fixture tree's splits and lengths", () => {
+    // Full parity on the engine's own matrix (parity_mega_library.rs
+    // check_tree): NJ stays exact everywhere — every split, then every
+    // branch length within per-value lenTol.
+    const aln = packAlignment(pack.exercise);
+    const dm = megaDistances(aln, "Poisson", { kind: "pairwise" });
+    const got = nj(dm);
+    const want = parse(fx.trees["nj/Poisson/pairwise"]);
+    const r = engine.compare(want, got);
+    if (!r.ok) throw new Error("compare failed");
+    expect(r.value.rf).toBe(0);
+    const wl = printedLengths(fx.trees["nj/Poisson/pairwise"]);
+    const gl = branchLengths(got);
+    expect(gl.length).toBe(wl.length);
+    gl.forEach((g, k) =>
+      expect(
+        Math.abs(g - wl[k].v),
+        `branch length ${k}`,
+      ).toBeLessThanOrEqual(lenTol(wl[k].v, wl[k].d)),
+    );
+  });
+
+  it("UPGMA on the engine's Poisson matrix is MEGA's tree through a real tie", () => {
+    // The globins HBA tie (fixtures/worked/mega-notes.md "Ties in
+    // globins"; parity_mega_library.rs upgma_tie_resolutions_are_exactly
+    // pins this key as tie-aware): the exact comparison — printed-
+    // matrix topology plus full parity on the engine's matrix — must
+    // fail, and MEGA's tree must replay on the engine's matrix as a
+    // valid UPGMA resolution through a step with more than one minimal
+    // pair. A mismatch without a tie still fails.
+    const ctx = "globins upgma/Poisson/pairwise";
+    const run = fx.distances["Poisson/pairwise"];
+    const aln = packAlignment(pack.exercise);
+    const ours = megaDistances(aln, "Poisson", { kind: "pairwise" });
+    const nwk = fx.trees["upgma/Poisson/pairwise"];
+    const megaDm = megaPrintedMatrix(run, "Poisson");
+    let exactError: unknown = undefined;
+    try {
+      upgmaExactMatch(ctx, nwk, megaDm, ours);
+    } catch (e) {
+      exactError = e;
+    }
+    expect(
+      exactError,
+      "the globins pairwise UPGMA run is pinned tie-aware — an exact match means the fixture's premise changed",
+    ).not.toBeUndefined();
+    expect(
+      replayMegaUpgma(ctx, nwk, ours),
+      "MEGA's tree must replay on the engine's matrix through a real tied step",
+    ).toBe(true);
+  });
+
+  it.each([
+    { kind: "pairwise" },
+    { kind: "complete" },
+    { kind: "partial", cutoff_pct: 95 },
+  ] as SiteFilter[])(
+    "pins the prompts' claims under $kind deletion too",
+    (filter) => {
+      // The predict_pair reveal: NJ opens with the mammalian-alpha
+      // pair Human_HBA–Horse_HBA even though the matrix's closest pair
+      // is the identical Human_HBB–Chimp_HBB (distance zero); and
+      // UPGMA, which joins the closest pair, opens with them. All
+      // three claims are read off the engine on the pack's alignment
+      // under every gap treatment the sandbox offers.
+      const aln = packAlignment(pack.exercise);
+      const dm = megaDistances(aln, "Poisson", filter);
+      let best = { d: Infinity, i: -1, j: -1 };
+      const labels = dm.labels;
+      for (let i = 0; i < labels.length; i++) {
+        for (let j = i + 1; j < labels.length; j++) {
+          const c = dm.cells[i * labels.length + j];
+          if (c !== "Saturated" && c.Value < best.d) {
+            best = { d: c.Value, i, j };
+          }
+        }
+      }
+      expect(
+        [labels[best.i], labels[best.j]].sort(),
+        `closest pair under Poisson/${filter.kind}`,
+      ).toEqual(["Chimp_HBB", "Human_HBB"]);
+
+      const tr = engine.buildTree(dm, "Nj", { trace: true });
+      if (!tr.ok) throw new Error("buildTree failed");
+      const trace = tr.value.trace;
+      if (trace === null || !("Nj" in trace)) {
+        throw new Error("NJ trace missing");
+      }
+      const first = trace.Nj.steps[0];
+      const njPair = [first.chosen[0], first.chosen[1]]
+        .map((pos) => labels[first.active[pos]])
+        .sort();
+      expect(njPair, `first NJ join under Poisson/${filter.kind}`).toEqual([
+        "Horse_HBA",
+        "Human_HBA",
+      ]);
+
+      const tr2 = engine.buildTree(dm, "Upgma", { trace: true });
+      if (!tr2.ok) throw new Error("buildTree failed");
+      const trace2 = tr2.value.trace;
+      if (trace2 === null || !("Upgma" in trace2)) {
+        throw new Error("UPGMA trace missing");
+      }
+      const firstU = trace2.Upgma.steps[0];
+      const upgmaPair = [firstU.chosen[0], firstU.chosen[1]]
+        .map((pos) => labels[firstU.active[pos]])
+        .sort();
+      expect(upgmaPair, `first UPGMA merge under Poisson/${filter.kind}`).toEqual([
+        "Chimp_HBB",
+        "Human_HBB",
+      ]);
+    },
+  );
+
+  it("the first join on MEGA's printed matrix is the alpha pair, as the reveal says", () => {
+    // NJ replays the same first join on the exact printed matrix
+    // MEGA's NJ run consumed; UPGMA replays the identical pair.
+    const run = fx.distances["Poisson/pairwise"];
+    const megaDm = megaPrintedMatrix(run, "Poisson");
+    const tr = engine.buildTree(megaDm, "Nj", { trace: true });
+    if (!tr.ok) throw new Error("buildTree failed");
+    const trace = tr.value.trace;
+    if (trace === null || !("Nj" in trace)) throw new Error("NJ trace missing");
+    const first = trace.Nj.steps[0];
+    const pair = [first.chosen[0], first.chosen[1]]
+      .map((pos) => run.labels[first.active[pos]])
+      .sort();
+    expect(pair).toEqual(["Horse_HBA", "Human_HBA"]);
+
+    const tr2 = engine.buildTree(megaDm, "Upgma", { trace: true });
+    if (!tr2.ok) throw new Error("buildTree failed");
+    const trace2 = tr2.value.trace;
+    if (trace2 === null || !("Upgma" in trace2)) {
+      throw new Error("UPGMA trace missing");
+    }
+    const firstU = trace2.Upgma.steps[0];
+    const pairU = [firstU.chosen[0], firstU.chosen[1]]
+      .map((pos) => run.labels[firstU.active[pos]])
+      .sort();
+    expect(pairU).toEqual(["Chimp_HBB", "Human_HBB"]);
+  });
+
+  it.each([
+    { kind: "pairwise" },
+    { kind: "complete" },
+    { kind: "partial", cutoff_pct: 95 },
+  ] as SiteFilter[])(
+    "the closing note's groupings are splits of the NJ tree ($kind)",
+    (filter) => {
+      // The step-21 note describes the finished NJ tree: every
+      // grouping it names must be a real split of the engine's NJ tree
+      // under every gap treatment the sandbox offers (the student can
+      // switch the filter before reading it). Each pinned phrase maps
+      // a canonical split key to the note's wording — the smaller side
+      // names the split either way the key canonicalized.
+      const aln = packAlignment(pack.exercise);
+      const note = pack.exercise.prompts.find((p) => p.at_step === 21);
+      if (note === undefined) {
+        throw new Error("the lab must carry the step-21 closing note");
+      }
+      const PHRASES: Record<string, string> = {
+        "Chicken_HBAA|Cow_HBA|Horse_HBA|Human_HBA|Mouse_HBA|Xenopus_HBA1":
+          "the six alpha globins together",
+        "Chimp_HBB|Cow_HBB|Dog_HBB|Gorilla_HBB|Horse_HBB|Human_HBB|Human_HBD|Pig_HBB|Rabbit_HBB|Sheep_HBB":
+          "the ten mammalian beta globins together",
+        "Chimp_HBB|Human_HBB": "identical human–chimp betas",
+        "Mouse_HBB1|Rat_HBB1": "mouse with rat",
+        "Cow_HBB|Sheep_HBB": "cow with sheep",
+      };
+      const dm = megaDistances(aln, "Poisson", filter);
+      const keys = treeGroupingKeys(nj(dm), dm.labels);
+      for (const [split, phrase] of Object.entries(PHRASES)) {
+        const comp = dm.labels
+          .filter((l) => !split.split("|").includes(l))
+          .sort()
+          .join("|");
+        expect(
+          keys.has(split) || keys.has(comp),
+          `the NJ tree must contain the split behind "${phrase}"`,
+        ).toBe(true);
+        expect(
+          note.concept,
+          `the note must describe split ${split}`,
+        ).toContain(phrase);
+      }
+      // The note names its run so it can't be misread after a method
+      // switch — and never implies rooting ("unrooted" is wanted).
+      expect(note.concept).toMatch(/NJ/);
+      expect(note.concept).not.toMatch(/outgroup|outside|\brooted\b/i);
+    },
+  );
+
+  it("the prompt texts never state the UPGMA comparison before the student runs it", () => {
+    // Every prompt fires during the handout's NJ half — none may
+    // answer step 5's "where do the two trees disagree" before the
+    // student builds the UPGMA tree (the reveal may set up the
+    // closest-pair contrast, never the outcome).
+    const text = pack.exercise.prompts
+      .map((p) => [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"))
+      .join("\n");
+    for (const phrase of [
+      "the same groupings",
+      "disagree",
+      "only inside",
+      "identical trees",
+    ]) {
+      expect(text, `prompt text must not contain "${phrase}"`).not.toContain(
+        phrase,
+      );
+    }
+  });
+
+  it("never claims the UPGMA trees are identical — where they match, it explains the tie", () => {
+    // The globins UPGMA tie (per-task note): MEGA and NeoPhylo may
+    // join a different one of the tied alpha pairs; both are valid
+    // UPGMA trees. The handout and the MEGA note must explain the tie
+    // where they discuss agreement, and never claim the trees match
+    // exactly.
+    const text = `${pack.lab.handout_md}\n${"mega_note_md" in pack.lab ? pack.lab.mega_note_md : ""}`;
+    expect(text).toMatch(/tie/i);
+    expect(text).not.toMatch(/identical (UPGMA )?trees/i);
+    expect(text).not.toMatch(/the same UPGMA tree/i);
+    expect(text).not.toMatch(/UPGMA trees? (are|is) (the same|identical)/i);
+  });
+});

@@ -113,11 +113,12 @@ describe("lab registry", () => {
     });
   }
 
-  it("with the e2e flag off only shipped labs list — the three PHYLIP packs and MEGA handout 1", () => {
+  it("with the e2e flag off only shipped labs list — the three PHYLIP packs and the MEGA handouts", () => {
     window.localStorage.removeItem("neophylo-e2e");
     expect(listLabs().map((l) => l.id)).toEqual([
       "dnadist-neighbor",
       "mega-jc69-vs-k2p",
+      "mega-nj-vs-upgma",
       "protdist-neighbor",
       "seqboot-consense",
     ]);

@@ -255,13 +255,19 @@ test("axe: the MEGA guide and a MEGA lab page have no serious violations", async
   ).toBeVisible();
   await expectNoSeriousViolations(page, "the MEGA lab page");
 
-  // Task 13: the shipped MEGA handout itself — a real lab page, no
+  // Task 13: the shipped MEGA handouts themselves — real lab pages, no
   // fixture route needed.
   await page.goto("/?lab=mega-jc69-vs-k2p");
   await expect(
     page.getByRole("heading", { name: "MEGA: JC69 vs K2P on primate mtDNA" }),
   ).toBeVisible();
   await expectNoSeriousViolations(page, "the shipped MEGA lab page");
+
+  await page.goto("/?lab=mega-nj-vs-upgma");
+  await expect(
+    page.getByRole("heading", { name: "MEGA: NJ vs UPGMA on vertebrate globins" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the shipped NJ-vs-UPGMA lab page");
 });
 
 /* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */
