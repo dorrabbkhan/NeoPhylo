@@ -1,0 +1,199 @@
+{
+ "schema_version": 4,
+ "id": "mega-jc69-vs-k2p",
+ "title": "MEGA lab: JC69 vs K2P on primate mtDNA",
+ "summary": "Reproduce two MEGA 12 runs on a hominoid mitochondrial D-loop alignment: Jukes-Cantor and Kimura 2-parameter distances under pairwise deletion, each with a Neighbor-Joining tree \u2014 matching MEGA-CC 12.1.4's numbers end to end.",
+ "alphabet": "dna",
+ "data": {
+  "kind": "embedded",
+  "fasta": ">Homo_sapiens\nttctttcatggggaagcagatttgggtaccacccaagtattgactcacccatcaacaaccgctatgtatttcgtacatta\nctgccagccaccatgaatattgtacggtaccat-aaatacttgactacctgtagtacataaaa-acccaacccacatcaa\naatcctacccccatgcttacaagcaagta-cagcaatcaaccttcaactgtcacacatcaactgcaactccaaagccacc\ncctcacccactaggataccaacaaacctacccacccttaacagtacatagcacataaagtcatttaccgtacatagcaca\nttacagtcaaatcccttctcgtccccatggatgacccccctcagataggggtcccttgaccaccatcctccgtgaaatca\natatcccgcacaagagtgct-actctcctcgctccgggcccataacacttgggggtagctaaagtgaactgtatccgaca\ntctggttcctacttcagggccataaagcctaaatag--cccacacgttccccttaaataagaca-tcacgatggatcaca\nggtctatcaccctattaaccactcacgggagctctccatgcatttggtattttcgtttggggggtatgcacgcgatagca\ntcgcgggccgctggagccggagcaccctatgtcgcagtatctgtctttgattcctgcctcatcccattatttatcgcacc\nt-acattcaatattacaggcgagcat-acttac--taaagtgtgttaattaattaatgcttgtaggacataacaataaca\nattaaatgtctgcacag--ccgctttccacacagacatcataacaaaaaatttccaccaaaccccccctcccccgcttct\nggccacagcacttaaacacatctctgccaaaccccaaaaacaaagaaccctaacaccagcctaaccagatttcaaatttt\natcttttggcggtatgcacttttaacagtca-ccccccaactaacacattattttcccctcccactcccatactactaat\nctcatcaatacaaccccc-gcccatcctacccagcacacacacaccgctgctaaccccataccccgaaccaaccaaaccc\ncaaagacaccccc-caca\n>Pan_troglodytes\nttctttcatggggaagcaaatttaggtaccacctaagtactggctcattcatt-acaaccgctatgtatttcgtacatta\nctgccagccaccatgaatatcgtacagtaccat--atcacccaactacctatagtacataaaa-tccactcccacatcaa\naaccttcactccatgcttacaagcacgca-caacaatcaactcccaactgtcgaacataaaacacaattccaacgacacc\ncctcccccaccccgataccaacagacctatctccccttgacagaacatagtacatacaaccatacaccgtacatagcaca\nttacagtcaaacccctcctcgcccccacggatgctccccctcagataggaatcccttggtcaccatcctccgtgaaatca\natatcccgcacaagagtg---actctcctcgctccgggcccataacatctgggggtagctaaagtgaactgtatccgaca\ntctggttcctacctcagggccatgaagttcaaaagactcccacacgttccccttaaataagaca-tcacgatggatcaca\nggtctatcaccctattaaccagtcacgggagccttccatgcatttggtattttcgtctggggggtgtgcacgcgatagca\nttgcgaaacgctggccccggagcaccctatgtcgcagtatctgtctttgattcctgccccattgtattatttatcgcacc\nt-acgttcaatattacgacctagcat-acctac--taaagtgtgttgattaattaatgcttgcaggacataacaacagca\ngcaaaatgctcacataa--ctgctttccacaccaacatcataacaaaaaattcccacaaacccccccttcccc-----cc\nggccacagcactcaaacaaatctctgccaaaccccaaaaacaaagaacccagacgccagcctagccagacttcaaatttc\natctttaggcggtatgcacttttaacagtca-cccctcaattaacatgcc--ctcccccctcaactcccattctactagc\ncccagcaacgtaaccccctactcaccctactca--acacatataccgctgctaaccccataccctgaaccaaccaaaccc\ncaaagacacccctacaca\n>Pan_paniscus\nttctttcatggggaagcaaatttaagtgccacccaagtattggctcattcact-ataaccgctatgtatttcgtacatta\nctgccagccaccatgaatattacatagtactat-aatcatttaaccacctataacacataaaaacctacatccacattaa\naaccccccccccatgcatataagcacgaa-caataatcgacctccaactgtcgaacat-aaacacccccccaaagacact\nccccccccaccccgataccaacaaacctgacagtccttaacagtacatagcacatacaattatataccgtacatagcaca\nttacagtcaaatccatcctcgcccccacggatgccccccctcagataggaatcccttggccaccatcctccgtgaaatca\natatcccgcacaagagtgt--actctcctcgctccgggcccataacacttgggggtagctaaactgaactgtatccgaca\ntctggttcctacctcagggccatgaagttcaaaggactcccacacgttccccttaaataaggcattcacgatggatcaca\nggtctatcaccctattaaccactcacgggagcgctccatgcatttggtattttcgtctggggggtatgcacgcgatagca\nttgcgaaacgctggccccggagcaccctatgtcgcagtatctgtctttggttcctgccccattacgttatttatcgcacc\nt-acgttcaatattattacctagcatgatttac--taaagcgtgttaattaattaatgcttgtaggacataacaataaca\ngcaaaatac-cacgtaa--ctgctttccacaccaacatcataacaaaaaatttccgccaaaccccccctcccccactcct\nggctacagcactcaaattcatctctgccaaaccccaaaaacaaagaacccagataccagcctaaccagacctcaaatttc\natcttttggcggtatgcatttttaacagtca-cccctcaactaacatgtc--ctcccccctcaactcccattccactagc\ncccaacaacataaccccctgcccaccccactca--gcacatataccgctgctaaccctataccctaagccaaccaaaccc\ncaaagatatccccacaca\n>Gorilla_gorilla\nttctttcatggggagacaaatttgggtactacc--agtattagctaacccatc-ataattatcatgtatgtcgtgcatta\nctgccagacaccatgaataatgtacagtaccataaaacgcccaatcacctgtagcacat---------------------\n--------------------------------------------------------------------------------\n-----cccaacggaataccaactaacccatccctcacaaaaagtacataacacataagatcatttatcgcacatagcaca\ntcccagttaaatcac-cctcgtccccacggatgccccccctcagatgggaatcccttgaacaccatcctccgtgaaatca\natatcccgcacaagagtgc--actctcctcgctccgggcccataacacttgggggtagctaaagtgaactgtatccggca\ntctggttcctacttcagggtcataacacctaaagcg-cttcacacgttccccttaaataagaca-tcacgatggatcaca\nggtctatcaccctattaaccactcacgggagctctccatgcatttggtatttttcgtcggggggtgtgcacgcgata---\n--gtgagacgctggaaccggagcaccacatgtcgcagtatctgtctttgattcctgccccatgctaccatttatcgcacc\nt-acgttcaatattacagccgagcgc-acagtg--ttcatggtgttaattaattcatgcttgttggacataaaacaacca\nggtggacgtgaacacaa--ccacccttcacaccaaaaacacaacaaaaa-------tccaacccccccccccgcact---\n--------------------------------------------------agaaaacagccccaccaaactccaaatttc\natcttttggcggtatgcacttttaacagtca-cccctcaactaacatagt---------------------------cag\ncccaccagtacaacccccgcccgccctag------caacacacactgctgctgatcctataccccgaattaaccaaaccc\ncaaagacacccca-caca\n>Pongo_pygmaeus\nttctttcatgggggatcagatttgggtaccaccccagtaccgacccatttcca-gcggc--ctatgtatttcgtacattc\nctgccagccaacatgaatatcacccaacacaac-aatcacttaaccacctataacacatacaaagcccaatccacaccc-\naacctccaaaccccgcttacaagcaagt----------------------------------------------------\n----------------------------gggaagc-tttaaagtacatagcacataacacc-cctaccgtacatagcaca\ntttctactaactccctacttaaccctacggatgccccccctcagttagtggtcccttgctcaccatcctccgtgaaatca\natatcccgcacaagagtgct-actctcctcgctccgggcccataacacctgggggtagctaaagtgagctgtatccggca\ntctggttcctacttcagggccatagagtccaaaatc-gcccacacgttccccttaaataagaca-tcacgatggatcaca\nggcctatcaccctattaatcactcacgggagctctccatgcatttggttttttt-cggtggggggatgcacgcgatagca\ntcgcgggccgctggaaccggagcaccctatgtcgcaggatctgtctttgattcctgccccatggcgttattgatcgcgcc\ntaacgtccaatgttctagcgccccct-ccctat--tgaaagttgttatttaatttatgctag-aggacatgaaaataacc\na--aaagacgagc------aaaccctcgacagctctattatatcaa----------------------------------\n------------------------------------------------------------cccaacagaacccaattttt\natcttttagctatgtgcactttcaacaggca-cccctcaactaacacaac--ccacttttaatttccacctaccaaccca\ntcctgccctgcc------------------ttc--ccacaaacaccactactacccccacacctcaaattaacccaaccc\naaaagacaccccg-caca\n>Pongo_abelii\nttctttcatgggggaccagatttgggtgccaccccagtactgacccatttcta-acggc--ctatgtatttcgtacattc\nctgctagccaacatgaatatcacccaacacaac-aatcgcttaaccaactataatgcatacaaaactccaaccacactc-\ngacctccacaccccgcttacaagcaagtacccccccatgcccccccacccaaacacatacaccgatctctccacataacc\ncctcaacccccagcatatcaacagaccaaacaaac-cttaaagtacatagcacatactatc-ctaaccgcacatagcaca\ntc-ccgttaaaaccctgctcatccccacggatgccccccctcagttagtaatcccttactcaccatcctccgtgaaatca\natatcccgcacaagagtgct-actcccctcgctccgggcccataaaacctgggggtagctaaagtgagctgtatccggca\ntctggttcttacttcagggccataaaacccaagatc-gcccacacgttccccttaaataagaca-tcacgatggatcaca\nggcctatcaccctattaatcactcacgggagctctccatgcatctggtattttt-tcggggggggatgcacgcgatagca\ntcgcgggccgctggaaccggagcaccctatgtcgcaggatctgtctttgattcctacctcatgccattattaatcgcgcc\ntaatatccaatatcctagccccaccctcagtgt--ttgaagctgctatttaatttatgctag-aggacataaaattacca\naaaaaaaataaac------gaactctcaacaaccctaccccatcaa----------------------------------\n------------------------------------------------------------cccaacaaaatccaattttt\natctttaggctatgtgcactttcaacaggca-cccctcaactaacacaat--ctccttctta-tcccacccaccaacccc\ncccccccccttcctccctctttctccattttcc--ccacaaacaccgctactacccccacaccccagaccaacccaaccc\naaaagacaccccg-cacg\n>Hylobates_lar\ntattctcatgtggaagccattttgggtacaaccccagtactaacccacttctccacaact-ctatgtacttcgtacatta\nctgccagtccccatgcatattgtacagtactat-aatcacttaagtaactgtagtacattacccaccaaacgtacataca\naacgaccccaacatgcttacaagcaagcaccagcacatcttgaccaactgtagagcatccacttcactctca--------\n--cgacataaacagcaaccagtaaagatagt--ccatctaaagggcatgatgcactcattcattcaccgcacatacaaac\ntccctaccacactcaactcacaatccatacacaacctatttcacatggaagtttcccgcccagcatcctccgtgaaatca\ngcaacccgcacaagagtactaactcccctcgctccgggcttacaacacctgggggtagctacagtgagctgtatccggca\ntctggttcttacctcccggccataaagcctaaaatc-gcccatacgttccccttaaataagaca-tcacgatggatcacg\nggtctatcaccctattaaccagtcacgggagctctccatgcatttggtatcttt-ttacgggggcgtgcacgcgatagca\nttgcgaaacgctggagccggagcaccctatgtcgcagtatctgtctttgatacctatcccatcccattgttgatcgcgcc\nt-acattccatattccagccgagcat-ccaatccactaaaggtgctaattaattcatgcttgttggacatagcaataacc\naaccaacgtaaccccaaaccacactccctcaacggaatgagaaaattca---ctccgcaaacccccccacacccccccc-\n------------------cacctttgccaaaccccaaaaacaaagtaacc--------------ccagtgagccagaccc\natcttttggcggtacacgcctttaacagccaccccctcaactaacacata--ttttttttt-------------------\n-------------cttcttttccctcccac--------------ctactactactcccttacctcaaaccagcctatccc\ncaaagagtcccc------\n",
+  "source": {
+   "citation": "Horai S, Hayasaka K, Kondo R, Tsugane K, Takahata N (1995) Recent African origin of modern humans revealed by complete sequences of hominoid mitochondrial DNAs. PNAS 92:532-536.",
+   "license": "NCBI data policy: no NCBI restrictions on use or distribution; submitters may claim rights",
+   "accessions": [
+    "D38112",
+    "D38113",
+    "D38116",
+    "D38114",
+    "D38115",
+    "X97707",
+    "X99256"
+   ]
+  }
+ },
+ "analysis": {
+  "correction": "JC69",
+  "method": "NJ",
+  "site_filter": {
+   "kind": "pairwise"
+  }
+ },
+ "prompts": [
+  {
+   "at_step": 1,
+   "type": "predict_pair",
+   "concept": "Neighbor-Joining scores every pair by Q before it joins. The closest pair in the matrix is the tempting first pick \u2014 does NJ join it first? Pick a cell in the matrix, or click two leaves.",
+   "math": "NJ joins the pair minimizing Q(i,j) = (n-2)\u00b7d(i,j) - R_i - R_j. Each cluster's total distance to everything else counts, not just the pair's own distance.",
+   "reveal": "The two orangutans \u2014 Pongo_pygmaeus and Pongo_abelii \u2014 join first under Q, even though the closest pair in the matrix is Pan_troglodytes and Pan_paniscus: the orangutans sit far enough from everything else that their Q wins. The trace on MEGA's printed matrix joins the same pair first, and the finished tree matches MEGA's split for split."
+  },
+  {
+   "at_step": 5,
+   "type": "note",
+   "concept": "The tree is complete \u2014 an unrooted NJ tree on the JC69 matrix. Read it by its splits: the two chimpanzees together; human joined with the chimpanzees; the two orangutans together; and a fourth split between the African apes \u2014 human, the chimpanzees and gorilla \u2014 and the orangutans with the gibbon.",
+   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match. The handout's next step re-runs this under K80: compare the split sets, not the branch lengths."
+  }
+ ],
+ "lab": {
+  "id": "mega-jc69-vs-k2p",
+  "tool": "mega",
+  "title": "MEGA: JC69 vs K2P on primate mtDNA",
+  "objectives": [
+   "Run MEGA's distance \u2192 NJ chain under Jukes-Cantor and Kimura 2-parameter on a 7-taxon D-loop alignment",
+   "Match each MEGA analysis option to the NeoPhylo control that reproduces it",
+   "See where a transition-aware model changes the distances \u2014 and whether it changes the tree's splits"
+  ],
+  "handout_md": "## What this lab reproduces\n\nThe classic first MEGA distance chain: a pairwise-distance matrix under the Jukes-Cantor model, a Neighbor-Joining tree on it, then the same two runs under the Kimura 2-parameter model \u2014 every option set as the settings table lists it, so the numbers you reproduce are MEGA's own, recorded from MEGA-CC 12.1.4.\n\n## The data\n\nSeven hominoid sequences \u2014 human, the two chimpanzees, gorilla, the two orangutans and the gibbon \u2014 over 1,138 aligned sites of the mitochondrial control region (D-loop). The taxa come from the same public records (Horai et al., 1995) as MEGA's own example data; this alignment is the bundled `primate-mtdna` library dataset, covering that control region only \u2014 do not expect MEGA's own example file to print these numbers.\n\nTo cross-check in MEGA itself: load this lab, export the alignment as `.meg` from NeoPhylo's Export menu, open that file in MEGA, and apply the settings table exactly \u2014 the distance run first, then the NJ tree, for each model.\n\n## Before you start\n\nRead the settings table. In MEGA each run's options live in the analysis dialog you reach from the menu path in the second column; the table lists every option the runs set \u2014 nothing is left to a default \u2014 next to the NeoPhylo control that reproduces it.\n\n## Steps\n\n1. Load this lab. NeoPhylo loads the alignment and computes the JC69 matrix \u2014 the first run's model \u2014 under pairwise deletion, MEGA's default gap treatment.\n2. Look at the matrix before the tree. Which pair looks closest? Write your prediction down \u2014 NJ does not always join the closest pair first.\n3. Step through the joins and read the finished tree as unrooted: which splits does it contain?\n4. Switch the Correction control to K80 \u2014 MEGA's \"Kimura 2-parameter\" \u2014 and recompute: the second MEGA run. Which cells changed?\n5. Build the tree again under K80 and compare its splits with the JC69 run's.\n\n## Questions\n\n- K2P scores transitions and transversions separately; JC69 treats all substitutions alike. Did the model change every distance on this data, and which pair's distance moved most? What does the direction of the change say about this alignment?\n- Did the model change the tree's splits here? On what kind of data would you expect it to?\n- In the sandbox, switch the gap treatment to Complete deletion: how many columns does this alignment lose, and does the closest pair change?\n- MEGA's matrix prints to 8 decimals; NeoPhylo's cells show 3. Where do the extra decimals actually matter \u2014 in reading the matrix, or in the tree built on it?",
+  "settings": [
+   {
+    "option": "Analysis",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Analysis: Distance Estimation",
+    "neophylo": "the distance-matrix step \u2014 distances always come first"
+   },
+   {
+    "option": "Scope",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Scope: Pairs of taxa",
+    "neophylo": "every pair \u2014 the whole matrix"
+   },
+   {
+    "option": "Distance model, run 1",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Model/Method: Jukes-Cantor model",
+    "neophylo": "Correction: JC69 \u2014 the lab loads it; step 4 switches it"
+   },
+   {
+    "option": "Distance model, run 2",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Model/Method: Kimura 2-parameter model",
+    "neophylo": "Correction: K80"
+   },
+   {
+    "option": "Substitution kinds",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Substitutions Type: Nucleotide",
+    "neophylo": "n/a \u2014 the alphabet is DNA, read from the data"
+   },
+   {
+    "option": "Substitutions counted",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Substitutions to Include: d: Transitions + Transversions",
+    "neophylo": "every correction counts both kinds"
+   },
+   {
+    "option": "Rates across sites",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
+   },
+   {
+    "option": "Gaps and missing data",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Gaps/Missing Data: Pairwise deletion",
+    "neophylo": "Gap treatment: Pairwise deletion"
+   },
+   {
+    "option": "Variance",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Variance Estimation Method: None",
+    "neophylo": "not reported \u2014 NeoPhylo shows the distances only"
+   },
+   {
+    "option": "Analysis (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Analysis: Phylogeny Reconstruction",
+    "neophylo": "the tree-building step \u2014 trees come after the matrix"
+   },
+   {
+    "option": "Scope (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Scope: All Selected Taxa",
+    "neophylo": "every loaded taxon \u2014 the whole alignment"
+   },
+   {
+    "option": "Tree method",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Statistical Method: Neighbor-joining",
+    "neophylo": "Method: NJ"
+   },
+   {
+    "option": "Test of phylogeny",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Test of Phylogeny: None",
+    "neophylo": "none \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Bootstrap replicates (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "No. of Bootstrap Replications: Not Applicable",
+    "neophylo": "n/a \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Substitution kinds (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Substitutions Type: Nucleotide",
+    "neophylo": "n/a \u2014 the alphabet is DNA, read from the data"
+   },
+   {
+    "option": "Tree model, run 1",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Model/Method: Jukes-Cantor model",
+    "neophylo": "Correction: JC69 \u2014 the same setting the matrix used"
+   },
+   {
+    "option": "Tree model, run 2",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Model/Method: Kimura 2-parameter model",
+    "neophylo": "Correction: K80"
+   },
+   {
+    "option": "Substitutions counted (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Substitutions to Include: d: Transitions + Transversions",
+    "neophylo": "every correction counts both kinds"
+   },
+   {
+    "option": "Rates across sites (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
+   },
+   {
+    "option": "Gaps and missing data (tree)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Gaps/Missing Data: Pairwise deletion",
+    "neophylo": "Gap treatment: Pairwise deletion \u2014 carried from the matrix step"
+   }
+  ],
+  "mega_note_md": "MEGA's distance output is a lower-triangle text matrix \u2014 one row per added taxon, every cell printed to 8 decimals, with `n/c` where a distance cannot be estimated (not an issue here: every pair of the seven sequences has comparable sites). NeoPhylo draws the full square matrix as a heatmap: cells read to 3 decimals on screen, and a cell that cannot be estimated shows \u221e.\n\nMEGA's inferred tree opens in the Tree Explorer as a drawn phylogram with branch lengths. NeoPhylo draws the same unrooted tree as computed \u2014 compare the splits, not the direction a drawing happens to grow from \u2014 and its Newick export carries the computed branch lengths (MEGA's `.nwk` prints them at up to 16 decimals).\n\nOne naming detail worth knowing: MEGA's \"Kimura 2-parameter model\" is the K80 formula \u2014 the correction NeoPhylo calls K80. The `K2P_PHYLIP` correction looks similar but reproduces PHYLIP dnadist's fixed-ratio estimator instead, so it does not match MEGA.",
+  "chain": [
+   "Distances \u2192 Compute pairwise distances (JC69)",
+   "Phylogeny \u2192 Construct/test NJ tree",
+   "Distances \u2192 Compute pairwise distances (K2P)",
+   "Phylogeny \u2192 Construct/test NJ tree"
+  ],
+  "minutes": 30
+ }
+}

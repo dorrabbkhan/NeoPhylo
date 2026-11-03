@@ -101,6 +101,12 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "The programs or menu steps the lab reproduces, in order — PHYLIP programs (dnadist → neighbor) for phylip labs, MEGA menu steps for mega labs."
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 180,
+          "description": "v1.4b spec 7.3 (owner decision 2026-11-02): optional whole-session estimate in minutes, shown as \"About N min\" on the lab index card. It counts a student working through the chain once, not reading time alone. Absent shows no estimate."
         }
       },
       "allOf": [

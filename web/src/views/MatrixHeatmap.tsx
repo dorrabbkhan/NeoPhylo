@@ -52,7 +52,7 @@ const VIRIDIS = [
 ];
 
 const CELL = 34;
-const LABEL = 90; // room for row labels on the left and column labels on top
+const LABEL = 90; // the shipped band floor — see the layout comment
 const PAD = 4;
 // The same ≥12 px floor as the trees (round 3) — the heatmap never
 // scales to fit, so layout px are rendered px.
@@ -172,8 +172,26 @@ export function MatrixHeatmap({
       }
     };
 
-  const cx = (j: number) => PAD + LABEL + j * CELL;
-  const cy = (i: number) => PAD + LABEL + i * CELL;
+  // The label bands are reserved from the longest label so names
+  // never clip the viewBox, but only grow past the shipped 90 px
+  // floor — labels that already fit keep the old geometry exactly
+  // (the visual baselines are pixel-pinned). Widths come from the
+  // layout code's 0.62em estimate (7.44 px/char at 12 px) — generous
+  // for the bundled faces, so the bands only ever over-reserve.
+  // rotate(-60) puts a w-wide column label's far end ~0.87w up and
+  // ~0.5w right of its anchor; the right pad reserves what the worst
+  // column's spill needs (a label on column j has n-1-j cells of room
+  // to its right; the estimate's overshoot covers the descender).
+  const maxLen = Math.max(...labels.map((s) => s.length));
+  const labelL = Math.max(PAD + LABEL, maxLen * 7.44 + 8);
+  const labelT = Math.max(PAD + LABEL, maxLen * 6.44 + 11.4);
+  const padR = Math.max(
+    PAD,
+    ...labels.map((s, j) => s.length * 3.72 - (n - 1 - j) * CELL - 15),
+  );
+
+  const cx = (j: number) => labelL + j * CELL;
+  const cy = (i: number) => labelT + i * CELL;
   const isChosen = (i: number, j: number) =>
     chosen !== null && chosen[0] === i && chosen[1] === j;
   const isHovered = (i: number, j: number) =>
@@ -183,8 +201,8 @@ export function MatrixHeatmap({
       : hover.i === i && hover.j === j);
 
   const title = view === "distance" ? "Distance matrix" : "Q matrix";
-  const width = PAD * 2 + LABEL + n * CELL;
-  const height = width;
+  const width = labelL + n * CELL + padR;
+  const height = labelT + n * CELL + PAD;
 
   /** Map a pointer position over the cell area to a cell index pair. */
   const cellAtPointer = (e: {
@@ -279,17 +297,17 @@ export function MatrixHeatmap({
         <text
           key={`col-${j}`}
           x={cx(j) + CELL / 2}
-          y={PAD + LABEL - 4}
+          y={labelT - 4}
           fontSize={LABEL_FONT}
           fill="currentColor"
           textAnchor="start"
-          transform={`rotate(-60 ${cx(j) + CELL / 2} ${PAD + LABEL - 4})`}
+          transform={`rotate(-60 ${cx(j) + CELL / 2} ${labelT - 4})`}
         >
           {label}
         </text>
       ))}
 
-      {compact && <CompactCells n={n} at={at} t={t} />}
+      {compact && <CompactCells n={n} at={at} t={t} ox={labelL} oy={labelT} />}
       {compact && (
         <>
           <rect
@@ -347,7 +365,7 @@ export function MatrixHeatmap({
       {labels.map((label, i) => (
         <g key={`row-${i}`} role="row" aria-rowindex={i + 1}>
           <text
-            x={PAD + LABEL - 6}
+            x={labelL - 6}
             y={cy(i) + CELL / 2}
             fontSize={LABEL_FONT}
             fill="currentColor"
@@ -431,12 +449,15 @@ interface CompactCellsProps {
   at: (i: number, j: number) => MatrixCell;
   /** Scale normalization from the parent (min/max over the values). */
   t: (v: number) => number;
+  /** Pixel origin of the cell grid — the parent's label bands. */
+  ox: number;
+  oy: number;
 }
 
 /** The n² cells as at most BUCKETS+1 fill-keyed <path>s: O(buckets) DOM
  * nodes instead of O(n²) (v1.1 §3.4 budget). Fills are quantized to the
  * BUCKETS viridis levels; saturated cells share the hatch pattern. */
-function CompactCells({ n, at, t }: CompactCellsProps) {
+function CompactCells({ n, at, t, ox, oy }: CompactCellsProps) {
   // Segments accumulate in arrays and join once — appending to a growing
   // path string would copy O(n²) path data per cell.
   const paths = new Map<number, string[]>();
@@ -448,8 +469,8 @@ function CompactCells({ n, at, t }: CompactCellsProps) {
       const key = saturated
         ? -1
         : Math.round(t(v as number) * (BUCKETS - 1));
-      const x = PAD + LABEL + j * CELL;
-      const y = PAD + LABEL + i * CELL;
+      const x = ox + j * CELL;
+      const y = oy + i * CELL;
       const segs = paths.get(key);
       const d = `M${x} ${y}h${CELL}v${CELL}h${-CELL}z`;
       if (segs === undefined) paths.set(key, [d]);
