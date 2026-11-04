@@ -537,6 +537,29 @@ export const SCENES: {
     },
   },
   {
+    // v1.4b Task 13 handout 3: the bootstrap MEGA lab's print view —
+    // same fullPage treatment as the other handouts.
+    name: "lab-mega-bootstrap-100-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?lab=mega-bootstrap-100");
+      await expect(
+        page.getByRole("heading", {
+          name: "MEGA: 100 bootstrap replicates on 16S rRNA",
+        }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await expect(page.locator(".lab-controls")).toBeHidden();
+      await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
     // v1.4b Task 11: the dataset-library sheet — a centered dialog at
     // 1920, full-screen below 1024 px (opened via the Settings drawer
     // there, which closes behind it).

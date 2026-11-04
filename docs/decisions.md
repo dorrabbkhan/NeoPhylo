@@ -6615,3 +6615,62 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `:root[data-presenter]` rule touches `.matrix-wrap` — so there is
   no token-scaled cap to follow (presenter mode does not change the
   heatmap's geometry at all).
+
+## v1.4b Task 13 (handout 3): MEGA lab "100 bootstrap replicates" on 16S rRNA
+
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts` — the shipped-list pin gains
+    `mega-bootstrap-100` (sorted first of the MEGA ids).
+  - `web/src/labs/labs.test.tsx` — the shipped-listing UI test
+    asserts the new card lists without the e2e flag.
+  - `web/e2e/labs.spec.ts` — the conductor note's Review Focus 5
+    coverage: the index lists all three MEGA handouts without the
+    flag, "Load this lab" loads K80 + NJ + pairwise into the sandbox
+    and replays the fixture's printed K80/pairwise row plus the
+    Replicates/Seed controls at the final step, the unsaved-work
+    confirmation keeps a declined draft on the new lab, and the
+    coarse-pointer ≥40×40 pass covers the new page.
+  - `web/e2e/a11y.spec.ts` — axe on the new lab page.
+  - `web/e2e/visualScenes.ts` — the `lab-mega-bootstrap-100-print`
+    scene, mirroring `lab-mega-nj-vs-upgma-print` (fullPage, 1920×1080
+    and 768×1024); new baselines only, none existing changed.
+  - `docs/decisions.md` — this entry.
+- **Runs:** two `Phylogeny → Construct/test NJ tree` runs, both K2P /
+  NJ / bootstrap×100, differing only in `Gaps/Missing Data` — the
+  `.mao` pair `njboot_dna_k2p_{pairwise,complete}.mao`, which is also
+  what the fixture's `bootstrap["nj/K80/{pairwise,complete}"]` blocks
+  record. No distance-run rows: MEGA's tree run computes the matrix
+  inside it, matching handouts 1–2's rule that every cited setting
+  comes from a run the handout reproduces.
+- **Gap treatment:** the lab loads pairwise deletion — MEGA's own
+  default — and the handout's step 5 switches complete deletion in;
+  both rows are cited so the "nothing is left to a default" pin
+  covers both `.mao` files.
+- **Seed:** `bootstrap.seed = 8675309` (the seqboot chain's seed —
+  consistent with the only other seeded lab pack). The settings table
+  carries a "Resample seed" row whose `mega_setting` is
+  "no MEGA setting — MEGA's bootstrap is unseeded": MEGA-CC has no
+  seed flag (`fixtures/worked/mega-notes.md`), so it is the one row
+  that cannot cite a `.mao` key — the packs test requires exactly
+  one such row. Nothing is `locked`: the handout needs the student
+  to change the gap treatment, and every prompt claim is pinned under
+  all pickable models × filters instead of by locking the panel.
+- **Support is split-set only:** per the #126 ruling the engine's NJ
+  splits under each filter are asserted equal to the 100-replicate
+  block's labelled splits and the fixture tree's splits; MEGA's
+  support numbers are never compared to NeoPhylo's. The "same tree,
+  moving supports" premise is pinned off the fixture alone (same
+  split set under both filters; ≥5 supports move ≥20 points, max 55).
+- **Scoped claims:** the pairwise==complete split-set equality holds
+  under K80 only (P and Jc69 legitimately differ), so the handout
+  poses the comparison as a question scoped to its own runs. The
+  closing note's six named groupings are exact splits under every
+  pickable model (P, JC69, K80) × every gap treatment × both methods'
+  trees, so the note stays true under anything the student selects;
+  prompt texts never state the pairwise-vs-complete outcome, quote a
+  support value, or read support as a probability (the "never a
+  probability" disclaimer is pinned, not just present).
+- **`minutes`:** 35 — two full bootstrap runs plus a 27-taxon
+  tree-and-support comparison, between the handout-1/2 scale (30:
+  two-to-three non-bootstrap runs) and seqboot's 40 (a four-program
+  chain); the owner judges the scale.

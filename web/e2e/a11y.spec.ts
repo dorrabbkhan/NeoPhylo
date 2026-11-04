@@ -268,6 +268,14 @@ test("axe: the MEGA guide and a MEGA lab page have no serious violations", async
     page.getByRole("heading", { name: "MEGA: NJ vs UPGMA on vertebrate globins" }),
   ).toBeVisible();
   await expectNoSeriousViolations(page, "the shipped NJ-vs-UPGMA lab page");
+
+  await page.goto("/?lab=mega-bootstrap-100");
+  await expect(
+    page.getByRole("heading", {
+      name: "MEGA: 100 bootstrap replicates on 16S rRNA",
+    }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the shipped bootstrap lab page");
 });
 
 /* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */

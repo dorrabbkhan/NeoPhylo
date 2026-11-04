@@ -117,6 +117,7 @@ describe("lab registry", () => {
     window.localStorage.removeItem("neophylo-e2e");
     expect(listLabs().map((l) => l.id)).toEqual([
       "dnadist-neighbor",
+      "mega-bootstrap-100",
       "mega-jc69-vs-k2p",
       "mega-nj-vs-upgma",
       "protdist-neighbor",
