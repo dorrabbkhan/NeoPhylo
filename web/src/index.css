@@ -529,8 +529,16 @@ p {
   width: 100%;
   /* The drawing's natural pixel width (viewBox units are px): never
    * scale below it, or the authored 12 px text shrinks with it — the
-   * wrap scrolls instead (round 3, Global Constraints). */
+   * wrap scrolls instead (round 3, Global Constraints). And never
+   * scale past --matrix-max (natural width × 32/12): a small late-step
+   * matrix stretched to the column used to render that text past the
+   * type scale's 32 px maximum (owner follow-up, PR 139). */
   min-width: var(--matrix-w);
+  max-width: var(--matrix-max);
+  /* A capped svg is narrower than the wrap — keep it centered like
+   * the wrap's own margin. Auto margins are a no-op whenever the svg
+   * fills or overflows the wrap, so uncapped frames are unchanged. */
+  margin-inline: auto;
   height: auto;
   color: var(--color-text);
 }
@@ -1731,6 +1739,21 @@ a.labs-link {
  * reads as a branch (the svg.ts export inlines the same geometry and
  * stroke). */
 .support-leader {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+/* Highlighted internal u-names (u1, u2, …) ride a page-background
+ * halo plate — the same trick the support pill uses, minus the
+ * border so a name can't read as a support value: the plate masks
+ * the branch lines beneath the text (owner follow-up, PR 139). */
+.node-name-plate {
+  fill: var(--color-bg);
+}
+
+/* A leader-offset name's callout line — the support leader's
+ * convention, a dashed hairline that never reads as a branch. */
+.node-name-leader {
   stroke: var(--color-border);
   stroke-width: 1;
 }

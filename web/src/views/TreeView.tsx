@@ -7,9 +7,11 @@
 // - Negative branch lengths are dashed and carry the class "negative".
 // - Highlighted nodes get data-highlight="true", a thicker stroke and a
 //   visible label (their display name via state/names.ts: leaf labels and
-//   u1, u2, … for internal nodes) — except while support labels are drawn,
-//   when the u-names hide so they can never overlap a support pill
-//   (checkpoint 11).
+//   u1, u2, … for internal nodes — placed by treeFigure so a name never
+//   lands on a marker, a leaf name or another name, riding a
+//   page-background halo plate that masks the lines beneath it) — except
+//   while support labels are drawn, when the u-names hide so they can
+//   never overlap a support pill (checkpoint 11).
 // - Wrong clades get a dotted outline around the clade plus a "✕" marker.
 // - Leaf labels are SVG <text> children, so React escapes them and markup in
 //   a taxon name can never be parsed as HTML (Review Focus 2).
@@ -37,7 +39,6 @@ import {
 } from "../layout/treeFigure";
 import { makeTextMeasurer } from "../measureText";
 import { leafSpacingFor } from "../layout/treePanel";
-import { nodeName } from "../state/names";
 
 export interface TreeViewProps {
   tree: Tree;
@@ -312,8 +313,7 @@ export function TreeView({
     measure,
     textScale,
   });
-  const { laid, byId, labelById, fontSize, smallFont, bounds } = fig;
-  const hideInternalNames = fig.hideInternalNames;
+  const { laid, byId, labelById, nameById, fontSize, smallFont, bounds } = fig;
 
   // data-split keys: the canonical grouping of the edge above each
   // node — the same key the tally serializes (src/layout/splitKeys.ts).
@@ -375,6 +375,7 @@ export function TreeView({
               const weak = support !== null && support < 0.5;
               const edgeWidth = weak ? Math.min(1, strokeWidth) : strokeWidth;
               const placedLabel = labelById.get(n.id);
+              const nameLabel = nameById.get(n.id);
               return (
                 <g
                   key={n.id}
@@ -500,19 +501,38 @@ export function TreeView({
                       {n.label}
                     </text>
                   ) : (
-                    isHighlighted &&
-                    !hideInternalNames && (
-                      <text
-                        x={snapX(
-                          tx(n.x) + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
+                    nameLabel !== undefined && (
+                      <>
+                        {nameLabel.leader !== undefined && (
+                          <line
+                            className="node-name-leader"
+                            x1={tx(nameLabel.leader.x1)}
+                            y1={ty(nameLabel.leader.y1)}
+                            x2={tx(nameLabel.leader.x2)}
+                            y2={ty(nameLabel.leader.y2)}
+                            stroke="currentColor"
+                            strokeWidth={1}
+                            strokeDasharray="3 2"
+                          />
                         )}
-                        y={snapY(ty(n.y))}
-                        fontSize={fontSize}
-                        fill="currentColor"
-                        dominantBaseline="middle"
-                      >
-                        {nodeName(tree, n.id)}
-                      </text>
+                        <rect
+                          className="node-name-plate"
+                          x={tx(nameLabel.box.minX)}
+                          y={ty(nameLabel.box.minY)}
+                          width={nameLabel.box.maxX - nameLabel.box.minX}
+                          height={nameLabel.box.maxY - nameLabel.box.minY}
+                        />
+                        <text
+                          x={snapX(tx(nameLabel.textX))}
+                          y={snapY(ty(nameLabel.textY))}
+                          fontSize={fontSize}
+                          fill="currentColor"
+                          textAnchor={nameLabel.anchor}
+                          dominantBaseline="middle"
+                        >
+                          {nameLabel.text}
+                        </text>
+                      </>
                     )
                   )}
                 </g>
