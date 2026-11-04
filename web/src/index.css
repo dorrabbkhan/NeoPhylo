@@ -530,9 +530,9 @@ p {
   /* The drawing's natural pixel width (viewBox units are px): never
    * scale below it, or the authored 12 px text shrinks with it — the
    * wrap scrolls instead (round 3, Global Constraints). And never
-   * scale past --matrix-max (natural width × 32/12): a small late-step
-   * matrix stretched to the column used to render that text past the
-   * type scale's 32 px maximum (owner follow-up, PR 139). */
+   * scale past --matrix-max (natural width × 20/12): a small late-step
+   * matrix stretched to the column used to render that text past
+   * size.lg, the 20 px cap the owner set on PR 140. */
   min-width: var(--matrix-w);
   max-width: var(--matrix-max);
   /* A capped svg is narrower than the wrap — keep it centered like

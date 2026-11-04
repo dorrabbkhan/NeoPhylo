@@ -6471,11 +6471,13 @@ Owner-requested rendering fixes after the PR #139 review; branch
   matrix stretched to the 560 px wrap and rendered its authored 12 px
   text past the type scale's 32 px max (globins UPGMA's 2-taxon steps
   drew at ~35 px). The svg now also caps at `--matrix-max` =
-  `floor(natural width × size.xxl / FONT)` (= 8/3 × natural), floored
-  so 12·scale ≤ 32 exactly. It binds only where the stretch already
-  exceeded the cap — every frame inside the scale is pixel-identical —
-  and the `--matrix-w` / coarse-pointer `--matrix-min` floors are
-  untouched (40/34 < 8/3, so the floors always fit under the cap).
+  `floor(natural width × size.lg / FONT)` (= 5/3 × natural; the cap
+  was size.xxl = 8/3 until owner decision B on #140 lowered it to
+  20 px), floored so 12·scale ≤ 20 exactly. It binds only where the
+  stretch already exceeded the cap — every frame inside the scale is
+  pixel-identical — and the `--matrix-w` / coarse-pointer
+  `--matrix-min` floors are untouched (40/34 ≈ 1.18 < 5/3 ≈ 1.67, so
+  the floors always fit under the cap).
   `margin-inline:auto` keeps a capped svg centered; it is a no-op
   whenever the svg fills or overflows the wrap.
 - **Internal-node names (bug 2):** highlighted u-names used to draw
@@ -6512,3 +6514,24 @@ Owner-requested rendering fixes after the PR #139 review; branch
   4-taxon lesson ships, so the e2e check uses the checkpoint-11
   4-taxon FASTA through the Sandbox (the same block visualScenes
   drives).
+
+### Fix round 1 (owner decision B on #140)
+
+- **Cap lowered to `size.lg` (20 px):** `--matrix-max` is now
+  `floor(natural width × size.lg / FONT)` = 5/3 × natural, floored so
+  12·scale ≤ 20 exactly (was size.xxl = 8/3 ≤ 32 px). Verified in
+  code: the coarse-pointer `--matrix-min` floor is
+  `ceil(natural × 40/34)` ≈ 1.18 × natural < 5/3 ≈ 1.67, so it still
+  fits under the cap — and even where it could not, CSS gives
+  `min-width` precedence over `max-width`, keeping the §6.5 40 px
+  cell floor. `e2e/matrix-scale.spec.ts` now asserts 12 ≤ size ≤ 20
+  on every measured text at both viewports, with the globins UPGMA
+  step-20 frame (the ~30 px render the owner saw) pinned as its own
+  named test next to the final-step and 4-taxon cases.
+- **Presenter mode left as is:** the heatmap never reads the
+  presenter scale — `MatrixHeatmap` takes no `presenter` prop and
+  computes `--matrix-max` from the raw `size.lg` JS token, its
+  authored text is fixed `FONT`/`LABEL_FONT` svg units, and no
+  `:root[data-presenter]` rule touches `.matrix-wrap` — so there is
+  no token-scaled cap to follow (presenter mode does not change the
+  heatmap's geometry at all).

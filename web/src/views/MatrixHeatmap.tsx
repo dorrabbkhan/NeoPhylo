@@ -258,9 +258,9 @@ export function MatrixHeatmap({
     // drawing never scales under it) and, under coarse pointers, the
     // 40 px cell floor (--matrix-min, spec §6.5). It also caps the
     // upscale (--matrix-max): a small late-step matrix must not render
-    // its 12 px text past the type scale's 32 px max (owner follow-up,
-    // PR #139) — the cap only binds where the stretch already exceeded
-    // 32/12, so every frame inside the scale is pixel-identical.
+    // its 12 px text past size.lg (owner decision B on PR #140) — the
+    // cap only binds where the stretch already exceeded 20/12, so
+    // every frame inside the scale is pixel-identical.
     <div
       className="matrix-wrap"
       style={
@@ -270,9 +270,10 @@ export function MatrixHeatmap({
           // fractional floor could shrink a 40 px cell under 40 (§6.5).
           "--matrix-min": `${Math.ceil((width * 40) / CELL)}px`,
           // Rounded down: a fractional cap must not let the rendered
-          // size land a hair over 32 px (the same 1/64 px quantization,
-          // mirrored — floor keeps 12·scale ≤ 32 exactly).
-          "--matrix-max": `${Math.floor((width * size.xxl) / FONT)}px`,
+          // size land a hair over 20 px (the same 1/64 px quantization,
+          // mirrored — floor keeps 12·scale ≤ 20 exactly). The min
+          // floor stays under it: 40/34 ≈ 1.18 < 20/12 ≈ 1.67.
+          "--matrix-max": `${Math.floor((width * size.lg) / FONT)}px`,
         } as CSSProperties
       }
     >
