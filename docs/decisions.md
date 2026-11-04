@@ -6752,3 +6752,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   weak-support sample run; the previous handout's two full runs
   scored 35, this one's second "run" is a seed change; the owner
   judges the scale.
+- **Fix round 1 (PR #142):** wording only — `mega_note_md` and
+  question 4 no longer state the seeded run's `*` outcome (a new
+  packs test pins every student-facing field against "your … run
+  flags/shows/marks"), step 9 asks "which groupings, if any", the
+  first-run note says "if you have not yet", and the second-run note
+  says the counts CAN move; the four
+  `lab-mega-interpreting-support-print` baselines regenerated.

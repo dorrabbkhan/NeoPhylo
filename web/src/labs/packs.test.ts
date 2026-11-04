@@ -3667,4 +3667,71 @@ describe("lab pack mega-interpreting-support", () => {
     expect(values.length).toBeGreaterThan(0);
     expect(Math.min(...values)).toBeLessThan(0.5);
   });
+
+  it("never states what the student's own run flags — recorded MEGA numbers are attributed, the draw stays theirs to read", () => {
+    // Fix round 1: mega_note_md and the 4th question once told the
+    // student their seeded run flags all three groupings — on the
+    // page before the run, that answers question 4's data-or-draw
+    // point and part of predict_branch. Only the seeded premise test
+    // above may know the run's outcome; every student-facing field is
+    // pinned against "your … run flags/shows/marks" phrasing. A
+    // question that asks the student to report their own run ("does
+    // your first run show") does not match — the verb there is bare.
+    const readme = readFileSync(
+      resolve("..", "exercises", "labs", "README.md"),
+      "utf8",
+    );
+    const readmeSection = readme.slice(
+      readme.indexOf("## `mega-interpreting-support`"),
+    );
+    expect(readmeSection).not.toBe("");
+    const fields: [string, string][] = [
+      ["handout_md", pack.lab.handout_md],
+      [
+        "mega_note_md",
+        "mega_note_md" in pack.lab ? pack.lab.mega_note_md : "",
+      ],
+      ["objectives", pack.lab.objectives.join("\n")],
+      ["chain", pack.lab.chain.join("\n")],
+      [
+        "settings",
+        pack.lab.settings
+          .map((r) => Object.values(r).join("\n"))
+          .join("\n"),
+      ],
+      ...pack.exercise.prompts.map(
+        (p, i): [string, string] => [
+          `prompt ${i}`,
+          [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"),
+        ],
+      ),
+      ["README section", readmeSection],
+    ];
+    for (const [where, text] of fields) {
+      for (const phrase of [
+        "flags all three",
+        "flags those same",
+        "your seeded run flags",
+        "your first run flags",
+        "your first, seeded run",
+      ]) {
+        expect(
+          text,
+          `${where} must not contain "${phrase}"`,
+        ).not.toContain(phrase);
+      }
+      expect(
+        text,
+        `${where} must not state the student's run's outcome`,
+      ).not.toMatch(
+        /your[^?.\n]{0,120}\bruns?\s+(?:flag|show|mark|draw)s\b/i,
+      );
+      expect(
+        text,
+        `${where} must not say which groupings the student's run marks`,
+      ).not.toMatch(
+        /your[^?.\n]{0,120}\b(?:flag|mark|show)s\s+(?:all|those|the same|exactly|three|two)\b/i,
+      );
+    }
+  });
 });
