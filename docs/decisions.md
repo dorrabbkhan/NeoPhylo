@@ -6687,3 +6687,75 @@ Owner-requested rendering fixes after the PR #139 review; branch
   "429 of 1,628 sites removed by complete deletion"; the four
   `lab-mega-bootstrap-100-print` baselines regenerated in the pinned
   image (no other frame moved — full visual project green).
+
+## v1.4b Task 13 (handout 4): MEGA lab "Interpreting support" on 16S rRNA
+
+- **Owner decision 2026-11-04:** no MEGA fixture for the weak-support
+  sample; handout 4 uses it for NeoPhylo-only reading, all MEGA
+  comparisons use the 16S fixtures. The handout says so plainly
+  ("no recorded MEGA run for it", "never a MEGA comparison and never
+  a number to match"), the sample part asks questions only, and a
+  packs test pins that no support value is stated anywhere in the
+  pack text.
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts` — the shipped-list pin gains
+    `mega-interpreting-support` (sorted between `mega-bootstrap-100`
+    and `mega-jc69-vs-k2p`).
+  - `web/src/labs/labs.test.tsx` — the shipped-listing UI test
+    asserts the new card lists without the e2e flag.
+  - `web/e2e/labs.spec.ts` — the conductor note's Review Focus 5/7
+    coverage: the index lists all four MEGA handouts (`.lab-card`
+    count 4 in the MEGA region), "Load this lab" loads K80 + NJ +
+    pairwise + 100 reps + the seed and replays the fixture's printed
+    K80/pairwise row, the unsaved-work confirmation keeps a declined
+    draft on the new lab, the handout's weak-support step is followed
+    literally (Sandbox → "Weak-support example (DNA)" → run →
+    `data-weak` markers visible → "Back to the lesson" returns to the
+    lab), and the coarse-pointer ≥40×40 pass covers the new page.
+  - `web/e2e/a11y.spec.ts` — axe on the new lab page.
+  - `web/e2e/visualScenes.ts` — the `lab-mega-interpreting-support-print`
+    scene (same fullPage print view as the other handouts); new
+    baselines only, none existing changed.
+  - `docs/decisions.md` — this entry.
+- **Same analysis as handout 3's first run:** `K80` + NJ + pairwise
+  deletion + 100 replicates + the same seed `8675309` — deliberate:
+  the handout's premise is that this lab's first run IS the run the
+  previous handout performed, so its outcome is the same run's.
+- **Second run is a seed change, not 1,000 replicates:** the
+  handout's step 6 has the student change the Seed rather than raise
+  Replicates to 1,000 — a 27-taxon × 1,000-replicate run is allowed
+  by the UI but too slow for a student (and for e2e); the
+  1,000-replicate comparison uses MEGA's recorded `boot1000` fixture
+  instead, and the settings row says so.
+- **Claims pinned to the fixtures, not asserted:** "same groupings
+  at both replicate counts" is pinned as equal split sets across the
+  100-replicate block, the 1,000-replicate block, the fixture tree
+  and the engine's NJ splits (the #126 split-set rule — no support
+  values compared). "The same two groupings sit under 50 at both
+  counts" is pinned as the two identical under-50 splits in both
+  recorded blocks, also both blocks' two weakest. The borderline
+  claim — a third grouping just over 50 in both MEGA runs and just
+  under in the seeded run — is pinned the same way (fixture ≥50 <60
+  at both counts; the engine-internal seeded run puts exactly those
+  three under 0.5).
+- **`predict_branch` anchors the prediction:** the prompt asks for
+  the branch the student expects to be weakest before the run and
+  the verdict names the actual weakest after it — reveal text stays
+  generic so it holds under every seed the student picks for run 2.
+- **`*` convention matches the code:** the handout's "under 50" is
+  pinned against `supportText()` — `s < 0.5` draws the marker
+  (`web/src/layout/supportLabels.ts`), so the stated convention
+  cannot drift from the renderer; it is described as NeoPhylo's own
+  flag, not a significance test or a MEGA feature.
+- **`minutes`:** 30 — one bootstrap run, a seeded re-run, the MEGA
+  comparison (read-only on the NeoPhylo side) and the short
+  weak-support sample run; the previous handout's two full runs
+  scored 35, this one's second "run" is a seed change; the owner
+  judges the scale.
+- **Fix round 1 (PR #142):** wording only — `mega_note_md` and
+  question 4 no longer state the seeded run's `*` outcome (a new
+  packs test pins every student-facing field against "your … run
+  flags/shows/marks"), step 9 asks "which groupings, if any", the
+  first-run note says "if you have not yet", and the second-run note
+  says the counts CAN move; the four
+  `lab-mega-interpreting-support-print` baselines regenerated.

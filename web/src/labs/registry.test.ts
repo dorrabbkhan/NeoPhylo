@@ -118,6 +118,7 @@ describe("lab registry", () => {
     expect(listLabs().map((l) => l.id)).toEqual([
       "dnadist-neighbor",
       "mega-bootstrap-100",
+      "mega-interpreting-support",
       "mega-jc69-vs-k2p",
       "mega-nj-vs-upgma",
       "protdist-neighbor",

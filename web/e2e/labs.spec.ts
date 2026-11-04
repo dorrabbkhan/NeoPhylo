@@ -550,6 +550,129 @@ test("the shipped bootstrap handout loads K80 + NJ + pairwise + 100 reps into th
   );
 });
 
+// Task 13 handout 4: the shipped interpreting-support handout loads
+// through its lab page — same chain as handout 3's first run (K80, NJ,
+// pairwise, 100 replicates and the seed), so the same control checks.
+test("the shipped interpreting-support handout loads K80 + NJ + pairwise + 100 reps into the sandbox", async ({
+  page,
+}) => {
+  const fx = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../fixtures/mega/library/16s-rrna.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as {
+    distances: Record<string, { labels: string[]; matrix: (number | null)[][] }>;
+  };
+  const run = fx.distances["K80/pairwise"];
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=mega-interpreting-support");
+  await expect(
+    page.getByRole("heading", {
+      name: "MEGA: Interpreting bootstrap support on 16S rRNA",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+  await expect(page.getByLabel("Distance correction")).toHaveValue("K80");
+  await expect(page.getByLabel("Tree-building method")).toHaveValue("Nj");
+
+  // The gap treatment is the lab's pairwise deletion — visible on the
+  // sandbox's gap control once Sandbox keeps the loaded settings.
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await expect(
+    page.getByRole("radio", { name: "Pairwise deletion" }),
+  ).toBeChecked();
+  await expect(page.locator(".gap-count")).toContainText(
+    "0 of 1,628 sites removed by pairwise deletion",
+  );
+
+  // One whole row of cells at the displayed 3-decimal precision — the
+  // grid's per-cell aria-labels carry the value.
+  const n = run.labels.length;
+  for (let j = 0; j < n; j++) {
+    const v = run.matrix[0][j];
+    if (v === null) throw new Error("n/c cell in the K80 row");
+    const shown = j === 0 ? "0.000" : v.toFixed(3);
+    await expect(
+      page.locator(
+        `g[role="gridcell"][aria-label="${run.labels[0]}, ${run.labels[j]}: ${shown}"]`,
+      ),
+      `cell ${run.labels[0]}/${run.labels[j]} shows ${shown}`,
+    ).toBeVisible();
+  }
+
+  // The bootstrap panel renders at the final step; the exercise's own
+  // replicates and seed populate its fields.
+  await stepToEnd(page);
+  await expect(page.getByLabel("Replicates")).toHaveValue("100");
+  await expect(page.getByLabel("Seed")).toHaveValue("8675309");
+});
+
+// Task 13 handout 4's weak-support step, followed literally (Review
+// Focus 5): the step says to switch to the Sandbox, open the
+// "Weak-support example (DNA)" sample from the Import data section,
+// run the bootstrap and look for the `*` markers — and that "Back to
+// the lesson" returns to the lab. The sample is NeoPhylo-only; the
+// check asserts the displayed markers, never a number.
+test("the handout's weak-support step: the sample opens in the sandbox, its run shows weak markers, and Back returns to the lab", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/?lab=mega-interpreting-support");
+  await expect(
+    page.getByRole("heading", {
+      name: "MEGA: Interpreting bootstrap support on 16S rRNA",
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Load this lab" }).click();
+  await waitForApp(page);
+
+  // The handout's step: Sandbox keeps the lab, the Import data
+  // section lists the sample button (the lab's embedded data counts
+  // as lesson data, not imported data, so the empty state shows).
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  const controls = page.locator(".col-controls");
+  await controls
+    .getByRole("button", { name: "Weak-support example (DNA)" })
+    .click();
+  // The 6-taxon sample takes the sandbox over: six leaves A–F.
+  await expect(
+    page
+      .locator('svg[aria-label="Inferred tree"] g[data-node] > text')
+      .filter({ hasText: /^[A-F]$/ }),
+  ).toHaveCount(6);
+
+  // The panel keeps the lab's settings across the import — the run
+  // the step asks for uses the same seed and replicates.
+  await stepToEnd(page);
+  await expect(page.getByLabel("Replicates")).toHaveValue("100");
+  await expect(page.getByLabel("Seed")).toHaveValue("8675309");
+  await controls.getByRole("button", { name: /Run bootstrap/ }).click();
+  await expect(controls.getByText(/Run complete: /)).toBeVisible({
+    timeout: 120_000,
+  });
+  // The `*` markers the step asks about: at least one internal branch
+  // draws in the weak (<50) style.
+  await expect(
+    page.locator('.tree-canvas [data-weak="true"]').first(),
+  ).toBeVisible();
+
+  // "Back to the lesson" returns to the lab — it asks before the
+  // imported sample is cleared.
+  page.once("dialog", (d) => void d.accept());
+  await controls
+    .getByRole("button", { name: "Back to the lesson" })
+    .click();
+  await expect(page.locator(".app-header h1")).toContainText(
+    "MEGA lab: interpreting bootstrap support",
+  );
+});
+
 // Task 13 handout 1 (Review Focus 5): the editor's lab sheet lists the
 // shipped MEGA handout too — loading it over unsaved work asks first
 // and declining keeps the draft.
@@ -622,6 +745,36 @@ test("with unsaved editor work, Load this lab on the bootstrap handout asks firs
   const row = sheet
     .locator("li")
     .filter({ hasText: "MEGA: 100 bootstrap replicates on 16S rRNA" });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: "Load this lab" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Replace your unsaved work?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /keep my work/i }).click();
+  await expect(newick).toHaveValue("(X:0.5,Y:0.5,Z:0.5);");
+  await expect(page.getByLabel("Title")).toHaveValue("My draft");
+});
+
+// Task 13 handout 4 gets the same Review Focus 5 pass: the row is the
+// shipped interpreting-support handout's own, and declining keeps the
+// draft.
+test("with unsaved editor work, Load this lab on the interpreting-support handout asks first", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  const newick = NEWICK(page);
+  await expect(newick).toBeVisible();
+  await newick.fill("(X:0.5,Y:0.5,Z:0.5);");
+  await newick.press("Enter");
+  await page.getByLabel("Title").fill("My draft");
+
+  await page.getByRole("button", { name: "Labs" }).click();
+  const sheet = page.getByRole("dialog", { name: "Labs" });
+  const row = sheet
+    .locator("li")
+    .filter({
+      hasText: "MEGA: Interpreting bootstrap support on 16S rRNA",
+    });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Load this lab" }).click();
   await expect(
@@ -804,6 +957,14 @@ test("under (pointer: coarse) every lab link and button — header, drawer, More
   ).toBeVisible();
   await checkAll("the shipped bootstrap lab page");
 
+  await page.goto("/?lab=mega-interpreting-support");
+  await expect(
+    page.getByRole("heading", {
+      name: "MEGA: Interpreting bootstrap support on 16S rRNA",
+    }),
+  ).toBeVisible();
+  await checkAll("the shipped interpreting-support lab page");
+
   await page.goto("/?lab=test-lab");
   await expect(
     page.getByRole("heading", { name: "Test lab: dnadist → neighbor" }),
@@ -842,6 +1003,13 @@ test("without the e2e flag the index lists only the shipped packs", async ({
   await expect(
     page.getByText("MEGA: 100 bootstrap replicates on 16S rRNA"),
   ).toBeVisible();
+  // Handout 4 is the last of the four — the MEGA group lists exactly
+  // four cards.
+  await expect(
+    page.getByText("MEGA: Interpreting bootstrap support on 16S rRNA"),
+  ).toBeVisible();
+  const megaGroup = page.getByRole("region", { name: "MEGA labs" });
+  await expect(megaGroup.locator(".lab-card")).toHaveCount(4);
   await expect(
     page.getByText("Test lab: dnadist → neighbor"),
   ).toHaveCount(0);
