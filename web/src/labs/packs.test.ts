@@ -959,6 +959,15 @@ interface MegaFixture {
     { labels: string[]; matrix: (number | null)[][] }
   >;
   trees: Record<string, string>;
+  /** Task 9's 100-replicate blocks: the support MEGA printed on the
+   * original NJ tree, keyed by canonical split (the handout values —
+   * only their split SETS are asserted; the counts are one unseeded
+   * run's, owner ruling on #126). Absent on inputs Task 9 did not
+   * bootstrap. */
+  bootstrap?: Record<
+    string,
+    { replicates: number; support: Record<string, number> }
+  >;
 }
 
 function loadMegaFixture(name: string): MegaFixture {
@@ -2267,5 +2276,675 @@ describe("lab pack mega-nj-vs-upgma", () => {
     expect(text).not.toMatch(/identical (UPGMA )?trees/i);
     expect(text).not.toMatch(/the same UPGMA tree/i);
     expect(text).not.toMatch(/UPGMA trees? (are|is) (the same|identical)/i);
+  });
+});
+
+/* ---- v1.4b Task 13 handout 3: MEGA "100 bootstrap replicates" (spec
+ * §7.1) ---- */
+
+describe("lab pack mega-bootstrap-100", () => {
+  const loaded = loadLab("mega-bootstrap-100");
+  if (!loaded.ok) throw new Error(`pack must load: ${JSON.stringify(loaded.error)}`);
+  const pack = loaded.value;
+  const fx = loadMegaFixture("16s-rrna");
+  if (fx.bootstrap === undefined) {
+    throw new Error("16s-rrna's fixture must carry the 100-replicate blocks");
+  }
+  const boot = fx.bootstrap;
+  // The library FASTA the pack embeds — read from the shipped file.
+  const libraryText = readFileSync(
+    resolve("..", "web/public/library/16s-rrna.fasta"),
+    "utf8",
+  );
+  const NJBOOT_MAOS = [
+    resolve(FIXTURES, "mega", "mao", "njboot_dna_k2p_pairwise.mao"),
+    resolve(FIXTURES, "mega", "mao", "njboot_dna_k2p_complete.mao"),
+  ];
+  // The handout's two runs — the gap treatment is the only option that
+  // changes between them.
+  const RUNS = ["pairwise", "complete"] as const;
+  const RUN_FILTERS: Record<(typeof RUNS)[number], SiteFilter> = {
+    pairwise: { kind: "pairwise" },
+    complete: { kind: "complete" },
+  };
+  // Every correction the lab's DNA menu offers the student (P, JC69 and
+  // K80 always — F84 and K2P_PHYLIP are sandbox-only models,
+  // CORRECTIONS.dna minus SANDBOX_MODELS) times every gap treatment the
+  // Gap control offers. Prompts show at stepper positions under
+  // whichever of these is selected, so scoped claims are pinned under
+  // all of them.
+  const PICKABLE_MODELS: DistModel[] = ["P", "Jc69", "K80"];
+  const STUDENT_FILTERS: SiteFilter[] = [
+    { kind: "pairwise" },
+    { kind: "complete" },
+    { kind: "partial", cutoff_pct: 95 },
+  ];
+
+  it("loads through loadLab and its lab block validates", () => {
+    expect(pack.lab.id).toBe("mega-bootstrap-100");
+    if (pack.lab.tool !== "mega") throw new Error("the pack is a MEGA lab");
+    expect(pack.exercise.schema_version).toBe(4);
+    expect(pack.exercise.alphabet).toBe("dna");
+    // The lab's run is MEGA's bootstrap NJ chain: K2P distances, NJ,
+    // 100 replicates under pairwise deletion (MEGA's default gap
+    // treatment); the handout's step switches complete deletion in.
+    expect(pack.exercise.analysis.correction).toBe("K80");
+    expect(pack.exercise.analysis.method).toBe("Nj");
+    expect(pack.exercise.analysis.site_filter).toEqual({ kind: "pairwise" });
+    expect(pack.exercise.data.kind).toBe("embedded");
+    // The bootstrap block carries the cited .mao run's replicate count
+    // and the seed MEGA does not offer (the settings table shows both).
+    if (pack.exercise.bootstrap === null) {
+      throw new Error("the pack must set bootstrap.replicates and .seed");
+    }
+    expect(pack.exercise.bootstrap.replicates).toBe(100);
+    expect(Number.isInteger(pack.exercise.bootstrap.seed)).toBe(true);
+    expect(pack.lab.minutes).toBeGreaterThanOrEqual(5);
+    expect(pack.lab.minutes).toBeLessThanOrEqual(180);
+    expect(pack.lab.settings.length).toBeGreaterThan(0);
+    expect(pack.lab.objectives.length).toBeGreaterThan(0);
+  });
+
+  it("embeds web/public/library/16s-rrna.fasta byte for byte (names and residues)", () => {
+    if (pack.exercise.data.kind !== "embedded") throw new Error("unreachable");
+    const embedded = fastaRecords(pack.exercise.data.fasta);
+    const committed = fastaRecords(libraryText);
+    expect(embedded).toEqual(committed);
+    expect(embedded.length).toBe(27);
+    expect(embedded.map(([name]) => name)).toEqual(
+      fx.distances["K80/pairwise"].labels,
+    );
+    for (const [, seq] of embedded) expect(seq.length).toBe(1628);
+  });
+
+  it("every settings-table row cites a setting the named .mao run declares", () => {
+    // spec §7.1: "its settings table matches the .mao settings it
+    // cites". Both runs share one menu path (Phylogeny → Construct/test
+    // NJ tree), so every row's "Key: Value" must appear in the union of
+    // the two njboot .mao files — the gap row legitimately cites both
+    // values. The single exception is the seed row: MEGA's bootstrap
+    // is unseeded (fixtures/worked/mega-notes.md), so it carries no
+    // ".mao key" and must say so.
+    const union = maoUnion(NJBOOT_MAOS);
+    let noMaoKey = 0;
+    for (const row of pack.lab.settings) {
+      if (!("mega_setting" in row)) throw new Error("not a MEGA row");
+      const split = /:\s/.exec(row.mega_setting);
+      if (split === null) {
+        noMaoKey++;
+        expect(row.mega_setting).toMatch(/no MEGA setting|unseeded|no seed/i);
+        continue;
+      }
+      const key = row.mega_setting.slice(0, split.index);
+      const value = row.mega_setting.slice(split.index + 2).trim();
+      const values = union.get(key);
+      expect(
+        values !== undefined && values.has(value),
+        `row "${row.option}" cites ${key}: ${value} — not in the .mao family`,
+      ).toBe(true);
+    }
+    expect(noMaoKey, "only the seed row may lack a .mao setting").toBe(1);
+  });
+
+  it("the bootstrap and model rows name the runs' settings exactly as the .mao files do", () => {
+    // The two runs differ only in Gaps/Missing Data — every other run
+    // option is shared, so each row must equal the .mao value verbatim.
+    const mao = maoSettings(NJBOOT_MAOS[0]);
+    const rows = pack.lab.settings.filter(
+      (r): r is Extract<typeof r, { mega_setting: string }> =>
+        "mega_setting" in r,
+    );
+    for (const key of [
+      "Analysis",
+      "Scope",
+      "Statistical Method",
+      "Test of Phylogeny",
+      "Approach",
+      "Bootstrap Replicates",
+      "Substitutions Type",
+      "Model/Method",
+      "Substitutions to Include",
+      "Rates among Sites",
+      "Pattern among Lineages",
+    ]) {
+      const row = rows.find((r) => r.mega_setting.startsWith(`${key}:`));
+      expect(row, `a settings row cites ${key}`).not.toBeUndefined();
+      expect(row?.mega_setting).toBe(`${key}: ${mao.get(key)}`);
+    }
+    // The bootstrap run is the lesson: its three keys bind exactly.
+    expect(mao.get("Test of Phylogeny")).toBe("Bootstrap method");
+    expect(mao.get("Approach")).toBe("Standard Bootstrap (slow)");
+    expect(mao.get("Bootstrap Replicates")).toBe("100");
+    expect(mao.get("Statistical Method")).toBe("Neighbor-joining");
+    expect(mao.get("Model/Method")).toBe("Kimura 2-parameter model");
+    // Both gap treatments the handout runs are cited as rows.
+    const gapRows = rows.filter((r) =>
+      /^Gaps\/Missing Data:/.test(r.mega_setting),
+    );
+    expect(gapRows.map((r) => r.mega_setting).sort()).toEqual([
+      "Gaps/Missing Data: Complete deletion",
+      "Gaps/Missing Data: Pairwise deletion",
+    ]);
+    // And the fixture blocks are the 100-replicate runs the rows cite.
+    expect(boot["nj/K80/pairwise"].replicates).toBe(100);
+    expect(boot["nj/K80/complete"].replicates).toBe(100);
+  });
+
+  it("settings-table rows naming a NeoPhylo control agree with the exercise", () => {
+    const corrections = new Set<string>();
+    const gaps: string[] = [];
+    let sawMethod = false;
+    let sawReplicates = false;
+    let sawSeed = false;
+    if (pack.exercise.bootstrap === null) throw new Error("unreachable");
+    const exerciseBoot = pack.exercise.bootstrap;
+    for (const row of pack.lab.settings) {
+      if (row.neophylo.startsWith("Correction:")) {
+        const m = /^Correction: (\S+)/.exec(row.neophylo);
+        if (m === null) {
+          throw new Error(`bad Correction row "${row.neophylo}"`);
+        }
+        corrections.add(m[1]);
+      }
+      if (row.neophylo.startsWith("Method:")) {
+        sawMethod = true;
+        expect(row.neophylo).toMatch(/Neighbor-Joining|NJ/);
+        expect(pack.exercise.analysis.method).toBe("Nj");
+      }
+      if (row.neophylo.startsWith("Gap treatment:")) {
+        gaps.push(row.neophylo);
+      }
+      if (row.neophylo.startsWith("Replicates:")) {
+        sawReplicates = true;
+        expect(row.neophylo).toContain(String(exerciseBoot.replicates));
+      }
+      if (row.neophylo.startsWith("Seed:")) {
+        sawSeed = true;
+        expect(row.neophylo).toContain(String(exerciseBoot.seed));
+      }
+    }
+    // One model for both runs: MEGA's "Kimura 2-parameter" is K80.
+    expect(corrections).toEqual(new Set(["K80"]));
+    expect(pack.exercise.analysis.correction).toBe("K80");
+    // Both gap treatments the handout switches between.
+    expect(gaps.join("\n")).toMatch(/Pairwise/i);
+    expect(gaps.join("\n")).toMatch(/Complete/i);
+    expect(exerciseBoot.replicates).toBe(100);
+    expect(sawMethod, "a settings row must name the Method control").toBe(true);
+    expect(sawReplicates, "a settings row must name the Replicates control").toBe(true);
+    expect(sawSeed, "a settings row must name the Seed control").toBe(true);
+  });
+
+  it("lists every option the .mao runs set — nothing is left to a default", () => {
+    // Same pin as handouts 1–2: every non-administrative
+    // [AnalysisSettings] key of each cited .mao appears as a row.
+    const SKIP = new Set(["Has Time Limit", "Maximum Execution Time"]);
+    const missing: string[] = [];
+    for (const mao of NJBOOT_MAOS) {
+      for (const [key, value] of maoSection(mao, "AnalysisSettings")) {
+        if (SKIP.has(key) || /^=+$/.test(value)) continue;
+        if (
+          !pack.lab.settings.some(
+            (r) =>
+              "mega_setting" in r && r.mega_setting.startsWith(`${key}:`),
+          )
+        ) {
+          missing.push(`${key} (${mao.split("/").pop()})`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it.each(RUNS)(
+    "reproduces MEGA's printed K80 matrix under %s deletion within its precision",
+    (filter) => {
+      const aln = packAlignment(pack.exercise);
+      const got = megaDistances(aln, "K80", RUN_FILTERS[filter]);
+      const want = fx.distances[`K80/${filter}`];
+      expect(got.labels).toEqual(want.labels);
+      const n = want.labels.length;
+      const tol = 0.5 * Math.pow(10, -fx.precision.distances); // 8 decimals → 0.5e-8
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const w = want.matrix[i][j];
+          const cell = got.cells[i * n + j];
+          expect(
+            w === null
+              ? cell === "Saturated"
+              : cell !== "Saturated" && Math.abs(cell.Value - w) <= tol,
+            `cell ${want.labels[i]}/${want.labels[j]}`,
+          ).toBe(true);
+        }
+      }
+    },
+  );
+
+  it.each(RUNS)(
+    "NJ on MEGA's printed K80 matrix under %s gives the fixture tree's splits",
+    (filter) => {
+      // Topology only (parity_mega_library.rs check_printed_topology):
+      // the fixture trees were computed at full precision, so the
+      // 8-decimal matrix rounding propagates ~1e-9 into lengths.
+      const run = fx.distances[`K80/${filter}`];
+      const got = nj(megaPrintedMatrix(run, "K80"));
+      const want = parse(fx.trees[`nj/K80/${filter}`]);
+      const r = engine.compare(want, got);
+      if (!r.ok) throw new Error(`compare failed: ${JSON.stringify(r.error)}`);
+      expect(r.value.rf).toBe(0);
+    },
+  );
+
+  it.each(RUNS)(
+    "NJ on the engine's own K80 matrix under %s gives the fixture tree's splits and lengths",
+    (filter) => {
+      // Full parity on the engine's own matrix (parity_mega_library.rs
+      // check_tree): every split, then every branch length within
+      // per-value lenTol.
+      const aln = packAlignment(pack.exercise);
+      const dm = megaDistances(aln, "K80", RUN_FILTERS[filter]);
+      const got = nj(dm);
+      const want = parse(fx.trees[`nj/K80/${filter}`]);
+      const r = engine.compare(want, got);
+      if (!r.ok) throw new Error("compare failed");
+      expect(r.value.rf).toBe(0);
+      const wl = printedLengths(fx.trees[`nj/K80/${filter}`]);
+      const gl = branchLengths(got);
+      expect(gl.length).toBe(wl.length);
+      gl.forEach((g, k) =>
+        expect(
+          Math.abs(g - wl[k].v),
+          `branch length ${k}`,
+        ).toBeLessThanOrEqual(lenTol(wl[k].v, wl[k].d)),
+      );
+    },
+  );
+
+  it.each(RUNS)(
+    "the engine's NJ splits under %s are exactly the splits MEGA's 100-replicate run labelled",
+    (filter) => {
+      // The bootstrap-support rule (owner ruling on #126,
+      // docs/decisions.md "v1.4b Task 9 Step 3"): MEGA's bootstrap is
+      // unseeded, so only the SPLIT SETS are asserted — the engine's
+      // NJ splits under the lab's filter equal the fixture's bootstrap
+      // support keys equal the fixture tree's splits. The 100-replicate
+      // support NUMBERS are never compared to NeoPhylo's.
+      const run = boot[`nj/K80/${filter}`];
+      const aln = packAlignment(pack.exercise);
+      const dm = megaDistances(aln, "K80", RUN_FILTERS[filter]);
+      const ourKeys = treeGroupingKeys(nj(dm), dm.labels);
+      const megaKeys = new Set(Object.keys(run.support));
+      expect(ourKeys).toEqual(megaKeys);
+      const treeKeys = treeGroupingKeys(
+        parse(fx.trees[`nj/K80/${filter}`]),
+        dm.labels,
+      );
+      expect(treeKeys).toEqual(megaKeys);
+    },
+  );
+
+  it("the two filters' NJ trees share one split set on this data, as the handout asks about", () => {
+    // Scoped to the lab's K80 run — under the other pickable models
+    // the split sets legitimately differ (verified), so the handout
+    // poses this as a question about its own runs. MEGA's two trees
+    // are the same split set, and so are the engine's.
+    const fixturePairwise = treeGroupingKeys(
+      parse(fx.trees["nj/K80/pairwise"]),
+      fx.distances["K80/pairwise"].labels,
+    );
+    const fixtureComplete = treeGroupingKeys(
+      parse(fx.trees["nj/K80/complete"]),
+      fx.distances["K80/complete"].labels,
+    );
+    expect(fixturePairwise).toEqual(fixtureComplete);
+    // The two bootstrap blocks label that same set.
+    expect(new Set(Object.keys(boot["nj/K80/pairwise"].support))).toEqual(
+      fixturePairwise,
+    );
+    expect(new Set(Object.keys(boot["nj/K80/complete"].support))).toEqual(
+      fixturePairwise,
+    );
+    const aln = packAlignment(pack.exercise);
+    const ourPairwise = treeGroupingKeys(
+      nj(megaDistances(aln, "K80", { kind: "pairwise" })),
+      aln.labels,
+    );
+    const ourComplete = treeGroupingKeys(
+      nj(megaDistances(aln, "K80", { kind: "complete" })),
+      aln.labels,
+    );
+    expect(ourPairwise).toEqual(ourComplete);
+    expect(ourPairwise).toEqual(fixturePairwise);
+  });
+
+  it("several supports move a lot between the two recorded runs — the handout's premise", () => {
+    // Same tree, different counts: on the shared split set, several of
+    // MEGA's 100-replicate supports differ by 20+ points between the
+    // gap treatments. Fixture-only — these are MEGA's own two recorded
+    // unseeded runs, never compared against NeoPhylo's numbers.
+    const pw = boot["nj/K80/pairwise"].support;
+    const cp = boot["nj/K80/complete"].support;
+    expect(Object.keys(pw).sort()).toEqual(Object.keys(cp).sort());
+    let moved = 0;
+    let maxDiff = 0;
+    for (const k of Object.keys(pw)) {
+      const d = Math.abs(pw[k] - cp[k]);
+      if (d >= 20) moved++;
+      if (d > maxDiff) maxDiff = d;
+    }
+    expect(moved, "the premise needs several supports moving 20+ points").toBeGreaterThanOrEqual(5);
+    expect(maxDiff).toBeGreaterThanOrEqual(50);
+  });
+
+  it.each(
+    PICKABLE_MODELS.flatMap((model) =>
+      STUDENT_FILTERS.map((filter) => ({ model, filter })),
+    ),
+  )(
+    "the prompt's closest-pair and first-join claims hold under $model/$filter.kind",
+    ({ model, filter }) => {
+      // The predict_pair reveal names Escherichia_coli +
+      // Salmonella_enterica — the two enteric bacteria — as both the
+      // matrix's closest pair and the first join, under NJ AND UPGMA.
+      // Read off the engine on the pack's alignment under every model
+      // and gap treatment the student can pick.
+      const aln = packAlignment(pack.exercise);
+      const dm = megaDistances(aln, model, filter);
+      const labels = dm.labels;
+      let best = { d: Infinity, i: -1, j: -1 };
+      for (let i = 0; i < labels.length; i++) {
+        for (let j = i + 1; j < labels.length; j++) {
+          const c = dm.cells[i * labels.length + j];
+          if (c !== "Saturated" && c.Value < best.d) {
+            best = { d: c.Value, i, j };
+          }
+        }
+      }
+      const run = `${typeof model === "string" ? model : "?"}/${filter.kind}`;
+      expect(
+        [labels[best.i], labels[best.j]].sort(),
+        `closest pair under ${run}`,
+      ).toEqual(["Escherichia_coli", "Salmonella_enterica"]);
+
+      const firstJoin = (method: "Nj" | "Upgma"): string[] => {
+        const tr = engine.buildTree(dm, method, { trace: true });
+        if (!tr.ok) throw new Error("buildTree failed");
+        const trace = tr.value.trace;
+        const first =
+          trace === null
+            ? null
+            : "Nj" in trace
+              ? trace.Nj.steps[0]
+              : trace.Upgma.steps[0];
+        if (first === null) throw new Error(`${method} trace missing`);
+        return [first.chosen[0], first.chosen[1]]
+          .map((pos) => labels[first.active[pos]])
+          .sort();
+      };
+      expect(firstJoin("Nj"), `first NJ join under ${run}`).toEqual([
+        "Escherichia_coli",
+        "Salmonella_enterica",
+      ]);
+      expect(firstJoin("Upgma"), `first UPGMA merge under ${run}`).toEqual([
+        "Escherichia_coli",
+        "Salmonella_enterica",
+      ]);
+    },
+  );
+
+  it.each(RUNS)(
+    "the first join on MEGA's printed K80 matrix under %s is the enteric pair",
+    (filter) => {
+      // The reveal's claim replays on the exact printed matrix MEGA's
+      // tree run consumed.
+      const run = fx.distances[`K80/${filter}`];
+      const megaDm = megaPrintedMatrix(run, "K80");
+      const tr = engine.buildTree(megaDm, "Nj", { trace: true });
+      if (!tr.ok) throw new Error("buildTree failed");
+      const trace = tr.value.trace;
+      if (trace === null || !("Nj" in trace)) throw new Error("NJ trace missing");
+      const first = trace.Nj.steps[0];
+      const pair = [first.chosen[0], first.chosen[1]]
+        .map((pos) => run.labels[first.active[pos]])
+        .sort();
+      expect(pair).toEqual(["Escherichia_coli", "Salmonella_enterica"]);
+    },
+  );
+
+  // The step-25 note's named groupings (at_step 25 = the finished NJ
+  // tree's position on a 27-taxon run — n − 2), each mapped to the
+  // exact split it names. Every one is an exact split of the engine's
+  // NJ tree under every pickable model × filter AND of the fixture NJ
+  // trees, so the note stays true under anything the student selects.
+  const NOTE_PHRASES: Record<string, string> = {
+    "Escherichia_coli|Salmonella_enterica": "the two enteric bacteria together",
+    "Mycoplasmoides_pneumoniae|Spiroplasma_citri": "the two mollicutes together",
+    "Nostoc_coriaceum|Synechococcus_elongatus": "the two cyanobacteria",
+    "Deinococcus_radiodurans|Thermus_aquaticus": "the Deinococcus–Thermus pair",
+    "Bacillus_subtilis|Staphylococcus_aureus": "Bacillus–Staphylococcus",
+    "Agrobacterium_tumefaciens|Caulobacter_vibrioides|Rickettsia_prowazekii":
+      "alphaproteobacterial triple",
+  };
+
+  it.each(
+    PICKABLE_MODELS.flatMap((model) =>
+      STUDENT_FILTERS.map((filter) => ({ model, filter })),
+    ),
+  )(
+    "the closing note's groupings are exact splits of the NJ tree ($model/$filter.kind)",
+    ({ model, filter }) => {
+      const aln = packAlignment(pack.exercise);
+      const note = pack.exercise.prompts.find((p) => p.at_step === 25);
+      if (note === undefined) {
+        throw new Error("the lab must carry the step-25 closing note");
+      }
+      const dm = megaDistances(aln, model, filter);
+      const keys = treeGroupingKeys(nj(dm), dm.labels);
+      for (const [split, phrase] of Object.entries(NOTE_PHRASES)) {
+        const comp = dm.labels
+          .filter((l) => !split.split("|").includes(l))
+          .sort()
+          .join("|");
+        expect(
+          keys.has(split) || keys.has(comp),
+          `the NJ tree must contain the split behind "${phrase}"`,
+        ).toBe(true);
+        expect(
+          note.concept,
+          `the note must describe split ${split}`,
+        ).toContain(phrase);
+      }
+      // The note names its run and never implies rooting.
+      expect(note.concept).toMatch(/NJ/);
+      expect(note.concept).not.toMatch(/outgroup|outside|\brooted\b/i);
+    },
+  );
+
+  it.each(["pairwise", "complete", "partial95"] as const)(
+    "the named groupings are exact splits of MEGA's printed NJ tree too (%s)",
+    (filter) => {
+      const run = fx.distances[`K80/${filter}`];
+      const keys = treeGroupingKeys(
+        parse(fx.trees[`nj/K80/${filter}`]),
+        run.labels,
+      );
+      for (const [split, phrase] of Object.entries(NOTE_PHRASES)) {
+        const comp = run.labels
+          .filter((l) => !split.split("|").includes(l))
+          .sort()
+          .join("|");
+        expect(
+          keys.has(split) || keys.has(comp),
+          `the fixture NJ tree must contain the split behind "${phrase}"`,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it("the prompt texts never state the pairwise-vs-complete outcome before the student runs it", () => {
+    // Step 6's comparison — did the tree change, which support moved
+    // most — stays the student's to make: no prompt may answer it, and
+    // no prompt may quote a support value.
+    const text = pack.exercise.prompts
+      .map((p) => [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"))
+      .join("\n");
+    for (const phrase of [
+      "the same splits",
+      "same split set",
+      "identical splits",
+      "moves most",
+      "moved most",
+    ]) {
+      expect(text, `prompt text must not contain "${phrase}"`).not.toContain(
+        phrase,
+      );
+    }
+    expect(text).not.toMatch(/\b\d{1,3}\s*(?:%|percent|of (?:the )?100\b)/);
+  });
+
+  it("support is never a probability — the disclaimer survives and no positive reading does", () => {
+    // Review rule (spec §7.4): the texts may only say support is NOT a
+    // probability. Strip the negated forms; anything left that reads
+    // "probability", "chance" or "confidence" is a failure.
+    const text = `${pack.lab.handout_md}\n${"mega_note_md" in pack.lab ? pack.lab.mega_note_md : ""}\n${pack.exercise.prompts
+      .map((p) => [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"))
+      .join("\n")}`;
+    expect(text).toMatch(/never a probability/i);
+    const stripped = text.replace(/never a probability[^.\n]*/gi, "");
+    expect(stripped).not.toMatch(/probabilit|confidence that|% chance/i);
+  });
+
+  it("says MEGA's bootstrap is unseeded and NeoPhylo's run is reproducible from the seed", () => {
+    // The handout's core MEGA-vs-NeoPhylo fact (mega-notes.md "No seed
+    // option"): stated where the student reads it, never implied by a
+    // missing row.
+    const text = `${pack.lab.handout_md}\n${"mega_note_md" in pack.lab ? pack.lab.mega_note_md : ""}`;
+    expect(text).toMatch(/no seed|unseeded/i);
+    expect(text).toMatch(/seed/i);
+    // And it never states a MEGA support value as what the student
+    // will see — the fixture values are one MEGA run's, attributed.
+    expect(text).not.toMatch(/you will see \d|will show \d/i);
+  });
+
+  it("every 'step N' cross-reference names the handout step whose text does that action", () => {
+    // The note and the settings table send the student to handout
+    // steps by number; a stale number teaches the wrong order (fix
+    // round 1: the gap-treatment switch is step 5 — "step 6" points
+    // at the comparison). For each reference the clause around it
+    // names an action; the referenced step's own text must be the
+    // unique best word-match for that clause.
+    const steps = new Map<number, string>();
+    for (const m of pack.lab.handout_md.matchAll(/^(\d+)\.\s+(\S.*)$/gm)) {
+      steps.set(Number(m[1]), m[2]);
+    }
+    expect(
+      steps.size,
+      "handout_md must carry its numbered Steps list",
+    ).toBeGreaterThanOrEqual(5);
+
+    const fields: [string, string][] = pack.exercise.prompts.map((p) => [
+      `prompt at_step ${p.at_step}`,
+      [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"),
+    ]);
+    fields.push(["objectives", pack.lab.objectives.join("\n")]);
+    for (const r of pack.lab.settings) {
+      fields.push([
+        `settings row "${r.option}"`,
+        Object.values(r).join("\n"),
+      ]);
+    }
+    fields.push([
+      "mega_note_md",
+      "mega_note_md" in pack.lab ? pack.lab.mega_note_md : "",
+    ]);
+
+    // Content words are ≥4 letters; two words count as shared when
+    // one prefixes the other ("switch" ~ "switches", "grouping" ~
+    // "groupings"). Words no step text uses score nothing, so
+    // "the handout's" can't pick a winner.
+    const stepWords = new Map<number, string[]>();
+    for (const [n, text] of steps) {
+      stepWords.set(n, text.toLowerCase().match(/[a-z]{4,}/g) ?? []);
+    }
+    const shared = (clause: string, words: string[]): number =>
+      (clause.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) =>
+        words.some((s) => s.startsWith(w) || w.startsWith(s)),
+      ).length;
+
+    let refs = 0;
+    for (const [where, text] of fields) {
+      for (const m of text.matchAll(/step\s+(\d+)/gi)) {
+        refs++;
+        const n = Number(m[1]);
+        expect(
+          steps.has(n),
+          `${where}: "step ${n}" — the handout has no step ${n}`,
+        ).toBe(true);
+        // The local clause around the reference names the action —
+        // bounded by sentence punctuation.
+        const before = text.slice(0, m.index);
+        const start =
+          Math.max(
+            before.lastIndexOf("."),
+            before.lastIndexOf("?"),
+            before.lastIndexOf("!"),
+            before.lastIndexOf(";"),
+            before.lastIndexOf("\n"),
+          ) + 1;
+        const rest = text.slice(m.index + m[0].length);
+        const endM = /[.?!;\n]/.exec(rest);
+        const clause = text
+          .slice(
+            start,
+            endM === null ? text.length : m.index + m[0].length + endM.index,
+          )
+          .replace(/step\s+\d+/gi, "");
+        const scored = [...stepWords].map(([sn, words]) => ({
+          n: sn,
+          score: shared(clause, words),
+        }));
+        const best = Math.max(...scored.map((s) => s.score));
+        expect(
+          best,
+          `${where}: the clause "${clause.trim()}" names no step's action`,
+        ).toBeGreaterThan(0);
+        expect(
+          scored.filter((s) => s.score === best).map((s) => s.n),
+          `${where}: "step ${n}" — clause "${clause.trim()}"`,
+        ).toEqual([n]);
+      }
+    }
+    expect(
+      refs,
+      "the note and the settings table must carry step references to check",
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("the handout's site counts are the engine's: aligned length and complete-deletion kept columns", () => {
+    // "1,628 aligned sites" and "complete deletion keeps the 1,199
+    // columns" — extracted from the prose and asserted against the
+    // engine, never restated by hand: the kept count comes from
+    // engine.siteMask, the same wasm entry the sandbox's "N of M
+    // sites removed" line reads.
+    const aln = packAlignment(pack.exercise);
+    const total = aln.seqs.reduce((m, s) => Math.max(m, s.length), 0);
+    const sitesM = /([\d,]+) aligned sites/.exec(pack.lab.handout_md);
+    expect(
+      sitesM,
+      'handout_md must state "… aligned sites"',
+    ).not.toBeNull();
+    expect(Number(sitesM?.[1].replace(/,/g, ""))).toBe(total);
+    const keptM = /complete deletion keeps the ([\d,]+) columns/i.exec(
+      pack.lab.handout_md,
+    );
+    expect(
+      keptM,
+      'handout_md must state "complete deletion keeps the … columns"',
+    ).not.toBeNull();
+    const mask = engine.siteMask(aln, { kind: "complete" });
+    if (!mask.ok) throw new Error("siteMask failed");
+    expect(total - mask.value.removed.length).toBe(
+      Number(keptM?.[1].replace(/,/g, "")),
+    );
   });
 });

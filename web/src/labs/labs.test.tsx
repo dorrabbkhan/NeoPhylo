@@ -109,6 +109,9 @@ describe("lab index and lab page", () => {
     expect(
       screen.getByText("MEGA: NJ vs UPGMA on vertebrate globins"),
     ).toBeTruthy();
+    expect(
+      screen.getByText("MEGA: 100 bootstrap replicates on 16S rRNA"),
+    ).toBeTruthy();
     expect(screen.queryByText("Test lab: dnadist → neighbor")).toBeNull();
     expect(screen.queryByText(/no lab packs/i)).toBeNull();
     expect(screen.queryByText(/MEGA handouts are coming/i)).toBeNull();
