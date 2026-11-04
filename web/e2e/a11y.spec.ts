@@ -276,6 +276,14 @@ test("axe: the MEGA guide and a MEGA lab page have no serious violations", async
     }),
   ).toBeVisible();
   await expectNoSeriousViolations(page, "the shipped bootstrap lab page");
+
+  await page.goto("/?lab=mega-interpreting-support");
+  await expect(
+    page.getByRole("heading", {
+      name: "MEGA: Interpreting bootstrap support on 16S rRNA",
+    }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the shipped interpreting-support lab page");
 });
 
 /* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */
