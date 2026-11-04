@@ -540,6 +540,14 @@ test("the shipped bootstrap handout loads K80 + NJ + pairwise + 100 reps into th
   await stepToEnd(page);
   await expect(page.getByLabel("Replicates")).toHaveValue("100");
   await expect(page.getByLabel("Seed")).toHaveValue("8675309");
+
+  // Handout step 5's switch: complete deletion drops the 429 columns
+  // where any of the 27 sequences has a gap (the engine's siteMask —
+  // packs.test.ts pins the kept count from the same entry).
+  await page.getByRole("radio", { name: "Complete deletion" }).click();
+  await expect(page.locator(".gap-count")).toContainText(
+    "429 of 1,628 sites removed by complete deletion",
+  );
 });
 
 // Task 13 handout 1 (Review Focus 5): the editor's lab sheet lists the

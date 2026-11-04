@@ -2825,4 +2825,126 @@ describe("lab pack mega-bootstrap-100", () => {
     // will see — the fixture values are one MEGA run's, attributed.
     expect(text).not.toMatch(/you will see \d|will show \d/i);
   });
+
+  it("every 'step N' cross-reference names the handout step whose text does that action", () => {
+    // The note and the settings table send the student to handout
+    // steps by number; a stale number teaches the wrong order (fix
+    // round 1: the gap-treatment switch is step 5 — "step 6" points
+    // at the comparison). For each reference the clause around it
+    // names an action; the referenced step's own text must be the
+    // unique best word-match for that clause.
+    const steps = new Map<number, string>();
+    for (const m of pack.lab.handout_md.matchAll(/^(\d+)\.\s+(\S.*)$/gm)) {
+      steps.set(Number(m[1]), m[2]);
+    }
+    expect(
+      steps.size,
+      "handout_md must carry its numbered Steps list",
+    ).toBeGreaterThanOrEqual(5);
+
+    const fields: [string, string][] = pack.exercise.prompts.map((p) => [
+      `prompt at_step ${p.at_step}`,
+      [p.concept, p.math ?? "", p.reveal ?? ""].join("\n"),
+    ]);
+    fields.push(["objectives", pack.lab.objectives.join("\n")]);
+    for (const r of pack.lab.settings) {
+      fields.push([
+        `settings row "${r.option}"`,
+        Object.values(r).join("\n"),
+      ]);
+    }
+    fields.push([
+      "mega_note_md",
+      "mega_note_md" in pack.lab ? pack.lab.mega_note_md : "",
+    ]);
+
+    // Content words are ≥4 letters; two words count as shared when
+    // one prefixes the other ("switch" ~ "switches", "grouping" ~
+    // "groupings"). Words no step text uses score nothing, so
+    // "the handout's" can't pick a winner.
+    const stepWords = new Map<number, string[]>();
+    for (const [n, text] of steps) {
+      stepWords.set(n, text.toLowerCase().match(/[a-z]{4,}/g) ?? []);
+    }
+    const shared = (clause: string, words: string[]): number =>
+      (clause.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) =>
+        words.some((s) => s.startsWith(w) || w.startsWith(s)),
+      ).length;
+
+    let refs = 0;
+    for (const [where, text] of fields) {
+      for (const m of text.matchAll(/step\s+(\d+)/gi)) {
+        refs++;
+        const n = Number(m[1]);
+        expect(
+          steps.has(n),
+          `${where}: "step ${n}" — the handout has no step ${n}`,
+        ).toBe(true);
+        // The local clause around the reference names the action —
+        // bounded by sentence punctuation.
+        const before = text.slice(0, m.index);
+        const start =
+          Math.max(
+            before.lastIndexOf("."),
+            before.lastIndexOf("?"),
+            before.lastIndexOf("!"),
+            before.lastIndexOf(";"),
+            before.lastIndexOf("\n"),
+          ) + 1;
+        const rest = text.slice(m.index + m[0].length);
+        const endM = /[.?!;\n]/.exec(rest);
+        const clause = text
+          .slice(
+            start,
+            endM === null ? text.length : m.index + m[0].length + endM.index,
+          )
+          .replace(/step\s+\d+/gi, "");
+        const scored = [...stepWords].map(([sn, words]) => ({
+          n: sn,
+          score: shared(clause, words),
+        }));
+        const best = Math.max(...scored.map((s) => s.score));
+        expect(
+          best,
+          `${where}: the clause "${clause.trim()}" names no step's action`,
+        ).toBeGreaterThan(0);
+        expect(
+          scored.filter((s) => s.score === best).map((s) => s.n),
+          `${where}: "step ${n}" — clause "${clause.trim()}"`,
+        ).toEqual([n]);
+      }
+    }
+    expect(
+      refs,
+      "the note and the settings table must carry step references to check",
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("the handout's site counts are the engine's: aligned length and complete-deletion kept columns", () => {
+    // "1,628 aligned sites" and "complete deletion keeps the 1,199
+    // columns" — extracted from the prose and asserted against the
+    // engine, never restated by hand: the kept count comes from
+    // engine.siteMask, the same wasm entry the sandbox's "N of M
+    // sites removed" line reads.
+    const aln = packAlignment(pack.exercise);
+    const total = aln.seqs.reduce((m, s) => Math.max(m, s.length), 0);
+    const sitesM = /([\d,]+) aligned sites/.exec(pack.lab.handout_md);
+    expect(
+      sitesM,
+      'handout_md must state "… aligned sites"',
+    ).not.toBeNull();
+    expect(Number(sitesM?.[1].replace(/,/g, ""))).toBe(total);
+    const keptM = /complete deletion keeps the ([\d,]+) columns/i.exec(
+      pack.lab.handout_md,
+    );
+    expect(
+      keptM,
+      'handout_md must state "complete deletion keeps the … columns"',
+    ).not.toBeNull();
+    const mask = engine.siteMask(aln, { kind: "complete" });
+    if (!mask.ok) throw new Error("siteMask failed");
+    expect(total - mask.value.removed.length).toBe(
+      Number(keptM?.[1].replace(/,/g, "")),
+    );
+  });
 });

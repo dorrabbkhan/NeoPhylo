@@ -6674,3 +6674,16 @@ Owner-requested rendering fixes after the PR #139 review; branch
   tree-and-support comparison, between the handout-1/2 scale (30:
   two-to-three non-bootstrap runs) and seqboot's 40 (a four-program
   chain); the owner judges the scale.
+- **Fix round 1 (PR #141):** the at_step-26 note pointed at handout
+  step 6 for the gap-treatment switch (it is step 5 — step 6 is the
+  comparison), the pairwise-deletion sentence claimed all 1,628
+  columns stay "available to each pair", the 1,628/1,199 site counts
+  were unpinned, and `mega_note_md`'s "Compare supports only within
+  one gap treatment" contradicted step 6's between-treatments
+  question (it meant NeoPhylo-vs-MEGA within a treatment). Reworded
+  all three; a new packs test pins every "step N" reference to the
+  handout step whose text names that action and a second pins both
+  site counts to `engine.siteMask`; the e2e load test asserts
+  "429 of 1,628 sites removed by complete deletion"; the four
+  `lab-mega-bootstrap-100-print` baselines regenerated in the pinned
+  image (no other frame moved — full visual project green).
