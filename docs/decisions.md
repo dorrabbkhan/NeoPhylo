@@ -6759,3 +6759,38 @@ Owner-requested rendering fixes after the PR #139 review; branch
   first-run note says "if you have not yet", and the second-run note
   says the counts CAN move; the four
   `lab-mega-interpreting-support-print` baselines regenerated.
+
+## v1.4b Task 14: release checkpoint, roadmap, CITATION
+
+- **Files outside the Files block:** this entry (`docs/decisions.md`),
+  as every task records.
+- **Checkpoint:** `docs/checkpoints/v1.4b-release.md`, modeled on
+  `v1.4-release.md`. Every number it asks the owner to compare in
+  MEGA's GUI is taken from the committed MEGA-CC 12.1.4 fixtures
+  (`fixtures/mega/library/*.json`, `boot1000/16s-rrna.json`), not
+  written from memory; per-item automated coverage is cited
+  (`parity_mega_library.rs` test names). Items only a human can do —
+  real MEGA GUI comparisons, printing, the Safari pass, deploy-preview
+  spot-checks, sign-offs, the tag — are left unchecked and say so.
+- **`docs/roadmap.md`:** the Status line — v1.4b joins the "released
+  or releasing" list, next becomes v1.4c, and the revision date moves
+  to today (2026-11-04). No section content changed.
+- **`CITATION.cff`:** `version: 1.4.1` only; `date-released` stays as
+  the owner left it — to be set at tag time (same arrangement as the
+  v1.3 and v1.4 releases).
+- **Tag name ambiguity resolved as `v1.4.1`:** the milestone is named
+  v1.4b but production deploys only on `v*.*.*` tags
+  (`.github/workflows/ci.yml`), and roadmap v1.5 is a different
+  milestone (classroom delivery), so the release tag/CITATION version
+  is proposed as `v1.4.1`. The checkpoint asks the owner to confirm
+  the tag name before tagging — the tag itself is owner-only.
+- **Resolved rulings restated, open issue flagged:** the checkpoint's
+  §12 records #126 (bootstrap noise/ties, option A — #127 fixtures +
+  #128 test) and #117 (no `JTT_MEGA`) as resolved, and carries open
+  issue #135 (header overflow at 375 px) for the owner to weigh
+  against the tag.
+- **E2E not run in this sandbox:** `E2E=1 ./scripts/check.sh` cannot
+  run here (docker/Playwright image unreliable in the agent sandbox,
+  same as the v1.4 checkpoint task); `./scripts/check.sh` was run —
+  e2e coverage comes from CI, and the checkpoint lists checking the
+  `main` push run's full browser matrix as a gate item.
