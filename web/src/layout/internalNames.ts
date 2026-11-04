@@ -12,10 +12,12 @@
 //
 // The resting spot is the old anchor — right of the node on its own
 // row — so a name whose spot is free draws exactly where it always
-// did. When blocked it nudges vertically ±6 px, down first like the
-// pills, then further down while its centre stays within 10 px of the
-// row; the mirrored spot left of the node (over the incoming segment,
-// masked by the plate) is tried at each step. Only an unresolved
+// did. When blocked it nudges vertically ±6 px, up first, then
+// further up while its centre stays within 10 px of the row — plates
+// move toward rows painted earlier, so a later-drawn child segment
+// can never strike through them. The mirrored spot left of the node
+// (over the incoming segment, masked by the plate) is tried at each
+// step. Only an unresolved
 // collision earns a leader line: the name climbs to a clear offset
 // and a thin leader runs to the node, routed so it crosses no branch
 // — the shared labelCollision machinery does all of it.
@@ -81,7 +83,7 @@ const PAD_X = 3;
 const PAD_Y = 2;
 // The spec'd "small vertical nudge", same band the pills use.
 const NUDGE = 6;
-// How far below its row a name may drift before it stops reading as
+// How far above its row a name may drift before it stops reading as
 // that node's label — the pills' 10 px acceptance bound.
 const DROP_PAD = 10;
 // Extra lift for a leader-offset name, mirroring the pills'.
@@ -133,10 +135,11 @@ export function internalNames(
       minY: n.y + dy - plateH / 2,
       maxY: n.y + dy + plateH / 2,
     });
-    // The row first, then the ±NUDGE band (down first — it keeps the
-    // name closest to its node's row, same as the pills), then further
-    // down while the centre stays within DROP_PAD of the row; each
-    // step tries the right side, then the mirrored left.
+    // The row first, then the ±NUDGE band (up first — plates move
+    // toward rows painted earlier, so later-drawn child segments
+    // can't strike through them), then further up while the centre
+    // stays within DROP_PAD of the row; each step tries the right
+    // side, then the mirrored left.
     const nudges = [0];
     for (let d = 1; d <= NUDGE; d += 1) nudges.push(-d, d);
     for (let d = NUDGE + 1; d <= DROP_PAD; d += 1) nudges.push(-d);

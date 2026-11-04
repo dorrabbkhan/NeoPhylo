@@ -104,7 +104,7 @@ export interface TreeFigure {
   labelById: Map<number, SupportLabel>;
   /** Placed internal-node u-names (halo plate + text) for the
    * highlighted internal nodes — empty while support pills are drawn
-   * (they hide, see `hideInternalNames`). */
+   * (they hide so a name can never sit where a pill goes). */
   nameById: Map<number, InternalName>;
   fontSize: number;
   smallFont: number;
@@ -114,9 +114,6 @@ export interface TreeFigure {
    * layout width (checkpoint 12). Renderers translate by `bounds` and
    * pad it; nothing clips and no empty margin remains. */
   bounds: Box;
-  /** True while support labels are drawn: the u1/u2/… internal names
-   * hide so they can never overlap a pill. */
-  hideInternalNames: boolean;
   /** Bounding box of a clade's laid-out nodes plus the branch leading
    * to it (the dotted "wrong clade" outline). */
   cladeBox: (id: number) => Box | null;
@@ -321,7 +318,6 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       fontSize,
       smallFont,
       bounds,
-      hideInternalNames,
       cladeBox,
     };
     if (first === null) first = figure;

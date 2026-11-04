@@ -6486,8 +6486,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   marker). `src/layout/internalNames.ts` now places each name against
   the same obstacles the support pills avoid (markers, leaf names,
   "0" markers, placed names): resting right of the node, ±6 px
-  nudges then descent ≤10 px on each side (right first, then the
-  mirrored left), and only an unresolved collision earns a dashed
+  nudges then ascent ≤10 px on each side (right first, then the
+  mirrored left; up first because plates move toward rows painted
+  earlier, so later-drawn child segments can't strike through them),
+  and only an unresolved collision earns a dashed
   leader — the pills' own ladder, factored into the new shared
   `src/layout/labelCollision.ts`. Branch segments and connectors are
   deliberately NOT obstacles: each name rides a `.node-name-plate`
@@ -6506,10 +6508,12 @@ Owner-requested rendering fixes after the PR #139 review; branch
     (new) — the pinned rendered-size and non-overlap checks.
   - `web/src/index.css` — `.matrix-wrap > svg` cap +
     `.node-name-plate` / `.node-name-leader` rules.
-  - `web/e2e/__screenshots__/` — the 20 baselines listed in the PR:
-    the matrix cap shrink (all scenes) plus name plates/relocated
-    names where highlighted internals show (four-taxa,
-    replicate-panel, cytc-*, bootstrap-basics-final trees).
+  - `web/e2e/__screenshots__/` — the baselines listed in the PR: 20
+    under the first cap (9d815e6), 35 after owner decision B lowered
+    it (334b87b): the matrix cap shrink (all scenes) plus name
+    plates/relocated names where highlighted internals show
+    (four-taxa, replicate-panel, cytc-*, bootstrap-basics-final
+    trees).
 - **Test interpretation:** the brief's "4-taxon lesson matrix" — no
   4-taxon lesson ships, so the e2e check uses the checkpoint-11
   4-taxon FASTA through the Sandbox (the same block visualScenes
