@@ -1,0 +1,268 @@
+{
+ "schema_version": 4,
+ "id": "mega-nj-vs-upgma",
+ "title": "MEGA lab: NJ vs UPGMA on vertebrate globins",
+ "summary": "Reproduce three MEGA 12 runs on a 23-sequence vertebrate globin alignment \u2014 Poisson distances under pairwise deletion, then a Neighbor-Joining tree and a UPGMA tree on the same matrix \u2014 matching MEGA-CC 12.1.4's numbers end to end.",
+ "alphabet": "protein",
+ "data": {
+  "kind": "embedded",
+  "fasta": ">Human_HBA\nM-VLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHF------DLSHGSAQVKGHGKKVADALTNAVAH\nVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAE-FTPAVHASLDKFLASVSTVLTSKYR------\n>Human_HBB\nMVHLTPEEKSAVTALWGKV--NVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAH\nLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKE-FTPPVQAAYQKVVAGVANALAHKYH------\n>Human_HBD\nMVHLTPEEKTAVNALWGKV--NVDAVGGEALGRLLVVYPWTQRFFESFGDLSSPDAVMGNPKVKAHGKKVLGAFSDGLAH\nLDNLKGTFSQLSELHCDKLHVDPENFRLLGNVLVCVLARNFGKE-FTPQMQAAYQKVVAGVANALAHKYH------\n>Human_HBG1\nMGHFTEEDKATITSLWGKV--NVEDAGGETLGRLLVVYPWTQRFFDSFGNLSSASAIMGNPKVKAHGKKVLTSLGDATKH\nLDDLKGTFAQLSELHCDKLHVDPENFKLLGNVLVTVLAIHFGKE-FTPEVQASWQKMVTAVASALSSRYH------\n>Chimp_HBB\nMVHLTPEEKSAVTALWGKV--NVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAH\nLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKE-FTPPVQAAYQKVVAGVANALAHKYH------\n>Gorilla_HBB\nMVHLTPEEKSAVTALWGKV--NVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAH\nLDNLKGTFATLSELHCDKLHVDPENFKLLGNVLVCVLAHHFGKE-FTPPVQAAYQKVVAGVANALAHKYH------\n>Mouse_HBA\nM-VLSGEDKSNIKAAWGKIGGHGAEYGAEALERMFASFPTTKTYFPHF------DVSHGSAQVKGHGKKVADALASAAGH\nLDDLPGALSALSDLHAHKLRVDPVNFKLLSHCLLVTLASHHPAD-FTPAVHASLDKFLASVSTVLTSKYR------\n>Mouse_HBB1\nMVHLTDAEKAAVSCLWGKV--NSDEVGGEALGRLLVVYPWTQRYFDSFGDLSSASAIMGNAKVKAHGKKVITAFNDGLNH\nLDSLKGTFASLSELHCDKLHVDPENFRLLGNMIVIVLGHHLGKD-FTPAAQAAFQKVVAGVATALAHKYH------\n>Rat_HBB1\nMVHLTDAEKAAVNGLWGKV--NPDDVGGEALGRLLVVYPWTQRYFDSFGDLSSASAIMGNPKVKAHGKKVINAFNDGLKH\nLDNLKGTFAHLSELHCDKLHVDPENFRLLGNMIVIVLGHHLGKE-FTPCAQAAFQKVVAGVASALAHKYH------\n>Horse_HBA\nM-VLSAADKTNVKAAWSKVGGHAGEYGAEALERMFLGFPTTKTYFPHF------DLSHGSAQVKAHGKKVGDALTLAVGH\nLDDLPGALSNLSDLHAHKLRVDPVNFKLLSHCLLSTLAVHLPND-FTPAVHASLDKFLSSVSTVLTSKYR------\n>Horse_HBB\n-VQLSGEEKAAVLALWDKV--NEEEVGGEALGRLLVVYPWTQRFFDSFGDLSNPGAVMGNPKVKAHGKKVLHSFGEGVHH\nLDNLKGTFAALSELHCDKLHVDPENFRLLGNVLVVVLARHFGKD-FTPELQASYQKVVAGVANALAHKYH------\n>Cow_HBA\nM-VLSAADKGNVKAAWGKVGGHAAEYGAEALERMFLSFPTTKTYFPHF------DLSHGSAQVKGHGAKVAAALTKAVEH\nLDDLPGALSELSDLHAHKLRVDPVNFKLLSHSLLVTLASHLPSD-FTPAVHASLDKFLANVSTVLTSKYR------\n>Cow_HBB\nM--LTAEEKAAVTAFWGKV--KVDEVGGEALGRLLVVYPWTQRFFESFGDLSTADAVMNNPKVKAHGKKVLDSFSNGMKH\nLDDLKGTFAALSELHCDKLHVDPENFKLLGNVLVVVLARNFGKE-FTPVLQADFQKVVAGVANALAHRYH------\n>Pig_HBB\nMVHLSAEEKEAVLGLWGKV--NVDEVGGEALGRLLVVYPWTQRFFESFGDLSNADAVMGNPKVKAHGKKVLQSFSDGLKH\nLDNLKGTFAKLSELHCDQLHVDPENFRLLGNVIVVVLARRLGHD-FNPNVQAAFQKVVAGVANALAHKYH------\n>Sheep_HBB\nM--LTAEEKAAVTGFWGKV--KVDEVGAEALGRLLVVYPWTQRFFEHFGDLSNADAVMNNPKVKAHGKKVLDSFSNGMKH\nLDDLKGTFAQLSELHCDKLHVDPENFRLLGNVLVVVLARHHGNE-FTPVLQADFQKVVAGVANALAHKYH------\n>Dog_HBB\n-VHLTAEEKSLVSGLWGKV--NVDEVGGEALGRLLIVYPWTQRFFDSFGDLSTPDAVMSNAKVKAHGKKVLNSFSDGLKN\nLDNLKGTFAKLSELHCDKLHVDPENFKLLGNVLVCVLAHHFGKE-FTPQVQAAYQKVVAGVANALAHKYH------\n>Rabbit_HBB\nMVHLSSEEKSAVTALWGKV--NVEEVGGEALGRLLVVYPWTQRFFESFGDLSSANAVMNNPKVKAHGKKVLAAFSEGLSH\nLDNLKGTFAKLSELHCDKLHVDPENFRLLGNVLVIVLSHHFGKE-FTPQVQAAYQKVVAGVANALAHKYH------\n>Chicken_HBAA\nM-VLSAADKNNVKGIFTKIAGHAEEYGAETLERMFTTYPPTKTYFPHF------DLSHGSAQIKGHGKKVVAALIEAANH\nIDDIAGTLSKLSDLHAHKLRVDPVNFKLLGQCFLVVVAIHHPAA-LTPEVHASLDKFLCAVGTVLTAKYR------\n>Chicken_HBB\nMVHWTAEEKQLITGLWGKV--NVAECGAEALARLLIVYPWTQRFFASFGNLSSPTAILGNPMVRAHGKKVLTSFGDAVKN\nLDNIKNTFSQLSELHCDKLHVDPENFRLLGDILIIVLAAHFSKD-FTPECQAAWQKLVRVVAHALARKYH------\n>Xenopus_HBA1\nM-LLSADDKKHIKAIMPAIAAHGDKFGGEALYRMFIVNPKTKTYFPSF------DFHHNSKQISAHGKKVVDALNEASNH\nLDNIAGSMSKLSDLHAYDLRVDPGNFPLLAHNILVVVAMNFPKQ-FDPATHKALDKFLATVSTVLTSKYR------\n>Xenopus_HBB1\nM-GLTAHDRQLINSTWGKL--CAKTIGQEALGRLLWTYPWTQRYFSSFGNLNSADAVFHNEAVAAHGEKVVTSIGEAIKH\nMDDIKGYYAQLSKYHSETLHVDPLNFKRFGGCLSIALARHFHEE-YTPELHAAYEHLFDAIADALGKGYH------\n>Zebrafish_HBB1\nMVEWTDAERTAILGLWGKL--NIDEIGPQALSRCLIVYPWTQRYFATFGNLSSPAAIMGNPKVAAHGRTVMGGLERAIKN\nMDNVKNTYAALSVMHSEKLHVDPDNFRLLADCITVCAAMKFGQAGFNADVQEAWQKFLAVVVSALCRQYH------\n>Human_myoglobin\nM-GLSDGEWQLVLNVWGKVEADIPGHGQEVLIRLFKGHPETLEKFDKFKHLKSEDEMKASEDLKKHGATVLTALGGILKK\nKGHHEAEIKPLAQSHATKHKIPVKYLEFISECIIQVLQSKHPGD-FGADAQGAMNKALELFRKDMASNYKELGFQG",
+  "source": {
+   "citation": "The UniProt Consortium, UniProt: the Universal Protein Knowledgebase in 2025, Nucleic Acids Research 53 (D1). https://www.uniprot.org",
+   "license": "CC BY 4.0 (UniProtKB)",
+   "accessions": [
+    "P69905",
+    "P68871",
+    "P02042",
+    "P69891",
+    "P68873",
+    "P02024",
+    "P01942",
+    "P02088",
+    "P02091",
+    "P01958",
+    "P02062",
+    "P01966",
+    "P02070",
+    "P02067",
+    "P02075",
+    "P60524",
+    "P02057",
+    "P01994",
+    "P02112",
+    "P02012",
+    "P02132",
+    "Q90486",
+    "P02144"
+   ]
+  }
+ },
+ "analysis": {
+  "correction": "Poisson",
+  "method": "NJ",
+  "site_filter": {
+   "kind": "pairwise"
+  }
+ },
+ "prompts": [
+  {
+   "at_step": 1,
+   "type": "predict_pair",
+   "concept": "The closest pair in this matrix is tempting \u2014 two of the 23 sequences are identical over every kept site, as close as a pair can be. Does this method join the closest pair first? Pick a cell in the matrix, or click two leaves.",
+   "math": "NJ joins the pair minimizing Q(i,j) = (n-2)\u00b7d(i,j) - R_i - R_j. Each cluster's total distance to everything else counts, not just the pair's own distance \u2014 a pair far from the rest can outscore a merely-close pair. UPGMA asks the simpler question \u2014 it joins the closest pair in the current matrix, every step.",
+   "reveal": "Under NJ on the Poisson matrix \u2014 the lab's run \u2014 Human_HBA and Horse_HBA, two mammalian alpha globins, join first under Q, even though the closest pair in the matrix is Human_HBB and Chimp_HBB, identical over every kept site: the beta pair sits among its beta relatives, and Q weighs each cluster's total distance to everything else. On the JTT matrix the same Q rule opens with Cow_HBA and Human_HBA instead. Under UPGMA \u2014 the handout's step-4 switch \u2014 the closest pair joins, so the identical betas open that tree."
+  },
+  {
+   "at_step": 21,
+   "type": "note",
+   "concept": "This is the NJ run's last join: past it the finished tree is an unrooted NJ tree. On a UPGMA run this position is still mid-run \u2014 two of its 22 merges remain. Read the finished NJ tree by its splits: the six alpha globins together (the four mammalian alphas with chicken and Xenopus alpha); the ten mammalian beta globins together \u2014 the identical human\u2013chimp betas and the cow\u2013sheep pair inside it, the mouse\u2013rat pair on the next split out to make all twelve mammalian betas; and the human gamma gene, the three non-mammal betas (chicken, Xenopus, zebrafish) and myoglobin stepping off between the two big groups.",
+   "math": "Every internal edge of an unrooted tree defines a split; two trees are the same tree exactly when their split sets match. The handout's next step re-runs this matrix under UPGMA \u2014 a rooted, clock-assuming method: compare the groupings, not the way either program draws the tree."
+  }
+ ],
+ "lab": {
+  "id": "mega-nj-vs-upgma",
+  "tool": "mega",
+  "title": "MEGA: NJ vs UPGMA on vertebrate globins",
+  "objectives": [
+   "Run MEGA's distance \u2192 tree chain under the Poisson model on a 23-taxon globin alignment, once with Neighbor-Joining and once with UPGMA",
+   "Match each MEGA analysis option to the NeoPhylo control that reproduces it",
+   "See where a clock-assuming method and Neighbor-Joining agree \u2014 and where an exact tie lets two valid trees differ"
+  ],
+  "handout_md": "## What this lab reproduces\n\nThe second classic MEGA chain: one pairwise-distance matrix under the Poisson model on a protein alignment, then two trees on that same matrix \u2014 a Neighbor-Joining tree and a UPGMA tree \u2014 every option set as the settings table lists it, so the numbers you reproduce are MEGA's own, recorded from MEGA-CC 12.1.4.\n\n## The data\n\n23 vertebrate globin sequences \u2014 the alpha and beta globins of mammals, chicken and Xenopus, a zebrafish beta globin, plus human gamma globin and myoglobin \u2014 over 156 aligned amino-acid sites. The sequences are UniProtKB records aligned with MAFFT, bundled as the `globins` library dataset.\n\nTo cross-check in MEGA itself: load this lab, export the alignment as `.meg` from NeoPhylo's Export menu, open that file in MEGA, and apply the settings table exactly \u2014 the distance run first, then each tree run.\n\n## Why Poisson, not JTT\n\nMEGA's \"Poisson model\" is the correction NeoPhylo calls Poisson, so the numbers here reproduce exactly. MEGA's own JTT estimator is a different calculation from the JTT NeoPhylo ships (the \"Coming from MEGA?\" guide has the details), so the handout's runs use the model that matches.\n\n## Before you start\n\nRead the settings table. In MEGA each run's options live in the analysis dialog you reach from the menu path in the second column; the table lists every option the runs set \u2014 nothing is left to a default \u2014 next to the NeoPhylo control that reproduces it.\n\n## Steps\n\n1. Load this lab. NeoPhylo loads the alignment and computes the Poisson matrix \u2014 the distance run \u2014 under pairwise deletion, MEGA's default gap treatment.\n2. Look at the matrix before the tree. Which pair looks closest? Write your prediction down \u2014 NJ does not always join the closest pair first.\n3. Step through the joins and read the finished NJ tree as unrooted: which globin groups does it contain?\n4. Switch the Method control to UPGMA \u2014 the second tree run \u2014 and build the tree again. UPGMA returns a rooted tree, every leaf the same height from the root: it assumes a molecular clock. Read it as a rooted tree.\n5. Compare the two trees' groupings: which do they share, and where do they disagree?\n\n## Questions\n\n- Both methods started from the same matrix; UPGMA joins the closest pair at every step while NJ scores each pair by Q. Did the trees agree on the big groupings \u2014 the alpha globins, the mammalian beta globins? Where did they disagree?\n- Under pairwise deletion the three mammalian alpha-globin pairs are exactly tied in this matrix. What did each program do with the tie? If another run resolved it differently, would either tree be wrong?\n- UPGMA assumes a molecular clock \u2014 equal rates on every lineage \u2014 and returns a rooted tree; NJ does not. Which differences between the two trees could that assumption explain, and which could it not?\n- In the sandbox, switch the gap treatment to Complete deletion: how many columns does this alignment lose, and does either tree change?",
+  "settings": [
+   {
+    "option": "Analysis",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Analysis: Distance Estimation",
+    "neophylo": "the distance-matrix step \u2014 distances always come first"
+   },
+   {
+    "option": "Scope",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Scope: Pairs of taxa",
+    "neophylo": "every pair \u2014 the whole matrix"
+   },
+   {
+    "option": "Variance",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Variance Estimation Method: None",
+    "neophylo": "not reported \u2014 NeoPhylo shows the distances only"
+   },
+   {
+    "option": "Substitution kinds",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Substitutions Type: Amino acid",
+    "neophylo": "n/a \u2014 the alphabet is protein, read from the data"
+   },
+   {
+    "option": "Distance model",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Model/Method: Poisson model",
+    "neophylo": "Correction: Poisson"
+   },
+   {
+    "option": "Substitutions counted",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Substitutions to Include: Not Applicable",
+    "neophylo": "n/a \u2014 the Poisson model counts every amino-acid difference alike"
+   },
+   {
+    "option": "Rates across sites",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
+   },
+   {
+    "option": "Gaps and missing data",
+    "mega_menu": "Distances \u2192 Compute pairwise distances",
+    "mega_setting": "Gaps/Missing Data: Pairwise deletion",
+    "neophylo": "Gap treatment: Pairwise deletion"
+   },
+   {
+    "option": "Analysis (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Analysis: Phylogeny Reconstruction",
+    "neophylo": "the tree-building step \u2014 trees come after the matrix"
+   },
+   {
+    "option": "Scope (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Scope: All Selected Taxa",
+    "neophylo": "every loaded taxon \u2014 the whole alignment"
+   },
+   {
+    "option": "Tree method (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Statistical Method: Neighbor-joining",
+    "neophylo": "Method: NJ \u2014 the lab loads it; step 4 switches it"
+   },
+   {
+    "option": "Test of phylogeny (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Test of Phylogeny: None",
+    "neophylo": "none \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Bootstrap replicates (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "No. of Bootstrap Replications: Not Applicable",
+    "neophylo": "n/a \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Substitution kinds (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Substitutions Type: Amino acid",
+    "neophylo": "n/a \u2014 the alphabet is protein, read from the data"
+   },
+   {
+    "option": "Tree model (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Model/Method: Poisson model",
+    "neophylo": "Correction: Poisson \u2014 the same setting the matrix used"
+   },
+   {
+    "option": "Substitutions counted (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Substitutions to Include: Not Applicable",
+    "neophylo": "n/a \u2014 every difference counts"
+   },
+   {
+    "option": "Rates across sites (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
+   },
+   {
+    "option": "Gaps and missing data (NJ)",
+    "mega_menu": "Phylogeny \u2192 Construct/test NJ tree",
+    "mega_setting": "Gaps/Missing Data: Pairwise deletion",
+    "neophylo": "Gap treatment: Pairwise deletion \u2014 carried from the matrix step"
+   },
+   {
+    "option": "Analysis (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Analysis: Phylogeny Reconstruction",
+    "neophylo": "the second tree run \u2014 the Method control carries it"
+   },
+   {
+    "option": "Scope (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Scope: All Selected Taxa",
+    "neophylo": "every loaded taxon \u2014 the whole alignment"
+   },
+   {
+    "option": "Tree method (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Statistical Method: UPGMA",
+    "neophylo": "Method: UPGMA \u2014 the handout's step 4 switches it in"
+   },
+   {
+    "option": "Test of phylogeny (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Test of Phylogeny: None",
+    "neophylo": "none \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Bootstrap replicates (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "No. of Bootstrap Replications: Not Applicable",
+    "neophylo": "n/a \u2014 no bootstrap in this lab"
+   },
+   {
+    "option": "Substitution kinds (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Substitutions Type: Amino acid",
+    "neophylo": "n/a \u2014 the alphabet is protein, read from the data"
+   },
+   {
+    "option": "Tree model (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Model/Method: Poisson model",
+    "neophylo": "Correction: Poisson \u2014 the same setting the matrix used"
+   },
+   {
+    "option": "Substitutions counted (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Substitutions to Include: Not Applicable",
+    "neophylo": "n/a \u2014 every difference counts"
+   },
+   {
+    "option": "Rates across sites (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Rates among Sites: Uniform Rates",
+    "neophylo": "a single rate \u2014 the only model offered"
+   },
+   {
+    "option": "Rates across lineages (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Pattern among Lineages: Same (Homogeneous)",
+    "neophylo": "same \u2014 the only pattern offered"
+   },
+   {
+    "option": "Gaps and missing data (UPGMA)",
+    "mega_menu": "Phylogeny \u2192 Construct/test UPGMA tree",
+    "mega_setting": "Gaps/Missing Data: Pairwise deletion",
+    "neophylo": "Gap treatment: Pairwise deletion \u2014 carried from the matrix step"
+   }
+  ],
+  "mega_note_md": "MEGA's distance output is a lower-triangle text matrix \u2014 one row per added taxon, every cell printed to 8 decimals, with `n/c` where a distance cannot be estimated (not an issue here: every pair of the 23 sequences has comparable sites). NeoPhylo draws the full square matrix as a heatmap: cells read to 3 decimals on screen, and a cell that cannot be estimated shows \u221e.\n\nMEGA's two tree runs draw differently in its Tree Explorer: the NJ tree opens with an arbitrary root, while the UPGMA tree opens rooted \u2014 every leaf the same height above the root, the clock assumption drawn. NeoPhylo draws the NJ tree from an arbitrary root too \u2014 the unrooted tree drawn from a point; read it as unrooted \u2014 and the UPGMA tree rooted, every leaf the same height. Compare the groupings, not the way either program happens to draw them.\n\nOn this data the NJ tree is MEGA's, split for split. The UPGMA tree may differ in one join: under pairwise deletion the three mammalian alpha-globin pairs are exactly tied in the matrix, and any of the tied pairs is a valid UPGMA merge \u2014 MEGA's run and NeoPhylo's may resolve the tie differently. Both are valid UPGMA trees for the same matrix; the difference is the tie, not a discrepancy.",
+  "chain": [
+   "Distances \u2192 Compute pairwise distances (Poisson)",
+   "Phylogeny \u2192 Construct/test NJ tree",
+   "Phylogeny \u2192 Construct/test UPGMA tree"
+  ],
+  "minutes": 30
+ }
+}

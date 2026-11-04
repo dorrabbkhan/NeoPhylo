@@ -6461,6 +6461,82 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
   §8 print view), added at the owner's request on #136; no existing
   baseline changed.
 
+## v1.4b Task 13 (handout 2): MEGA lab "NJ vs UPGMA" on globins
+
+- **Files outside the Files block:**
+  - `web/src/labs/registry.test.ts` — the shipped-list pin gains
+    `mega-nj-vs-upgma` (sorted between `mega-jc69-vs-k2p` and
+    `protdist-neighbor`).
+  - `web/src/labs/labs.test.tsx` — the shipped-listing UI test
+    asserts the new card lists without the e2e flag.
+  - `web/e2e/labs.spec.ts` — the conductor note's Review Focus 5/7
+    coverage: the index lists both MEGA handouts without the flag,
+    "Load this lab" loads Poisson + NJ + pairwise into the sandbox
+    and replays the fixture's printed Poisson/pairwise row, the
+    unsaved-work confirmation keeps a declined draft on the new lab,
+    and the coarse-pointer ≥40×40 pass covers the new page.
+  - `web/e2e/a11y.spec.ts` — axe on the new lab page.
+  - `web/e2e/visualScenes.ts` — the `lab-mega-nj-vs-upgma-print`
+    scene the owner asked for on #136 (same fullPage print view as
+    the other handouts); new baselines only, none existing changed.
+  - `docs/decisions.md` — this entry.
+- **Starting method:** `analysis.method` is NJ — the handout's first
+  tree run and the title order (NJ vs UPGMA); the predict_pair
+  reveal (closest pair ≠ first join) is an NJ lesson, and step 4
+  switches the Method control to UPGMA for the second run.
+- **Gap treatment:** pairwise deletion — MEGA's own default and the
+  treatment the cited `.mao` files declare (same rule as handout 1).
+- **Model:** Poisson, not JTT — MEGA's own JTT estimator differs
+  from every JTT NeoPhylo ships (fixtures/worked/mega-notes.md "JTT
+  verdict", #117); the handout's "Why Poisson, not JTT" section says
+  so in one paragraph, consistent with the "Coming from MEGA?"
+  guide's wording.
+- **Tie-aware UPGMA comparison:** `packs.test.ts` ports
+  `parity_mega_library.rs`'s `replay_mega_upgma` to TypeScript —
+  exact comparison first (rooted-clade topology on MEGA's printed
+  matrix, then topology plus per-value `lenTol` lengths on the
+  engine's own matrix); on failure, MEGA's tree is replayed on the
+  engine's full-precision matrix requiring every merge to be a
+  minimum-distance pair (exact `===`, the ties are exact rationals)
+  and the replay to have seen a step with more than one minimal
+  pair. The test additionally pins that the exact comparison fails
+  for `globins upgma/Poisson/pairwise`, matching the Rust
+  `upgma_tie_resolutions_are_exactly` pin (the HBA three-way tie is
+  real). NJ stays exact everywhere — verified: the engine's NJ tree
+  equals the fixture's split set exactly under all three filters.
+- **Tree claims in the text:** the closing note (step 21, the last
+  NJ join) names its groupings — the six alpha globins, the ten
+  mammalian beta globins (mouse and rat excluded, their pair the
+  next split out to make twelve), the identical human–chimp betas,
+  the mouse–rat pair, the cow–sheep pair — each an exact computed
+  split of the engine's NJ tree under every pickable model × every
+  gap treatment, and of the fixture NJ trees (fix round 1 widened
+  the pin from Poisson × filters to models × filters × methods and
+  fixed the ten-vs-twelve count). The prompts' claims are scoped to
+  the run they describe — prompts fire at stepper positions under
+  whichever method/model/filter the student has selected (verified
+  in the app: the at_step-1 prompt shows at UPGMA step 0 and the
+  step-21 note at UPGMA position 20, mid-run) — so the reveal names
+  Human_HBA–Horse_HBA under "NJ on the Poisson matrix", Cow_HBA–
+  Human_HBA under JTT, and the identical betas under UPGMA, and the
+  closing note says the UPGMA run is mid-run there, never "the tree
+  is complete". The handout never states the NJ-vs-UPGMA outcome
+  before the student builds the second tree (questions only), never
+  calls the UPGMA trees identical, and explains the tie where it
+  discusses agreement — all test-pinned.
+- **Drawing claim (fix round 1):** the mega_note's "NeoPhylo draws
+  each tree as computed: NJ unrooted" was wrong — the tree view
+  draws the finished NJ tree as a rectangular phylogram from an
+  arbitrary root (verified by screenshot at the final step), the
+  same convention as MEGA's NJ display; the note now says so and
+  tells the student to read it as unrooted. The "unestimable cell
+  shows ∞" claim is verified in code (MatrixHeatmap renders
+  saturated cells as ∞).
+- **`minutes`:** 30 — one distance run plus two tree builds and a
+  23-taxon comparison, on the same scale as handout 1's 30 (two
+  distance runs + two NJ builds on 7 taxa); the owner judges the
+  scale.
+
 ## Rendering follow-up (owner, 2026-11-04)
 
 Owner-requested rendering fixes after the PR #139 review; branch

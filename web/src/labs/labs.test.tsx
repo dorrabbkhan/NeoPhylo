@@ -95,7 +95,7 @@ describe("lab index and lab page", () => {
     expect(link.getAttribute("href")).toBe("?lab=test-lab");
   });
 
-  it("with the e2e flag off only shipped labs list — the PHYLIP packs and MEGA handout 1", () => {
+  it("with the e2e flag off only shipped labs list — the PHYLIP packs and the MEGA handouts", () => {
     window.localStorage.removeItem("neophylo-e2e");
     render(<LabIndex />);
     expect(screen.getByText("dnadist → neighbor (F84)")).toBeTruthy();
@@ -103,9 +103,12 @@ describe("lab index and lab page", () => {
     expect(
       screen.getByText("seqboot → dnadist → neighbor → consense"),
     ).toBeTruthy();
-    // Task 13 handout 1 is a shipped lab: it lists without the flag
-    // and the MEGA group's coming-soon line is gone.
+    // The Task 13 handouts are shipped labs: they list without the
+    // flag and the MEGA group's coming-soon line is gone.
     expect(screen.getByText("MEGA: JC69 vs K2P on primate mtDNA")).toBeTruthy();
+    expect(
+      screen.getByText("MEGA: NJ vs UPGMA on vertebrate globins"),
+    ).toBeTruthy();
     expect(screen.queryByText("Test lab: dnadist → neighbor")).toBeNull();
     expect(screen.queryByText(/no lab packs/i)).toBeNull();
     expect(screen.queryByText(/MEGA handouts are coming/i)).toBeNull();
