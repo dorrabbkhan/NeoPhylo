@@ -6460,3 +6460,82 @@ Plan: `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`.
 - New visual scene `lab-mega-jc69-vs-k2p-print` (4 new baselines, spec
   §8 print view), added at the owner's request on #136; no existing
   baseline changed.
+
+## Rendering follow-up (owner, 2026-11-04)
+
+Owner-requested rendering fixes after the PR #139 review; branch
+`conductor/render-heatmap-scale-node-labels`.
+
+- **Heatmap text cap (bug 1):** `.matrix-wrap > svg` was `width:100%`
+  with only the `--matrix-w` min-width floor, so a small late-step
+  matrix stretched to the 560 px wrap and rendered its authored 12 px
+  text past the type scale's 32 px max (globins UPGMA's 2-taxon steps
+  drew at ~35 px). The svg now also caps at `--matrix-max` =
+  `floor(natural width × size.lg / FONT)` (= 5/3 × natural; the cap
+  was size.xxl = 8/3 until owner decision B on #140 lowered it to
+  20 px), floored so 12·scale ≤ 20 exactly. It binds only where the
+  stretch already exceeded the cap — every frame inside the scale is
+  pixel-identical — and the `--matrix-w` / coarse-pointer
+  `--matrix-min` floors are untouched (40/34 ≈ 1.18 < 5/3 ≈ 1.67, so
+  the floors always fit under the cap).
+  `margin-inline:auto` keeps a capped svg centered; it is a no-op
+  whenever the svg fills or overflows the wrap.
+- **Internal-node names (bug 2):** highlighted u-names used to draw
+  unconditionally right of their node and could land on a child
+  marker or another name (globins NJ's u20 ended on the Cow_HBB
+  marker). `src/layout/internalNames.ts` now places each name against
+  the same obstacles the support pills avoid (markers, leaf names,
+  "0" markers, placed names): resting right of the node, ±6 px
+  nudges then ascent ≤10 px on each side (right first, then the
+  mirrored left; up first because plates move toward rows painted
+  earlier, so later-drawn child segments can't strike through them),
+  and only an unresolved collision earns a dashed
+  leader — the pills' own ladder, factored into the new shared
+  `src/layout/labelCollision.ts`. Branch segments and connectors are
+  deliberately NOT obstacles: each name rides a `.node-name-plate`
+  halo filled with the `bg` token (no border, so it can't read as a
+  support value) that masks the lines beneath — the pill convention.
+  Exports never draw names (no `highlight` is passed), so the
+  SVG/PNG path is unchanged and consistent with the screen.
+- **Files outside a task's Files block (all required by the fix):**
+  - `web/src/layout/labelCollision.ts` (new) — the collision
+    machinery both placers share, moved verbatim out of
+    `supportLabels.ts` (its suite still passes).
+  - `web/src/layout/internalNames.ts` (new) — the name placer.
+  - `web/src/layout/internalNames.test.ts` (new) — placement
+    invariants over colliding/adjacent/cladogram/zero-marker trees.
+  - `web/e2e/matrix-scale.spec.ts`, `web/e2e/internal-names.spec.ts`
+    (new) — the pinned rendered-size and non-overlap checks.
+  - `web/src/index.css` — `.matrix-wrap > svg` cap +
+    `.node-name-plate` / `.node-name-leader` rules.
+  - `web/e2e/__screenshots__/` — the baselines listed in the PR: 20
+    under the first cap (9d815e6), 35 after owner decision B lowered
+    it (334b87b): the matrix cap shrink (all scenes) plus name
+    plates/relocated names where highlighted internals show
+    (four-taxa, replicate-panel, cytc-*, bootstrap-basics-final
+    trees).
+- **Test interpretation:** the brief's "4-taxon lesson matrix" — no
+  4-taxon lesson ships, so the e2e check uses the checkpoint-11
+  4-taxon FASTA through the Sandbox (the same block visualScenes
+  drives).
+
+### Fix round 1 (owner decision B on #140)
+
+- **Cap lowered to `size.lg` (20 px):** `--matrix-max` is now
+  `floor(natural width × size.lg / FONT)` = 5/3 × natural, floored so
+  12·scale ≤ 20 exactly (was size.xxl = 8/3 ≤ 32 px). Verified in
+  code: the coarse-pointer `--matrix-min` floor is
+  `ceil(natural × 40/34)` ≈ 1.18 × natural < 5/3 ≈ 1.67, so it still
+  fits under the cap — and even where it could not, CSS gives
+  `min-width` precedence over `max-width`, keeping the §6.5 40 px
+  cell floor. `e2e/matrix-scale.spec.ts` now asserts 12 ≤ size ≤ 20
+  on every measured text at both viewports, with the globins UPGMA
+  step-20 frame (the ~30 px render the owner saw) pinned as its own
+  named test next to the final-step and 4-taxon cases.
+- **Presenter mode left as is:** the heatmap never reads the
+  presenter scale — `MatrixHeatmap` takes no `presenter` prop and
+  computes `--matrix-max` from the raw `size.lg` JS token, its
+  authored text is fixed `FONT`/`LABEL_FONT` svg units, and no
+  `:root[data-presenter]` rule touches `.matrix-wrap` — so there is
+  no token-scaled cap to follow (presenter mode does not change the
+  heatmap's geometry at all).

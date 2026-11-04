@@ -19,6 +19,8 @@
 import { useCallback, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent } from "react";
 
+import { size } from "../design/tokens";
+
 export type MatrixCell = number | "sat";
 
 export interface MatrixHeatmapProps {
@@ -254,7 +256,11 @@ export function MatrixHeatmap({
     // The wrap scrolls horizontally when the drawing can't fit: the
     // svg's own natural width (--matrix-w: the 12 px text floor — the
     // drawing never scales under it) and, under coarse pointers, the
-    // 40 px cell floor (--matrix-min, spec §6.5).
+    // 40 px cell floor (--matrix-min, spec §6.5). It also caps the
+    // upscale (--matrix-max): a small late-step matrix must not render
+    // its 12 px text past size.lg (owner decision B on PR #140) — the
+    // cap only binds where the stretch already exceeded 20/12, so
+    // every frame inside the scale is pixel-identical.
     <div
       className="matrix-wrap"
       style={
@@ -263,6 +269,11 @@ export function MatrixHeatmap({
           // Rounded up: WebKit quantizes layout to 1/64 px — a
           // fractional floor could shrink a 40 px cell under 40 (§6.5).
           "--matrix-min": `${Math.ceil((width * 40) / CELL)}px`,
+          // Rounded down: a fractional cap must not let the rendered
+          // size land a hair over 20 px (the same 1/64 px quantization,
+          // mirrored — floor keeps 12·scale ≤ 20 exactly). The min
+          // floor stays under it: 40/34 ≈ 1.18 < 20/12 ≈ 1.67.
+          "--matrix-max": `${Math.floor((width * size.lg) / FONT)}px`,
         } as CSSProperties
       }
     >

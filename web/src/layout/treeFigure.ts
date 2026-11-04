@@ -11,8 +11,8 @@
 // for exports), and the same kind/clamp/visibility selection.
 
 import type { Tree } from "../engine/generated/Tree";
-import { nodeName } from "../state/names";
 
+import { internalNames, type InternalName } from "./internalNames";
 import { layout, type LaidOutNode, type Layout } from "./phylogram";
 import { supportLabels, type SupportLabel } from "./supportLabels";
 import { leafFontSize, labelRoomFor, MIN_FONT_PX } from "./treePanel";
@@ -77,8 +77,8 @@ export interface TreeFigureOptions {
   panelWidth: number;
   visibleNodes?: Set<number>;
   /** Highlighted nodes — drawn on screen only; the bounds include
-   * their rings and internal u-names so both renderers reserve the
-   * same room. */
+   * their rings and internal u-name plates so both renderers reserve
+   * the same room. */
   highlight?: Set<number>;
   /** Wrong clades — drawn on screen only, but included in the bounds
    * for the same reason. */
@@ -102,6 +102,10 @@ export interface TreeFigure {
   placed: SupportLabel[];
   byId: Map<number, LaidOutNode>;
   labelById: Map<number, SupportLabel>;
+  /** Placed internal-node u-names (halo plate + text) for the
+   * highlighted internal nodes — empty while support pills are drawn
+   * (they hide so a name can never sit where a pill goes). */
+  nameById: Map<number, InternalName>;
   fontSize: number;
   smallFont: number;
   /** The content bounding box in layout coordinates — every drawn box
@@ -110,9 +114,6 @@ export interface TreeFigure {
    * layout width (checkpoint 12). Renderers translate by `bounds` and
    * pad it; nothing clips and no empty margin remains. */
   bounds: Box;
-  /** True while support labels are drawn: the u1/u2/… internal names
-   * hide so they can never overlap a pill. */
-  hideInternalNames: boolean;
   /** Bounding box of a clade's laid-out nodes plus the branch leading
    * to it (the dotted "wrong clade" outline). */
   cladeBox: (id: number) => Box | null;
@@ -193,6 +194,21 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
     const labelById = new Map(placed.map((p) => [p.id, p]));
     const hideInternalNames = placed.length > 0;
 
+    // Highlighted internal u-names: collision-placed like the pills
+    // (src/layout/internalNames.ts) — they hide while pills are drawn
+    // since a name would sit exactly where a pill goes.
+    const names = hideInternalNames
+      ? []
+      : internalNames(tree, laid, {
+          ids: highlight,
+          fontSize,
+          markerFontSize: smallFont,
+          nodeRadius: FIGURE_NODE_RADIUS,
+          labelOffset: FIGURE_LABEL_OFFSET,
+          measure: opts.measure,
+        });
+    const nameById = new Map(names.map((nm) => [nm.id, nm]));
+
     const cladeBox = (id: number): Box | null => {
       let minX = Infinity;
       let maxX = -Infinity;
@@ -254,20 +270,9 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
           minY: n.y + (m?.top ?? -fontSize - 2),
           maxY: n.y + (m?.bottom ?? fontSize * 0.5),
         });
-      } else if (highlight.has(n.id) && !hideInternalNames) {
-        const name = nodeName(tree, n.id);
-        const m = opts.measure?.(name, fontSize);
-        grow({
-          minX: n.x + FIGURE_LABEL_OFFSET + FIGURE_NODE_RADIUS,
-          maxX:
-            n.x +
-            FIGURE_LABEL_OFFSET +
-            FIGURE_NODE_RADIUS +
-            (m?.w ?? name.length * fontSize * 0.62),
-          minY: n.y + (m?.top ?? -fontSize - 2),
-          maxY: n.y + (m?.bottom ?? fontSize * 0.5),
-        });
       }
+      // Internal u-names reserve their placed halo plates (below),
+      // which already cover the old right-of-node text box.
       const parent = tree.nodes[n.id].parent;
       if (parent !== null && byId.has(parent) && tree.branches[n.id].length === 0) {
         const mid = (n.parentX + n.x) / 2;
@@ -282,6 +287,7 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       }
     }
     for (const p of placed) grow(p.box);
+    for (const nm of names) grow(nm.box);
     for (const id of wrong) {
       const cb = cladeBox(id);
       if (cb !== null) {
@@ -308,10 +314,10 @@ export function treeFigure(tree: Tree, opts: TreeFigureOptions): TreeFigure {
       placed,
       byId,
       labelById,
+      nameById,
       fontSize,
       smallFont,
       bounds,
-      hideInternalNames,
       cladeBox,
     };
     if (first === null) first = figure;
