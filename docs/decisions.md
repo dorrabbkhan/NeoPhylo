@@ -6775,15 +6775,15 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **`docs/roadmap.md`:** the Status line — v1.4b joins the "released
   or releasing" list, next becomes v1.4c, and the revision date moves
   to today (2026-11-04). No section content changed.
-- **`CITATION.cff`:** `version: 1.4.1` only; `date-released` stays as
-  the owner left it — to be set at tag time (same arrangement as the
-  v1.3 and v1.4 releases).
+- **`CITATION.cff`:** `version: 1.4.1`; `date-released` set to
+  2026-11-05 at the owner's request on 2026-11-05 (change it if the
+  tag lands on another day).
 - **Tag name ambiguity resolved as `v1.4.1`:** the milestone is named
   v1.4b but production deploys only on `v*.*.*` tags
   (`.github/workflows/ci.yml`), and roadmap v1.5 is a different
   milestone (classroom delivery), so the release tag/CITATION version
-  is proposed as `v1.4.1`. The checkpoint asks the owner to confirm
-  the tag name before tagging — the tag itself is owner-only.
+  is `v1.4.1`. The owner confirmed the tag name on 2026-11-05 — the
+  tag itself is owner-only.
 - **Resolved rulings restated, open issue flagged:** the checkpoint's
   §12 records #126 (bootstrap noise/ties, option A — #127 fixtures +
   #128 test) and #117 (no `JTT_MEGA`) as resolved, and carries open
