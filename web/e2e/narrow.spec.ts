@@ -117,12 +117,26 @@ test("375×812: the Sandbox view's header controls fit and the page never scroll
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
   await expect(page.getByRole("radio", { name: "Sandbox" })).toBeChecked();
+  await checkHeaderControls(page, "the Sandbox view");
+  await expectNoSidewaysScroll(page, NARROW.w, "the Sandbox view");
+  // Below the wide breakpoint the sandbox controls — the gap-
+  // treatment radios included — live in the Settings drawer (§6.4),
+  // so the header's toggle has to open it before the swap check.
+  const settingsToggle = page.getByRole("button", {
+    name: "Settings",
+    exact: true,
+  });
+  await settingsToggle.click();
+  await expect(settingsToggle).toHaveAttribute("aria-expanded", "true");
   // The sandbox-only gap control confirms the view swapped.
   await expect(
     page.getByRole("radio", { name: "Pairwise deletion" }),
   ).toBeVisible();
-  await checkHeaderControls(page, "the Sandbox view");
-  await expectNoSidewaysScroll(page, NARROW.w, "the Sandbox view");
+  await expectNoSidewaysScroll(
+    page,
+    NARROW.w,
+    "the Sandbox view with the Settings drawer open",
+  );
 });
 
 test("375×812: the lab index's header controls fit and the page never scrolls sideways", async ({
