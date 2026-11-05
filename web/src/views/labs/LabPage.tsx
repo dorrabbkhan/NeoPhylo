@@ -184,6 +184,9 @@ function LabContent({ lab }: { lab: LabExercise }) {
   // (PHYLIP default → MEGA menu path + setting) and the note heading
   // and field. PHYLIP labs render exactly as before.
   const mega = block.tool === "mega";
+  const settingsLabel = mega
+    ? "MEGA menu settings and the matching NeoPhylo settings"
+    : "PHYLIP defaults and the matching NeoPhylo settings";
   // "Load this lab" is the app's `#x=` link form: the whole exercise —
   // dataset, model, seed and bootstrap settings — travels in the
   // fragment (spec §6.2).
@@ -232,47 +235,51 @@ function LabContent({ lab }: { lab: LabExercise }) {
         <h2 id="lab-settings-title">
           {mega ? "Settings — MEGA vs NeoPhylo" : "Settings — PHYLIP default vs NeoPhylo"}
         </h2>
-        <table
-          className="lab-settings"
-          aria-label={
-            mega
-              ? "MEGA menu settings and the matching NeoPhylo settings"
-              : "PHYLIP defaults and the matching NeoPhylo settings"
-          }
+        {/* issue #135: a table wider than the viewport scrolls inside
+            this focusable region instead of pushing the page sideways
+            (the region is named so keyboard and AT users can tell what
+            scrolls). Invisible wherever the table already fits. */}
+        <div
+          className="lab-settings-scroll"
+          role="region"
+          tabIndex={0}
+          aria-label={settingsLabel}
         >
-          <thead>
-            <tr>
-              <th scope="col">Option</th>
-              {mega ? (
-                <>
-                  <th scope="col">MEGA menu</th>
-                  <th scope="col">MEGA setting</th>
-                </>
-              ) : (
-                <th scope="col">PHYLIP default</th>
-              )}
-              <th scope="col">NeoPhylo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {block.tool === "mega"
-              ? block.settings.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.option}</td>
-                    <td>{s.mega_menu}</td>
-                    <td>{s.mega_setting}</td>
-                    <td>{s.neophylo}</td>
-                  </tr>
-                ))
-              : block.settings.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.option}</td>
-                    <td>{s.phylip_default}</td>
-                    <td>{s.neophylo}</td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+          <table className="lab-settings" aria-label={settingsLabel}>
+            <thead>
+              <tr>
+                <th scope="col">Option</th>
+                {mega ? (
+                  <>
+                    <th scope="col">MEGA menu</th>
+                    <th scope="col">MEGA setting</th>
+                  </>
+                ) : (
+                  <th scope="col">PHYLIP default</th>
+                )}
+                <th scope="col">NeoPhylo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {block.tool === "mega"
+                ? block.settings.map((s, i) => (
+                    <tr key={i}>
+                      <td>{s.option}</td>
+                      <td>{s.mega_menu}</td>
+                      <td>{s.mega_setting}</td>
+                      <td>{s.neophylo}</td>
+                    </tr>
+                  ))
+                : block.settings.map((s, i) => (
+                    <tr key={i}>
+                      <td>{s.option}</td>
+                      <td>{s.phylip_default}</td>
+                      <td>{s.neophylo}</td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section aria-labelledby="lab-handout-title">
         <h2 id="lab-handout-title">Handout</h2>

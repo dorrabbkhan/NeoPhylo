@@ -71,6 +71,11 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  /* issue 135: a grid item's automatic minimum is its min-content —
+   * without this the settings table held the card open past the right
+   * edge at 320 px and the page scrolled sideways. 0 lets the card
+   * shrink to the column; the table scrolls inside its region. */
+  min-width: 0;
   padding: var(--space-16);
 }
 
@@ -82,6 +87,9 @@
   color: var(--color-text-muted);
   font-size: var(--size-sm);
   margin: 0 0 var(--space-8);
+  /* issue 135: a long tool chain may break anywhere rather than hold
+   * the card or the page open past the right edge. */
+  overflow-wrap: anywhere;
 }
 
 /* spec §7.3's time estimate — "About N min" on the index card only
@@ -107,10 +115,25 @@
   margin-bottom: var(--space-4);
 }
 
+/* issue 135: the settings table's min-content can exceed the
+ * viewport (the MEGA columns reached scrollWidth 463 at 375 px). The
+ * region scrolls horizontally on its own — focusable and named so
+ * keyboard users can reach and identify it — instead of pushing the
+ * page sideways. Where the table already fits the region is
+ * invisible. */
+.lab-settings-scroll {
+  margin-bottom: var(--space-12);
+  overflow-x: auto;
+}
+
+.lab-settings-scroll:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
 .lab-settings {
   border-collapse: collapse;
   font-size: var(--size-sm);
-  margin-bottom: var(--space-12);
   width: 100%;
 }
 
@@ -282,6 +305,12 @@
   .lab-nav,
   .lab-controls {
     display: none;
+  }
+
+  /* The whole settings table prints — the screen-only scroll region
+   * must not clip it on paper. */
+  .lab-settings-scroll {
+    overflow: visible;
   }
 
   .lab-print-head {

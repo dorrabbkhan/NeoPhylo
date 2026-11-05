@@ -6794,3 +6794,27 @@ Owner-requested rendering fixes after the PR #139 review; branch
   same as the v1.4 checkpoint task); `./scripts/check.sh` was run —
   e2e coverage comes from CI, and the checkpoint lists checking the
   `main` push run's full browser matrix as a gate item.
+- **Owner-requested fix for issue #135 in this PR (files outside the
+  Files block):** `web/e2e/narrow.spec.ts` (new spec),
+  `web/src/views/labs/LabPage.tsx`, `web/src/views/labs/LabIndex.tsx`,
+  `web/src/views/labs/labs.css`, `docs/checkpoints/v1.4b-release.md`.
+  Conductor measurements on this branch: the header itself is already
+  inside `[0, viewport width]` with every control ≥40×40 on Lesson,
+  Sandbox, `?labs` and `?lab=<id>` at 320/360/375 px — the sideways
+  scroll came from `table.lab-settings` (`?lab=mega-jc69-vs-k2p` and
+  `?lab=mega-interpreting-support` at 375×812: scrollWidth 450/463)
+  and from lab cards reaching right=336 on `?labs` at 320 px. Fixed
+  by wrapping each settings table in `.lab-settings-scroll`
+  (`overflow-x: auto`, `role="region"`, `tabIndex={0}`, named; the
+  index cards' regions are labelled per lab so names stay unique),
+  `min-width: 0` on `.lab-card` so the grid item can shrink past its
+  min-content, `overflow-wrap: anywhere` on `.lab-chain`, and
+  `overflow: visible` on the region in `@media print` so the whole
+  table still prints. `narrow.spec.ts` pins (a) on-screen
+  `header.app-header`/`header.lab-page-head` controls inside
+  `[0, width]` at ≥40×40 and (b) `scrollWidth <= innerWidth` on the
+  Lesson view, Sandbox view, `?labs` and every shipped `?lab=<id>` at
+  375×812 with `hasTouch`, plus `?labs` at 320×640. Playwright does
+  not run in this sandbox — the spec's expected pre-fix failures are
+  the conductor's own scrollWidth and card-edge measurements; CI runs
+  the e2e.
