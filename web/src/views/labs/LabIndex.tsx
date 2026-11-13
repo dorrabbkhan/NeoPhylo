@@ -17,6 +17,7 @@
 import type { LabSummary } from "../../labs/registry";
 import { listLabs } from "../../labs/registry";
 import { Wordmark } from "../Wordmark";
+import { LabPrintStyles } from "./LabPrintStyles";
 
 import "./labs.css";
 
@@ -108,6 +109,7 @@ export function LabIndex() {
   const megaLabs = labs.filter((l) => l.tool === "mega");
   return (
     <main className="lab-page lab-print">
+      <LabPrintStyles />
       <header className="lab-page-head lab-nav">
         <a
           className="editor-home"

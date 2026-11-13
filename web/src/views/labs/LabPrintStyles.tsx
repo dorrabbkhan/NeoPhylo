@@ -1,11 +1,12 @@
-// Print styling for the lab pages (v1.4 plan Task 11, spec §6.2): a
-// lab handout prints in LIGHT colors whatever the screen theme is —
-// paper is white. This component re-maps every token variable to its
-// light-theme value under `@media print`, scoped to `.lab-print`, so
-// the palette can never drift from tokens.ts (no literal colors
-// anywhere). labs.css's own `@media print` block then hides the
-// controls and shows the print-only masthead — the vars this emits
-// are what those rules resolve to.
+// Print styling for the lab pages and the lab index (v1.4 plan Task
+// 11, spec §6.2): a lab handout — and the `?labs` index, which also
+// renders `.lab-print` — prints in LIGHT colors whatever the screen
+// theme is; paper is white. This component re-maps every token
+// variable to its light-theme value under `@media print`, scoped to
+// `.lab-print`, so the palette can never drift from tokens.ts (no
+// literal colors anywhere). labs.css's own `@media print` block then
+// hides the controls and shows the print-only masthead — the vars
+// this emits are what those rules resolve to.
 
 import { cssVariables } from "../../design/tokens";
 
