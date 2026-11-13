@@ -6818,3 +6818,26 @@ Owner-requested rendering fixes after the PR #139 review; branch
   not run in this sandbox — the spec's expected pre-fix failures are
   the conductor's own scrollWidth and card-edge measurements; CI runs
   the e2e.
+
+### Fix round (owner request 2026-11-13)
+
+- **Lab index printed dark from a dark session (files outside the
+  Task 14 Files block, owner request):** `web/src/views/labs/LabIndex.tsx`,
+  `web/e2e/labs.spec.ts`, `web/src/views/labs/LabPrintStyles.tsx`
+  (header comment). `LabIndex` rendered `.lab-print` but never
+  rendered `LabPrintStyles`, so `?labs` kept the session's dark
+  tokens under `@media print` while the lab pages printed light. The
+  index now renders `<LabPrintStyles />` exactly like `LabPage` does;
+  the new e2e test pins light paper + dark text under a stored dark
+  theme on both `?labs` and `?lab=mega-jc69-vs-k2p`.
+- **Release-checkpoint runbook and helpers (files outside the Files
+  block, owner request):** `docs/release-checkpoint.md`,
+  `docs/checkpoints/v1.4b-release.md` (runbook pointer paragraph),
+  `scripts/checkpoint/` (`run.sh`, `preflight.sh`, `browser.sh`,
+  `mega_verify.py`, `report.py`, `browser/`). Local release tooling —
+  never run in CI; the browser checker lives under `scripts/` and is
+  staged next to `web/node_modules` at run time. The obsolete copy at
+  `web/checkpoint/` and `web/playwright.checkpoint.config.ts` was
+  removed without being committed.
+- **`CITATION.cff`:** `date-released: "2026-11-13"` — the owner's
+  planned tag date.
