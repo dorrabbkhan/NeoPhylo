@@ -1,0 +1,14 @@
+#mega
+!Title wiki5_lower;
+!Format DataType=Distance DataFormat=LowerLeft NTaxa=5;
+
+#a
+#b
+#c
+#d
+#e
+
+5
+9 10
+9 10 8
+8 9 7 3

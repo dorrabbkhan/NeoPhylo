@@ -41,7 +41,10 @@ GENERATOR <- sprintf("ape %s / phangorn %s",
 
 # Re-run the NJ joins on a full square matrix d and stop if any step has
 # more than one minimum-Q pair. Mirrors spec 4.5 steps 1-4.
-assert_no_nj_ties <- function(d, name, model) {
+# tol = 0 is exact equality; real-valued matrix inputs pass a tolerance
+# clearly larger than float noise (the real12 checks use 1e-7, well under
+# half of dnadist's printed 1e-6 ulp).
+assert_no_nj_ties <- function(d, name, model, tol = 0) {
   d <- as.matrix(d)
   while (nrow(d) > 3) {
     n <- nrow(d)
@@ -49,7 +52,7 @@ assert_no_nj_ties <- function(d, name, model) {
     q <- (n - 2) * d - outer(r, r, `+`)
     diag(q) <- Inf                      # exclude the diagonal from the minimum
     m <- min(q)
-    hits <- which(q == m, arr.ind = TRUE)
+    hits <- which(q <= m + tol, arr.ind = TRUE)
     pairs <- unique(t(apply(hits, 1, sort)))
     if (nrow(pairs) != 1) {
       # At four actives a pair and its algebraic complement always tie
@@ -75,13 +78,13 @@ assert_no_nj_ties <- function(d, name, model) {
 }
 
 # Re-run the UPGMA joins and stop if any step has a tied minimum pair.
-assert_no_upgma_ties <- function(d, name, model) {
+assert_no_upgma_ties <- function(d, name, model, tol = 0) {
   d <- as.matrix(d)
   sizes <- rep(1, nrow(d))
   while (nrow(d) > 1) {
     diag(d) <- Inf
     m <- min(d)
-    hits <- which(d == m, arr.ind = TRUE)
+    hits <- which(d <= m + tol, arr.ind = TRUE)
     pairs <- unique(t(apply(hits, 1, sort)))
     if (nrow(pairs) != 1) {
       stop(sprintf("tied UPGMA minimum in %s (%s) at %d active clusters: %d pairs share d = %g",
@@ -413,3 +416,269 @@ for (spec in cons_specs) {
   cat(sprintf("%s: %d taxa, %d trees, seed %d -> %s\n",
               spec$name, length(labs), length(g$trees), seed, out))
 }
+
+# --- matrix inputs (v1.4c) ----------------------------------------------
+# Runs AFTER generate_phylip.sh, which wrote ref/matrix/<name>.json (and
+# regenerated inputs/matrix/real12.phy plus the .meg copies). For each
+# inputs/matrix/*.phy this section:
+#   - re-runs the NJ and UPGMA join sequences and fails on any ambiguous
+#     tie (a parity oracle could otherwise legitimately pick a different
+#     tree; wiki5_*'s only NJ tie is the benign four-active complement
+#     tie, which assert_no_nj_ties already permits). Integer matrices are
+#     checked exactly; real12 (dnadist's 6-decimal print) gets 1e-7,
+#     clearly larger than float noise and under half its printed ulp.
+#   - merges the ape::nj / phangorn::upgma trees into the same JSON files
+#     as an "ape" block.
+#   - checks the two additive lesson matrices: neighbor's NJ tree must
+#     equal the true tree (splits and lengths at neighbor's printed
+#     precision), and for upgma_vs_nj UPGMA's topology must differ.
+#   - writes worked/nj_by_hand.json: a full NJ step trace computed by the
+#     independent reimplementation below (neighbor does not print Q or
+#     row sums), asserted to give the same tree as neighbor's outtree.
+
+mats_dir <- file.path(indir, "matrix")
+mat_inputs <- sort(list.files(mats_dir, pattern = "\\.phy$",
+                              full.names = TRUE))
+
+# Same reader as generate_phylip.sh's matrix block: 10-char names, square
+# or lower-triangular, values may wrap onto leading-space continuation
+# lines. Lower form is detected from the row counts, not the filename.
+parse_phy_matrix <- function(path) {
+  lines <- readLines(path)
+  lines <- lines[nzchar(trimws(lines))]
+  n <- as.integer(trimws(lines[1]))
+  labels <- character(n); toks <- vector("list", n); row <- 0
+  for (ln in lines[-1]) {
+    if (substr(ln, 1, 1) == " " && row >= 1) {
+      toks[[row]] <- c(toks[[row]], strsplit(trimws(ln), "\\s+")[[1]])
+    } else {
+      row <- row + 1
+      labels[row] <- trimws(substr(ln, 1, 10))
+      t <- trimws(substring(ln, 11))
+      toks[[row]] <- if (nzchar(t)) strsplit(t, "\\s+")[[1]] else character(0)
+    }
+  }
+  stopifnot(row == n)
+  lower <- all(lengths(toks) == seq_len(n) - 1L)
+  square <- all(lengths(toks) == n)
+  stopifnot(lower || square)
+  m <- matrix(0, n, n)
+  for (i in seq_len(n)) {
+    v <- as.numeric(toks[[i]])
+    if (lower) m[i, seq_len(i - 1)] <- v else m[i, ] <- v
+  }
+  if (lower) m <- m + t(m)
+  stopifnot(all(diag(m) == 0), isTRUE(all.equal(m, t(m))))
+  list(labels = labels, m = m)
+}
+
+# canon split key -> edge length for every edge of a phylo tree. The
+# canonical side is the one NOT containing the alphabetically first label
+# (a fixed reference across trees whose tip order differs; for these
+# inputs it is also the input's first label). Singleton keys cover
+# pendant edges, an n-1 key covers the reference label's own pendant.
+edge_map <- function(tr) {
+  labs <- tr$tip.label
+  ref <- sort(labs)[1]
+  kids <- split(tr$edge[, 2], tr$edge[, 1])
+  desc <- function(u) {
+    if (u <= length(labs)) return(labs[u])
+    sort(unique(unlist(lapply(kids[[as.character(u)]], desc))))
+  }
+  res <- list()
+  for (k in seq_len(nrow(tr$edge))) {
+    side <- desc(tr$edge[k, 2])
+    if (ref %in% side) side <- setdiff(labs, side)
+    res[[paste(sort(side), collapse = "|")]] <- tr$edge.length[k]
+  }
+  res
+}
+
+# Same unrooted topology (split set) and every shared edge's length
+# within tol. Both trees must share the label set.
+assert_same_tree <- function(t1, t2, tol, tag) {
+  stopifnot(setequal(t1$tip.label, t2$tip.label))
+  e1 <- edge_map(t1); e2 <- edge_map(t2)
+  if (!setequal(names(e1), names(e2))) {
+    stop(sprintf("%s: split sets differ\n  only-1: %s\n  only-2: %s",
+                 tag,
+                 paste(setdiff(names(e1), names(e2)), collapse = " ; "),
+                 paste(setdiff(names(e2), names(e1)), collapse = " ; ")))
+  }
+  for (k in names(e1)) {
+    if (abs(e1[[k]] - e2[[k]]) > tol) {
+      stop(sprintf("%s: branch length for split %s: %s != %s (tol %g)",
+                   tag, k, e1[[k]], e2[[k]], tol))
+    }
+  }
+}
+
+# The true trees the additive matrices were built from (integer branch
+# lengths, positive; recorded in fixtures/README.md as well).
+true_trees <- list(
+  upgma_vs_nj = "(a:2,(b:2,c:4):4,(e:3,(d:8,f:9):9):3);",
+  additive8   = "(a:2,(c:5,(h:9,(d:6,e:5):3):1):6,(f:2,(b:1,g:4):1):7);"
+)
+
+for (f in mat_inputs) {
+  name <- sub("\\.phy$", "", basename(f))
+  p <- parse_phy_matrix(f)
+  m <- p$m
+  tol <- if (name == "real12") 1e-7 else 0
+  assert_no_nj_ties(m, name, "matrix", tol)
+  assert_no_upgma_ties(m, name, "matrix", tol)
+
+  ref_path <- file.path(outdir, "matrix", paste0(name, ".json"))
+  if (!file.exists(ref_path)) {
+    stop(sprintf("%s not found; run fixtures/generate_phylip.sh first",
+                 ref_path))
+  }
+  fixture <- fromJSON(ref_path)
+  stopifnot(identical(unname(fixture$labels), unname(p$labels)))
+  prec <- fixture$phylip$precision
+  tol_len <- 0.5 * 10^-prec + 1e-9    # half an ulp of neighbor's print
+
+  # True-tree checks for the additive lesson matrices.
+  if (name %in% names(true_trees)) {
+    tru <- read.tree(text = true_trees[[name]])
+    nj_phy <- read.tree(text = fixture$phylip$nj)
+    assert_same_tree(tru, nj_phy, tol_len, paste0(name, " NJ != true"))
+    if (name == "upgma_vs_nj") {
+      up_phy <- read.tree(text = fixture$phylip$upgma)
+      if (setequal(names(edge_map(tru)), names(edge_map(up_phy)))) {
+        stop("upgma_vs_nj: UPGMA topology equals the true tree ",
+             "(lesson requires them to differ)")
+      }
+    }
+  }
+
+  dimnames(m) <- list(p$labels, p$labels)
+  nj_ape <- nj(as.dist(m))
+  upg_ape <- upgma(as.dist(m))
+  fixture$ape <- list(nj = newick(nj_ape), upgma = newick(upg_ape))
+  writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA,
+                    pretty = TRUE), ref_path)
+  cat(sprintf("matrix_%s: ape/phangorn merged -> %s\n", name, ref_path))
+}
+
+# --- worked/nj_by_hand.json ---------------------------------------------
+# neighbor prints only the tree, so the per-step Q matrices, row sums and
+# limb lengths are computed here by an independent NJ reimplementation —
+# the engine's code is NOT used (worked files cross-check it, they must
+# not share a bug with it). The produced tree is asserted equal to
+# neighbor's outtree at neighbor's printed precision.
+
+bh <- parse_phy_matrix(file.path(mats_dir, "nj_by_hand.phy"))
+labs <- bh$labels
+stopifnot(nrow(bh$m) == 5)
+
+# Exactly one off-diagonal cell differs from the nj_wikipedia5 matrix
+# (symmetric pair): the lesson matrix must not be the one whose answer is
+# a search away.
+w5 <- fromJSON(file.path(fixdir, "worked", "nj_wikipedia5.json"))
+w5m <- matrix(w5$matrix$data, nrow = w5$matrix$n, byrow = TRUE)
+stopifnot(sum(bh$m != w5m) == 2, isTRUE(all.equal(bh$m, t(bh$m))))
+
+d <- bh$m
+n0 <- nrow(d)
+active <- seq_len(n0)                    # 1-based node ids (leaves first)
+members <- lapply(seq_len(n0), function(i) labs[i])
+edges <- list()                          # canon split key -> length
+ref_lab <- sort(labs)[1]                 # same convention as edge_map()
+add_edge <- function(child, len) {
+  side <- members[[child]]
+  if (ref_lab %in% side) side <- setdiff(labs, side)
+  edges[[paste(sort(side), collapse = "|")]] <<- len
+}
+steps <- list()
+next_node <- n0 + 1
+first_is_closest <- NA
+while (nrow(d) > 3) {
+  n <- nrow(d)
+  r <- rowSums(d)
+  q <- (n - 2) * d - outer(r, r, `+`)
+  diag(q) <- 0                           # worked files carry a 0 diagonal
+  off <- q + diag(Inf, n)
+  best <- min(off)
+  hits <- which(off <= best, arr.ind = TRUE)
+  pairs <- unique(t(apply(hits, 1, sort)))
+  pairs <- pairs[order(pairs[, 1], pairs[, 2]), , drop = FALSE]
+  tie <- nrow(pairs) > 1
+  i <- pairs[1, 1]; j <- pairs[1, 2]     # lexicographically smallest
+  if (is.na(first_is_closest)) {
+    closest <- which(d == min(d + diag(Inf, n)), arr.ind = TRUE)
+    cpairs <- unique(t(apply(closest, 1, sort)))
+    first_is_closest <- any(cpairs[, 1] == i & cpairs[, 2] == j)
+  }
+  li <- d[i, j] / 2 + (r[i] - r[j]) / (2 * (n - 2))
+  lj <- d[i, j] - li
+  add_edge(active[i], li); add_edge(active[j], lj)
+  members[[next_node]] <- sort(c(members[[active[i]]],
+                                members[[active[j]]]))
+  keep <- setdiff(seq_len(n), c(i, j))
+  du <- (d[i, keep] + d[j, keep] - d[i, j]) / 2
+  steps[[length(steps) + 1]] <- list(
+    step = length(steps) + 1,
+    active = active - 1,
+    distance = list(n = n, data = as.vector(t(d))),
+    r = unname(r),
+    q = list(n = n, data = as.vector(t(q))),
+    chosen = c(i, j) - 1,
+    tie = tie,
+    len_i = li,
+    len_j = lj,
+    new_node = next_node - 1,
+    new_row = unname(du)
+  )
+  d <- d[keep, keep, drop = FALSE]
+  d <- cbind(d, du)
+  d <- rbind(d, c(du, 0))
+  active <- c(active[keep], next_node)
+  next_node <- next_node + 1
+}
+a <- active[1]; b <- active[2]; cc <- active[3]
+la <- (d[1, 2] + d[1, 3] - d[2, 3]) / 2
+lb <- (d[2, 1] + d[2, 3] - d[1, 3]) / 2
+lc <- (d[3, 1] + d[3, 2] - d[1, 2]) / 2
+add_edge(a, la); add_edge(b, lb); add_edge(cc, lc)
+
+# Required teaching properties (owner ruling A: only the benign
+# four-active complement tie is allowed, and it is reported as tie=true).
+stopifnot(!isTRUE(first_is_closest))
+stopifnot(!vapply(steps[-length(steps)], function(s) s$tie, logical(1)),
+          isTRUE(steps[[length(steps)]]$tie))
+
+# Cross-check against neighbor's NJ tree for this input.
+bh_ref <- fromJSON(file.path(outdir, "matrix", "nj_by_hand.json"))
+bh_nj <- read.tree(text = bh_ref$phylip$nj)
+tol_len <- 0.5 * 10^-bh_ref$phylip$precision + 1e-9
+nb_edges <- edge_map(bh_nj)
+stopifnot(setequal(names(edges), names(nb_edges)))
+for (k in names(edges)) {
+  if (abs(edges[[k]] - nb_edges[[k]]) > tol_len) {
+    stop(sprintf("nj_by_hand worked trace: length %s != neighbor %s for %s",
+                 edges[[k]], nb_edges[[k]], k))
+  }
+}
+cat(sprintf("nj_by_hand: first step r = %s\n",
+            paste(steps[[1]]$r, collapse = ", ")))
+cat(sprintf("nj_by_hand: first step chosen = (%d, %d), tie flags = %s\n",
+            steps[[1]]$chosen[1], steps[[1]]$chosen[2],
+            paste(vapply(steps, function(s) s$tie, logical(1)),
+                  collapse = ",")))
+
+worked <- list(
+  name = "nj_by_hand",
+  source = paste("generated by fixtures/generate.R (independent NJ",
+                 "reimplementation) and cross-checked against PHYLIP",
+                 "neighbor 3.697"),
+  labels = labs,
+  matrix = list(n = n0, data = as.vector(t(bh$m))),
+  steps = steps,
+  final_join = list(a = a - 1, b = b - 1, c = cc - 1,
+                    la = la, lb = lb, lc = lc)
+)
+out <- file.path(fixdir, "worked", "nj_by_hand.json")
+writeLines(toJSON(worked, auto_unbox = TRUE, digits = NA, pretty = TRUE),
+           out)
+cat(sprintf("nj_by_hand: %d steps -> %s\n", length(steps), out))

@@ -394,6 +394,145 @@ cat(sprintf("%s: F84 + K2P(2.0,4.0), %d taxa, precision %d\n",
 RS
 done
 
+# --- v1.4c: distance-matrix input fixtures -------------------------------
+# Every committed fixtures/inputs/matrix/*.phy goes through neighbor (NJ
+# and UPGMA); wiki5_lower additionally exercises the L (lower-triangular)
+# menu option. ref/matrix/<name>.json records the input path, the labels,
+# the neighbor outtrees verbatim and the trees' printed precision counted
+# on the raw outtree text (the pattern tolerates negative branches —
+# nonadditive6 must produce one and the run below asserts it does). The
+# subdirectory is deliberate: tests/corpus.rs flat-globs ref/*.json.
+#
+# real12.phy is dnadist's JC matrix on inputs/jc12.fasta, written by this
+# script so the oracle input is reproducible. The .meg copies in
+# inputs/matrix/ are derived here from the .phy files by the R block, never
+# typed by hand. generate.R merges the ape/phangorn trees into the same
+# JSON files, runs the tie checks, and writes worked/nj_by_hand.json, so
+# it must run AFTER this script (scripts/ci/fixture-guard.sh holds that
+# order).
+
+MATRIX_INPUTS="wiki5_square wiki5_lower nj_by_hand upgma_vs_nj nonadditive6 additive8 real12"
+
+# real12.phy: dnadist Jukes-Cantor on the committed jc12 alignment (same
+# keystrokes as the ref path). Deterministic, so regenerating is
+# byte-stable.
+fasta_to_phylip "$FIXDIR/inputs/jc12.fasta"
+run_dnadist J
+cp outfile "$FIXDIR/inputs/matrix/real12.phy"
+
+# $1 = N|U, $2 = square|lower, $3 = matrix file; writes outtree.
+run_neighbor_matrix() {
+  cp "$3" infile; rm -f outfile outtree
+  keys=""
+  if [ "$2" = "lower" ]; then keys="L\n"; fi
+  if [ "$1" = "U" ]; then keys="${keys}N\n"; fi
+  printf "${keys}Y\n" | timeout 120 "$NEIGHBOR" > phylip.log 2>&1
+  [ -f outtree ] || { cat phylip.log; echo "neighbor produced no outtree" >&2; exit 1; }
+  NVER="$(grep -o 'version [0-9.]*' phylip.log | head -1 | awk '{print $2}')"
+  [ "$NVER" = "$VER" ] || { echo "neighbor $NVER != dnadist $VER" >&2; exit 1; }
+}
+
+for name in $MATRIX_INPUTS; do
+  phy="$FIXDIR/inputs/matrix/$name.phy"
+  form=square; if [ "$name" = "wiki5_lower" ]; then form=lower; fi
+
+  run_neighbor_matrix N "$form" "$phy"; cp outtree "nj_$name.nwk"
+  run_neighbor_matrix U "$form" "$phy"; cp outtree "upgma_$name.nwk"
+
+  # The whole point of this input: neighbor must emit a negative branch.
+  if [ "$name" = "nonadditive6" ] && ! grep -q ':-' "nj_$name.nwk"; then
+    echo "nonadditive6: no negative branch in neighbor's NJ outtree" >&2
+    exit 1
+  fi
+
+  FIXDIR="$FIXDIR" NAME="$name" GEN="phylip $VER" FORM="$form" Rscript - <<'RS'
+suppressPackageStartupMessages(library(jsonlite))
+name <- Sys.getenv("NAME"); fixdir <- Sys.getenv("FIXDIR")
+form <- Sys.getenv("FORM"); gen <- Sys.getenv("GEN")
+
+# PHYLIP distance-matrix reader, square or lower-triangular. Each row
+# starts with a 10-char name; values may wrap onto continuation lines,
+# which begin with a space (dnadist's own outfile style — real12 wraps).
+parse_phy_matrix <- function(path, form) {
+  lines <- readLines(path)
+  lines <- lines[nzchar(trimws(lines))]
+  n <- as.integer(trimws(lines[1]))
+  labels <- character(n); toks <- vector("list", n); row <- 0
+  for (ln in lines[-1]) {
+    if (substr(ln, 1, 1) == " " && row >= 1) {
+      toks[[row]] <- c(toks[[row]], strsplit(trimws(ln), "\\s+")[[1]])
+    } else {
+      row <- row + 1
+      labels[row] <- trimws(substr(ln, 1, 10))
+      t <- trimws(substring(ln, 11))
+      toks[[row]] <- if (nzchar(t)) strsplit(t, "\\s+")[[1]] else character(0)
+    }
+  }
+  stopifnot(row == n)
+  want <- if (form == "lower") seq_len(n) - 1L else rep(n, n)
+  stopifnot(all(lengths(toks) == want))
+  dec <- max(nchar(sub("^[^.]*\\.?", "", unlist(toks))))
+  m <- matrix(0, n, n)
+  for (i in seq_len(n)) {
+    v <- as.numeric(toks[[i]])
+    if (form == "lower") m[i, seq_len(i - 1)] <- v
+    else m[i, ] <- v
+  }
+  if (form == "lower") m <- m + t(m)
+  stopifnot(all(diag(m) == 0), isTRUE(all.equal(m, t(m))))
+  list(labels = labels, m = m, dec = dec)
+}
+
+p <- parse_phy_matrix(file.path(fixdir, "inputs", "matrix",
+                                paste0(name, ".phy")), form)
+n <- length(p$labels)
+
+# .meg copy (MEGA distance input, LowerLeft), derived from the .phy —
+# never written by hand. Values keep the input's printed precision.
+meg <- c("#mega",
+         sprintf("!Title %s;", name),
+         sprintf("!Format DataType=Distance DataFormat=LowerLeft NTaxa=%d;", n),
+         "",
+         paste0("#", p$labels),
+         "")
+fmt <- paste0("%.", p$dec, "f")
+for (i in 2:n) {
+  meg <- c(meg, paste(sprintf(fmt, p$m[i, seq_len(i - 1)]), collapse = " "))
+}
+writeLines(meg, file.path(fixdir, "inputs", "matrix", paste0(name, ".meg")))
+
+read_nwk <- function(path) gsub("\\s+", "", paste(readLines(path), collapse = ""))
+nwks <- c(read_nwk(paste0("nj_", name, ".nwk")),
+          read_nwk(paste0("upgma_", name, ".nwk")))
+
+# Decimals are counted on the raw outtree text (the pattern catches the
+# '-' of nonadditive6's negative branch), not on parsed numbers.
+decimals <- function(txt, pat) {
+  m <- regmatches(txt, gregexpr(pat, txt))[[1]]
+  min(nchar(sub(".*\\.", "", m)))
+}
+prec <- decimals(paste(nwks, collapse = " "), ":[-0-9]+\\.[0-9]+")
+
+# generate.R merges the "ape" block into this file (it runs after this
+# script; see scripts/ci/fixture-guard.sh).
+fixture <- list(
+  input = file.path("inputs", "matrix", paste0(name, ".phy")),
+  labels = p$labels,
+  phylip = list(
+    version = sub("^phylip ", "", gen),
+    precision = prec,
+    nj = nwks[1],
+    upgma = nwks[2]
+  )
+)
+out <- file.path(fixdir, "ref", "matrix", paste0(name, ".json"))
+dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
+writeLines(toJSON(fixture, auto_unbox = TRUE, digits = NA, pretty = TRUE), out)
+cat(sprintf("matrix_%s: %d taxa, tree precision %d -> %s\n",
+            name, n, prec, out))
+RS
+done
+
 # --- consensus path (v1.2) -------------------------------------------------
 # consense merges live in their own script so this file stays single-purpose;
 # see fixtures/generate_consensus.sh for the driver and the R assertions.

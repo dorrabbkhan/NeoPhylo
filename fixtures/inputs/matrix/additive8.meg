@@ -1,0 +1,20 @@
+#mega
+!Title additive8;
+!Format DataType=Distance DataFormat=LowerLeft NTaxa=8;
+
+#a
+#b
+#c
+#d
+#e
+#f
+#g
+#h
+
+11
+13 20
+18 25 15
+17 24 14 11
+11 4 20 25 24
+14 5 23 28 27 7
+18 25 15 18 17 25 28
