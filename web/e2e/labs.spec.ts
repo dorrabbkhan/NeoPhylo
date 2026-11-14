@@ -321,7 +321,7 @@ test("the print view hides the controls and keeps the handout and settings table
 // component that re-maps the tokens to light under @media print. The
 // thresholds pin "light paper, dark text" without naming a token
 // value; pre-fix the index fails both (dark --color-bg behind the h1,
-// light --color-text-muted text).
+// light --color-text-h text).
 test("a dark-theme session still prints the lab pages light", async ({
   page,
 }) => {
@@ -367,6 +367,25 @@ test("a dark-theme session still prints the lab pages light", async ({
       return { bg, fg: getComputedStyle(el).color };
     });
 
+  const transparent = (c: string) =>
+    c === "transparent" || /^rgba\(.*,\s*0(?:\.0+)?\)$/.test(c);
+
+  // The paper AROUND the handout: <html>, <body> and every ancestor
+  // of `.lab-print`. index.css paints <html> with
+  // `background: var(--color-bg)` — pre-fix a dark session kept that
+  // dark on paper below the handout's last line and between page
+  // blocks even though the handout itself printed light (owner
+  // finding 2026-11-14).
+  const paperColors = (block: import("@playwright/test").Locator) =>
+    block.evaluate((el) => {
+      const chain: Element[] = [document.documentElement, document.body];
+      for (let a = el.parentElement; a; a = a.parentElement) chain.push(a);
+      return chain.map((n) => ({
+        tag: n.tagName.toLowerCase() + (n.id ? `#${n.id}` : ""),
+        bg: getComputedStyle(n).backgroundColor,
+      }));
+    });
+
   const expectLightPrint = async (
     url: string,
     h1: string,
@@ -388,6 +407,16 @@ test("a dark-theme session still prints the lab pages light", async ({
       luminance(fg),
       `${url} prints dark text (color ${fg})`,
     ).toBeLessThan(0.35);
+    for (const { tag, bg: paper } of await paperColors(
+      page.locator(".lab-print"),
+    )) {
+      if (!transparent(paper)) {
+        expect(
+          luminance(paper),
+          `${url} prints light paper around the handout (${tag} ${paper})`,
+        ).toBeGreaterThan(0.85);
+      }
+    }
   };
 
   await expectLightPrint("/?labs", "Labs");
