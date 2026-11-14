@@ -11,7 +11,7 @@ use neophylo_core::matrix::Matrix;
 use neophylo_core::matrix_input::{additive_matrix, validate_input, DistanceInput};
 use neophylo_core::seq::{parse_fasta, MAX_TAXA};
 use neophylo_core::site_filter::SiteFilter;
-use neophylo_core::tree::Tree;
+use neophylo_core::tree::{NodeId, Tree};
 use serde::Deserialize;
 
 const TOL: f64 = 1e-12;
@@ -407,6 +407,25 @@ fn additive_matrix_missing_length_names_leaf() {
         NeoError::InvalidMatrix { row, msg, .. } => {
             assert!(!row.is_empty(), "the error names a leaf");
             assert!(msg.contains("length"), "msg: {msg}");
+        }
+        other => panic!("expected InvalidMatrix, got {other:?}"),
+    }
+}
+
+#[test]
+fn additive_matrix_disconnected_tree_refused() {
+    // A hand-built tree with an out-of-range parent or child link must
+    // error, not panic and not fabricate a zero distance between
+    // disconnected taxa. b stays reachable downward (it is in the
+    // root's children, so it is still a preorder leaf) but its own
+    // upward path is a dead end.
+    let mut t = known_tree();
+    t.nodes[1].parent = Some(NodeId(99)); // leaf b's parent points nowhere
+    t.nodes[4].children.push(NodeId(98)); // and u lists a child that does not exist
+    match additive_matrix(&t, None) {
+        Err(NeoError::InvalidMatrix { row, col, .. }) => {
+            assert_eq!(row, "b");
+            assert_eq!(col, "a");
         }
         other => panic!("expected InvalidMatrix, got {other:?}"),
     }

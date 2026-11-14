@@ -145,9 +145,11 @@ pub fn validate_input(m: &DistanceInput) -> Result<(), NeoError> {
 }
 
 /// Distances from `start` to every node, walking parent and child
-/// links and summing branch lengths. `None` when any edge lacks a
-/// length — the caller names the leaf it started from.
-fn distances_from(tree: &Tree, start: NodeId) -> Option<Vec<f64>> {
+/// links and summing branch lengths, plus the reached-node mask so the
+/// caller can refuse a disconnected tree rather than report a bogus
+/// distance. `None` when any edge lacks a length — the caller names
+/// the leaf it started from.
+fn distances_from(tree: &Tree, start: NodeId) -> Option<(Vec<f64>, Vec<bool>)> {
     let mut dist = vec![0.0f64; tree.nodes.len()];
     let mut seen = vec![false; tree.nodes.len()];
     seen[start.0 as usize] = true;
@@ -157,7 +159,9 @@ fn distances_from(tree: &Tree, start: NodeId) -> Option<Vec<f64>> {
         let d = dist[i];
         if let Some(p) = tree.nodes[i].parent {
             let pi = p.0 as usize;
-            if !seen[pi] {
+            // A hand-built tree can carry out-of-range links; they are
+            // dead ends, not panics.
+            if pi < tree.nodes.len() && !seen[pi] {
                 dist[pi] = d + tree.branch_length(id)?; // edge above `id`
                 seen[pi] = true;
                 stack.push(p);
@@ -165,14 +169,14 @@ fn distances_from(tree: &Tree, start: NodeId) -> Option<Vec<f64>> {
         }
         for &c in &tree.nodes[i].children {
             let ci = c.0 as usize;
-            if !seen[ci] {
+            if ci < tree.nodes.len() && !seen[ci] {
                 dist[ci] = d + tree.branch_length(c)?; // edge above `c`
                 seen[ci] = true;
                 stack.push(c);
             }
         }
     }
-    Some(dist)
+    Some((dist, seen))
 }
 
 /// The additive (patristic) matrix of `tree`: leaf-to-leaf path
@@ -213,12 +217,19 @@ pub fn additive_matrix(tree: &Tree, round_decimals: Option<u8>) -> Result<Distan
     }
     let mut lower = Vec::with_capacity(n * (n - 1) / 2);
     for (i, &(start, ref name)) in leaves.iter().enumerate() {
-        let dist = distances_from(tree, start).ok_or_else(|| NeoError::InvalidMatrix {
+        let (dist, seen) = distances_from(tree, start).ok_or_else(|| NeoError::InvalidMatrix {
             row: name.clone(),
             col: String::new(),
             msg: format!("a branch on a path from '{name}' has no length"),
         })?;
-        for &(target, _) in leaves.iter().take(i) {
+        for &(target, ref tname) in leaves.iter().take(i) {
+            if !seen[target.0 as usize] {
+                return Err(NeoError::InvalidMatrix {
+                    row: name.clone(),
+                    col: tname.clone(),
+                    msg: format!("taxa '{name}' and '{tname}' are not connected in the tree"),
+                });
+            }
             let mut v = dist[target.0 as usize];
             if let Some(d) = round_decimals {
                 let p = pow(10.0, f64::from(d));
