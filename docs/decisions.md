@@ -6863,3 +6863,27 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `scripts/checkpoint/browser/release.spec.ts` (asserts `page` > 0.85
   on every lab and the index), `docs/release-checkpoint.md` (the new
   "First run" bullet).
+
+## v1.4c Task 1: spec, plan, market check, roadmap changes
+
+- **Spec:** `docs/superpowers/specs/2026-11-14-neophylo-v1.4c-matrix-and-library-design.md`;
+  plan `docs/superpowers/plans/2026-11-14-neophylo-v1.4c-plan.md`; market check
+  `docs/market/2026-11-14-market-check.md`.
+- **Roadmap changes (owner, brainstorming 2026-11-14):**
+  - v1.4c narrowed to distance-matrix input (files, paste, grid, matrix exercises, editor)
+    plus the lesson library, generated worksheets with engine-computed answer keys behind
+    an "I'm an instructor" step, and the instructor guide.
+  - **Accession fetch moves to v1.9**, next to alignment: fetched sequences are unaligned,
+    so fetch in v1.4c would lead to a dead end. Its privacy/CORS questions move with it.
+  - **v1.5 gains a WCAG 2.1 AA self-audit and a published Accessibility Conformance Report
+    (VPAT):** US public universities must meet WCAG 2.1 AA under ADA Title II by
+    2027-04-26 and review embedded/LTI tools. The independent audit stays in v3.2.
+  - **Outreach and pilots deferred** by the owner until the product is solid and
+    impressive; revisit at v1.5 and v2.0.
+  - v1.4c checks MEGA 12's "Adaptive" bootstrap option against the 100-replicate handout.
+- **Decided in this plan:** see the plan's "Decided in this plan" list (`DistModel::Supplied`,
+  `DistanceInput`, matrix exercise shape with no `correction`, `meta`, the one changed
+  `.meg` message assertion, `detect_matrix_format`, 3–30-taxon grid, paper sheets for
+  ≤ 8 taxa, routes `?library`/`?worksheet`/`?key`/`?guide`, the session-storage gate,
+  `imported.matrix` in URLs with `v` still 3, lesson ids `nj-by-hand` and
+  `upgma-vs-nj-matrix`).

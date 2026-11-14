@@ -17,6 +17,7 @@ Map `<plan>` to a file:
 - `v1.3` → `docs/superpowers/plans/2026-10-21-neophylo-v1.3-plan.md`
 - `v1.4` → `docs/superpowers/plans/2026-10-26-neophylo-v1.4-plan.md`
 - `v1.4b` → `docs/superpowers/plans/2026-10-28-neophylo-v1.4b-plan.md`
+- `v1.4c` → `docs/superpowers/plans/2026-11-14-neophylo-v1.4c-plan.md`
 - A missing `<plan>` means the newest file in `docs/superpowers/plans/` (by date in the filename).
 
 The matching spec is read from the plan's `**Spec:**` line, not hard-coded.
