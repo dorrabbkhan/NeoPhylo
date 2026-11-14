@@ -108,6 +108,10 @@ function correctionName(
       return "Poisson";
     case "F84":
       return "F84";
+    case "Supplied":
+      // Engine `name()` spelling (v1.4c); the matrix exercise shape
+      // lands in Task 5.
+      return "supplied";
   }
 }
 

@@ -22,6 +22,7 @@ const VARIANTS: NeoError[] = [
   { kind: "InvalidEdit", msg: "duplicate taxon name 'Human'" },
   { kind: "ModelAlphabetMismatch", model: "JC69", alphabet: "protein" },
   { kind: "NoSitesKept", filter: "complete" },
+  { kind: "InvalidMatrix", row: "c", col: "a", msg: "distance must be finite" },
 ];
 
 const TITLES: Record<NeoError["kind"], string> = {
@@ -38,6 +39,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   ModelAlphabetMismatch: "JC69 doesn't fit this data",
   BootstrapFailed: "Every bootstrap replicate failed",
   NoSitesKept: "The gap filter removed every site",
+  InvalidMatrix: "This distance matrix has a problem",
 };
 
 describe("errorMessage", () => {
