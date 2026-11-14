@@ -233,7 +233,7 @@ export async function pasteImport(page: Page, text: string): Promise<void> {
  * paper itself, i.e. white. */
 export async function printColors(
   page: Page,
-): Promise<{ background: number; text: number }> {
+): Promise<{ background: number; text: number; page: number }> {
   return page.evaluate(() => {
     const lum = (c: string): number | null => {
       const n = (c.match(/[\d.]+/g) ?? []).map(Number);
@@ -254,7 +254,19 @@ export async function printColors(
     }
     const text =
       heading === null ? 0 : (lum(getComputedStyle(heading).color) ?? 0);
-    return { background, text };
+    // The paper around the content: <html>, <body> and every ancestor of
+    // the printed block. A dark one shows below the last line of the
+    // last page (and between page blocks) even when the block is light.
+    let page = 1;
+    const block = document.querySelector(".lab-print") ?? heading;
+    const around: Element[] = [document.documentElement, document.body];
+    for (let a = block?.parentElement ?? null; a !== null; a = a.parentElement)
+      around.push(a);
+    for (const a of around) {
+      const l = lum(getComputedStyle(a).backgroundColor);
+      if (l !== null) page = Math.min(page, l);
+    }
+    return { background, text, page };
   });
 }
 

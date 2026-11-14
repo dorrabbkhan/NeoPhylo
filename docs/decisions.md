@@ -6841,3 +6841,25 @@ Owner-requested rendering fixes after the PR #139 review; branch
   removed without being committed.
 - **`CITATION.cff`:** `date-released: "2026-11-13"` — the owner's
   planned tag date.
+
+### Fix round (owner finding 2026-11-14)
+
+- **Dark paper below/around printed handouts (files outside the Task
+  14 Files block, owner finding):** `web/src/views/labs/LabPrintStyles.tsx`,
+  `web/e2e/labs.spec.ts`. `LabPrintStyles` re-mapped the tokens to
+  light only on `.lab-print` under `@media print`, so index.css's
+  `:root { background: var(--color-bg) }` still resolved the session's
+  dark `--color-bg` — the printed PDF was dark below the handout's
+  last line and between page blocks on all 7 lab pages and `?labs`.
+  The component now emits the same light map on
+  `:root:has(.lab-print)` (with `color-scheme: light`), so `<html>`,
+  `<body>` and `#root` resolve light on paper; the dark-theme e2e test
+  also asserts every `.lab-print` ancestor prints transparent or at
+  luminance > 0.85.
+- **Checker checks the paper, not only the handout (files outside the
+  Files block):** `scripts/checkpoint/browser/audit.ts`
+  (`printColors` also returns `page`, the minimum luminance of
+  `<html>`, `<body>` and the printed block's ancestors),
+  `scripts/checkpoint/browser/release.spec.ts` (asserts `page` > 0.85
+  on every lab and the index), `docs/release-checkpoint.md` (the new
+  "First run" bullet).

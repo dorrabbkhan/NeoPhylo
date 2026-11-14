@@ -448,6 +448,9 @@ for (const lab of LABS) {
       .soft(c.background, "printed page is light whatever the screen theme")
       .toBeGreaterThan(0.85);
     expect.soft(c.text, "printed heading is dark").toBeLessThan(0.35);
+    expect
+      .soft(c.page, "paper around the handout (html, body, ancestors) is light")
+      .toBeGreaterThan(0.85);
     await shoot(page, info, "10-labs-print", lab.id);
     if (isChromium()) {
       await page.pdf({
@@ -483,6 +486,9 @@ test("§10 the lab index lists every lab and prints light", async ({
   const c = await printColors(page);
   expect.soft(c.background, "printed index is light").toBeGreaterThan(0.85);
   expect.soft(c.text, "printed heading is dark").toBeLessThan(0.35);
+  expect
+    .soft(c.page, "paper around the index (html, body, ancestors) is light")
+    .toBeGreaterThan(0.85);
   await shoot(page, info, "10-labs-print", "index");
   if (isChromium()) {
     await page.pdf({

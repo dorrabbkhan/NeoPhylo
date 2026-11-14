@@ -411,6 +411,10 @@ The browser pass was run without `--boot`.
   assertions on `?labs` and `?lab=mega-jc69-vs-k2p`). Checklist §10
   requires "light colors whatever the screen theme" for the lab index
   too.
+- ❌→✅ Dark paper below/around printed handouts (owner, 2026-11-14):
+  the handout block printed light but `<html>` kept the dark
+  background; fixed in the 2026-11-14 fix round, pinned by the e2e
+  test and by the checker's new paper check.
 - **§6 wording:** the pair-panel item can't be done on 16S, because the
   pair panel is protein-only (see the note above). It is checked on
   globins instead.
