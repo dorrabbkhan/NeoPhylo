@@ -54,6 +54,11 @@ pub enum DistModel {
     /// equal base frequencies — not K80's closed form (spec §3.3).
     /// `ratio` must be positive and finite.
     K2pPhylip { ratio: f64 },
+    /// The distances were supplied directly, not computed from an
+    /// alignment (v1.4c spec §5.2). `supports` is false for both
+    /// alphabets, so `compute`/`compute_filtered` refuse it through the
+    /// existing `ModelAlphabetMismatch` path.
+    Supplied,
 }
 
 impl DistModel {
@@ -70,6 +75,7 @@ impl DistModel {
             DistModel::Poisson => "Poisson",
             DistModel::F84 => "F84",
             DistModel::K2pPhylip { .. } => "K2P_PHYLIP",
+            DistModel::Supplied => "supplied",
         }
     }
 
@@ -247,11 +253,13 @@ fn distance(counts: &PairCounts, model: DistModel, params: &DnaParams) -> Cell {
     let p = counts.differences as f64 / sites;
     match model {
         DistModel::P => Cell::Value(p),
-        // Unreachable: `supports` keeps protein models out of the DNA
-        // dispatch that calls this function, and `compute` handles
-        // protein pairs through `protein_dist` directly. A saturated
-        // cell is the honest fallthrough for a wrong model.
-        DistModel::Kimura | DistModel::Jtt | DistModel::Poisson => Cell::Saturated,
+        // Unreachable: `supports` keeps protein models (and `Supplied`)
+        // out of the dispatch that calls this function, and `compute`
+        // handles protein pairs through `protein_dist` directly. A
+        // saturated cell is the honest fallthrough for a wrong model.
+        DistModel::Kimura | DistModel::Jtt | DistModel::Poisson | DistModel::Supplied => {
+            Cell::Saturated
+        }
         // dnadist's ML solves; `params` is built for the same model in
         // `compute_weighted`, so the Other arm is unreachable in
         // practice and Saturated stays the honest fallthrough.

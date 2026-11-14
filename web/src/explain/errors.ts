@@ -90,6 +90,16 @@ export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
         title: "The gap filter removed every site",
         body: `${e.filter} deletion dropped all columns — every site has too much missing data for that treatment. Choose pairwise deletion or a lower partial cutoff, or use sequences with less missing data.`,
       };
+    case "InvalidMatrix":
+      // v1.4c spec §5: row/col name the cell; both empty when the
+      // problem is structural (wrong length, empty name).
+      return {
+        title: "This distance matrix has a problem",
+        body:
+          e.row === "" && e.col === ""
+            ? e.msg
+            : `Cell (${e.row}, ${e.col}): ${e.msg}`,
+      };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";
