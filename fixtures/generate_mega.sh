@@ -47,6 +47,13 @@
 # the other fixtures. Everything else is skipped; nothing existing is
 # touched.
 #
+# `--matrix-only` (v1.4c Task 2) runs ONLY the distance-matrix phase:
+# megacc NJ and UPGMA on every committed fixtures/inputs/matrix/*.meg
+# (LowerLeft distance inputs, derived from the .phy files by
+# generate_phylip.sh) via the matrix_nj.mao / matrix_upgma.mao files,
+# into fixtures/mega/matrix/<name>.json. The runs are deterministic —
+# no resampling anywhere — so this phase is also part of a full run.
+#
 # The .mao files use MEGA's GUI serialization (the `Gaps/Missing Data`
 # key), so megacc 12.1.4 applies the declared gap treatment itself —
 # hand-written .mao files using `Gaps/Missing Data Treatment` are echoed
@@ -58,27 +65,31 @@
 # count each complete/partial-95 treatment should leave and fails if
 # MEGA's reported "No. of Sites" differs.
 #
-# Usage: bash fixtures/generate_mega.sh [--boot1000-only]   (from anywhere)
-# Requires: megacc on PATH, python3, cargo (for the write_meg helper).
+# Usage: bash fixtures/generate_mega.sh [--boot1000-only|--matrix-only]
+# Requires: megacc on PATH, python3, cargo (for the write_meg helper;
+# not needed under --matrix-only).
 
 set -euo pipefail
 
 BOOT1000_ONLY=0
+MATRIX_ONLY=0
 if [ $# -gt 0 ]; then
   if [ $# -eq 1 ] && [ "$1" = "--boot1000-only" ]; then
     BOOT1000_ONLY=1
+  elif [ $# -eq 1 ] && [ "$1" = "--matrix-only" ]; then
+    MATRIX_ONLY=1
   else
-    echo "usage: bash fixtures/generate_mega.sh [--boot1000-only]" >&2
+    echo "usage: bash fixtures/generate_mega.sh [--boot1000-only|--matrix-only]" >&2
     exit 2
   fi
 fi
-export BOOT1000_ONLY
+export BOOT1000_ONLY MATRIX_ONLY
 
 FIXDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 command -v megacc >/dev/null 2>&1 || { echo "megacc not installed; see fixtures/mega/README.md" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 required" >&2; exit 1; }
-command -v cargo >/dev/null 2>&1 || { echo "cargo required for fixtures/tools/write_meg" >&2; exit 1; }
+[ "$MATRIX_ONLY" = "1" ] || command -v cargo >/dev/null 2>&1 || { echo "cargo required for fixtures/tools/write_meg" >&2; exit 1; }
 
 MEGACC_VERSION="$(megacc --version 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
 MEGACC_BUILD="$(megacc --version 2>/dev/null | sed -n 's/^Build: //p' | head -1)"
@@ -99,6 +110,7 @@ MAO = os.path.join(FIXDIR, 'mega', 'mao')
 OUT = os.path.join(FIXDIR, 'mega')
 VER = os.environ['MEGACC_VERSION'].strip() + ' (build ' + os.environ['MEGACC_BUILD'].strip() + ')'
 BOOT1000_ONLY = os.environ.get('BOOT1000_ONLY') == '1'
+MATRIX_ONLY = os.environ.get('MATRIX_ONLY') == '1'
 
 DNA_MISSING_OK = set('ACGT')
 AA_STATES = set('ARNDCQEGHILKMFPSTWYV')
@@ -525,7 +537,7 @@ def process(relpath, alphabet, out_dir=None, boot_runs=None):
         f.write('\n')
     print(f'wrote {out_path}  (dist {dist_dec} dp, nwk {nwk_dec} dp)')
 
-if not BOOT1000_ONLY:
+if not BOOT1000_ONLY and not MATRIX_ONLY:
     for f in dna_inputs:
         process(f'inputs/{f}', 'dna')
     for f in prot_inputs:
@@ -539,7 +551,7 @@ if not BOOT1000_ONLY:
 # not compared on rerun.
 LIB_DIR = os.path.join(OUT, 'library')
 
-if not BOOT1000_ONLY:
+if not BOOT1000_ONLY and not MATRIX_ONLY:
     for relpath, alphabet in LIB_INPUTS:
         nm = os.path.splitext(os.path.basename(relpath))[0]
         process(relpath, alphabet, out_dir=LIB_DIR, boot_runs=BOOT_RUNS[nm])
@@ -629,9 +641,64 @@ def roundtrip(fasta_rel):
         f.write('\n')
     print(f'wrote {out_path}  (round trip verified vs {name}.json)')
 
-if not BOOT1000_ONLY:
+if not BOOT1000_ONLY and not MATRIX_ONLY:
     for f in dna_inputs:
         roundtrip(f'inputs/{f}')
+
+# --- distance-matrix phase (v1.4c Task 2): megacc NJ and UPGMA on every
+# committed fixtures/inputs/matrix/*.meg (LowerLeft distance inputs,
+# derived from the .phy files by generate_phylip.sh) via matrix_nj.mao /
+# matrix_upgma.mao -> fixtures/mega/matrix/<name>.json. Deterministic
+# (no resampling): runs on a full run and under --matrix-only, the only
+# phase that flag runs.
+def process_matrix(meg_rel):
+    name = os.path.splitext(os.path.basename(meg_rel))[0]
+    src = os.path.join(FIXDIR, meg_rel)
+    used_maos, trees = {}, {}
+    nwk_dec = None
+    for method, stat in (('nj', 'Neighbor-joining'),
+                         ('upgma', 'UPGMA')):
+        maof = f'matrix_{method}.mao'
+        used_maos[maof] = sha256(os.path.join(MAO, maof))
+        out = os.path.join(TMPD, f'mx_{name}_{method}')
+        summary = run_megacc(os.path.join(MAO, maof), src, out)
+        nwk_path = out + '.nwk'
+        if not os.path.exists(nwk_path):
+            sys.exit(f'no newick: {nwk_path}')
+        check_echo(summary, {'Statistical Method': stat,
+                             'datatype': 'snDistance'})
+        nwk, dec = nwk_decimals(nwk_path)
+        nwk_dec = dec if nwk_dec is None else max(nwk_dec, dec)
+        trees[method] = nwk
+    doc = {
+        'generator': {
+            'megacc': VER,
+            'mao_sha256': dict(sorted(used_maos.items())),
+            'note': 'MEGA-CC on a committed LowerLeft distance .meg '
+                    '(datatype=snDistance); the Statistical Method echo '
+                    'is asserted per run.',
+        },
+        'input': meg_rel.replace(os.sep, '/'),
+        'precision': {'branch_lengths': nwk_dec},
+        'trees': trees,
+    }
+    out_dir = os.path.join(OUT, 'matrix')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, name + '.json')
+    with open(out_path, 'w') as f:
+        json.dump(doc, f, indent=1)
+        f.write('\n')
+    print(f'wrote {out_path}  (nwk {nwk_dec} dp)')
+
+if not BOOT1000_ONLY:
+    mat_inputs = sorted(
+        f for f in os.listdir(os.path.join(FIXDIR, 'inputs', 'matrix'))
+        if f.endswith('.meg'))
+    if not mat_inputs:
+        sys.exit('no inputs/matrix/*.meg; run fixtures/generate_phylip.sh '
+                 'first')
+    for f in mat_inputs:
+        process_matrix(f'inputs/matrix/{f}')
 
 # --- boot1000 phase (owner ruling on #126, option A): the same NJ
 # bootstrap runs as the library 100-replicate blocks, at 1,000
@@ -724,7 +791,8 @@ def process_boot1000(relpath, alphabet, boot_runs):
         f.write('\n')
     print(f'wrote {out_path}  (1,000-replicate bootstrap)')
 
-for relpath, alphabet in LIB_INPUTS:
-    nm = os.path.splitext(os.path.basename(relpath))[0]
-    process_boot1000(relpath, alphabet, BOOT_RUNS[nm])
+if not MATRIX_ONLY:
+    for relpath, alphabet in LIB_INPUTS:
+        nm = os.path.splitext(os.path.basename(relpath))[0]
+        process_boot1000(relpath, alphabet, BOOT_RUNS[nm])
 PYEOF

@@ -57,6 +57,18 @@ independently computed kept-site count for `complete`/`partial95`.
   minus `trees` (`precision` has `distances` only). During generation
   every matrix is asserted equal, cell for cell, to the matrix MEGA
   produced from the FASTA in `<name>.json` (success criterion 4).
+- `mao/matrix_{nj,upgma}.mao` — inference settings for a
+  `datatype = snDistance` input (a distance matrix instead of an
+  alignment); no substitution model or gap treatment applies.
+- `matrix/<name>.json` — MEGA-CC NJ and UPGMA on every committed
+  `inputs/matrix/*.meg` (LowerLeft distance matrices derived from the
+  `.phy` inputs by `generate_phylip.sh`):
+  `{ "generator": {...}, "input": "inputs/matrix/<name>.meg",
+     "precision": { "branch_lengths": <max decimals seen> },
+     "trees": { "nj": "<newick>", "upgma": "<newick>" } }`.
+  Deterministic — regenerate just this phase with
+  `bash fixtures/generate_mega.sh --matrix-only`. The runs are part of a
+  full run as well; the `Statistical Method` echo is asserted per run.
 
 ## JSON format
 

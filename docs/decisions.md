@@ -6887,3 +6887,29 @@ Owner-requested rendering fixes after the PR #139 review; branch
   ≤ 8 taxa, routes `?library`/`?worksheet`/`?key`/`?guide`, the session-storage gate,
   `imported.matrix` in URLs with `v` still 3, lesson ids `nj-by-hand` and
   `upgma-vs-nj-matrix`).
+
+## v1.4c Task 2: matrix fixtures; ambiguous-tie ruling
+
+- **The identity:** at four active NJ nodes the complementary pairs share the
+  minimum Q identically — Q(i,j) = Q(k,l) = d(i,j) + d(k,l) − S, where S is the
+  sum of all six active distances — so every NJ run on n ≥ 5 taxa has a tie at
+  its last pairwise join. The plan's original premise ("no tie at any NJ join")
+  is unsatisfiable.
+- **Owner ruling (option A, 2026-11-14):** "tie-free" means *no ambiguous tie*
+  (no two minimum-Q pairs that give different splits); the four-active
+  complement tie is allowed because joining either pair yields the same split
+  with identical branch lengths. Option B (ship `nj_wikipedia5` as the lesson
+  matrix) was rejected — its answer is one search away. Option C (change the
+  engine `tie` flag) was rejected — the flag stays unchanged; worksheets and
+  keys report the benign case via the new `JoinFacts.tie_same_split` (Task 6).
+- **Side note:** the existing explanation panel already shows "Tie: chosen by
+  input order." at every last pairwise join, so nothing changes there in
+  v1.4c Task 2; worksheets and answer keys follow the updated spec §7.2 ("A
+  four-active complement tie is shown as 'either pair gives the same tree'").
+- **Files outside the Files block:** the spec
+  (`docs/superpowers/specs/2026-11-14-neophylo-v1.4c-matrix-and-library-design.md`)
+  and the plan (`docs/superpowers/plans/2026-11-14-neophylo-v1.4c-plan.md`)
+  carry the ruling's wording (this entry); `docs/decisions.md` carries the
+  entry itself; `fixtures/mega/README.md` documents the new `mao/matrix_*.mao`
+  files, `mega/matrix/` layout and `--matrix-only` flag (fixture docs for the
+  same feature — the plan's Files block covered only `fixtures/README.md`).

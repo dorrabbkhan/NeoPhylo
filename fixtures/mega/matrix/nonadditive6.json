@@ -1,0 +1,18 @@
+{
+ "generator": {
+  "megacc": "12.1.4 (build 12261022-x86_64)",
+  "mao_sha256": {
+   "matrix_nj.mao": "d2fb7881ad5daa8a56b93230a29891b1ff1d1e5412653898418adc68aa795e8f",
+   "matrix_upgma.mao": "99657f74c026173206e552f8146a62337b05565d2c0bbd26893482ed6fcee663"
+  },
+  "note": "MEGA-CC on a committed LowerLeft distance .meg (datatype=snDistance); the Statistical Method echo is asserted per run."
+ },
+ "input": "inputs/matrix/nonadditive6.meg",
+ "precision": {
+  "branch_lengths": 14
+ },
+ "trees": {
+  "nj": "(a:6.0,(b:2.66666666666667,d:-0.666666666666667):6.0,((c:12.75,e:5.25):9.5,f:6.5):5.5);",
+  "upgma": "(((a:6.5,(b:1.0,d:1.0):5.5):2.66666666666667,f:9.16666666666667):5.58333333333333,(c:9.0,e:9.0):5.75);"
+ }
+}

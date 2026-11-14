@@ -1,0 +1,14 @@
+#mega
+!Title nj_by_hand;
+!Format DataType=Distance DataFormat=LowerLeft NTaxa=5;
+
+#a
+#b
+#c
+#d
+#e
+
+5
+15 10
+9 10 8
+8 9 7 3
