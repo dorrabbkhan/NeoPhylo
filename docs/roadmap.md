@@ -3,7 +3,8 @@
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
 rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)** and
 **v1.4b (MEGA companion and data library)** released or releasing; **next: v1.4c** (matrix input,
-accession fetch and lesson library). Last revised 2026-11-04.
+lesson library and worksheets). Last revised 2026-11-14 (market check:
+`docs/market/2026-11-14-market-check.md`).
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -88,13 +89,17 @@ validation discipline: an independent oracle, property tests and fuzzing.
 - Sandbox correction menu offers `F84`, `K2P_PHYLIP` and the new models (v1.4 shows `F84` and
   `K2P_PHYLIP` only in the editor and in exercises that prescribe them); built-in lessons stay unchanged.
 
-### v1.4c Matrix input, accession fetch and lesson library · *new — gets its own spec*
-- **Distance-matrix input:** start from a matrix (`.meg` and PHYLIP formats) and go straight to NJ/UPGMA,
-  for textbook-style "build the tree from this matrix" exercises.
-- **Fetch by UniProt/NCBI accession** in the browser (the app's first outside network request; privacy,
-  CORS and offline behavior are decided in its spec).
-- Lesson library page with learning objectives; printable worksheets with instructor answer keys;
-  an instructor guide (50-minute and 3-hour lab plans).
+### v1.4c Matrix input, lesson library and worksheets (M–L) · *spec: `docs/superpowers/specs/2026-11-14-neophylo-v1.4c-matrix-and-library-design.md`*
+- **Distance-matrix input:** open (`.meg`, PHYLIP), paste or type a matrix and go straight to NJ/UPGMA,
+  for textbook-style "build the tree from this matrix" exercises; matrix exercises in the editor
+  (typed, or derived from a drawn tree) and two new matrix lessons.
+- **Lesson library page** with learning objectives; **worksheets** generated for every lesson and lab
+  (in-app companion sheets and pencil-and-paper matrix sheets) with **engine-computed answer keys**
+  behind an "I'm an instructor" step; an instructor guide (50-minute and 3-hour lab plans).
+- MEGA handouts: check MEGA 12's "Adaptive" bootstrap option (it picks the replicate count itself) and,
+  if the GUI offers it by default, tell students to set a fixed 100 so their run matches the handout.
+- Fetch by accession moved to v1.9 (owner, 2026-11-14): fetched sequences are unaligned, so fetch is
+  only useful once alignment exists.
 
 ### v1.5 Classroom delivery and basic assessment (M) · 🟡 EARLY-ADOPTER PILOT POINT
 - Embed mode (iframe-friendly) for LMS pages; presenter mode; an offline "lab pack" download.
@@ -103,6 +108,11 @@ validation discipline: an independent oracle, property tests and fuzzing.
   - auto-checked tasks (predict the pair, compute a Q-value, identify the weakest-supported group)
   - signed completion codes students paste into the LMS, verifiable by the instructor offline
 - Per-lesson "copy assignment text" for the LMS.
+- **Accessibility conformance for adoption:** a WCAG 2.1 AA self-audit (the existing axe checks plus a
+  manual keyboard and screen-reader pass over every view, including embed mode) and a published
+  Accessibility Conformance Report (VPAT). US public universities must meet WCAG 2.1 AA under ADA
+  Title II by 2027-04-26 and review embedded/LTI tools before use, so any pilot after that date needs it.
+  The independent audit stays in v3.2.
 
 > **🟡 After v1.5:** an instructor can replace a full distance-plus-bootstrap lab, author their own
 > exercises, give each student their own variant, and verify completion. Serious outreach should already
@@ -145,6 +155,8 @@ validation discipline: an independent oracle, property tests and fuzzing.
   BLOSUM/PAM scoring and gap penalties as controls.
 - Simple progressive multiple alignment (≤ 20 sequences) guided by an NJ tree.
 - Pasting unaligned sequences offers "Align them" instead of an error.
+- **Fetch by UniProt/NCBI accession** in the browser, then align (moved from v1.4c): the app's first
+  outside network request; privacy, CORS and offline behavior are decided in its spec.
 - Lesson: "Alignment is a hypothesis." Oracle: published DP examples, Biostrings/Clustal/MEGA outputs.
 
 ### v2.0 Parsimony and course pack (L) · 🟢 POWERHOUSE
@@ -217,8 +229,9 @@ results; notebook export (Jupyter/R Markdown).
 
 | When | Track |
 |---|---|
-| From v1.2 onward | Outreach: lab-handout search (`protdist`, `neighbor`, `seqboot`, `consense`, and MEGA labs), personalized emails with each lab's data loaded, about 10 per week; one phylogeneticist reviewer |
-| Spring 2027 term | First 2–3 pilots (on v1.2–v1.5) |
+| Deferred (owner, 2026-11-14) | Outreach and pilots wait until the owner judges the product solid and impressive; revisit at v1.5 and v2.0. When it starts: |
+| — | Outreach: lab-handout search (`protdist`, `neighbor`, `seqboot`, `consense`, and MEGA labs), personalized emails with each lab's data loaded, about 10 per week; one phylogeneticist reviewer |
+| When outreach starts | First 2–3 pilots |
 | After the first pilot | **Submit one lesson to CourseSource/QUBES** with the pilot's classroom data |
 | After a few pilots | JOSS paper; first education or open-source grant application |
 | After v2.0 | *BAMBED* paper with classroom data; conference demos (evolution or biochem education meetings) |
