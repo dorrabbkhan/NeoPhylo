@@ -314,6 +314,118 @@ test("the print view hides the controls and keeps the handout and settings table
   ).toBeVisible();
 });
 
+// v1.4b fix round (owner's release-checkpoint run, checklist §10):
+// the lab index must print in LIGHT colors like the lab pages — a
+// dark-theme session must not put the dark palette on paper. The
+// index renders `.lab-print` but used to skip LabPrintStyles, the
+// component that re-maps the tokens to light under @media print. The
+// thresholds pin "light paper, dark text" without naming a token
+// value; pre-fix the index fails both (dark --color-bg behind the h1,
+// light --color-text-h text).
+test("a dark-theme session still prints the lab pages light", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo.theme", "dark");
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+
+  /** WCAG relative luminance of a computed rgb()/rgba() string. */
+  const luminance = (cssColor: string): number => {
+    const m = cssColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) throw new Error(`not an rgb() color: ${cssColor}`);
+    const channel = (v: number) => {
+      const c = v / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return (
+      0.2126 * channel(Number(m[1])) +
+      0.7152 * channel(Number(m[2])) +
+      0.0722 * channel(Number(m[3]))
+    );
+  };
+
+  // The background behind the h1: its own background-color, else the
+  // first non-transparent ancestor's; transparent all the way up is
+  // white paper. The h1's own color is what prints as text.
+  const printColors = (h1: import("@playwright/test").Locator) =>
+    h1.evaluate((el) => {
+      const transparent = (c: string) =>
+        c === "transparent" || /^rgba\(.*,\s*0(?:\.0+)?\)$/.test(c);
+      let bg = "rgb(255, 255, 255)";
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        const c = getComputedStyle(n).backgroundColor;
+        if (!transparent(c)) {
+          bg = c;
+          break;
+        }
+      }
+      return { bg, fg: getComputedStyle(el).color };
+    });
+
+  const transparent = (c: string) =>
+    c === "transparent" || /^rgba\(.*,\s*0(?:\.0+)?\)$/.test(c);
+
+  // The paper AROUND the handout: <html>, <body> and every ancestor
+  // of `.lab-print`. index.css paints <html> with
+  // `background: var(--color-bg)` — pre-fix a dark session kept that
+  // dark on paper below the handout's last line and between page
+  // blocks even though the handout itself printed light (owner
+  // finding 2026-11-14).
+  const paperColors = (block: import("@playwright/test").Locator) =>
+    block.evaluate((el) => {
+      const chain: Element[] = [document.documentElement, document.body];
+      for (let a = el.parentElement; a; a = a.parentElement) chain.push(a);
+      return chain.map((n) => ({
+        tag: n.tagName.toLowerCase() + (n.id ? `#${n.id}` : ""),
+        bg: getComputedStyle(n).backgroundColor,
+      }));
+    });
+
+  const expectLightPrint = async (
+    url: string,
+    h1: string,
+  ): Promise<void> => {
+    await page.goto(url);
+    const heading = page.getByRole("heading", {
+      name: h1,
+      exact: true,
+      level: 1,
+    });
+    await expect(heading).toBeVisible();
+    await page.emulateMedia({ media: "print" });
+    const { bg, fg } = await printColors(heading);
+    expect(
+      luminance(bg),
+      `${url} prints on light paper (background ${bg})`,
+    ).toBeGreaterThan(0.85);
+    expect(
+      luminance(fg),
+      `${url} prints dark text (color ${fg})`,
+    ).toBeLessThan(0.35);
+    for (const { tag, bg: paper } of await paperColors(
+      page.locator(".lab-print"),
+    )) {
+      if (!transparent(paper)) {
+        expect(
+          luminance(paper),
+          `${url} prints light paper around the handout (${tag} ${paper})`,
+        ).toBeGreaterThan(0.85);
+      }
+    }
+  };
+
+  await expectLightPrint("/?labs", "Labs");
+  await expectLightPrint(
+    "/?lab=mega-jc69-vs-k2p",
+    "MEGA: JC69 vs K2P on primate mtDNA",
+  );
+});
+
 test("a MEGA lab groups under MEGA labs on the index and its page shows the MEGA columns and note heading", async ({
   page,
 }) => {

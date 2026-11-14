@@ -6759,3 +6759,107 @@ Owner-requested rendering fixes after the PR #139 review; branch
   first-run note says "if you have not yet", and the second-run note
   says the counts CAN move; the four
   `lab-mega-interpreting-support-print` baselines regenerated.
+
+## v1.4b Task 14: release checkpoint, roadmap, CITATION
+
+- **Files outside the Files block:** this entry (`docs/decisions.md`),
+  as every task records.
+- **Checkpoint:** `docs/checkpoints/v1.4b-release.md`, modeled on
+  `v1.4-release.md`. Every number it asks the owner to compare in
+  MEGA's GUI is taken from the committed MEGA-CC 12.1.4 fixtures
+  (`fixtures/mega/library/*.json`, `boot1000/16s-rrna.json`), not
+  written from memory; per-item automated coverage is cited
+  (`parity_mega_library.rs` test names). Items only a human can do —
+  real MEGA GUI comparisons, printing, the Safari pass, deploy-preview
+  spot-checks, sign-offs, the tag — are left unchecked and say so.
+- **`docs/roadmap.md`:** the Status line — v1.4b joins the "released
+  or releasing" list, next becomes v1.4c, and the revision date moves
+  to today (2026-11-04). No section content changed.
+- **`CITATION.cff`:** `version: 1.4.1`; `date-released` set to
+  2026-11-05 at the owner's request on 2026-11-05 (change it if the
+  tag lands on another day).
+- **Tag name ambiguity resolved as `v1.4.1`:** the milestone is named
+  v1.4b but production deploys only on `v*.*.*` tags
+  (`.github/workflows/ci.yml`), and roadmap v1.5 is a different
+  milestone (classroom delivery), so the release tag/CITATION version
+  is `v1.4.1`. The owner confirmed the tag name on 2026-11-05 — the
+  tag itself is owner-only.
+- **Resolved rulings restated, open issue flagged:** the checkpoint's
+  §12 records #126 (bootstrap noise/ties, option A — #127 fixtures +
+  #128 test) and #117 (no `JTT_MEGA`) as resolved, and carries open
+  issue #135 (header overflow at 375 px) for the owner to weigh
+  against the tag.
+- **E2E not run in this sandbox:** `E2E=1 ./scripts/check.sh` cannot
+  run here (docker/Playwright image unreliable in the agent sandbox,
+  same as the v1.4 checkpoint task); `./scripts/check.sh` was run —
+  e2e coverage comes from CI, and the checkpoint lists checking the
+  `main` push run's full browser matrix as a gate item.
+- **Owner-requested fix for issue #135 in this PR (files outside the
+  Files block):** `web/e2e/narrow.spec.ts` (new spec),
+  `web/src/views/labs/LabPage.tsx`, `web/src/views/labs/LabIndex.tsx`,
+  `web/src/views/labs/labs.css`, `docs/checkpoints/v1.4b-release.md`.
+  Conductor measurements on this branch: the header itself is already
+  inside `[0, viewport width]` with every control ≥40×40 on Lesson,
+  Sandbox, `?labs` and `?lab=<id>` at 320/360/375 px — the sideways
+  scroll came from `table.lab-settings` (`?lab=mega-jc69-vs-k2p` and
+  `?lab=mega-interpreting-support` at 375×812: scrollWidth 450/463)
+  and from lab cards reaching right=336 on `?labs` at 320 px. Fixed
+  by wrapping each settings table in `.lab-settings-scroll`
+  (`overflow-x: auto`, `role="region"`, `tabIndex={0}`, named; the
+  index cards' regions are labelled per lab so names stay unique),
+  `min-width: 0` on `.lab-card` so the grid item can shrink past its
+  min-content, `overflow-wrap: anywhere` on `.lab-chain`, and
+  `overflow: visible` on the region in `@media print` so the whole
+  table still prints. `narrow.spec.ts` pins (a) on-screen
+  `header.app-header`/`header.lab-page-head` controls inside
+  `[0, width]` at ≥40×40 and (b) `scrollWidth <= innerWidth` on the
+  Lesson view, Sandbox view, `?labs` and every shipped `?lab=<id>` at
+  375×812 with `hasTouch`, plus `?labs` at 320×640. Playwright does
+  not run in this sandbox — the spec's expected pre-fix failures are
+  the conductor's own scrollWidth and card-edge measurements; CI runs
+  the e2e.
+
+### Fix round (owner request 2026-11-13)
+
+- **Lab index printed dark from a dark session (files outside the
+  Task 14 Files block, owner request):** `web/src/views/labs/LabIndex.tsx`,
+  `web/e2e/labs.spec.ts`, `web/src/views/labs/LabPrintStyles.tsx`
+  (header comment). `LabIndex` rendered `.lab-print` but never
+  rendered `LabPrintStyles`, so `?labs` kept the session's dark
+  tokens under `@media print` while the lab pages printed light. The
+  index now renders `<LabPrintStyles />` exactly like `LabPage` does;
+  the new e2e test pins light paper + dark text under a stored dark
+  theme on both `?labs` and `?lab=mega-jc69-vs-k2p`.
+- **Release-checkpoint runbook and helpers (files outside the Files
+  block, owner request):** `docs/release-checkpoint.md`,
+  `docs/checkpoints/v1.4b-release.md` (runbook pointer paragraph),
+  `scripts/checkpoint/` (`run.sh`, `preflight.sh`, `browser.sh`,
+  `mega_verify.py`, `report.py`, `browser/`). Local release tooling —
+  never run in CI; the browser checker lives under `scripts/` and is
+  staged next to `web/node_modules` at run time. The obsolete copy at
+  `web/checkpoint/` and `web/playwright.checkpoint.config.ts` was
+  removed without being committed.
+- **`CITATION.cff`:** `date-released: "2026-11-13"` — the owner's
+  planned tag date.
+
+### Fix round (owner finding 2026-11-14)
+
+- **Dark paper below/around printed handouts (files outside the Task
+  14 Files block, owner finding):** `web/src/views/labs/LabPrintStyles.tsx`,
+  `web/e2e/labs.spec.ts`. `LabPrintStyles` re-mapped the tokens to
+  light only on `.lab-print` under `@media print`, so index.css's
+  `:root { background: var(--color-bg) }` still resolved the session's
+  dark `--color-bg` — the printed PDF was dark below the handout's
+  last line and between page blocks on all 7 lab pages and `?labs`.
+  The component now emits the same light map on
+  `:root:has(.lab-print)` (with `color-scheme: light`), so `<html>`,
+  `<body>` and `#root` resolve light on paper; the dark-theme e2e test
+  also asserts every `.lab-print` ancestor prints transparent or at
+  luminance > 0.85.
+- **Checker checks the paper, not only the handout (files outside the
+  Files block):** `scripts/checkpoint/browser/audit.ts`
+  (`printColors` also returns `page`, the minimum luminance of
+  `<html>`, `<body>` and the printed block's ancestors),
+  `scripts/checkpoint/browser/release.spec.ts` (asserts `page` > 0.85
+  on every lab and the index), `docs/release-checkpoint.md` (the new
+  "First run" bullet).

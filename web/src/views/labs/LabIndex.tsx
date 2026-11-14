@@ -17,6 +17,7 @@
 import type { LabSummary } from "../../labs/registry";
 import { listLabs } from "../../labs/registry";
 import { Wordmark } from "../Wordmark";
+import { LabPrintStyles } from "./LabPrintStyles";
 
 import "./labs.css";
 
@@ -42,22 +43,33 @@ function LabCard({ lab }: { lab: LabSummary }) {
           <li key={i}>{o}</li>
         ))}
       </ul>
-      <table className="lab-settings">
-        <thead>
-          <tr>
-            <th scope="col">Option</th>
-            <th scope="col">NeoPhylo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lab.settings.map((s, i) => (
-            <tr key={i}>
-              <td>{s.option}</td>
-              <td>{s.neophylo}</td>
+      {/* issue #135: the same scroll-in-place region the lab page
+          uses — the card shrinks to the column (min-width: 0 in
+          labs.css) and a too-wide table scrolls inside it. The label
+          names the lab so every region on the index stays unique. */}
+      <div
+        className="lab-settings-scroll"
+        role="region"
+        tabIndex={0}
+        aria-label={`${lab.title} settings`}
+      >
+        <table className="lab-settings">
+          <thead>
+            <tr>
+              <th scope="col">Option</th>
+              <th scope="col">NeoPhylo</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lab.settings.map((s, i) => (
+              <tr key={i}>
+                <td>{s.option}</td>
+                <td>{s.neophylo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="lab-card-actions">
         <a href={`?lab=${encodeURIComponent(lab.id)}`}>Open lab</a>
       </p>
@@ -97,6 +109,7 @@ export function LabIndex() {
   const megaLabs = labs.filter((l) => l.tool === "mega");
   return (
     <main className="lab-page lab-print">
+      <LabPrintStyles />
       <header className="lab-page-head lab-nav">
         <a
           className="editor-home"
