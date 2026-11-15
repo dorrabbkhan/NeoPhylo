@@ -90,7 +90,6 @@ import { stepMatrix, traceLength } from "./stepMatrix";
 import type { StepMatrix } from "./stepMatrix";
 import { TeachingNotices } from "./TeachingNotices";
 import { readTourSeen } from "../design/tour";
-import { Tour } from "./Tour";
 import { splitKeys } from "../layout/splitKeys";
 import { LEAF_SPACING_NATURAL } from "../layout/treePanel";
 import { TreeView } from "./TreeView";
@@ -143,6 +142,14 @@ const DatasetSheet = lazy(() =>
 // offline after first load.
 const BootstrapPanel = lazy(() =>
   import("./BootstrapPanel").then((m) => ({ default: m.BootstrapPanel })),
+);
+
+// The tour is a lazy chunk too (owner decision 2026-11-15, option A on
+// PR #152 — the v1.3 Task 14 / v1.4b precedent): fetched when a tour
+// step first renders, not with the app. The SW's `**/*.js` precache
+// keeps it working offline after first load.
+const Tour = lazy(() =>
+  import("./Tour").then((m) => ({ default: m.Tour })),
 );
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -1294,7 +1301,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
         </Suspense>
       )}
       {session.tourStep !== null && (
-        <Tour step={session.tourStep} dispatch={dispatch} />
+        <Suspense fallback={null}>
+          <Tour step={session.tourStep} dispatch={dispatch} />
+        </Suspense>
       )}
       {pairDetail !== null && session.alignment !== null && (
         <Suspense fallback={null}>

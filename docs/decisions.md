@@ -7128,7 +7128,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
 ## v1.4c Task 6: worksheet facts, matrix + worksheet wasm bindings
 
 - **`JoinFacts.final_join` + the NJ final entry (conductor's call,
-  v1.4c Task 6 notes):** the plan's `worksheet_facts` shape cannot
+  v1.4c Task 6 notes; owner confirmed 2026-11-15):** the plan's
+  `worksheet_facts` shape cannot
   represent NJ's three-way `NjFinal`, yet Step 1 requires a 3-taxon
   matrix to give one `JoinFacts`. Resolved: NJ returns one `JoinFacts`
   per `NjStep` plus one appended entry for `NjFinal` — `final_join:
@@ -7152,6 +7153,18 @@ Owner-requested rendering fixes after the PR #139 review; branch
   same rule for both methods. Node names match
   `state/names.ts::nodeName`: leaf labels or `u<id − leaves + 1>`
   (pinned by `names_match_stepper` and the Vitest stepMatrix check).
-- **Files outside the Files block:** none — the only generated file,
-  `web/src/engine/generated/JoinFacts.ts`, is covered by the block's
-  "`web/src/engine/generated/` (regenerated)" line.
+- **Tour lazy chunk (owner decision 2026-11-15, option A on PR
+  #152):** `web/src/views/App.tsx` is outside Task 6's Files block;
+  the task commit pushed initial JS to 120222 gz, 54 over the 120168
+  budget, and the owner kept the budget unchanged and made `Tour` a
+  lazy chunk on the PhylipHelp / ReplicatePanel / PairPanel /
+  BootstrapPanel precedent — the static `import { Tour }` became
+  `lazy(() => import("./Tour")…)` and the render sits inside
+  `<Suspense fallback={null}>` under the `tourStep !== null`
+  condition, so the chunk fetches only when a tour runs. Fresh build:
+  initial JS 120222 → 119309 gz; Tour chunk 1398 gz.
+- **Files outside the Files block:** none in the task commit — the
+  only generated file, `web/src/engine/generated/JoinFacts.ts`, is
+  covered by the block's "`web/src/engine/generated/` (regenerated)"
+  line. Fix round 1 added `web/src/views/App.tsx` (the Tour lazy chunk
+  above).
