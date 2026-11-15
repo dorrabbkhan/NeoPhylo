@@ -3,18 +3,26 @@ import type { Alphabet } from "./Alphabet";
 import type { Analysis } from "./Analysis";
 import type { ExerciseBootstrap } from "./ExerciseBootstrap";
 import type { ExerciseData } from "./ExerciseData";
+import type { ExerciseMeta } from "./ExerciseMeta";
 import type { Prompt } from "./Prompt";
 import type { Reference } from "./Reference";
 
 /**
  * A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4, v1.4b
- * spec §4). Always normalized to the v2-or-later shape;
- * `schema_version` reports 2 for v1 and v2 files, 3 for v3 files and
- * 4 for v4 files.
+ * spec §4, v1.4c spec §4). Always normalized to the v2-or-later
+ * shape; `schema_version` reports 2 for v1 and v2 files, 3 for v3
+ * files, 4 for v4 files and 5 for v5 files.
  */
 export type Exercise = { schema_version: number, id: string, title: string, alphabet: Alphabet, data: ExerciseData, reference: Reference | null, analysis: Analysis, locked: Array<string>, prompts: Array<Prompt>, 
 /**
  * The lesson's own bootstrap settings (v1.2 spec §7.1); `None`
  * leaves the app defaults (100 replicates, seed 1).
  */
-bootstrap: ExerciseBootstrap | null, };
+bootstrap: ExerciseBootstrap | null, 
+/**
+ * v1.4c spec §4.2: optional lesson metadata — objectives, a
+ * minutes estimate, a level and `prepares_for` links. Schema 5
+ * only; `None` is omitted from the wire shape so earlier files
+ * serialize unchanged.
+ */
+meta?: ExerciseMeta, };

@@ -1,0 +1,14 @@
+{
+  "schema_version": 5,
+  "id": "v5-matrix-neg-lower",
+  "title": "v5-matrix-neg-lower.json",
+  "summary": "v5-matrix-neg-lower.json",
+  "alphabet": "dna",
+  "data": {
+    "kind": "matrix",
+    "names": ["A","B","C","D"],
+    "lower": [0.2,-0.1,0.4,0.5,0.6,0.7],
+    "source": { "citation": "test", "license": "CC0", "accessions": [] }
+  },
+  "analysis": { "method": "NJ" }
+}

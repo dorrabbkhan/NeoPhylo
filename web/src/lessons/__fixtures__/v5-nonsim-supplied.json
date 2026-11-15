@@ -1,0 +1,13 @@
+{
+  "schema_version": 5,
+  "id": "v5-nonsim-supplied",
+  "title": "Supplied on simulated",
+  "summary": "Supplied on simulated",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "Supplied", "method": "NJ" }
+}

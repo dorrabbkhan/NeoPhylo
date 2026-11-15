@@ -1,0 +1,20 @@
+{
+  "schema_version": 5,
+  "id": "v5-meta",
+  "title": "Meta exercise",
+  "summary": "Meta exercise",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "meta": {
+    "objectives": ["read a tree"],
+    "minutes": 15,
+    "level": "intermediate",
+    "prepares_for": ["dnadist-neighbor"],
+    "hand_steps": 2
+  }
+}

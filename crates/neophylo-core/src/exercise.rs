@@ -20,9 +20,12 @@
 //! Later versions only add fields: v3 adds `analysis.kappa`,
 //! `sim.base_freqs` and the F84/K2P_PHYLIP identifiers (v1.4 spec §4),
 //! v4 adds `analysis.site_filter` and the `"Poisson"` identifier
-//! (v1.4b spec §4). Fields newer than the declared version are refused
-//! at their own path, presence-aware — a `"key": null` counts as
-//! present, never as absent.
+//! (v1.4b spec §4), and v5 adds `data.kind` `"matrix"` (a supplied
+//! distance matrix, which fixes `analysis.correction` to
+//! `DistModel::Supplied`) and the optional `meta` lesson-metadata
+//! block (v1.4c spec §4). Fields newer than the declared version are
+//! refused at their own path, presence-aware — a `"key": null` counts
+//! as present, never as absent.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -32,6 +35,7 @@ use crate::algos::Method;
 use crate::alphabet::{with_alphabet, Alphabet};
 use crate::dist::DistModel;
 use crate::error::NeoError;
+use crate::matrix_input::{validate_input, DistanceInput};
 use crate::newick::parse_newick;
 use crate::seq::parse_fasta;
 use crate::sim::{check_branch_lengths, check_spec, SimModel, SimSpec};
@@ -40,14 +44,14 @@ use crate::site_filter::SiteFilter;
 /// Exercise-level site cap (spec §4.2): files allow `10..=10_000`.
 const MAX_EXERCISE_LEN: u32 = 10_000;
 
-/// The schema version every writer emits once it supports the v1.4b
-/// fields (v1.4b spec §4). `load_exercise` accepts 1, 2, 3 and 4.
-pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+/// The schema version every writer emits once it supports the v1.4c
+/// fields (v1.4c spec §4). `load_exercise` accepts 1, 2, 3, 4 and 5.
+pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
 /// A parsed, validated exercise (v1.1 spec §3.6, v1.4 spec §4, v1.4b
-/// spec §4). Always normalized to the v2-or-later shape;
-/// `schema_version` reports 2 for v1 and v2 files, 3 for v3 files and
-/// 4 for v4 files.
+/// spec §4, v1.4c spec §4). Always normalized to the v2-or-later
+/// shape; `schema_version` reports 2 for v1 and v2 files, 3 for v3
+/// files, 4 for v4 files and 5 for v5 files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Exercise {
@@ -64,6 +68,13 @@ pub struct Exercise {
     /// leaves the app defaults (100 replicates, seed 1).
     #[serde(default)]
     pub bootstrap: Option<ExerciseBootstrap>,
+    /// v1.4c spec §4.2: optional lesson metadata — objectives, a
+    /// minutes estimate, a level and `prepares_for` links. Schema 5
+    /// only; `None` is omitted from the wire shape so earlier files
+    /// serialize unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub meta: Option<ExerciseMeta>,
 }
 
 /// An exercise file's `bootstrap` block (v1.2 spec §7.1): the panel's
@@ -88,6 +99,44 @@ pub enum ExerciseData {
     Simulated { true_tree: String, sim: SimSpec },
     /// A fixed alignment embedded in the lesson file.
     Embedded { fasta: String, source: Source },
+    /// v1.4c spec §4.1: a supplied distance matrix — `names` in row
+    /// order and `lower`, the strict lower triangle (`n·(n−1)/2`
+    /// values, diagonal implicitly zero). Schema 5 only.
+    Matrix {
+        names: Vec<String>,
+        lower: Vec<f64>,
+        source: Source,
+    },
+}
+
+/// A lesson's metadata block (v1.4c spec §4.2): learning objectives,
+/// a whole-session estimate in minutes, a level and the lesson/lab
+/// ids it prepares for. `hand_steps` overrides the paper worksheet's
+/// hand-worked join count. `minutes` and `hand_steps` are ≥ 1.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct ExerciseMeta {
+    pub objectives: Vec<String>,
+    pub minutes: u32,
+    pub level: Level,
+    pub prepares_for: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hand_steps: Option<u32>,
+}
+
+/// A lesson's difficulty level (v1.4c spec §4.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(
+    rename_all = "snake_case",
+    export,
+    export_to = "../../../web/src/engine/generated/"
+)]
+pub enum Level {
+    Intro,
+    Intermediate,
+    Advanced,
 }
 
 /// Provenance of an embedded alignment (v1.1 spec §3.6).
@@ -215,12 +264,13 @@ pub struct Prompt {
     pub after: Option<NoteAfter>,
 }
 
-/// Parse and validate an exercise file. `schema_version` must be 1, 2,
-/// 3 or 4; v1 files are migrated to the v2 `Exercise` shape (v1.1 spec
-/// §3.6), v3 files follow the v2 rules plus the v1.4 fields (§4) and v4
-/// files add the v1.4b fields (`analysis.site_filter`, the `"Poisson"`
-/// correction). `sim.length` is capped at `10_000` on top of the
-/// engine-level `SimSpec` checks.
+/// Parse and validate an exercise file. `schema_version` must be 1,
+/// 2, 3, 4 or 5; v1 files are migrated to the v2 `Exercise` shape
+/// (v1.1 spec §3.6), v3 files follow the v2 rules plus the v1.4 fields
+/// (§4), v4 files add the v1.4b fields (`analysis.site_filter`, the
+/// `"Poisson"` correction) and v5 files add the v1.4c fields
+/// (`data.kind` `"matrix"`, `meta`). `sim.length` is capped at
+/// `10_000` on top of the engine-level `SimSpec` checks.
 pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
     let f: ExerciseFile = serde_json::from_str(json).map_err(|e| NeoError::InvalidExercise {
         field: missing_field(&e).unwrap_or_else(|| "json".to_string()),
@@ -230,8 +280,8 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
     match f.schema_version {
         1 => load_v1(f),
         2 => load_v2(f, 2),
-        v @ (3 | 4) => {
-            // A v3/v4 file uses the v2 shape; a flat v1 body claiming
+        v @ (3..=5) => {
+            // A v3+ file uses the v2 shape; a flat v1 body claiming
             // either is a version mismatch, so the refusal names
             // schema_version rather than a missing `alphabet`.
             if f.data.is_none() && (f.true_tree.is_some() || f.sim.is_some()) {
@@ -245,7 +295,7 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
         }
         v => Err(bad(
             "schema_version",
-            &format!("schema_version must be 1, 2, 3 or 4, got {v}"),
+            &format!("schema_version must be 1, 2, 3, 4 or 5, got {v}"),
         )),
     }
 }
@@ -254,6 +304,11 @@ pub fn load_exercise(json: &str) -> Result<Exercise, NeoError> {
 /// (`data.kind = "simulated"`, a `kind: "true"` reference on the same
 /// Newick) while preserving the v1 validation order.
 fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
+    // A v5-only key in a v1 file is the version error, same rule as
+    // the v3/v4-only analysis keys `analysis` refuses below.
+    if f.meta.is_some() {
+        return Err(bad("meta", "meta requires schema_version 5"));
+    }
     let true_tree = f
         .true_tree
         .ok_or_else(|| bad("true_tree", "required for schema_version 1"))?;
@@ -300,15 +355,17 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
         locked: f.locked,
         prompts,
         bootstrap,
+        meta: None,
     })
 }
 
 /// A v2-or-later file: declared `alphabet`, `data.kind` choosing
-/// simulated vs embedded, and an optional `reference`. `v` is the
-/// declared version — v3 additionally accepts the v1.4 fields
+/// simulated vs embedded vs matrix, and an optional `reference`. `v`
+/// is the declared version — v3 additionally accepts the v1.4 fields
 /// (`analysis.kappa`, `sim.base_freqs`, the F84 and K2P_PHYLIP
-/// identifiers) and v4 the v1.4b fields (`analysis.site_filter`, the
-/// `"Poisson"` identifier); in an older file those are refused with a
+/// identifiers), v4 the v1.4b fields (`analysis.site_filter`, the
+/// `"Poisson"` identifier) and v5 the v1.4c fields (`data.kind`
+/// `"matrix"`, `meta`); in an older file those are refused with a
 /// message naming the required version.
 fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
     let alphabet = match f.alphabet.as_deref() {
@@ -327,7 +384,29 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
     let data = f
         .data
         .ok_or_else(|| bad("data", &format!("data is required for schema_version {v}")))?;
-    let analysis = analysis(&f.analysis, v)?;
+    // The v5 identifiers, presence-aware like the v3/v4 ones: a null
+    // `meta` key or a matrix data block in an older file is the
+    // version error, never "absent".
+    let is_matrix = matches!(&data, DataFile::Matrix { .. });
+    if is_matrix && v < 5 {
+        return Err(bad(
+            "data.kind",
+            "data.kind \"matrix\" requires schema_version 5",
+        ));
+    }
+    if f.meta.is_some() && v < 5 {
+        return Err(bad("meta", "meta requires schema_version 5"));
+    }
+    let analysis = if is_matrix {
+        matrix_analysis(&f.analysis)?
+    } else {
+        analysis(&f.analysis, v)?
+    };
+    let meta = match &f.meta {
+        None => None,
+        Some(None) => return Err(bad("meta", "meta must be an object, not null")),
+        Some(Some(raw)) => Some(meta_file(raw)?),
+    };
 
     // Per-kind validation; `labels` are the alignment's leaf labels,
     // which the reference tree must match.
@@ -361,13 +440,58 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
             let aln = with_alphabet(parsed, alphabet)?;
             (ExerciseData::Embedded { fasta, source }, aln.labels)
         }
+        DataFile::Matrix {
+            names,
+            lower,
+            source,
+        } => {
+            // v1.4c spec §4.1: names + the strict lower triangle,
+            // validated by `validate_input`; `names` are the leaf
+            // labels the reference and prompts must match.
+            let names = matrix_names(&names)?;
+            let lower = matrix_lower(&lower)?;
+            let source = matrix_source(&source)?;
+            let input = DistanceInput { names, lower };
+            validate_input(&input).map_err(|e| bad(matrix_field(&e), &e.to_string()))?;
+            let labels = input.names.clone();
+            (
+                ExerciseData::Matrix {
+                    names: input.names,
+                    lower: input.lower,
+                    source,
+                },
+                labels,
+            )
+        }
     };
 
-    if !analysis.correction.supports(alphabet) {
+    // `DistModel::Supplied` supports no alphabet — the check is skipped
+    // for matrix data, where the supplied matrix is the distances.
+    if !is_matrix && !analysis.correction.supports(alphabet) {
         return Err(NeoError::ModelAlphabetMismatch {
             model: analysis.correction.name().to_string(),
             alphabet,
         });
+    }
+
+    if is_matrix {
+        // No bootstrap stage exists on a matrix exercise, so a
+        // predict_branch prompt or a bootstrap block is refused
+        // (spec §4.1).
+        for (i, p) in f.prompts.iter().enumerate() {
+            if p.kind == "predict_branch" {
+                return Err(bad(
+                    &format!("prompts.{i}.type"),
+                    "predict_branch is not allowed on a matrix exercise",
+                ));
+            }
+        }
+        if f.bootstrap.is_some() {
+            return Err(bad(
+                "bootstrap",
+                "bootstrap is not allowed on a matrix exercise",
+            ));
+        }
     }
 
     let reference = reference(f.reference, &labels)?;
@@ -385,6 +509,7 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
         locked: f.locked,
         prompts,
         bootstrap,
+        meta,
     })
 }
 
@@ -467,6 +592,19 @@ fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
 /// K2P_PHYLIP transition/transversion ratio (default 2.0) and
 /// `site_filter` MEGA's gap treatment (v4-only).
 fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
+    // Absent, `null` and a string stay distinct (the `present` mirror):
+    // a matrix exercise is the only file allowed to omit `correction`,
+    // and this function never sees one.
+    let correction = match f.correction.as_ref() {
+        None => return Err(bad("analysis.correction", "correction is required")),
+        Some(None) => {
+            return Err(bad(
+                "analysis.correction",
+                "correction must be a string, not null",
+            ))
+        }
+        Some(Some(c)) => c.as_str(),
+    };
     // v3-only and v4-only fields and identifiers are refused at their
     // own path in older files so an editor never silently accepts them.
     // Presence counts even for an explicit `null`: schema.json has no
@@ -479,10 +617,10 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
                 "analysis.kappa requires schema_version 3",
             ));
         }
-        if matches!(f.correction.as_str(), "F84" | "K2P_PHYLIP") {
+        if matches!(correction, "F84" | "K2P_PHYLIP") {
             return Err(bad(
                 "analysis.correction",
-                &format!("'{}' requires schema_version 3", f.correction),
+                &format!("'{correction}' requires schema_version 3"),
             ));
         }
     }
@@ -493,7 +631,7 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
                 "analysis.site_filter requires schema_version 4",
             ));
         }
-        if f.correction.as_str() == "Poisson" {
+        if correction == "Poisson" {
             return Err(bad(
                 "analysis.correction",
                 "'Poisson' requires schema_version 4",
@@ -526,7 +664,7 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
             return Err(bad("analysis.kappa", "kappa must be positive and finite"));
         }
     }
-    let (correction, kappa) = match f.correction.as_str() {
+    let (correction, kappa) = match correction {
         "p" => (DistModel::P, None),
         "JC69" => (DistModel::Jc69, None),
         "K80" => (DistModel::K80, None),
@@ -550,14 +688,179 @@ fn analysis(f: &AnalysisFile, v: u32) -> Result<Analysis, NeoError> {
     }
     Ok(Analysis {
         correction,
-        method: match f.method.as_str() {
-            "NJ" => Method::Nj,
-            "UPGMA" => Method::Upgma,
-            other => return Err(bad("analysis.method", &format!("unknown method '{other}'"))),
-        },
+        method: method_file(&f.method)?,
         kappa,
         site_filter,
     })
+}
+
+/// The file's spelling of a `Method` name.
+fn method_file(m: &str) -> Result<Method, NeoError> {
+    match m {
+        "NJ" => Ok(Method::Nj),
+        "UPGMA" => Ok(Method::Upgma),
+        other => Err(bad("analysis.method", &format!("unknown method '{other}'"))),
+    }
+}
+
+/// The `analysis` block of a matrix exercise (v1.4c spec §4.1):
+/// `method` only. `correction`, `kappa` and `site_filter` are refused
+/// at their own paths — a present `null` counts — and the loaded
+/// `Analysis` reports `DistModel::Supplied`, the model of every
+/// matrix-built `DistanceMatrix`.
+fn matrix_analysis(f: &AnalysisFile) -> Result<Analysis, NeoError> {
+    for (present, field) in [
+        (f.correction.is_some(), "analysis.correction"),
+        (f.kappa.is_some(), "analysis.kappa"),
+        (f.site_filter.is_some(), "analysis.site_filter"),
+    ] {
+        if present {
+            return Err(bad(
+                field,
+                "a matrix exercise supplies distances; this key must be absent",
+            ));
+        }
+    }
+    Ok(Analysis {
+        correction: DistModel::Supplied,
+        method: method_file(&f.method)?,
+        kappa: None,
+        site_filter: None,
+    })
+}
+
+/// Convert a raw `meta` value to `ExerciseMeta` (v1.4c spec §4.2):
+/// `{ "objectives": [string], "minutes": int ≥ 1, "level":
+/// "intro"|"intermediate"|"advanced", "prepares_for": [id],
+/// "hand_steps"?: int ≥ 1 }`. Hand-validated like `site_filter` so
+/// each bad piece names its own `meta.*` path; `prepares_for` ids are
+/// not resolved here (a repo test checks them against the catalog).
+fn meta_file(raw: &serde_json::Value) -> Result<ExerciseMeta, NeoError> {
+    if !raw.is_object() {
+        return Err(bad("meta", "meta must be an object"));
+    }
+    let get = |key: &str| -> Result<&serde_json::Value, NeoError> {
+        raw.get(key)
+            .ok_or_else(|| bad(&format!("meta.{key}"), &format!("{key} is required")))
+    };
+    let objectives = string_list(get("objectives")?, "meta.objectives")?;
+    let minutes = positive_int(get("minutes")?, "meta.minutes")?;
+    let level = match get("level")?.as_str() {
+        Some("intro") => Level::Intro,
+        Some("intermediate") => Level::Intermediate,
+        Some("advanced") => Level::Advanced,
+        _ => {
+            return Err(bad(
+                "meta.level",
+                "level must be \"intro\", \"intermediate\" or \"advanced\"",
+            ))
+        }
+    };
+    let prepares_for = string_list(get("prepares_for")?, "meta.prepares_for")?;
+    let hand_steps = match raw.get("hand_steps") {
+        None => None,
+        Some(v) => Some(positive_int(v, "meta.hand_steps")?),
+    };
+    Ok(ExerciseMeta {
+        objectives,
+        minutes,
+        level,
+        prepares_for,
+        hand_steps,
+    })
+}
+
+/// A JSON array of strings → `Vec<String>`; anything else names
+/// `field`.
+fn string_list(v: &serde_json::Value, field: &str) -> Result<Vec<String>, NeoError> {
+    let Some(arr) = v.as_array() else {
+        return Err(bad(field, "must be an array of strings"));
+    };
+    arr.iter()
+        .map(|s| {
+            s.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| bad(field, "must be an array of strings"))
+        })
+        .collect()
+}
+
+/// A JSON integer ≥ 1 → `u32`; anything else names `field`.
+fn positive_int(v: &serde_json::Value, field: &str) -> Result<u32, NeoError> {
+    v.as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .filter(|&n| n >= 1)
+        .ok_or_else(|| bad(field, "must be an integer of 1 or more"))
+}
+
+/// A presence-aware `Option<Option<Value>>` → the value, or the
+/// `data.*` refusal for an absent key or a present `null`.
+fn data_value<'a>(
+    raw: &'a Option<Option<serde_json::Value>>,
+    field: &str,
+) -> Result<&'a serde_json::Value, NeoError> {
+    match raw {
+        None => Err(bad(field, "required for a matrix exercise")),
+        Some(None) => Err(bad(field, "must not be null")),
+        Some(Some(v)) => Ok(v),
+    }
+}
+
+/// The matrix branch's `names`: an array of taxon names (content is
+/// `validate_input`'s job).
+fn matrix_names(raw: &Option<Option<serde_json::Value>>) -> Result<Vec<String>, NeoError> {
+    let v = data_value(raw, "data.names")?;
+    let Some(arr) = v.as_array() else {
+        return Err(bad("data.names", "names must be an array of taxon names"));
+    };
+    arr.iter()
+        .map(|n| {
+            n.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| bad("data.names", "every name must be a string"))
+        })
+        .collect()
+}
+
+/// The matrix branch's `lower`: an array of numbers (finiteness and
+/// non-negativity are `validate_input`'s job).
+fn matrix_lower(raw: &Option<Option<serde_json::Value>>) -> Result<Vec<f64>, NeoError> {
+    let v = data_value(raw, "data.lower")?;
+    let Some(arr) = v.as_array() else {
+        return Err(bad("data.lower", "lower must be an array of distances"));
+    };
+    arr.iter()
+        .map(|x| {
+            x.as_f64()
+                .ok_or_else(|| bad("data.lower", "every distance must be a number"))
+        })
+        .collect()
+}
+
+/// The matrix branch's `source`: the same object an embedded
+/// alignment's `source` is — checked `is_object` first so a JSON
+/// array can never feed serde's struct-from-seq read.
+fn matrix_source(raw: &Option<Option<serde_json::Value>>) -> Result<Source, NeoError> {
+    let v = data_value(raw, "data.source")?;
+    if !v.is_object() {
+        return Err(bad(
+            "data.source",
+            "source must be an object with citation, license and accessions",
+        ));
+    }
+    serde_json::from_value(v.clone()).map_err(|e| bad("data.source", &e.to_string()))
+}
+
+/// Map a `validate_input` failure to the exercise field that caused
+/// it: taxa-count and name problems are `data.names`, everything else
+/// (`lower` length, a bad cell) is `data.lower`.
+fn matrix_field(e: &NeoError) -> &'static str {
+    match e {
+        NeoError::TooFewTaxa { .. } | NeoError::TooManyTaxa { .. } => "data.names",
+        NeoError::InvalidMatrix { msg, .. } if msg.contains("name") => "data.names",
+        NeoError::InvalidMatrix { .. } => "data.lower",
+        _ => "data",
+    }
 }
 
 /// Convert a raw `analysis.site_filter` value to `SiteFilter`
@@ -839,13 +1142,38 @@ struct ExerciseFile {
     /// the app defaults apply.
     #[serde(default)]
     bootstrap: Option<BootstrapFile>,
+    /// v1.4c spec §4.2: optional lesson metadata; v5-only and
+    /// presence-aware — a present `null` in an older file is the
+    /// version error, and a null or non-object in a v5 file is
+    /// refused rather than read as absent.
+    #[serde(default, deserialize_with = "present")]
+    meta: Option<Option<serde_json::Value>>,
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 enum DataFile {
-    Simulated { true_tree: String, sim: SimFile },
-    Embedded { fasta: String, source: Source },
+    Simulated {
+        true_tree: String,
+        sim: SimFile,
+    },
+    Embedded {
+        fasta: String,
+        source: Source,
+    },
+    /// v1.4c spec §4.1: `kind: "matrix"`. The fields stay raw
+    /// `Option<Option<Value>>` (the `present` pattern) so a null, a
+    /// non-array `lower` and a non-object `source` name their own
+    /// `data.*` path instead of a bare serde error or a
+    /// struct-from-seq read.
+    Matrix {
+        #[serde(default, deserialize_with = "present")]
+        names: Option<Option<serde_json::Value>>,
+        #[serde(default, deserialize_with = "present")]
+        lower: Option<Option<serde_json::Value>>,
+        #[serde(default, deserialize_with = "present")]
+        source: Option<Option<serde_json::Value>>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -915,7 +1243,12 @@ impl BaseFreqsFile {
 
 #[derive(Deserialize)]
 struct AnalysisFile {
-    correction: String,
+    /// `Option<Option>` keeps absent, `null` and a string distinct:
+    /// absent is required on `data.kind = "matrix"` (the loader
+    /// supplies `DistModel::Supplied`) and an error everywhere else,
+    /// and a present `null` is refused either way.
+    #[serde(default, deserialize_with = "present")]
+    correction: Option<Option<String>>,
     method: String,
     /// v1.4 spec §4: the K2P_PHYLIP ratio; presence is checked against
     /// `correction` and `schema_version` in `analysis`. `Option<Option>`
