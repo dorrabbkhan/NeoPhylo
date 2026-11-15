@@ -245,6 +245,45 @@ fn strict_names_with_spaces_and_gap() {
 }
 
 #[test]
+fn strict_glued_ten_char_names() {
+    // dnadist/protdist glue the first value straight onto a name that
+    // fills its 10 columns; the first token then exceeds 10
+    // characters but is name+value, not an overflowed name (review
+    // fix round 2).
+    for text in [
+        "3\nGorilla_go0.0 1.0 2.0\nPan_troglo1.0 0.0 3.0\nHomo_sapie2.0 3.0 0.0\n",
+        "3\nGorilla_go0.000000  1.000000  2.000000\nPan_troglo1.000000  0.000000  3.000000\nHomo_sapie2.000000  3.000000  0.000000\n",
+    ] {
+        for names in [NameMode::Strict, NameMode::Auto] {
+            let f = parse_phylip_matrix(text, PhylipMatrixOptions { names, ..auto() })
+                .unwrap_or_else(|e| panic!("{names:?} {text:?}: {e:?}"));
+            assert_eq!(
+                f.matrix.names,
+                ["Gorilla_go", "Pan_troglo", "Homo_sapie"],
+                "{names:?} {text:?}"
+            );
+            assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0], "{names:?} {text:?}");
+        }
+    }
+}
+
+#[test]
+fn strict_glued_lower_triangle() {
+    // The same glued 10-character names on a lower-triangular file.
+    let text = "3\nAlphaAlpha\nBetaBetaBe1.0\nGammaGamma2.0 3.0\n";
+    for names in [NameMode::Strict, NameMode::Auto] {
+        let f = parse_phylip_matrix(text, PhylipMatrixOptions { names, ..auto() })
+            .unwrap_or_else(|e| panic!("{names:?}: {e:?}"));
+        assert_eq!(
+            f.matrix.names,
+            ["AlphaAlpha", "BetaBetaBe", "GammaGamma"],
+            "{names:?}"
+        );
+        assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0], "{names:?}");
+    }
+}
+
+#[test]
 fn strict_name_multibyte_no_panic() {
     // A 10-character name holding multi-byte characters parses with
     // glued values (chars, not bytes, bound the name field).

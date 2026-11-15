@@ -16,19 +16,23 @@
 //! is tried first; when both readings fail, the error comes from the
 //! shape the first row suggests — a first row carrying values looks
 //! square, a name alone looks lower. Under `Relaxed` a name is the
-//! first whitespace-delimited token of the row's first line; under
-//! `Strict` it is the first 10 characters of that line (chars, not
-//! bytes), trimmed of trailing whitespace, and values start at
-//! character 11 — a value may be glued to the name (`Homo sapie0.5`),
-//! and a shorter first line is a name alone whose values wrap. A
-//! first token longer than 10 characters means the writer overflowed
-//! the name field, so the whole token is the name and values follow
-//! it normally. Under `Strict` a name's identity is its first 10
-//! characters, and two distinct names truncating to the same string
-//! are `InvalidMatrix` naming both full names (Review Focus 2) —
-//! exact duplicates reuse `validate_input`'s refusal. `Auto` tries
-//! Relaxed first and falls back to Strict, reporting the Relaxed
-//! error, as `parse_phylip` does.
+//! first whitespace-delimited token of the row's first line.
+//! `Strict` reads the file twice if needed: first with the exact
+//! PHYLIP rule — the name is the first 10 characters of every row's
+//! first line (chars, not bytes), trimmed of trailing whitespace,
+//! and values start at character 11, so a 10-character name may be
+//! glued to its first value (`Pan_troglo1.0` is what `dnadist` and
+//! `protdist` write when a name fills its 10 columns), and a shorter
+//! first line is a name alone whose values wrap. Only when that
+//! whole-file reading fails is the overflow reading tried — a first
+//! token longer than 10 characters is then the whole name and values
+//! follow it normally — and when both fail the exact-rule reading's
+//! error is reported. Under `Strict` a name's identity is its first
+//! 10 characters, and two distinct names truncating to the same
+//! string are `InvalidMatrix` naming both full names (Review Focus
+//! 2) — exact duplicates reuse `validate_input`'s refusal. `Auto`
+//! tries Relaxed first and falls back to Strict, reporting the
+//! Relaxed error, as `parse_phylip` does.
 //!
 //! A square matrix must be symmetric and zero on the diagonal: the
 //! first differing cell is `InvalidMatrix` naming both taxa, unless
@@ -254,25 +258,49 @@ struct PhylipShape {
     square: bool,
 }
 
+/// How a row's first line is split into its name and value tokens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RowRead {
+    /// The name is the first whitespace-delimited token.
+    Relaxed,
+    /// The exact PHYLIP rule: the name occupies the first 10
+    /// characters of the line and values start at character 11 — a
+    /// 10-character name may be glued to its first value.
+    StrictExact,
+    /// The overflow reading: a first token longer than 10 characters
+    /// is the whole name (the writer overflowed the name field);
+    /// a first token of 10 characters or fewer still means the name
+    /// occupies the first 10 characters, as in `StrictExact`.
+    StrictOverflow,
+}
+
 /// A row's name and the value tokens following it on the row's first
 /// line (tokens carry 1-based char columns). Under `Relaxed` the name
-/// is the first whitespace token. Under `Strict` the name occupies
-/// the first 10 characters of the line (chars, not bytes, so a
-/// multi-byte character is never sliced), trimmed of trailing
+/// is the first whitespace token. Under `StrictExact` the name
+/// occupies the first 10 characters of the line (chars, not bytes, so
+/// a multi-byte character is never sliced), trimmed of trailing
 /// whitespace, and values start at character 11 — a value may be
-/// glued to the name with no space (`Homo sapie0.5`). A line shorter
-/// than 10 characters yields the whole trimmed line as the name and
-/// its values wrap onto the following lines. A first token longer
-/// than 10 characters means the writer overflowed the name field, so
-/// the whole token is the name and values follow it normally — the
-/// 10-character identity truncation still applies to it (Review
-/// Focus 2).
+/// glued to the name with no space (`Homo sapie0.5`,
+/// `Pan_troglo1.0`). A line shorter than 10 characters yields the
+/// whole trimmed line as the name and its values wrap onto the
+/// following lines. `StrictOverflow` is the same except a first
+/// token longer than 10 characters is the whole name (the writer
+/// overflowed the name field) and values follow it normally. The
+/// strict parse tries `StrictExact` on the whole file first and only
+/// falls back to `StrictOverflow` when it fails (see
+/// [`phylip_inner`]); the 10-character identity truncation applies to
+/// the names either way (Review Focus 2).
 fn row_head<'a>(
     line: &'a str,
     toks: &[(u32, &'a str)],
-    strict: bool,
+    read: RowRead,
 ) -> (String, Vec<(u32, &'a str)>) {
-    if strict && toks.first().map(|(_, t)| t.chars().count()).unwrap_or(0) <= 10 {
+    let exact = match read {
+        RowRead::Relaxed => false,
+        RowRead::StrictExact => true,
+        RowRead::StrictOverflow => toks.first().map(|(_, t)| t.chars().count()).unwrap_or(0) <= 10,
+    };
+    if exact {
         let name: String = line
             .chars()
             .take(10)
@@ -301,7 +329,7 @@ fn phylip_shape(
     lines: &[(u32, String)],
     n: usize,
     square: bool,
-    strict: bool,
+    read: RowRead,
 ) -> Result<PhylipShape, (NeoError, u32)> {
     let toklines: Vec<Vec<(u32, &str)>> = lines.iter().map(|(_, l)| tokenize(l)).collect();
     let last_line = lines.last().map(|(no, _)| *no).unwrap_or(1);
@@ -320,7 +348,7 @@ fn phylip_shape(
             ));
         }
         // The row's first line holds its name and may carry values.
-        let (full, first_vals) = row_head(&lines[li].1, &toklines[li], strict);
+        let (full, first_vals) = row_head(&lines[li].1, &toklines[li], read);
         if full.is_empty() {
             return Err((parse_err(lines[li].0, 1, "empty taxon name"), li as u32));
         }
@@ -469,6 +497,70 @@ fn phylip_finish(
     }
 }
 
+/// One name-rule reading of the body: the square shape is tried
+/// first, then lower-triangular, with the better error picked when
+/// both fail.
+fn phylip_shape_read(
+    lines: &[(u32, String)],
+    n: usize,
+    read: RowRead,
+) -> Result<PhylipShape, NeoError> {
+    match (
+        phylip_shape(lines, n, true, read),
+        phylip_shape(lines, n, false, read),
+    ) {
+        (Ok(s), _) => Ok(s),
+        (Err(_), Ok(l)) => Ok(l),
+        (Err((es, ps)), Err((el, pl))) => {
+            // Both shapes failed: report the error of the shape the
+            // first row suggests (a name line carrying values looks
+            // square; a name alone looks lower), breaking ties by
+            // which parse saw more lines.
+            let row0_values = lines
+                .get(1)
+                .map(|(_, l)| !row_head(l, &tokenize(l), read).1.is_empty());
+            Err(if row0_values == Some(false) {
+                if pl >= ps {
+                    el
+                } else {
+                    es
+                }
+            } else if ps >= pl {
+                es
+            } else {
+                el
+            })
+        }
+    }
+}
+
+/// The name/value checks of [`phylip_finish`] on a completed shape
+/// read, assembled into a `MatrixFile`.
+fn phylip_file(
+    sh: &PhylipShape,
+    strict_names: bool,
+    use_lower: bool,
+) -> Result<MatrixFile, NeoError> {
+    let mut notices = Vec::new();
+    let matrix = phylip_finish(sh, strict_names, use_lower, &mut notices)?;
+    Ok(MatrixFile {
+        matrix,
+        title: None,
+        notices,
+    })
+}
+
+/// One complete body reading under a given name rule.
+fn phylip_attempt(
+    lines: &[(u32, String)],
+    n: usize,
+    opts: PhylipMatrixOptions,
+    read: RowRead,
+) -> Result<MatrixFile, NeoError> {
+    let sh = phylip_shape_read(lines, n, read)?;
+    phylip_file(&sh, read != RowRead::Relaxed, opts.use_lower_if_asymmetric)
+}
+
 fn phylip_inner(
     text: &str,
     opts: PhylipMatrixOptions,
@@ -505,41 +597,29 @@ fn phylip_inner(
             got: n,
         });
     }
-    let strict = mode == NameMode::Strict;
-    let sh = match (
-        phylip_shape(&lines, n, true, strict),
-        phylip_shape(&lines, n, false, strict),
-    ) {
-        (Ok(s), _) => s,
-        (Err(_), Ok(l)) => l,
-        (Err((es, ps)), Err((el, pl))) => {
-            // Both readings failed: report the error of the shape the
-            // first row suggests (a name line carrying values looks
-            // square; a name alone looks lower), breaking ties by
-            // which parse saw more lines.
-            let row0_values = lines
-                .get(1)
-                .map(|(_, l)| !row_head(l, &tokenize(l), strict).1.is_empty());
-            return Err(if row0_values == Some(false) {
-                if pl >= ps {
-                    el
-                } else {
-                    es
-                }
-            } else if ps >= pl {
-                es
-            } else {
-                el
-            });
+    match mode {
+        // Strict reads the whole file with the exact PHYLIP rule
+        // first (name = first 10 characters, values from character
+        // 11, no overflow exception — a 10-character name may be
+        // glued to its first value). Only when that whole-file
+        // reading fails is the overflow reading tried — a first
+        // token longer than 10 characters is then the whole name —
+        // and when both readings fail the exact-rule reading's error
+        // is reported. Whichever reading won supplies the names that
+        // go through `phylip_finish`'s 10-character
+        // truncation-collision check (Review Focus 2).
+        NameMode::Strict => {
+            let sh = match phylip_shape_read(&lines, n, RowRead::StrictExact) {
+                Ok(sh) => sh,
+                Err(exact_err) => match phylip_shape_read(&lines, n, RowRead::StrictOverflow) {
+                    Ok(sh) => sh,
+                    Err(_) => return Err(exact_err),
+                },
+            };
+            phylip_file(&sh, true, opts.use_lower_if_asymmetric)
         }
-    };
-    let mut notices = Vec::new();
-    let matrix = phylip_finish(&sh, strict, opts.use_lower_if_asymmetric, &mut notices)?;
-    Ok(MatrixFile {
-        matrix,
-        title: None,
-        notices,
-    })
+        _ => phylip_attempt(&lines, n, opts, RowRead::Relaxed),
+    }
 }
 
 /// Parse PHYLIP `neighbor` input: `n` alone on the first line, then

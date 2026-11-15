@@ -6975,14 +6975,18 @@ Owner-requested rendering fixes after the PR #139 review; branch
   (corner cell), and when a name column is also present the two must
   agree or the reading fails.
 - **PHYLIP name handling (builder's call):** under `Relaxed` a row's
-  name is the first whitespace-delimited token of its first line;
-  under `Strict` it is the first 10 characters of that line (chars,
-  not bytes, so multi-byte characters are never sliced), trimmed of
-  trailing whitespace, and values start at character 11 — a value may
-  be glued to the name (`Homo sapie0.5`), and a shorter first line is
-  a name alone whose values wrap. A first token longer than 10
-  characters means the writer overflowed the name field: the whole
-  token is the name and values follow it normally. A strict name's
+  name is the first whitespace-delimited token of its first line.
+  `Strict` reads the whole file twice if needed: first with the exact
+  PHYLIP rule — the name is the first 10 characters of every row's
+  first line (chars, not bytes, so multi-byte characters are never
+  sliced), trimmed of trailing whitespace, and values start at
+  character 11, so a 10-character name may be glued to its first
+  value (`Pan_troglo1.0`, as `dnadist`/`protdist` write when a name
+  fills its 10 columns), and a shorter first line is a name alone
+  whose values wrap. Only when that whole-file reading fails is the
+  overflow reading tried — a first token longer than 10 characters is
+  then the whole name and values follow it normally — and when both
+  fail the exact-rule reading's error is reported. A strict name's
   identity is its first 10 characters; the truncation-collision
   refusal applies when the effective mode is Strict — i.e.
   `NameMode::Strict`, or `Auto` where Relaxed failed and the Strict
