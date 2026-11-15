@@ -7080,4 +7080,9 @@ Owner-requested rendering fixes after the PR #139 review; branch
   re-keyed from `kind === "embedded"` to `kind === "simulated"` so
   `data.sim` is only read on the simulated branch (identical
   behaviour for both existing kinds; a matrix exercise falls back to
-  the declared alphabet until Task 7 owns matrix state).
+  the declared alphabet until Task 7 owns matrix state);
+  `crates/neophylo-core/fuzz/fuzz_targets/exercise.rs` — the
+  exhaustive `ExerciseData` match gains a `Matrix` arm that feeds the
+  supplied matrix through `to_distance_matrix` into build_tree/rf/
+  reroot (caught by the CI fuzz-build job; the matrix path has no
+  alignment, matching the loader's bootstrap refusal).
