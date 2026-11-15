@@ -191,9 +191,11 @@ fn distances_from(tree: &Tree, start: NodeId) -> Option<(Vec<f64>, Vec<bool>)> {
 /// `round_decimals` rounds every distance to `d` decimals
 /// (`round(v·10^d)/10^d`) for textbook-friendly values; `d > 6` is
 /// `InvalidMatrix`. A missing branch length is `InvalidMatrix` naming
-/// a leaf whose path needs it, and a leaf in `tree.nodes` that is
-/// unreachable from the root is `InvalidMatrix` naming it rather than
-/// silently dropping it. Fewer than 3 leaves is `TooFewTaxa`;
+/// a leaf whose path needs it, and a named leaf in `tree.nodes` that
+/// is unreachable from the root is `InvalidMatrix` naming it rather
+/// than silently dropping it — unreachable childless nodes with no
+/// label are inert husks left in the arena by `edit` splices and are
+/// ignored. Fewer than 3 leaves is `TooFewTaxa`;
 /// the result is passed through [`validate_input`], so duplicate or
 /// empty leaf labels and a tree over [`MAX_TAXA`] leaves get the same
 /// refusal as a supplied matrix.
@@ -223,17 +225,23 @@ pub fn additive_matrix(tree: &Tree, round_decimals: Option<u8>) -> Result<Distan
             )
         })
         .collect();
-    // A leaf in `tree.nodes` that is unreachable from the root must not
-    // be silently dropped from the matrix.
+    // A named leaf in `tree.nodes` that is unreachable from the root
+    // must not be silently dropped from the matrix. An unreachable
+    // childless node with no name is an inert husk left by
+    // `edit::move_subtree` splicing a unary parent — ignored.
     for (i, node) in tree.nodes.iter().enumerate() {
-        if !reached[i] && node.children.is_empty() {
-            let name = node.label.clone().unwrap_or_default();
-            return Err(NeoError::InvalidMatrix {
-                row: name.clone(),
-                col: String::new(),
-                msg: format!("taxon '{name}' is not connected to the tree"),
-            });
+        if reached[i] || !node.children.is_empty() {
+            continue;
         }
+        let name = node.label.clone().unwrap_or_default();
+        if name.trim().is_empty() {
+            continue;
+        }
+        return Err(NeoError::InvalidMatrix {
+            row: name.clone(),
+            col: String::new(),
+            msg: format!("taxon '{name}' is not connected to the tree"),
+        });
     }
     let n = leaves.len();
     if n < 3 {

@@ -5,10 +5,12 @@
 use neophylo_core::algos::{build_tree, BuildOptions, Method, NjFinal, NjStep, Trace, UpgmaStep};
 use neophylo_core::alphabet::Alphabet;
 use neophylo_core::dist::{compute, compute_filtered, DistModel};
+use neophylo_core::edit::move_subtree;
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::load_exercise;
 use neophylo_core::matrix::Matrix;
 use neophylo_core::matrix_input::{additive_matrix, validate_input, DistanceInput};
+use neophylo_core::newick::{parse_newick, write_newick};
 use neophylo_core::seq::{parse_fasta, MAX_TAXA};
 use neophylo_core::site_filter::SiteFilter;
 use neophylo_core::tree::{NodeId, Tree};
@@ -536,6 +538,41 @@ fn additive_matrix_orphan_leaf_refused() {
             assert!(msg.contains("not connected"), "msg: {msg}");
         }
         other => panic!("expected InvalidMatrix, got {other:?}"),
+    }
+}
+
+#[test]
+fn additive_matrix_ignores_edit_husks() {
+    // `move_subtree` splices a parent left unary into an inert husk:
+    // parentless, childless, unlabeled, still in `tree.nodes`
+    // (edit.rs). Derive-from-tree must ignore it, not refuse it as a
+    // detached taxon.
+    let mut t = parse_newick("((a:0.125,b:0.25):0.5,(c:0.5,d:0.25):0.5);").unwrap();
+    // Node ids in a parsed tree: leaves 0..n in document order, then
+    // internal nodes in preorder — root 4, (a,b) 5, (c,d) 6. Moving c
+    // onto the edge above a leaves (c,d) unary and splices it out.
+    move_subtree(&mut t, NodeId(2), NodeId(0), (0.0625, 0.125)).unwrap();
+    let husk = &t.nodes[6];
+    assert_eq!(husk.parent, None);
+    assert!(husk.children.is_empty());
+    assert_eq!(husk.label, None);
+    assert!(
+        !t.preorder().contains(&NodeId(6)),
+        "the husk is unreachable from the root"
+    );
+    let got = additive_matrix(&t, None).unwrap();
+    // The same tree re-parsed from its own Newick has no husk; the
+    // matrices must agree (leaf preorder may differ, so compare by
+    // name pairs).
+    let reparsed = parse_newick(&write_newick(&t)).unwrap();
+    let want = additive_matrix(&reparsed, None).unwrap();
+    assert_eq!(got.n(), want.n());
+    for i in 0..got.n() {
+        for j in 0..i {
+            let wi = want.names.iter().position(|n| n == &got.names[i]).unwrap();
+            let wj = want.names.iter().position(|n| n == &got.names[j]).unwrap();
+            assert_close(got.get(i, j), want.get(wi, wj));
+        }
     }
 }
 
