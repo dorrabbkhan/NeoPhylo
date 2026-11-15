@@ -37,7 +37,7 @@ use crate::dist::DistModel;
 use crate::error::NeoError;
 use crate::matrix_input::{validate_input, DistanceInput};
 use crate::newick::parse_newick;
-use crate::seq::parse_fasta;
+use crate::seq::{parse_fasta, MAX_TAXA};
 use crate::sim::{check_branch_lengths, check_spec, SimModel, SimSpec};
 use crate::site_filter::SiteFilter;
 
@@ -452,6 +452,25 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
             let lower = matrix_lower(&lower)?;
             let source = matrix_source(&source)?;
             let input = DistanceInput { names, lower };
+            // Dedicated lower-length check so `matrix_field` can map
+            // structurally: `validate_input` checks taxa count, then
+            // lower length, then names, then values — with the length
+            // case handled here, an `InvalidMatrix` from a names
+            // problem always has `row == col` and a cell problem never
+            // does. The guard keeps the order (`TooFewTaxa` for n < 3
+            // still wins over a bad length) and the message is the one
+            // `validate_input` gives.
+            let n = input.names.len();
+            if (3..=MAX_TAXA).contains(&n) && input.lower.len() != n * (n - 1) / 2 {
+                return Err(bad(
+                    "data.lower",
+                    &format!(
+                        "expected {} lower-triangle distances for {n} taxa, got {}",
+                        n * (n - 1) / 2,
+                        input.lower.len()
+                    ),
+                ));
+            }
             validate_input(&input).map_err(|e| bad(matrix_field(&e), &e.to_string()))?;
             let labels = input.names.clone();
             (
@@ -785,12 +804,16 @@ fn string_list(v: &serde_json::Value, field: &str) -> Result<Vec<String>, NeoErr
         .collect()
 }
 
-/// A JSON integer ≥ 1 → `u32`; anything else names `field`.
+/// A JSON number that is integral and in 1..=u32::MAX → `u32`;
+/// anything else names `field`. Integral floats count (`5.0`, `4e3`)
+/// — JSON has one number type and schema.json's `integer` accepts
+/// them — while a fractional value, a number under 1 or one over
+/// u32::MAX is refused (conductor's call, v1.4c Task 5 fix round).
 fn positive_int(v: &serde_json::Value, field: &str) -> Result<u32, NeoError> {
-    v.as_u64()
-        .and_then(|n| u32::try_from(n).ok())
-        .filter(|&n| n >= 1)
-        .ok_or_else(|| bad(field, "must be an integer of 1 or more"))
+    match v.as_f64() {
+        Some(n) if n.fract() == 0.0 && (1.0..=f64::from(u32::MAX)).contains(&n) => Ok(n as u32),
+        _ => Err(bad(field, "must be an integer in 1..=4294967295")),
+    }
 }
 
 /// A presence-aware `Option<Option<Value>>` → the value, or the
@@ -852,12 +875,15 @@ fn matrix_source(raw: &Option<Option<serde_json::Value>>) -> Result<Source, NeoE
 }
 
 /// Map a `validate_input` failure to the exercise field that caused
-/// it: taxa-count and name problems are `data.names`, everything else
-/// (`lower` length, a bad cell) is `data.lower`.
+/// it: taxa-count problems are `data.names`, an `InvalidMatrix` with
+/// `row == col` is a names problem (an empty name leaves both empty,
+/// a duplicate puts the shared name in both) and anything else — a
+/// bad cell — is `data.lower`. The lower-length case never reaches
+/// here: the matrix branch refuses it first.
 fn matrix_field(e: &NeoError) -> &'static str {
     match e {
         NeoError::TooFewTaxa { .. } | NeoError::TooManyTaxa { .. } => "data.names",
-        NeoError::InvalidMatrix { msg, .. } if msg.contains("name") => "data.names",
+        NeoError::InvalidMatrix { row, col, .. } if row == col => "data.names",
         NeoError::InvalidMatrix { .. } => "data.lower",
         _ => "data",
     }
@@ -1052,8 +1078,11 @@ fn prompts(fs: &[PromptFile], labels: &[String], method: Method) -> Result<Vec<P
 /// replicates 10–1,000, seed a non-negative integer. The mirror fields
 /// are `f64` so non-integer or out-of-range values still report their
 /// own field name instead of a bare serde error.
-fn bootstrap(f: Option<BootstrapFile>) -> Result<Option<ExerciseBootstrap>, NeoError> {
-    let Some(f) = f else { return Ok(None) };
+fn bootstrap(f: Option<Option<BootstrapFile>>) -> Result<Option<ExerciseBootstrap>, NeoError> {
+    // `Some(None)` — a present `null` on a non-matrix exercise — reads
+    // as absent (see the `bootstrap` field); a matrix exercise refuses
+    // any presence before reaching here.
+    let Some(Some(f)) = f else { return Ok(None) };
     if f.replicates.fract() != 0.0 || !(10.0..=1000.0).contains(&f.replicates) {
         return Err(bad(
             "bootstrap.replicates",
@@ -1139,9 +1168,12 @@ struct ExerciseFile {
     #[serde(default)]
     prompts: Vec<PromptFile>,
     /// v1.2 spec §7.1: the lesson's bootstrap settings; absent means
-    /// the app defaults apply.
-    #[serde(default)]
-    bootstrap: Option<BootstrapFile>,
+    /// the app defaults apply. `Option<Option>` (the `present`
+    /// pattern) so a matrix exercise can refuse a present `null`;
+    /// every other exercise still reads `bootstrap: null` as absent —
+    /// the pre-existing serde null gap, unchanged.
+    #[serde(default, deserialize_with = "present")]
+    bootstrap: Option<Option<BootstrapFile>>,
     /// v1.4c spec §4.2: optional lesson metadata; v5-only and
     /// presence-aware — a present `null` in an older file is the
     /// version error, and a null or non-object in a v5 file is

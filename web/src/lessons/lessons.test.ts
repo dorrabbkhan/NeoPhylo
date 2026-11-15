@@ -73,9 +73,11 @@ describe("exercises/*.json lesson content", () => {
         if (!alnRes.ok) continue;
         leafCount = alnRes.value.labels.length;
       } else {
-        // data.kind "matrix" lessons come in v1.4c Task 10; until then
-        // every repo lesson is simulated or embedded.
-        continue;
+        // data.kind "matrix" lessons come in v1.4c Task 10; the first
+        // one must extend this test's checks, not slip past them.
+        expect.fail(
+          `${f}: matrix lessons need lesson-content checks (v1.4c Task 10)`,
+        );
       }
       const dm = alnRes.ok
         ? engine.distances(alnRes.value, ex.analysis.correction)

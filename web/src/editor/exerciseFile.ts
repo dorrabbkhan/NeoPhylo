@@ -194,10 +194,11 @@ function needsSchema4(a: Exercise["analysis"]): boolean {
 function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   const ex = state.exercise;
   const file: Record<string, unknown> = {
-    // A matrix exercise needs schema 5 (v1.4c Task 5); a v4 field
-    // needs 4; anything else writes today's version (3).
+    // A matrix exercise or a `meta` block needs schema 5 (v1.4c
+    // Task 5); a v4 field needs 4; anything else writes today's
+    // version (3).
     schema_version:
-      ex.data.kind === "matrix"
+      ex.data.kind === "matrix" || ex.meta != null
         ? 5
         : needsSchema4(ex.analysis)
           ? 4

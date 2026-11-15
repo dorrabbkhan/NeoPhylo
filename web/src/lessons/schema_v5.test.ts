@@ -34,6 +34,7 @@ const REFUSAL_FIELDS: Record<string, string> = {
   "v5-matrix-kappa.json": "analysis.kappa",
   "v5-matrix-site-filter.json": "analysis.site_filter",
   "v5-matrix-bootstrap.json": "bootstrap",
+  "v5-matrix-bootstrap-null.json": "bootstrap",
   "v5-matrix-predict-branch.json": "prompts.0.type",
   "v4-matrix-kind.json": "data.kind",
   "v5-matrix-neg-lower.json": "data.lower",
@@ -51,6 +52,7 @@ const REFUSAL_FIELDS: Record<string, string> = {
   "v5-meta-prepares-for-string.json": "meta.prepares_for",
   "v5-meta-minutes-zero.json": "meta.minutes",
   "v5-meta-minutes-float.json": "meta.minutes",
+  "v5-meta-minutes-5e9.json": "meta.minutes",
   "v5-meta-level-expert.json": "meta.level",
   "v5-meta-hand-steps-zero.json": "meta.hand_steps",
   "v5-meta-no-level.json": "meta.level",
@@ -65,6 +67,10 @@ describe("exercises/schema.json schema v5", () => {
     "v5-matrix-meta-valid.json",
     "v5-meta-valid.json",
     "v5-meta-unknown-ids-valid.json",
+    // Integral floats are integers to ajv AND the engine (fix round 1).
+    "v5-meta-minutes-5-0.json",
+    "v5-meta-minutes-4e3.json",
+    "v5-meta-hand-steps-2-0.json",
     ...Object.keys(REFUSAL_FIELDS),
   ])("schema and load_exercise agree on %s", (file) => {
     const text = readFileSync(resolve(FIXTURES, file), "utf8");

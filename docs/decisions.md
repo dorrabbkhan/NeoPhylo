@@ -7074,8 +7074,9 @@ Owner-requested rendering fixes after the PR #139 review; branch
   exercise (4 for a v4 field, else today's version — unchanged for
   existing data kinds); `web/src/lessons/lessons.test.ts` — the
   `else` branch that assumed "not simulated ⇒ embedded" narrowed to
-  `kind === "embedded"` with a `continue` for `matrix` (tsc
-  exhaustiveness; no repo lesson is a matrix yet);
+  `kind === "embedded"` for `matrix` (tsc exhaustiveness; the matrix
+  branch `continue`d in the original commit and was changed to a
+  loud `expect.fail` in fix round 1);
   `web/src/state/lesson.ts` — `applyImportTree`'s alphabet pick
   re-keyed from `kind === "embedded"` to `kind === "simulated"` so
   `data.sim` is only read on the simulated branch (identical
@@ -7086,3 +7087,40 @@ Owner-requested rendering fixes after the PR #139 review; branch
   supplied matrix through `to_distance_matrix` into build_tree/rf/
   reroot (caught by the CI fuzz-build job; the matrix path has no
   alignment, matching the loader's bootstrap refusal).
+- **Fix round 1 (review of the PR):**
+  - A present top-level `bootstrap` key — including
+    `bootstrap: null` — is refused on a matrix exercise at
+    `bootstrap`: `ExerciseFile.bootstrap` is now presence-aware
+    (`Option<Option<BootstrapFile>>`, the `present` pattern) so a
+    null key no longer reads as absent. On simulated/embedded data a
+    stray `bootstrap: null` still loads as absent — that
+    pre-existing serde gap is unchanged and listed as a follow-up.
+  - `meta.minutes` / `meta.hand_steps` accept any integral JSON
+    number in `1..=4294967295` — `5.0` and `4e3` load as u32, while
+    `1.5`, `0` and `5e9` refuse at the field path — and schema.json
+    gained `"maximum": 4294967295` on both (conductor's call).
+  - The editor writes `schema_version: 5` whenever `meta` is written
+    or `data.kind` is `"matrix"`; a v4 field still writes 4 and
+    everything else 3 (builder's call — `CURRENT_SCHEMA_VERSION` in
+    `exerciseFile.ts` is the minimum version, not the highest).
+  - `lessons.test.ts` fails loudly (`expect.fail`) on a matrix
+    lesson instead of `continue`-ing past the lesson-content checks,
+    so the first Task 10 matrix lesson forces the check to be
+    written (builder's call).
+  - `matrix_field` maps `InvalidMatrix` structurally instead of by
+    `msg.contains("name")` (builder's call — the review's optional
+    item): a dedicated lower-length check runs before
+    `validate_input` whenever the taxa count is in range —
+    preserving its count → length → names → values first-error
+    order — so a names error always has `row == col` (empty for a
+    blank name, the shared string for a duplicate) and a cell error
+    never does.
+  - New files outside the Files block (fix round 1): the five new
+    `web/src/lessons/__fixtures__/v5-*.json` agreement fixtures
+    (`v5-matrix-bootstrap-null`, `v5-meta-minutes-5-0`, `-4e3`,
+    `-5e9`, `v5-meta-hand-steps-2-0`) and the "schema 5 save"
+    describe block in `web/src/editor/exerciseFile.test.ts`. The
+    `minutes: 1.5` and `hand_steps: 0` refusal cases the round
+    called for were already covered by the existing
+    `v5-meta-minutes-float.json` and `v5-meta-hand-steps-zero.json`
+    fixtures.

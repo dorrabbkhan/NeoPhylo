@@ -188,6 +188,67 @@ fn matrix_refuses_kappa_site_filter_and_bootstrap() {
 }
 
 #[test]
+fn matrix_refuses_a_present_null_bootstrap() {
+    // A null `bootstrap` key is present, not absent: schema.json's
+    // `not: required` counts it, so the engine must too (fix round 1).
+    let json = v5(
+        &matrix(NAMES4, LOWER4),
+        NJ_ONLY,
+        "[]",
+        r#", "bootstrap": null"#,
+    );
+    let (field, _) = invalid(&load_exercise(&json).unwrap_err());
+    assert_eq!(field, "bootstrap");
+
+    // Non-matrix data keeps the pre-existing serde gap on purpose: a
+    // stray `bootstrap: null` still reads as absent and loads.
+    let json = v5(SIM_DATA, NJ_JC69, "[]", r#", "bootstrap": null"#);
+    let ex = load_exercise(&json).unwrap();
+    assert_eq!(ex.bootstrap, None);
+}
+
+#[test]
+fn matrix_field_maps_invalid_matrix_structurally() {
+    // `matrix_field` reads the `InvalidMatrix` row/col fields, not the
+    // message text: a duplicate name reports the shared string in both
+    // row and col (an empty name leaves both empty), a bad cell names
+    // two different taxa, and a wrong `lower` length is refused before
+    // `validate_input` runs — in its own order, after the taxa count.
+    let dup = v5(&matrix(r#"["A","B","A","D"]"#, LOWER4), NJ_ONLY, "[]", "");
+    let (field, _) = invalid(&load_exercise(&dup).unwrap_err());
+    assert_eq!(field, "data.names");
+
+    let empty = v5(&matrix(r#"["A","B"," ","D"]"#, LOWER4), NJ_ONLY, "[]", "");
+    let (field, _) = invalid(&load_exercise(&empty).unwrap_err());
+    assert_eq!(field, "data.names");
+
+    let neg = v5(
+        &matrix(NAMES4, "[0.2,-0.3,0.4,0.5,0.6,0.7]"),
+        NJ_ONLY,
+        "[]",
+        "",
+    );
+    let (field, _) = invalid(&load_exercise(&neg).unwrap_err());
+    assert_eq!(field, "data.lower");
+
+    // Wrong length beats a names problem (validate_input's order:
+    // count → length → names → values); too few taxa beats a wrong
+    // length.
+    let both_bad = v5(
+        &matrix(r#"["A","B","A","D"]"#, "[0.2,0.3]"),
+        NJ_ONLY,
+        "[]",
+        "",
+    );
+    let (field, _) = invalid(&load_exercise(&both_bad).unwrap_err());
+    assert_eq!(field, "data.lower");
+
+    let too_few = v5(&matrix(r#"["A","B"]"#, "[0.2,0.3]"), NJ_ONLY, "[]", "");
+    let (field, _) = invalid(&load_exercise(&too_few).unwrap_err());
+    assert_eq!(field, "data.names");
+}
+
+#[test]
 fn matrix_refuses_predict_branch_prompts() {
     // There is no bootstrap stage on a matrix exercise (spec §4.1).
     let json = v5(
@@ -350,6 +411,56 @@ fn prepares_for_ids_are_not_validated_by_the_loader() {
         ex.meta.unwrap().prepares_for,
         ["no-such-lesson", "no-such-lab"]
     );
+}
+
+#[test]
+fn meta_integral_floats_load_as_u32() {
+    // Conductor's call (fix round 1): JSON has one number type and
+    // schema.json's `integer` accepts integral floats, so `5.0`,
+    // `4e3` and `2.0` load as the u32 they spell — up to u32::MAX.
+    for (key, value, want) in [
+        ("minutes", "5.0", 5),
+        ("minutes", "4e3", 4000),
+        ("minutes", "4294967295", u32::MAX),
+        ("hand_steps", "2.0", 2),
+    ] {
+        let meta = format!(
+            r#", "meta": {{ "objectives": [], "minutes": 5, "level": "intro",
+                  "prepares_for": [], "{key}": {value} }}"#
+        );
+        let json = v5(SIM_DATA, NJ_JC69, "[]", &meta);
+        let ex = load_exercise(&json).unwrap();
+        let meta = ex.meta.unwrap();
+        let got = if key == "minutes" {
+            meta.minutes
+        } else {
+            meta.hand_steps.unwrap()
+        };
+        assert_eq!(got, want, "{key} {value}");
+    }
+}
+
+#[test]
+fn meta_int_refusals_cover_fraction_and_range() {
+    // Fractional, sub-1 and over-u32::MAX values are refused at the
+    // field path — `5e9` fits a u64 but not a u32.
+    let base = |key: &str, value: &str| -> String {
+        let meta = format!(
+            r#", "meta": {{ "objectives": [], "minutes": 5, "level": "intro",
+                  "prepares_for": [], "{key}": {value} }}"#
+        );
+        v5(SIM_DATA, NJ_JC69, "[]", &meta)
+    };
+    for (json, field) in [
+        (base("minutes", "5e9"), "meta.minutes"),
+        (base("minutes", "4294967296"), "meta.minutes"),
+        (base("minutes", "0.5"), "meta.minutes"),
+        (base("hand_steps", "0.0"), "meta.hand_steps"),
+        (base("hand_steps", "1e10"), "meta.hand_steps"),
+    ] {
+        let (f, _) = invalid(&load_exercise(&json).unwrap_err());
+        assert_eq!(f, field, "{json}");
+    }
 }
 
 // --- meta requires schema_version 5 ---------------------------------------
