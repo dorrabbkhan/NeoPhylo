@@ -16,6 +16,7 @@ pub mod error;
 pub mod exercise;
 pub mod matrix;
 pub mod matrix_input;
+pub mod matrix_parse;
 pub mod meg;
 pub mod model;
 pub mod newick;
@@ -45,6 +46,10 @@ pub use exercise::{
 };
 pub use matrix::Matrix;
 pub use matrix_input::{additive_matrix, validate_input, DistanceInput};
+pub use matrix_parse::{
+    detect_matrix_format, parse_meg_matrix, parse_pasted_matrix, parse_phylip_matrix,
+    write_meg_matrix, MatrixFile, MatrixFormat, PasteOptions, PhylipMatrixOptions,
+};
 pub use meg::{parse_meg, write_meg, MegFile};
 pub use model::{RateModel, JTT};
 pub use newick::{

@@ -181,7 +181,7 @@ fn distance_matrix_is_refused() {
     match &err {
         NeoError::Parse { msg, .. } => assert_eq!(
             msg,
-            "distance-matrix .meg files are not supported yet (planned for v1.4c)"
+            "this .meg file holds a distance matrix; open it as a distance matrix"
         ),
         _ => unreachable!(),
     }
@@ -246,7 +246,7 @@ fn distance_matrix_spaced_is_refused() {
     match &err {
         NeoError::Parse { msg, .. } => assert_eq!(
             msg,
-            "distance-matrix .meg files are not supported yet (planned for v1.4c)"
+            "this .meg file holds a distance matrix; open it as a distance matrix"
         ),
         _ => unreachable!(),
     }

@@ -103,6 +103,20 @@ export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
               ? `Taxon ${e.row === "" ? e.col : e.row}: ${e.msg}`
               : `Cell (${e.row}, ${e.col}): ${e.msg}`,
       };
+    case "MatrixAmbiguous": {
+      // v1.4c spec §5.1: a pasted matrix admits two readings; the
+      // question names which choice the user must make.
+      const question =
+        e.question === "FirstColumnNames"
+          ? "whether the first column holds the taxon names"
+          : e.question === "HeaderRow"
+            ? "whether the first row is a header of names"
+            : "whether a comma is a decimal mark or a cell separator";
+      return {
+        title: "This distance matrix needs a choice",
+        body: `The text can be read two ways and the engine won't guess. Answer ${question}, then import again.`,
+      };
+    }
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";

@@ -187,7 +187,7 @@ export function ImportPanel({
       setPhylip(null);
       if (
         r.error.kind === "Parse" &&
-        r.error.msg.startsWith("distance-matrix")
+        r.error.msg.startsWith("this .meg file holds a distance matrix")
       ) {
         setLocalError(null);
         setMegNotices([r.error.msg]);

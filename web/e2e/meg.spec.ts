@@ -48,7 +48,7 @@ test("ignored commands and a matrix file show notices", async ({ page }) => {
 
   await pasteImport(page, meg("matrix.meg"));
   await expect(page.locator(".phylip-note").first()).toContainText(
-    "distance-matrix .meg files are not supported yet (planned for v1.4c)",
+    "this .meg file holds a distance matrix; open it as a distance matrix",
   );
 });
 

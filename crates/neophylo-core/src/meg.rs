@@ -180,7 +180,7 @@ impl Parser {
                         "distance" => return Err(parse_err(
                             line_no,
                             1,
-                            "distance-matrix .meg files are not supported yet (planned for v1.4c)",
+                            "this .meg file holds a distance matrix; open it as a distance matrix",
                         )),
                         other => {
                             return Err(parse_err(

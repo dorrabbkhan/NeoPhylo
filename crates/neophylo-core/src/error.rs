@@ -10,6 +10,31 @@ use ts_rs::TS;
 
 use crate::alphabet::Alphabet;
 
+/// The question a [`NeoError::MatrixAmbiguous`] asks (v1.4c spec §5.1):
+/// a pasted matrix admits two readings, so the caller shows the
+/// question and re-parses with the answer in `PasteOptions`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub enum PasteQuestion {
+    /// Does the first column hold the taxon names?
+    FirstColumnNames,
+    /// Is the first row a header of names?
+    HeaderRow,
+    /// Is a comma a decimal mark (`0,25` = 0.25) or a cell separator?
+    DecimalComma,
+}
+
+impl fmt::Display for PasteQuestion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let q = match self {
+            Self::FirstColumnNames => "does the first column hold the taxon names?",
+            Self::HeaderRow => "is the first row a header of names?",
+            Self::DecimalComma => "is a comma a decimal mark or a cell separator?",
+        };
+        write!(f, "{q}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
@@ -83,6 +108,12 @@ pub enum NeoError {
         row: String,
         col: String,
         msg: String,
+    },
+    /// A pasted matrix admits two readings and a `PasteOptions` field
+    /// was left unset (v1.4c spec §5.1). The parser asks `question`
+    /// instead of guessing; the caller re-parses with the answer.
+    MatrixAmbiguous {
+        question: PasteQuestion,
     },
 }
 
@@ -158,6 +189,9 @@ impl fmt::Display for NeoError {
                 } else {
                     write!(f, "distance matrix cell ({row}, {col}): {msg}")
                 }
+            }
+            Self::MatrixAmbiguous { question } => {
+                write!(f, "this distance matrix needs a choice: {question}")
             }
         }
     }
