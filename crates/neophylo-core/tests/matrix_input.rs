@@ -498,3 +498,70 @@ fn supplied_correction_still_refused_in_exercises() {
         }
     }
 }
+
+#[test]
+fn get_out_of_range_is_nan_not_panic() {
+    // Indices beyond n() give NaN, not a panic — and the zero
+    // diagonal applies only inside the range.
+    let input = additive_matrix(&known_tree(), None).unwrap();
+    assert!(input.get(5, 1).is_nan());
+    assert!(input.get(1, 5).is_nan());
+    assert!(input.get(4, 4).is_nan());
+    assert_eq!(input.get(3, 3), 0.0);
+}
+
+#[test]
+fn get_on_short_lower_is_nan_not_panic() {
+    // A DistanceInput deserialized from JSON has not been validated;
+    // `get` must return NaN, not index past the end of `lower`.
+    let input: DistanceInput =
+        serde_json::from_str(r#"{"names":["a","b","c","d"],"lower":[1.0]}"#).unwrap();
+    assert!(input.get(3, 2).is_nan());
+    assert!(matches!(
+        validate_input(&input),
+        Err(NeoError::InvalidMatrix { .. })
+    ));
+}
+
+#[test]
+fn additive_matrix_orphan_leaf_refused() {
+    // A leaf that exists in tree.nodes but is unreachable from the
+    // root must not be silently dropped from the matrix.
+    let mut t = known_tree();
+    t.add_node(Some("x".into())); // never attached: unreachable from r
+    match additive_matrix(&t, None) {
+        Err(NeoError::InvalidMatrix { row, col, msg }) => {
+            assert_eq!(row, "x");
+            assert!(col.is_empty());
+            assert!(msg.contains("not connected"), "msg: {msg}");
+        }
+        other => panic!("expected InvalidMatrix, got {other:?}"),
+    }
+}
+
+#[test]
+fn invalid_matrix_display_names_taxon_not_cell() {
+    // One name (the other side empty) or a duplicate (row == col)
+    // prints as a taxon, not "cell (b, )" / "cell (Human, Human)".
+    let single = NeoError::InvalidMatrix {
+        row: "b".into(),
+        col: String::new(),
+        msg: "no length".into(),
+    };
+    assert_eq!(single.to_string(), "distance matrix taxon 'b': no length");
+    let dup = NeoError::InvalidMatrix {
+        row: "Human".into(),
+        col: "Human".into(),
+        msg: "shared name".into(),
+    };
+    assert_eq!(
+        dup.to_string(),
+        "distance matrix taxon 'Human': shared name"
+    );
+    let cell = NeoError::InvalidMatrix {
+        row: "c".into(),
+        col: "a".into(),
+        msg: "negative".into(),
+    };
+    assert_eq!(cell.to_string(), "distance matrix cell (c, a): negative");
+}

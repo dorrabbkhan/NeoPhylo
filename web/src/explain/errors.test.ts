@@ -138,6 +138,25 @@ describe("errorMessage", () => {
     expect(m.body).not.toContain("FASTA");
   });
 
+  it("names the taxon, not a cell, for a single or duplicate InvalidMatrix name (v1.4c Task 3 fix round 1)", () => {
+    expect(
+      errorMessage({
+        kind: "InvalidMatrix",
+        row: "b",
+        col: "",
+        msg: "taxon 'b' is not connected to the tree",
+      }).body,
+    ).toBe("Taxon b: taxon 'b' is not connected to the tree");
+    expect(
+      errorMessage({
+        kind: "InvalidMatrix",
+        row: "Human",
+        col: "Human",
+        msg: "taxa 1 and 3 share the name 'Human'",
+      }).body,
+    ).toBe("Taxon Human: taxa 1 and 3 share the name 'Human'");
+  });
+
   it("tells the user to align ragged sequences first (Review Focus 2)", () => {
     expect(
       errorMessage({

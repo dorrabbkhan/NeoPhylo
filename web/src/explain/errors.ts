@@ -92,13 +92,16 @@ export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
       };
     case "InvalidMatrix":
       // v1.4c spec §5: row/col name the cell; both empty when the
-      // problem is structural (wrong length, empty name).
+      // problem is structural (wrong length, empty name). One name —
+      // or a duplicate (row == col) — is a taxon, not a cell.
       return {
         title: "This distance matrix has a problem",
         body:
           e.row === "" && e.col === ""
             ? e.msg
-            : `Cell (${e.row}, ${e.col}): ${e.msg}`,
+            : e.row === "" || e.col === "" || e.row === e.col
+              ? `Taxon ${e.row === "" ? e.col : e.row}: ${e.msg}`
+              : `Cell (${e.row}, ${e.col}): ${e.msg}`,
       };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).

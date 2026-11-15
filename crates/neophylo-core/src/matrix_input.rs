@@ -36,18 +36,24 @@ impl DistanceInput {
         self.names.len()
     }
 
-    /// Cell `(i, j)`; symmetric, and `get(i, i)` is `0.0`.
+    /// Cell `(i, j)`; symmetric, and `get(i, i)` is `0.0` for `i < n()`.
     ///
-    /// Precondition: `i < n()`, `j < n()` and `lower` holds exactly
-    /// `n·(n−1)/2` values — i.e. the input has passed
-    /// [`validate_input`] (or came from [`DistanceInput::to_distance_matrix`]
-    /// or [`additive_matrix`], which validate first).
+    /// Never panics: an index `>= n()` returns `f64::NAN`, and so does
+    /// a `lower` that is too short for `n()` — a `DistanceInput`
+    /// deserialized from JSON has not passed [`validate_input`].
     pub fn get(&self, i: usize, j: usize) -> f64 {
+        let n = self.n();
+        if i >= n || j >= n {
+            return f64::NAN;
+        }
         if i == j {
             return 0.0;
         }
         let (r, c) = if i > j { (i, j) } else { (j, i) };
-        self.lower[r * (r - 1) / 2 + c]
+        self.lower
+            .get(r * (r - 1) / 2 + c)
+            .copied()
+            .unwrap_or(f64::NAN)
     }
 
     /// Validate, then wrap as the symmetric `DistanceMatrix` the
@@ -185,7 +191,9 @@ fn distances_from(tree: &Tree, start: NodeId) -> Option<(Vec<f64>, Vec<bool>)> {
 /// `round_decimals` rounds every distance to `d` decimals
 /// (`round(v·10^d)/10^d`) for textbook-friendly values; `d > 6` is
 /// `InvalidMatrix`. A missing branch length is `InvalidMatrix` naming
-/// a leaf whose path needs it. Fewer than 3 leaves is `TooFewTaxa`;
+/// a leaf whose path needs it, and a leaf in `tree.nodes` that is
+/// unreachable from the root is `InvalidMatrix` naming it rather than
+/// silently dropping it. Fewer than 3 leaves is `TooFewTaxa`;
 /// the result is passed through [`validate_input`], so duplicate or
 /// empty leaf labels and a tree over [`MAX_TAXA`] leaves get the same
 /// refusal as a supplied matrix.
@@ -200,8 +208,12 @@ pub fn additive_matrix(tree: &Tree, round_decimals: Option<u8>) -> Result<Distan
         }
     }
     // Leaves in preorder = `leaf_labels()` order.
-    let leaves: Vec<(NodeId, String)> = tree
-        .preorder()
+    let preorder = tree.preorder();
+    let mut reached = vec![false; tree.nodes.len()];
+    for &id in &preorder {
+        reached[id.0 as usize] = true;
+    }
+    let leaves: Vec<(NodeId, String)> = preorder
         .into_iter()
         .filter(|&id| tree.is_leaf(id))
         .map(|id| {
@@ -211,6 +223,18 @@ pub fn additive_matrix(tree: &Tree, round_decimals: Option<u8>) -> Result<Distan
             )
         })
         .collect();
+    // A leaf in `tree.nodes` that is unreachable from the root must not
+    // be silently dropped from the matrix.
+    for (i, node) in tree.nodes.iter().enumerate() {
+        if !reached[i] && node.children.is_empty() {
+            let name = node.label.clone().unwrap_or_default();
+            return Err(NeoError::InvalidMatrix {
+                row: name.clone(),
+                col: String::new(),
+                msg: format!("taxon '{name}' is not connected to the tree"),
+            });
+        }
+    }
     let n = leaves.len();
     if n < 3 {
         return Err(NeoError::TooFewTaxa { min: 3, got: n });

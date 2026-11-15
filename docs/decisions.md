@@ -6942,3 +6942,7 @@ Owner-requested rendering fixes after the PR #139 review; branch
   plus its title), and `web/src/editor/exerciseFile.ts` (`correctionName`
   gains `case "Supplied" → "supplied"` so the exhaustive switch still
   compiles; the matrix exercise file shape lands in Task 5).
+- **Fix round 1 (conductor's call):** `InvalidMatrix` Display — and the
+  mirrored errors.ts body — prints "distance matrix taxon '{name}': {msg}"
+  / `Taxon {name}: {msg}` when exactly one of `row`/`col` is set or when
+  `row == col` (a duplicate); two distinct names still print as a cell.
