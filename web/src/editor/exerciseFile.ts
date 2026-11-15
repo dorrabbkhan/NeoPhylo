@@ -82,6 +82,7 @@ const EXERCISE_KEYS = new Set([
   "locked",
   "prompts",
   "bootstrap",
+  "meta",
   "true_tree",
   "sim",
 ]);
@@ -146,6 +147,10 @@ function analysisToFile(
 ): Record<string, unknown> {
   const method = a.method === "Nj" ? "NJ" : "UPGMA";
   const c = a.correction;
+  // A matrix exercise's analysis holds method only (v1.4c Task 5):
+  // the loader sets correction to Supplied, and a written correction
+  // key is refused.
+  if (c === "Supplied") return { method };
   const out: Record<string, unknown> =
     typeof c === "string"
       ? { correction: correctionName(c), method }
@@ -189,7 +194,15 @@ function needsSchema4(a: Exercise["analysis"]): boolean {
 function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   const ex = state.exercise;
   const file: Record<string, unknown> = {
-    schema_version: needsSchema4(ex.analysis) ? 4 : CURRENT_SCHEMA_VERSION,
+    // A matrix exercise or a `meta` block needs schema 5 (v1.4c
+    // Task 5); a v4 field needs 4; anything else writes today's
+    // version (3).
+    schema_version:
+      ex.data.kind === "matrix" || ex.meta != null
+        ? 5
+        : needsSchema4(ex.analysis)
+          ? 4
+          : CURRENT_SCHEMA_VERSION,
     id: ex.id,
     title: ex.title,
     alphabet: ex.alphabet,
@@ -200,7 +213,18 @@ function exerciseToFile(state: ExerciseState): Record<string, unknown> {
             true_tree: ex.data.true_tree,
             sim: simToFile(ex.data.sim),
           }
-        : { kind: "embedded", fasta: ex.data.fasta, source: ex.data.source },
+        : ex.data.kind === "embedded"
+          ? {
+              kind: "embedded",
+              fasta: ex.data.fasta,
+              source: ex.data.source,
+            }
+          : {
+              kind: "matrix",
+              names: ex.data.names,
+              lower: ex.data.lower,
+              source: ex.data.source,
+            },
     analysis: analysisToFile(ex.analysis),
     locked: ex.locked,
     prompts: ex.prompts.map(promptToFile),
@@ -209,6 +233,9 @@ function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   // omit every optional key rather than write a null it refuses.
   if (ex.reference !== null) file.reference = ex.reference;
   if (ex.bootstrap !== null) file.bootstrap = ex.bootstrap;
+  // `meta` is v5-only lesson metadata; the wire shape is the file
+  // shape (v1.4c Task 5).
+  if (ex.meta != null) file.meta = ex.meta;
   // `summary` is required by the schema but not part of Exercise (a
   // display field the engine ignores): keep the imported one, else fall
   // back to the title so a bare { exercise } still produces a valid file.

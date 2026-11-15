@@ -1,0 +1,19 @@
+{
+  "schema_version": 5,
+  "id": "v5-meta-ids",
+  "title": "Meta with unknown ids",
+  "summary": "Meta with unknown ids",
+  "alphabet": "dna",
+  "data": {
+    "kind": "simulated",
+    "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+    "sim": { "model": "JC69", "length": 100, "seed": 1 }
+  },
+  "analysis": { "correction": "JC69", "method": "NJ" },
+  "meta": {
+    "objectives": [],
+    "minutes": 5,
+    "level": "advanced",
+    "prepares_for": ["no-such-lesson", "no-such-lab"]
+  }
+}

@@ -366,3 +366,60 @@ describe("schema 4 save (v1.4b Task 11)", () => {
       .toBe(3);
   });
 });
+
+describe("schema 5 save (v1.4c Task 5)", () => {
+  it("a v5 simulated lesson with meta saves as schema 5 and keeps meta", () => {
+    // `meta` is v5-only: a meta-carrying non-matrix exercise must
+    // write schema_version 5 or the saved file refuses to load.
+    const ex = load(
+      readFileSync(resolve(V3_FIXTURES, "v5-meta-valid.json"), "utf8"),
+    );
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(file.schema_version).toBe(5);
+    expect(file.meta).toEqual(ex.meta);
+    expect(validate(file), JSON.stringify(validate.errors)).toBe(true);
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    expect(back.value.meta).toEqual(ex.meta);
+    expect(back.value).toEqual({ ...ex, schema_version: 5 });
+  });
+
+  it("a v5 matrix exercise saves with a method-only analysis and reloads", () => {
+    const ex = load(
+      readFileSync(resolve(V3_FIXTURES, "v5-matrix-valid.json"), "utf8"),
+    );
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as {
+      schema_version: number;
+      analysis: Record<string, unknown>;
+    };
+    expect(file.schema_version).toBe(5);
+    // A written correction is refused on a matrix exercise — the file
+    // must carry `method` only.
+    expect(file.analysis).not.toHaveProperty("correction");
+    expect(file.analysis.method).toBe("NJ");
+    expect(validate(file), JSON.stringify(validate.errors)).toBe(true);
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    expect(back.value.analysis.correction).toBe("Supplied");
+    expect(back.value.data).toEqual(ex.data);
+    expect(back.value).toEqual({ ...ex, schema_version: 5 });
+  });
+
+  it.each([
+    ["v3-k2p-valid.json", 3],
+    ["v4-partial-95-valid.json", 4],
+  ])("%s without meta keeps schema_version %s on save", (f, want) => {
+    const ex = load(readFileSync(resolve(V3_FIXTURES, f), "utf8"));
+    expect(ex.meta).toBeUndefined();
+    const saved = saveExercise({ exercise: ex });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(file.schema_version).toBe(want);
+    expect(file).not.toHaveProperty("meta");
+    expect(validate(file), JSON.stringify(validate.errors)).toBe(true);
+  });
+});

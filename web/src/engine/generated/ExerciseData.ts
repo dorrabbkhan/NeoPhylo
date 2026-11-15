@@ -6,4 +6,4 @@ import type { Source } from "./Source";
  * Where an exercise's alignment comes from (v1.1 spec §3.6): simulated
  * along `true_tree`, or a fixed aligned FASTA with provenance.
  */
-export type ExerciseData = { "kind": "simulated", true_tree: string, sim: SimSpec, } | { "kind": "embedded", fasta: string, source: Source, };
+export type ExerciseData = { "kind": "simulated", true_tree: string, sim: SimSpec, } | { "kind": "embedded", fasta: string, source: Source, } | { "kind": "matrix", names: Array<string>, lower: Array<number>, source: Source, };

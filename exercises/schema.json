@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NeoPhylo exercise file",
-  "description": "Lesson/exercise file format, schema v2, v3 and v4 (v1.1 design spec section 3.6, v1.4 spec section 4, v1.4b spec section 4). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, sim.kappa is required when sim.model is \"K80\" or \"F84\", and analysis.kappa is allowed only when analysis.correction is \"K2P_PHYLIP\". `summary` is required only here — the engine ignores it — because repository lessons power the app's Lessons menu. Schema_version 2, 3 and 4 validate here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files are v2 or later. The v3 identifiers (analysis.kappa, corrections \"F84\"/\"K2P_PHYLIP\", sim.model \"F84\", sim.base_freqs) are valid only with schema_version 3 or later; the v4 identifiers (analysis.site_filter, correction \"Poisson\") are valid only with schema_version 4. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0.., site_filter.cutoff_pct 0..=100). Model/alphabet compatibility, embedded-FASTA character validity, reference label matching, the F84 base-frequencies sum-to-1 rule and the F84 kappa feasibility floor are semantic checks the engine performs; this schema only covers structure.",
+  "description": "Lesson/exercise file format, schema v2, v3, v4 and v5 (v1.1 design spec section 3.6, v1.4 spec section 4, v1.4b spec section 4, v1.4c spec section 4). This schema mirrors the validation in crates/neophylo-core/src/exercise.rs: unknown properties are ignored, `locked` and `prompts` are optional, sim.kappa is required when sim.model is \"K80\" or \"F84\", and analysis.kappa is allowed only when analysis.correction is \"K2P_PHYLIP\". `summary` is required only here — the engine ignores it — because repository lessons power the app's Lessons menu. Schema_version 2, 3, 4 and 5 validate here — the engine still accepts v1 files (migrated on load) so old links keep working, but repository exercise files are v2 or later. The v3 identifiers (analysis.kappa, corrections \"F84\"/\"K2P_PHYLIP\", sim.model \"F84\", sim.base_freqs) are valid only with schema_version 3 or later; the v4 identifiers (analysis.site_filter, correction \"Poisson\") are valid only with schema_version 4; the v5 identifiers (data.kind \"matrix\", the meta block) are valid only with schema_version 5. On a matrix exercise, analysis holds only \"method\" — correction, kappa and site_filter are refused, as are a top-level bootstrap and predict_branch prompts. Numeric fields follow the engine's effective ranges (sim.length 10..=10000, sim.seed 0..=2^53-1, at_step 0.., site_filter.cutoff_pct 0..=100, meta.minutes and meta.hand_steps 1..=4294967295). Model/alphabet compatibility, embedded-FASTA character validity, reference label matching, the F84 base-frequencies sum-to-1 rule, the F84 kappa feasibility floor, name uniqueness and the lower-triangle length n(n-1)/2 are semantic checks the engine performs; this schema only covers structure.",
   "type": "object",
   "required": ["schema_version", "id", "title", "summary", "alphabet", "data", "analysis"],
   "properties": {
-    "schema_version": { "enum": [2, 3, 4] },
+    "schema_version": { "enum": [2, 3, 4, 5] },
     "id": { "type": "string" },
     "title": { "type": "string" },
     "summary": {
@@ -32,6 +32,39 @@
       ]
     },
     "analysis": { "$ref": "#/$defs/analysis" },
+    "meta": {
+      "type": "object",
+      "required": ["objectives", "minutes", "level", "prepares_for"],
+      "properties": {
+        "objectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The lesson's learning objectives."
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "Whole-session estimate in minutes, shown on the library card."
+        },
+        "level": {
+          "enum": ["intro", "intermediate", "advanced"],
+          "description": "The lesson's difficulty level."
+        },
+        "prepares_for": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Lesson or lab ids this lesson prepares for; id existence is checked by a repo test, not the engine."
+        },
+        "hand_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "Overrides the paper worksheet's hand-worked join count; absent means the default rule."
+        }
+      },
+      "description": "v1.4c spec 4.2: optional lesson metadata, valid only with schema_version 5."
+    },
     "locked": {
       "type": "array",
       "items": { "type": "string" },
@@ -144,7 +177,9 @@
   },
   "allOf": [
     { "$ref": "#/$defs/v3Identifiers" },
-    { "$ref": "#/$defs/v4Identifiers" }
+    { "$ref": "#/$defs/v4Identifiers" },
+    { "$ref": "#/$defs/v5Identifiers" },
+    { "$ref": "#/$defs/matrixRules" }
   ],
   "$defs": {
     "sim": {
@@ -202,7 +237,7 @@
     },
     "analysis": {
       "type": "object",
-      "required": ["correction", "method"],
+      "required": ["method"],
       "properties": {
         "correction": { "enum": ["p", "JC69", "K80", "Kimura", "JTT", "Poisson", "F84", "K2P_PHYLIP"] },
         "method": { "enum": ["NJ", "UPGMA"] },
@@ -213,7 +248,8 @@
         },
         "site_filter": { "$ref": "#/$defs/siteFilter" }
       },
-      "allOf": [{ "$ref": "#/$defs/kappaForK2p" }]
+      "allOf": [{ "$ref": "#/$defs/kappaForK2p" }],
+      "description": "correction is required on every data.kind except \"matrix\" — matrixRules moves the requirement into an if/else so a matrix exercise can omit it (a matrix exercise must omit it: the matrix IS the distances)."
     },
     "siteFilter": {
       "type": "object",
@@ -295,6 +331,75 @@
         }
       }
     },
+    "v5Identifiers": {
+      "description": "v1.4c spec 4: the v5 identifiers exist only in schema_version 5 files. In a v2, v3 or v4 file a data.kind of \"matrix\" and a meta key (even a null one) are invalid.",
+      "if": {
+        "properties": { "schema_version": { "enum": [2, 3, 4] } },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "properties": {
+              "kind": { "not": { "const": "matrix" } }
+            }
+          }
+        },
+        "not": { "required": ["meta"] }
+      }
+    },
+    "matrixRules": {
+      "description": "v1.4c spec 4.1: on data.kind \"matrix\" the analysis holds only \"method\" — correction, kappa and site_filter are invalid (the matrix is the distances) — a top-level bootstrap is invalid (nothing to resample) and predict_branch prompts are invalid (no bootstrap stage). On every other data.kind, correction is required.",
+      "if": {
+        "properties": {
+          "data": {
+            "properties": { "kind": { "const": "matrix" } },
+            "required": ["kind"]
+          }
+        },
+        "required": ["data"]
+      },
+      "then": {
+        "properties": {
+          "analysis": {
+            "not": {
+              "anyOf": [
+                { "required": ["correction"] },
+                { "required": ["kappa"] },
+                { "required": ["site_filter"] }
+              ]
+            }
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "properties": {
+                "type": { "not": { "const": "predict_branch" } }
+              }
+            }
+          }
+        },
+        "not": { "required": ["bootstrap"] }
+      },
+      "else": {
+        "properties": {
+          "analysis": { "required": ["correction"] }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["citation", "license", "accessions"],
+      "properties": {
+        "citation": { "type": "string" },
+        "license": { "type": "string" },
+        "accessions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "description": "Provenance of embedded or supplied data (citation, license; accessions may be empty)."
+    },
     "data": {
       "oneOf": [
         {
@@ -318,18 +423,27 @@
               "type": "string",
               "description": "Aligned FASTA text embedded in the lesson; it must parse and its characters must be valid under the declared alphabet (checked by the engine)."
             },
-            "source": {
-              "type": "object",
-              "required": ["citation", "license", "accessions"],
-              "properties": {
-                "citation": { "type": "string" },
-                "license": { "type": "string" },
-                "accessions": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                }
-              }
-            }
+            "source": { "$ref": "#/$defs/source" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "names", "lower", "source"],
+          "properties": {
+            "kind": { "const": "matrix" },
+            "names": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "minItems": 3,
+              "maxItems": 200,
+              "description": "v1.4c spec 4.1: the taxon names in row order (3–200 taxa; unique — checked by the engine)."
+            },
+            "lower": {
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 },
+              "description": "The strict lower triangle in row order: n(n−1)/2 finite, non-negative distances; the diagonal is implicitly zero (length checked by the engine)."
+            },
+            "source": { "$ref": "#/$defs/source" }
           }
         }
       ]

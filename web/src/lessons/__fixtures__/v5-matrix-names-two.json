@@ -1,0 +1,14 @@
+{
+  "schema_version": 5,
+  "id": "v5-matrix-names-two",
+  "title": "v5-matrix-names-two.json",
+  "summary": "v5-matrix-names-two.json",
+  "alphabet": "dna",
+  "data": {
+    "kind": "matrix",
+    "names": ["A","B"],
+    "lower": [0.2],
+    "source": { "citation": "test", "license": "CC0", "accessions": [] }
+  },
+  "analysis": { "method": "NJ" }
+}

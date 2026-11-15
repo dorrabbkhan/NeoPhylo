@@ -443,9 +443,9 @@ export function applyImportTree(s: Session, tree: Tree): Session {
   // `s.alphabet`, which may still describe an imported alignment
   // this action discards.
   const alphabet: Alphabet =
-    s.exercise.data.kind === "embedded"
-      ? s.exercise.alphabet
-      : simModelAlphabet(s.exercise.data.sim.model);
+    s.exercise.data.kind === "simulated"
+      ? simModelAlphabet(s.exercise.data.sim.model)
+      : s.exercise.alphabet;
   return recompute(
     clearBootstrap(
       reconcileModels({

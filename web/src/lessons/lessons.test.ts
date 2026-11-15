@@ -67,11 +67,17 @@ describe("exercises/*.json lesson content", () => {
           (n) => n.children.length === 0,
         ).length;
         alnRes = engine.simulate(tt.value, ex.data.sim);
-      } else {
+      } else if (ex.data.kind === "embedded") {
         alnRes = engine.parseFasta(ex.data.fasta);
         expect(alnRes.ok, `${f} embedded fasta parses`).toBe(true);
         if (!alnRes.ok) continue;
         leafCount = alnRes.value.labels.length;
+      } else {
+        // data.kind "matrix" lessons come in v1.4c Task 10; the first
+        // one must extend this test's checks, not slip past them.
+        expect.fail(
+          `${f}: matrix lessons need lesson-content checks (v1.4c Task 10)`,
+        );
       }
       const dm = alnRes.ok
         ? engine.distances(alnRes.value, ex.analysis.correction)
