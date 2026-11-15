@@ -7124,3 +7124,47 @@ Owner-requested rendering fixes after the PR #139 review; branch
     called for were already covered by the existing
     `v5-meta-minutes-float.json` and `v5-meta-hand-steps-zero.json`
     fixtures.
+
+## v1.4c Task 6: worksheet facts, matrix + worksheet wasm bindings
+
+- **`JoinFacts.final_join` + the NJ final entry (conductor's call,
+  v1.4c Task 6 notes; owner confirmed 2026-11-15):** the plan's
+  `worksheet_facts` shape cannot
+  represent NJ's three-way `NjFinal`, yet Step 1 requires a 3-taxon
+  matrix to give one `JoinFacts`. Resolved: NJ returns one `JoinFacts`
+  per `NjStep` plus one appended entry for `NjFinal` — `final_join:
+  true` marks it; 5 taxa → 3 entries, 3 taxa → 1. UPGMA returns one
+  per `UpgmaStep` (n − 1; 3 taxa → 2). The final entry reads
+  `NjFinal`'s own values: `step` = last step + 1, `chosen` = (a, b),
+  `tied` = [(a, b)] (no real choice at three nodes — the three pairs
+  are not listed), `row_sums` = row sums of `NjFinal.distance` in a,
+  b, c order, `len_i`/`len_j` = `la`/`lb`, `new_distances` = [(c,
+  `lc`)], `closest`/`chosen_is_closest` computed normally from the
+  3×3 distances, `tie_same_split` = false.
+- **Facts come from the trace, never recomputed (conductor's call):**
+  `worksheet_facts` runs `build_tree(m, method, trace)` and reads
+  `chosen`, `row_sums` (= `NjStep.r`), `len_i`, `len_j` and
+  `new_distances` (= `new_row` paired with the remaining active nodes'
+  names in trace order) straight from the trace. `tied` and `closest`
+  apply the engine's exact `==` minimum rule over the trace's own `q`
+  (NJ) / `distance` (UPGMA) in lexicographic `(i, j)` scan order — no
+  epsilon — so `tied[0] == chosen` always. `tie_same_split` is true
+  iff `tied` is exactly two disjoint pairs over four active nodes, the
+  same rule for both methods. Node names match
+  `state/names.ts::nodeName`: leaf labels or `u<id − leaves + 1>`
+  (pinned by `names_match_stepper` and the Vitest stepMatrix check).
+- **Tour lazy chunk (owner decision 2026-11-15, option A on PR
+  #152):** `web/src/views/App.tsx` is outside Task 6's Files block;
+  the task commit pushed initial JS to 120222 gz, 54 over the 120168
+  budget, and the owner kept the budget unchanged and made `Tour` a
+  lazy chunk on the PhylipHelp / ReplicatePanel / PairPanel /
+  BootstrapPanel precedent — the static `import { Tour }` became
+  `lazy(() => import("./Tour")…)` and the render sits inside
+  `<Suspense fallback={null}>` under the `tourStep !== null`
+  condition, so the chunk fetches only when a tour runs. Fresh build:
+  initial JS 120222 → 119309 gz; Tour chunk 1398 gz.
+- **Files outside the Files block:** none in the task commit — the
+  only generated file, `web/src/engine/generated/JoinFacts.ts`, is
+  covered by the block's "`web/src/engine/generated/` (regenerated)"
+  line. Fix round 1 added `web/src/views/App.tsx` (the Tour lazy chunk
+  above).
