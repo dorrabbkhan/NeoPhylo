@@ -240,6 +240,9 @@ export const DIST_LABEL: Record<DistModelName, string> = {
   Jtt: "JTT",
   Poisson: "Poisson",
   F84: "F84",
+  // Matches the engine's `name()`; `Supplied` is never in `CORRECTIONS`,
+  // so the menu never offers it (v1.4c).
+  Supplied: "supplied",
 };
 
 /** The menu label for a K2P_PHYLIP correction: the plan's pinned

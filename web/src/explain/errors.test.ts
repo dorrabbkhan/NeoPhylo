@@ -22,6 +22,7 @@ const VARIANTS: NeoError[] = [
   { kind: "InvalidEdit", msg: "duplicate taxon name 'Human'" },
   { kind: "ModelAlphabetMismatch", model: "JC69", alphabet: "protein" },
   { kind: "NoSitesKept", filter: "complete" },
+  { kind: "InvalidMatrix", row: "c", col: "a", msg: "distance must be finite" },
 ];
 
 const TITLES: Record<NeoError["kind"], string> = {
@@ -38,6 +39,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   ModelAlphabetMismatch: "JC69 doesn't fit this data",
   BootstrapFailed: "Every bootstrap replicate failed",
   NoSitesKept: "The gap filter removed every site",
+  InvalidMatrix: "This distance matrix has a problem",
 };
 
 describe("errorMessage", () => {
@@ -134,6 +136,25 @@ describe("errorMessage", () => {
       'expected \'#mega\' on the first line (line 1, column 1). Check the MEGA file: it starts with #mega, has a !Format line and one #name per sequence.',
     );
     expect(m.body).not.toContain("FASTA");
+  });
+
+  it("names the taxon, not a cell, for a single or duplicate InvalidMatrix name (v1.4c Task 3 fix round 1)", () => {
+    expect(
+      errorMessage({
+        kind: "InvalidMatrix",
+        row: "b",
+        col: "",
+        msg: "taxon 'b' is not connected to the tree",
+      }).body,
+    ).toBe("Taxon b: taxon 'b' is not connected to the tree");
+    expect(
+      errorMessage({
+        kind: "InvalidMatrix",
+        row: "Human",
+        col: "Human",
+        msg: "taxa 1 and 3 share the name 'Human'",
+      }).body,
+    ).toBe("Taxon Human: taxa 1 and 3 share the name 'Human'");
   });
 
   it("tells the user to align ragged sequences first (Review Focus 2)", () => {

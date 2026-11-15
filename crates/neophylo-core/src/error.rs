@@ -74,6 +74,16 @@ pub enum NeoError {
     NoSitesKept {
         filter: String,
     },
+    /// A supplied distance matrix failed structural validation (v1.4c
+    /// spec §5). `row` and `col` name the offending cell (a taxon name,
+    /// the shared name for duplicates); both are empty when the problem
+    /// is not about one cell. Exactly one name — or a duplicate, where
+    /// `row == col` — displays as a taxon, not a cell.
+    InvalidMatrix {
+        row: String,
+        col: String,
+        msg: String,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -136,6 +146,18 @@ impl fmt::Display for NeoError {
             Self::InvalidEdit { msg } => write!(f, "{msg}"),
             Self::NoSitesKept { filter } => {
                 write!(f, "every site was removed by {filter} deletion")
+            }
+            Self::InvalidMatrix { row, col, msg } => {
+                if row.is_empty() && col.is_empty() {
+                    write!(f, "distance matrix: {msg}")
+                } else if row.is_empty() || col.is_empty() || row == col {
+                    // A single name — or a duplicate, where row == col —
+                    // is a taxon, not a cell.
+                    let name = if row.is_empty() { col } else { row };
+                    write!(f, "distance matrix taxon '{name}': {msg}")
+                } else {
+                    write!(f, "distance matrix cell ({row}, {col}): {msg}")
+                }
             }
         }
     }
