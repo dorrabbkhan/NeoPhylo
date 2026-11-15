@@ -332,7 +332,9 @@ describe("ImportPanel — file input", () => {
       target: { files: [new File([matrix], "matrix.meg")] },
     });
     await waitFor(() =>
-      expect(screen.getByText(/planned for v1\.4c/)).toBeTruthy(),
+      expect(
+        screen.getByText(/holds a distance matrix; open it as a distance matrix/),
+      ).toBeTruthy(),
     );
     paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
     expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
@@ -462,9 +464,9 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
         );
       } else if (expected.error.kind === "Parse") {
         // The matrix refusal is a notice, not an error line.
-        if (expected.error.msg.startsWith("distance-matrix")) {
+        if (expected.error.msg.startsWith("this .meg file holds a distance matrix")) {
           expect(
-            screen.getByText(/planned for v1\.4c/),
+            screen.getByText(/holds a distance matrix; open it as a distance matrix/),
           ).toBeTruthy();
         } else {
           expect(

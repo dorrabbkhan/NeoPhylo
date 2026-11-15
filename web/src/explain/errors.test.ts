@@ -23,6 +23,7 @@ const VARIANTS: NeoError[] = [
   { kind: "ModelAlphabetMismatch", model: "JC69", alphabet: "protein" },
   { kind: "NoSitesKept", filter: "complete" },
   { kind: "InvalidMatrix", row: "c", col: "a", msg: "distance must be finite" },
+  { kind: "MatrixAmbiguous", question: "DecimalComma" },
 ];
 
 const TITLES: Record<NeoError["kind"], string> = {
@@ -40,6 +41,7 @@ const TITLES: Record<NeoError["kind"], string> = {
   BootstrapFailed: "Every bootstrap replicate failed",
   NoSitesKept: "The gap filter removed every site",
   InvalidMatrix: "This distance matrix has a problem",
+  MatrixAmbiguous: "This distance matrix needs a choice",
 };
 
 describe("errorMessage", () => {

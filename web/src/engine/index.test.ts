@@ -250,7 +250,7 @@ describe("engine .meg wrappers", () => {
     if (!r.ok) {
       expect(r.error.kind).toBe("Parse");
       if (r.error.kind === "Parse") {
-        expect(r.error.msg).toContain("distance-matrix");
+        expect(r.error.msg).toContain("holds a distance matrix");
       }
     }
   });

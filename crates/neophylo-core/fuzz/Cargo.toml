@@ -45,3 +45,21 @@ name = "meg"
 path = "fuzz_targets/meg.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "matrix_phylip"
+path = "fuzz_targets/matrix_phylip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "matrix_meg"
+path = "fuzz_targets/matrix_meg.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "matrix_paste"
+path = "fuzz_targets/matrix_paste.rs"
+test = false
+doc = false
