@@ -6953,7 +6953,11 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `parse_pasted_matrix` tries `parse_phylip_matrix` first, then a
   tabular reading — rows are lines, cells split on whitespace runs
   (NBSP included) and, unless `decimal_comma`, on commas (trailing
-  empty cells from spreadsheet trailing commas are dropped). Unicode
+  empty cells from spreadsheet trailing commas are dropped). When
+  every non-blank line contains a tab the paste is a spreadsheet
+  copy: cells split on tabs only (each trimmed of spaces/NBSP), so
+  names may contain spaces. Errors name a row by its real name or
+  line number, never by a generated A/B/C label. Unicode
   minus U+2212 is normalised to `-` before number parsing. The value
   block reads as square (`n` cells/row), lower+diagonal (`i+1` — a
   square with a blank upper triangle), or strict lower (`i`) only
@@ -6970,18 +6974,25 @@ Owner-requested rendering fixes after the PR #139 review; branch
   header row supplies names when its cell count is `n` or `n+1`
   (corner cell), and when a name column is also present the two must
   agree or the reading fails.
-- **PHYLIP name handling (conductor's call):** under every `NameMode`
-  a row's name is the first whitespace-delimited token of its first
-  line (names containing spaces are not supported); `Strict` stores
-  the first 10 characters. The truncation-collision refusal applies
-  when the effective mode is Strict — i.e. `NameMode::Strict`, or
-  `Auto` where Relaxed failed and the Strict fallback succeeded.
-- **PHYLIP shape pick (conductor's call):** square is tried before
+- **PHYLIP name handling (builder's call):** under `Relaxed` a row's
+  name is the first whitespace-delimited token of its first line;
+  under `Strict` it is the first 10 characters of that line (chars,
+  not bytes, so multi-byte characters are never sliced), trimmed of
+  trailing whitespace, and values start at character 11 — a value may
+  be glued to the name (`Homo sapie0.5`), and a shorter first line is
+  a name alone whose values wrap. A first token longer than 10
+  characters means the writer overflowed the name field: the whole
+  token is the name and values follow it normally. A strict name's
+  identity is its first 10 characters; the truncation-collision
+  refusal applies when the effective mode is Strict — i.e.
+  `NameMode::Strict`, or `Auto` where Relaxed failed and the Strict
+  fallback succeeded.
+- **PHYLIP shape pick (builder's call):** square is tried before
   lower-triangular; when both fail, the error comes from the shape
   the first row suggests (a name line carrying values looks square;
   a name alone looks lower), ties broken by which parse saw more
   lines.
-- **`.meg` positional rows (conductor's call):** `#name` lines may be
+- **`.meg` positional rows (builder's call):** `#name` lines may be
   interleaved with data rows and a `#name` line's tail counts as one
   data row; the `n−1` data rows then fill the declared triangle in
   order (LowerLeft row `r` = taxon `r+1` with `r+1` values;
@@ -7010,4 +7021,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `web/src/explain/errors.ts` and `web/src/explain/errors.test.ts`
   gained the minimal `MatrixAmbiguous` case the `never`-exhaustive
   switch requires (title "This distance matrix needs a choice",
-  body naming the question in plain words) — additions only.
+  body naming the question in plain words) — additions only;
+  `scripts/ci/fuzz.sh` — the three matrix targets added to the
+  fuzz loop (the plan names the targets but not the CI script) — and
+  `crates/neophylo-core/fuzz/seeds/{matrix_phylip,matrix_meg,
+  matrix_paste}/` — copies of the hand-written
+  `tests/matrix_inputs/` files, per the plan's "seeded from
+  `tests/matrix_inputs/`".

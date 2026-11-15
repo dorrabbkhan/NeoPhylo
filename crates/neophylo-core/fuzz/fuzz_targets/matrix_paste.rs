@@ -21,7 +21,20 @@ fuzz_target!(|data: &[u8]| {
                 if let Ok(out) = write_meg_matrix(&file.matrix, "fuzz") {
                     let back = neophylo_core::matrix_parse::parse_meg_matrix(&out)
                         .expect("write_meg_matrix output must re-parse");
-                    assert_eq!(back.matrix, file.matrix);
+                    // The .meg writer maps whitespace in names to '_',
+                    // and pasted names may contain spaces.
+                    let mapped: Vec<String> = file
+                        .matrix
+                        .names
+                        .iter()
+                        .map(|n| {
+                            n.chars()
+                                .map(|c| if c.is_whitespace() { '_' } else { c })
+                                .collect()
+                        })
+                        .collect();
+                    assert_eq!(back.matrix.names, mapped);
+                    assert_eq!(back.matrix.lower, file.matrix.lower);
                 }
             }
         }

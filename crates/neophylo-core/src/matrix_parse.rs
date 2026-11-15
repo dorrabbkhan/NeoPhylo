@@ -15,14 +15,20 @@
 //! (row `i` has `i` values, so the first row is a name alone). Square
 //! is tried first; when both readings fail, the error comes from the
 //! shape the first row suggests — a first row carrying values looks
-//! square, a name alone looks lower. Under every `NameMode` a name is
-//! the first whitespace-delimited token of the row's first line; under
-//! `Strict` its identity is its first 10 characters, and two distinct
-//! names truncating to the same string are `InvalidMatrix` naming
-//! both full names (Review Focus 2) — exact duplicates reuse
-//! `validate_input`'s refusal. `Auto` tries Relaxed first and falls
-//! back to Strict, reporting the Relaxed error, as `parse_phylip`
-//! does.
+//! square, a name alone looks lower. Under `Relaxed` a name is the
+//! first whitespace-delimited token of the row's first line; under
+//! `Strict` it is the first 10 characters of that line (chars, not
+//! bytes), trimmed of trailing whitespace, and values start at
+//! character 11 — a value may be glued to the name (`Homo sapie0.5`),
+//! and a shorter first line is a name alone whose values wrap. A
+//! first token longer than 10 characters means the writer overflowed
+//! the name field, so the whole token is the name and values follow
+//! it normally. Under `Strict` a name's identity is its first 10
+//! characters, and two distinct names truncating to the same string
+//! are `InvalidMatrix` naming both full names (Review Focus 2) —
+//! exact duplicates reuse `validate_input`'s refusal. `Auto` tries
+//! Relaxed first and falls back to Strict, reporting the Relaxed
+//! error, as `parse_phylip` does.
 //!
 //! A square matrix must be symmetric and zero on the diagonal: the
 //! first differing cell is `InvalidMatrix` naming both taxa, unless
@@ -50,14 +56,19 @@
 //!
 //! Tries `parse_phylip_matrix` first, then a tabular reading: lines
 //! are rows, cells are separated by whitespace runs (spaces, tabs,
-//! NBSP) and — unless `decimal_comma` is set — commas. Unicode minus
-//! `−` reads as `-` (and is then refused as negative). The value
+//! NBSP) and — unless `decimal_comma` is set — commas. When every
+//! non-blank line contains a tab the paste is a spreadsheet copy:
+//! cells split on tabs only (each trimmed of spaces/NBSP), so names
+//! may contain spaces. Unicode minus `−` reads as `-` (and is then
+//! refused as negative). The value
 //! block is square (`n` cells a row), lower+diagonal (`i+1` cells a
 //! row — a square whose upper triangle was left blank) or, only when
 //! a name column is present, strict lower (`i` cells; without names a
 //! strict-lower block would need an extra taxon with no row at all).
 //! Diagonal cells must be zero and a square block must be symmetric.
-//! With no name column the taxa are named A, B, C, … (a notice).
+//! With no name column the taxa are named A, B, C, … (a notice);
+//! errors then name a row by its line number, never by a generated
+//! label — a reading with real names names them.
 //!
 //! Each `PasteOptions` field left `None` is resolved by trying both
 //! readings; `MatrixAmbiguous` is returned only when the text
@@ -233,20 +244,64 @@ fn effective_names(full: &[String], strict: bool) -> Result<Vec<String>, NeoErro
 
 // ---- PHYLIP --------------------------------------------------------
 
-/// One shape parse: `full_names` are the raw name tokens and `rows`
-/// the value rows (`n` wide for a square parse, `i` wide for lower).
-/// The error return carries how far the attempt got, to pick the
-/// better error when both shapes fail.
+/// One shape parse: `full_names` are the raw names and `rows` the
+/// value rows (`n` wide for a square parse, `i` wide for lower). The
+/// error return carries how far the attempt got, to pick the better
+/// error when both shapes fail.
 struct PhylipShape {
     full_names: Vec<String>,
     rows: Vec<Vec<f64>>,
     square: bool,
 }
 
+/// A row's name and the value tokens following it on the row's first
+/// line (tokens carry 1-based char columns). Under `Relaxed` the name
+/// is the first whitespace token. Under `Strict` the name occupies
+/// the first 10 characters of the line (chars, not bytes, so a
+/// multi-byte character is never sliced), trimmed of trailing
+/// whitespace, and values start at character 11 — a value may be
+/// glued to the name with no space (`Homo sapie0.5`). A line shorter
+/// than 10 characters yields the whole trimmed line as the name and
+/// its values wrap onto the following lines. A first token longer
+/// than 10 characters means the writer overflowed the name field, so
+/// the whole token is the name and values follow it normally — the
+/// 10-character identity truncation still applies to it (Review
+/// Focus 2).
+fn row_head<'a>(
+    line: &'a str,
+    toks: &[(u32, &'a str)],
+    strict: bool,
+) -> (String, Vec<(u32, &'a str)>) {
+    if strict && toks.first().map(|(_, t)| t.chars().count()).unwrap_or(0) <= 10 {
+        let name: String = line
+            .chars()
+            .take(10)
+            .collect::<String>()
+            .trim_end()
+            .to_string();
+        let off = line
+            .char_indices()
+            .nth(10)
+            .map(|(b, _)| b)
+            .unwrap_or(line.len());
+        let rest = tokenize(&line[off..])
+            .into_iter()
+            .map(|(c, t)| (c + 10, t))
+            .collect();
+        (name, rest)
+    } else {
+        match toks.split_first() {
+            Some(((_, name), rest)) => (name.to_string(), rest.to_vec()),
+            None => (String::new(), Vec::new()),
+        }
+    }
+}
+
 fn phylip_shape(
     lines: &[(u32, String)],
     n: usize,
     square: bool,
+    strict: bool,
 ) -> Result<PhylipShape, (NeoError, u32)> {
     let toklines: Vec<Vec<(u32, &str)>> = lines.iter().map(|(_, l)| tokenize(l)).collect();
     let last_line = lines.last().map(|(no, _)| *no).unwrap_or(1);
@@ -264,13 +319,15 @@ fn phylip_shape(
                 li as u32,
             ));
         }
-        // A row's name is its line's first token; non-blank lines
-        // always have one.
-        let full = toklines[li][0].1.to_string();
+        // The row's first line holds its name and may carry values.
+        let (full, first_vals) = row_head(&lines[li].1, &toklines[li], strict);
+        if full.is_empty() {
+            return Err((parse_err(lines[li].0, 1, "empty taxon name"), li as u32));
+        }
         let need = if square { n } else { i };
         let mut vals = Vec::with_capacity(need);
         let mut l = li;
-        let mut t = 1usize; // skip the name token on the first line
+        let mut t = 0usize;
         while vals.len() < need {
             if l >= toklines.len() {
                 return Err((
@@ -285,7 +342,13 @@ fn phylip_shape(
                     l as u32,
                 ));
             }
-            let lt = &toklines[l];
+            // On the row's first line only the tokens after the name
+            // are values; continuation lines are all values.
+            let lt: &[(u32, &str)] = if l == li {
+                first_vals.as_slice()
+            } else {
+                toklines[l].as_slice()
+            };
             while t < lt.len() && vals.len() < need {
                 let (col, tok) = lt[t];
                 match tok.parse::<f64>() {
@@ -442,9 +505,10 @@ fn phylip_inner(
             got: n,
         });
     }
+    let strict = mode == NameMode::Strict;
     let sh = match (
-        phylip_shape(&lines, n, true),
-        phylip_shape(&lines, n, false),
+        phylip_shape(&lines, n, true, strict),
+        phylip_shape(&lines, n, false, strict),
     ) {
         (Ok(s), _) => s,
         (Err(_), Ok(l)) => l,
@@ -453,7 +517,9 @@ fn phylip_inner(
             // first row suggests (a name line carrying values looks
             // square; a name alone looks lower), breaking ties by
             // which parse saw more lines.
-            let row0_values = lines.get(1).map(|(_, l)| tokenize(l).len() > 1);
+            let row0_values = lines
+                .get(1)
+                .map(|(_, l)| !row_head(l, &tokenize(l), strict).1.is_empty());
             return Err(if row0_values == Some(false) {
                 if pl >= ps {
                     el
@@ -468,12 +534,7 @@ fn phylip_inner(
         }
     };
     let mut notices = Vec::new();
-    let matrix = phylip_finish(
-        &sh,
-        mode == NameMode::Strict,
-        opts.use_lower_if_asymmetric,
-        &mut notices,
-    )?;
+    let matrix = phylip_finish(&sh, strict, opts.use_lower_if_asymmetric, &mut notices)?;
     Ok(MatrixFile {
         matrix,
         title: None,
@@ -1078,6 +1139,14 @@ fn try_tabular(
         notices.push("no taxon names found; taxa are named A, B, C, …".to_string());
         (0..n).map(generated_name).collect()
     };
+    // Errors name a row by its real name when the text supplies one
+    // (name column or header), else by line number — never by a
+    // generated A/B/C label (Review Focus 1).
+    let err_names: Vec<String> = if names_col || hrow.is_some() {
+        names.clone()
+    } else {
+        data.iter().map(|r| format!("line {}", r.line)).collect()
+    };
     if names_col {
         if let Some(h) = hrow {
             match header_names(h, n) {
@@ -1153,7 +1222,7 @@ fn try_tabular(
                     1,
                     format!(
                         "row for '{}' has {} value cells, expected {e}",
-                        names[i], counts[i]
+                        err_names[i], counts[i]
                     ),
                 ),
                 1,
@@ -1183,13 +1252,13 @@ fn try_tabular(
         0 => {
             for i in 0..n {
                 for j in 0..n {
-                    check_value(grid[i][j], &names[i], &names[j]).map_err(|e| (e, 3u8))?;
+                    check_value(grid[i][j], &err_names[i], &err_names[j]).map_err(|e| (e, 3u8))?;
                 }
                 if grid[i][i] != 0.0 {
                     return Err((
                         invalid(
-                            &names[i],
-                            &names[i],
+                            &err_names[i],
+                            &err_names[i],
                             format!("diagonal cell must be 0, got {}", grid[i][i]),
                         ),
                         3,
@@ -1201,11 +1270,16 @@ fn try_tabular(
                     if grid[i][j] != grid[j][i] {
                         return Err((
                             invalid(
-                                &names[i],
-                                &names[j],
+                                &err_names[i],
+                                &err_names[j],
                                 format!(
                                     "matrix is not symmetric: d({},{}) = {} but d({},{}) = {}",
-                                    names[i], names[j], grid[i][j], names[j], names[i], grid[j][i]
+                                    err_names[i],
+                                    err_names[j],
+                                    grid[i][j],
+                                    err_names[j],
+                                    err_names[i],
+                                    grid[j][i]
                                 ),
                             ),
                             3,
@@ -1218,13 +1292,13 @@ fn try_tabular(
         1 => {
             for i in 0..n {
                 for j in 0..=i {
-                    check_value(grid[i][j], &names[i], &names[j]).map_err(|e| (e, 3u8))?;
+                    check_value(grid[i][j], &err_names[i], &err_names[j]).map_err(|e| (e, 3u8))?;
                 }
                 if grid[i][i] != 0.0 {
                     return Err((
                         invalid(
-                            &names[i],
-                            &names[i],
+                            &err_names[i],
+                            &err_names[i],
                             format!("diagonal cell must be 0, got {}", grid[i][i]),
                         ),
                         3,
@@ -1236,7 +1310,7 @@ fn try_tabular(
         _ => {
             for i in 0..n {
                 for j in 0..i {
-                    check_value(grid[i][j], &names[i], &names[j]).map_err(|e| (e, 3u8))?;
+                    check_value(grid[i][j], &err_names[i], &err_names[j]).map_err(|e| (e, 3u8))?;
                     lower.push(grid[i][j]);
                 }
             }
@@ -1262,22 +1336,30 @@ pub fn parse_pasted_matrix(text: &str, opts: PasteOptions) -> Result<MatrixFile,
     }
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let text = text.replace('\u{2212}', "-");
-    let raw: Vec<(u32, Vec<(u32, &str)>)> = text
+    let raw: Vec<(u32, &str)> = text
         .lines()
         .enumerate()
-        .map(|(i, l)| ((i + 1) as u32, tokenize(l)))
-        .filter(|(_, t)| !t.is_empty())
+        .map(|(i, l)| ((i + 1) as u32, l))
+        .filter(|(_, l)| !l.trim().is_empty())
         .collect();
     if raw.is_empty() {
         return Err(parse_err(1, 1, "empty input"));
     }
+    // A paste in which every non-blank line carries a tab is a
+    // spreadsheet copy: cells split on tabs only (each trimmed of
+    // spaces/NBSP), so names may contain spaces.
+    let tab_mode = raw.iter().all(|(_, l)| l.contains('\t'));
     let dc = match opts.decimal_comma {
         Some(d) => d,
         None => {
-            if raw
-                .iter()
-                .any(|(_, toks)| toks.iter().any(|(_, t)| comma_ambiguous(t)))
-            {
+            let ambiguous = raw.iter().any(|(_, l)| {
+                if tab_mode {
+                    l.split('\t').any(|c| comma_ambiguous(c.trim()))
+                } else {
+                    tokenize(l).iter().any(|(_, t)| comma_ambiguous(t))
+                }
+            });
+            if ambiguous {
                 return Err(NeoError::MatrixAmbiguous {
                     question: PasteQuestion::DecimalComma,
                 });
@@ -1285,18 +1367,28 @@ pub fn parse_pasted_matrix(text: &str, opts: PasteOptions) -> Result<MatrixFile,
             false
         }
     };
-    // Cell splitting: under decimal_comma a comma stays inside its
-    // cell; otherwise commas separate, and trailing empty cells from
-    // spreadsheet trailing commas are dropped.
+    // Cell splitting: tab mode splits on tabs only; otherwise cells
+    // are whitespace-run tokens and, unless decimal_comma, commas
+    // also separate. Trailing empty cells from spreadsheet trailing
+    // separators are dropped.
     let mut rows: Vec<PasteRow> = Vec::with_capacity(raw.len());
-    for (line, toks) in raw {
+    for (line, text_line) in raw {
         let mut cells: Vec<(u32, String)> = Vec::new();
-        for (col, t) in toks {
-            if dc {
-                cells.push((col, t.to_string()));
-            } else {
-                for (k, piece) in t.split(',').enumerate() {
-                    cells.push((col + k as u32, piece.to_string()));
+        if tab_mode {
+            let mut col = 1u32;
+            for piece in text_line.split('\t') {
+                let lead = piece.chars().count() - piece.trim_start().chars().count();
+                cells.push((col + lead as u32, piece.trim().to_string()));
+                col += (piece.chars().count() + 1) as u32;
+            }
+        } else {
+            for (col, t) in tokenize(text_line) {
+                if dc {
+                    cells.push((col, t.to_string()));
+                } else {
+                    for (k, piece) in t.split(',').enumerate() {
+                        cells.push((col + k as u32, piece.to_string()));
+                    }
                 }
             }
         }

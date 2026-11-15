@@ -212,6 +212,72 @@ fn truncation_collision_refused() {
 }
 
 #[test]
+fn strict_names_with_spaces_no_gap() {
+    // Classic strict PHYLIP: the name is the first 10 characters of
+    // the row's first line and a value may follow it with no space.
+    let text = "3\nHomo sapie0.0 1.0 2.0\nPan troglo1.0 0.0 3.0\nGorilla go2.0 3.0 0.0\n";
+    for names in [NameMode::Strict, NameMode::Auto] {
+        let f = parse_phylip_matrix(text, PhylipMatrixOptions { names, ..auto() })
+            .unwrap_or_else(|e| panic!("{names:?}: {e:?}"));
+        assert_eq!(
+            f.matrix.names,
+            ["Homo sapie", "Pan troglo", "Gorilla go"],
+            "{names:?}"
+        );
+        assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0], "{names:?}");
+    }
+}
+
+#[test]
+fn strict_names_with_spaces_and_gap() {
+    // The same strict file with a space after the 10-character name.
+    let text = "3\nHomo sapie 0.0 1.0 2.0\nPan troglo 1.0 0.0 3.0\nGorilla go 2.0 3.0 0.0\n";
+    for names in [NameMode::Strict, NameMode::Auto] {
+        let f = parse_phylip_matrix(text, PhylipMatrixOptions { names, ..auto() })
+            .unwrap_or_else(|e| panic!("{names:?}: {e:?}"));
+        assert_eq!(
+            f.matrix.names,
+            ["Homo sapie", "Pan troglo", "Gorilla go"],
+            "{names:?}"
+        );
+        assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0], "{names:?}");
+    }
+}
+
+#[test]
+fn strict_name_multibyte_no_panic() {
+    // A 10-character name holding multi-byte characters parses with
+    // glued values (chars, not bytes, bound the name field).
+    let text = "3\nMüller abc0.0 1.0 2.0\nPan troglo1.0 0.0 3.0\nGorilla go2.0 3.0 0.0\n";
+    let f = parse_phylip_matrix(
+        text,
+        PhylipMatrixOptions {
+            names: NameMode::Strict,
+            ..auto()
+        },
+    )
+    .expect("multibyte strict names");
+    assert_eq!(f.matrix.names[0], "Müller abc");
+    assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0]);
+    // Multi-byte characters straddling byte 10 never panic — the
+    // field boundary is counted in characters.
+    for text in [
+        "2\n12345678éé0.5\nb 1.0\n",
+        "2\nabcdefghié0.5\nb 1.0\n",
+        "2\nMüllerxy z0.5 1.0\nb 1.0\n",
+        "2\néééééééééé 0.5 1.0\nb 1.0\n",
+    ] {
+        let _ = parse_phylip_matrix(
+            text,
+            PhylipMatrixOptions {
+                names: NameMode::Strict,
+                ..auto()
+            },
+        );
+    }
+}
+
+#[test]
 fn too_few_taxa_is_an_error_not_a_panic() {
     // Fuzz find: a header of 0 (or 1, 2) taxa must fail through
     // `validate_input`, never in the capacity arithmetic.
@@ -446,4 +512,34 @@ fn paste_no_names_asks() {
     // With a name column the rows are strict-lower: taxon "1" sits 0
     // from "0", taxon "2" sits 3 from "0" and 0 from "1".
     assert_eq!(names.matrix.lower, vec![0.0, 3.0, 0.0]);
+}
+
+#[test]
+fn paste_tab_names_with_spaces() {
+    // A spreadsheet copy is tab-separated in every line, so cells
+    // split on tabs only and names may contain spaces (Review Focus
+    // 1).
+    let text = "Homo sapiens\t0\nPan troglodytes\t1\t0\nGorilla gorilla\t2\t3\t0\n";
+    let f = parse_pasted_matrix(text, paste_opts()).expect("tab-separated names");
+    assert_eq!(
+        f.matrix.names,
+        ["Homo sapiens", "Pan troglodytes", "Gorilla gorilla"]
+    );
+    assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0]);
+}
+
+#[test]
+fn paste_tab_header_names_with_spaces() {
+    // A tab-separated square table with a header row whose names
+    // contain spaces: the header's cells equal the first column.
+    let text = "\tHomo sapiens\tPan troglodytes\tGorilla gorilla\n\
+                Homo sapiens\t0\t1\t2\n\
+                Pan troglodytes\t1\t0\t3\n\
+                Gorilla gorilla\t2\t3\t0\n";
+    let f = parse_pasted_matrix(text, paste_opts()).expect("tab header row");
+    assert_eq!(
+        f.matrix.names,
+        ["Homo sapiens", "Pan troglodytes", "Gorilla gorilla"]
+    );
+    assert_eq!(f.matrix.lower, vec![1.0, 2.0, 3.0]);
 }

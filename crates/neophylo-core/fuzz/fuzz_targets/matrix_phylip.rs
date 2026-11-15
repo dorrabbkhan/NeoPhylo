@@ -40,7 +40,11 @@ fuzz_target!(|data: &[u8]| {
                             for (a, b) in
                                 back.matrix.lower.iter().zip(&file.matrix.lower)
                             {
-                                assert!((a - b).abs() <= 0.5e-6, "{a} vs {b}");
+                                // The writer prints 6 decimals: a
+                                // value on the rounding boundary can
+                                // exceed 0.5e-6 by f64 representation
+                                // slop.
+                                assert!((a - b).abs() <= 0.51e-6, "{a} vs {b}");
                             }
                         }
                     }
