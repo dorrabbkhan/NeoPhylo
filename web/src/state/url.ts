@@ -13,6 +13,7 @@ import {
 
 import { engine } from "../engine/index";
 import type { Alignment } from "../engine/generated/Alignment";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { SimSpec } from "../engine/generated/SimSpec";
 
@@ -39,10 +40,14 @@ export interface UrlState {
   };
   /** Sandbox data pasted/uploaded by the student — not reproducible from
    * `overrides`, so it is carried verbatim. `trueTree` is Newick text
-   * (not the parsed `Tree`) so it compresses like any other string. */
+   * (not the parsed `Tree`) so it compresses like any other string.
+   * `matrix` is a supplied distance matrix (v1.4c spec §4.3) — mutually
+   * exclusive with `alignment` and `dataset` (both together are a
+   * restore error). */
   imported?: {
     alignment?: Alignment;
     trueTree?: string;
+    matrix?: DistanceInput;
   };
   /** A library dataset id, written `ds=<id>` (v1.4b Task 11): the
    * sandbox shows the unmodified library file, so the link names it
@@ -65,6 +70,20 @@ type DecodeResult =
   | { ok: false; reason: string };
 
 const DEFAULT_STATE: UrlState = { v: 3, step: 0, mode: "concept" };
+
+/** Link length above which sharing is unreliable (v1.4c spec §4.3): a
+ * 200-taxon matrix link crosses it. The notice is advisory only — the
+ * link still works. */
+export const LONG_LINK_CHARS = 8000;
+
+/** The advisory sentence for an over-long link, or null when the link
+ * fits (conductor's call, v1.4c Task 7 notes — Task 8 shows it in the
+ * share UI). */
+export function longLinkNotice(link: string): string | null {
+  return link.length > LONG_LINK_CHARS
+    ? "This link is very long; some apps may cut it. Export the matrix file instead."
+    : null;
+}
 
 /**
  * Serialize `s` for `history.replaceState`. The returned string is a
@@ -127,6 +146,12 @@ export function decode(href: string): DecodeResult {
         ok: false,
         reason: invalidAnalysisOverride(raw.overrides.analysis)!,
       };
+    }
+    // v1.4c: matrix-link rules — a matrix never rides beside an
+    // alignment, and a matrix link carries no sim/model/gap override.
+    if (isRecord(raw)) {
+      const bad = matrixLinkError(raw);
+      if (bad !== null) return { ok: false, reason: bad };
     }
     const state = migrate(raw);
     if (state === null) {
@@ -205,6 +230,8 @@ export function decode(href: string): DecodeResult {
     if (!isRecord(raw)) {
       return { ok: false, reason: "the imported data is not an object" };
     }
+    const bad = invalidImported(raw);
+    if (bad !== null) return { ok: false, reason: bad };
     state.imported = normalizeImported(raw);
   }
 
@@ -221,6 +248,19 @@ export function decode(href: string): DecodeResult {
       };
     }
     state.dataset = dsParam;
+  }
+
+  // v1.4c spec §4.1: a matrix link's overrides may hold only
+  // `analysis.method` — every other field is refused at restore,
+  // mirroring the exercise loader.
+  if (state.imported?.matrix !== undefined) {
+    const field = matrixOverrideField(state.overrides);
+    if (field !== null) {
+      return {
+        ok: false,
+        reason: `a distance-matrix link cannot carry a ${field} override`,
+      };
+    }
   }
 
   const bParam = params.get("b");
@@ -246,6 +286,76 @@ export function decode(href: string): DecodeResult {
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+/** A `DistanceInput`'s wire shape: `names` strings and `lower` finite
+ * numbers. Structural validity (length, uniqueness, ≥ 0) is the
+ * engine's job — a bad matrix the shape check misses fails at
+ * `importMatrix`, never at decode. */
+function validDistanceInput(x: unknown): x is DistanceInput {
+  return (
+    isRecord(x) &&
+    Array.isArray(x.names) &&
+    x.names.every((n) => typeof n === "string") &&
+    Array.isArray(x.lower) &&
+    x.lower.every((v) => typeof v === "number" && Number.isFinite(v))
+  );
+}
+
+/** The `imported` payload's matrix rules (v1.4c spec §4.3): a matrix
+ * and an alignment never ride together — mutually exclusive, like
+ * `d=`+`ds=` — and a matrix must hold the `DistanceInput` wire shape.
+ * Returns the refusal's reason, or null when the payload is fine. */
+function invalidImported(raw: Record<string, unknown>): string | null {
+  if (raw.matrix === undefined) return null;
+  if (raw.alignment !== undefined) {
+    return "a link cannot carry both an imported alignment and a distance matrix";
+  }
+  if (!validDistanceInput(raw.matrix)) {
+    return "the imported distance matrix is malformed";
+  }
+  return null;
+}
+
+/** The override field a matrix link refuses — the name, or null when
+ * nothing is forbidden. Mirrors the exercise loader's rule for matrix
+ * data (v1.4c spec §4.1): the matrix supplies distances, so `sim`,
+ * `analysis.correction`, `analysis.kappa` and `analysis.site_filter`
+ * can never apply. */
+export function matrixOverrideField(
+  o: UrlState["overrides"] | undefined,
+): string | null {
+  if (o === undefined || !isRecord(o)) return null;
+  if (o.sim !== undefined) return "sim";
+  const a = o.analysis;
+  if (a === undefined || !isRecord(a)) return null;
+  if (a.correction !== undefined) return "correction";
+  if (a.kappa !== undefined) return "kappa";
+  if (a.site_filter !== undefined) return "site_filter";
+  return null;
+}
+
+/** The reason a decoded payload is refused, or null. Covers the
+ * `imported` matrix rules for every payload and the forbidden-override
+ * rule when the payload is "a matrix link": `imported.matrix` present
+ * or the `#x=` exercise is `data.kind` `"matrix"`. */
+function matrixLinkError(raw: Record<string, unknown>): string | null {
+  if (isRecord(raw.imported)) {
+    const bad = invalidImported(raw.imported);
+    if (bad !== null) return bad;
+  }
+  const matrixLink =
+    (isRecord(raw.imported) && raw.imported.matrix !== undefined) ||
+    (isRecord(raw.x) &&
+      isRecord(raw.x.data) &&
+      raw.x.data.kind === "matrix");
+  if (!matrixLink) return null;
+  const field = matrixOverrideField(
+    raw.overrides as UrlState["overrides"],
+  );
+  return field === null
+    ? null
+    : `a distance-matrix link cannot carry a ${field} override`;
 }
 
 /** The wire shape of `analysis.site_filter` (v1.4b spec §4):
@@ -364,6 +474,9 @@ export function migrate(raw: unknown): UrlState | null {
     return null;
   }
   if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
+  // v1.4c matrix-link rules (see `matrixLinkError`): `raw.overrides`
+  // is known to be a record or absent here.
+  if (matrixLinkError(raw) !== null) return null;
   // `bootstrap` exists only at v3; v1/v2 payloads migrate to defaults
   // (no block = replicates 100, seed 1, view "support", ran false).
   if (raw.bootstrap !== undefined && !validBootstrap(raw.bootstrap)) {

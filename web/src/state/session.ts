@@ -20,10 +20,12 @@ import {
 } from "./bootstrap";
 import {
   applyBranchScale,
+  applyEditMatrix,
   applyEnterSandbox,
   applyExitSandbox,
   applyImportAlignment,
   applyImportDataset,
+  applyImportMatrix,
   applyImportTree,
   applyLoad,
   applySetAlphabet,
@@ -60,6 +62,8 @@ export {
   recompute,
   simModelName,
   siteFilterName,
+  hasAlignment,
+  matrixIsImported,
   type CorrectionMenuName,
   type DistModelName,
   type SimModelName,
@@ -111,6 +115,10 @@ export function reducer(s: Session, a: Action): Session {
       return applyImportDataset(s, a.id, a.title, a.alignment);
     case "importTree":
       return applyImportTree(s, a.tree);
+    case "importMatrix":
+      return applyImportMatrix(s, a.input, a.name);
+    case "editMatrix":
+      return applyEditMatrix(s, a.input);
     case "setBranchScale":
       return applyBranchScale(s, a.scale);
     case "enterSandbox":

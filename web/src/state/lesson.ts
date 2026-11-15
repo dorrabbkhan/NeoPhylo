@@ -10,6 +10,7 @@ import { engine } from "../engine/index";
 
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { SimModel } from "../engine/generated/SimModel";
 import type { SimSpec } from "../engine/generated/SimSpec";
@@ -22,6 +23,8 @@ import {
   SIM_MODEL_NAMES,
   analysisReducer,
   analysisSlice,
+  hasAlignment,
+  matrixIsImported,
   recompute,
   simModelName,
   traceLength,
@@ -122,6 +125,10 @@ function reconcileExercise(
   exercise: Exercise,
   target: Alphabet,
 ): { exercise: Exercise; notice: string } | null {
+  // A matrix exercise's correction is always `Supplied` (v1.4c spec
+  // §4.1): there are no sequences to correct, so it is never "invalid
+  // for" an alphabet and is never rewritten.
+  if (exercise.data.kind === "matrix") return null;
   const switches: string[] = [];
   if (!correctionValidFor(exercise.analysis.correction, target)) {
     const c = defaultCorrection(target);
@@ -297,6 +304,15 @@ export function applySetAnalysis(
   s: Session,
   patch: Partial<Exercise["analysis"]>,
 ): Session {
+  // v1.4c spec §4.1: on a matrix session only `method` applies — the
+  // matrix supplies distances, so correction/kappa/site_filter
+  // patches are inert and the model stays `Supplied`.
+  if (!hasAlignment(s)) {
+    if (patch.method === undefined || patch.method === s.exercise.analysis.method) {
+      return s;
+    }
+    patch = { method: patch.method };
+  }
   const prevMax = s.result?.trace ? traceLength(s.result.trace) : 0;
   const wasAtFinal = s.result !== null && s.step === prevMax;
   const stage = bootstrapStageReached(s);
@@ -326,6 +342,10 @@ export function applySetAnalysis(
  * and reports the switch in `notice` — never a stuck error state
  * (Review Focus 3). */
 export function applySetAlphabet(s: Session, alphabet: Alphabet): Session {
+  // A matrix session has no sequences to reinterpret; the alphabet
+  // stays the exercise's declared one and the badge reads
+  // "Distance matrix" (v1.4c spec §6.2).
+  if (!hasAlignment(s)) return s;
   const target = alphabet;
   const reconciled = reconcileModels({
     ...s,
@@ -410,8 +430,64 @@ export function applyImportAlignment(
         // (importDataset sets its own id); `name` feeds the .meg title.
         libraryDataset: null,
         alignmentName: name ?? null,
+        // v1.4c: alignment data replaces any supplied matrix.
+        matrixInput: null,
       }),
     ),
+  );
+}
+
+/** `importMatrix` (v1.4c spec §4.1): a supplied distance matrix becomes
+ * the session's data — a third analysis origin. Every reference is
+ * dropped (a lesson reference never matches sandbox matrix names and
+ * an imported tree is only a simulation source — conductor note), the
+ * alignment clears, bootstrap state resets and the stepper returns to
+ * step 0. `recompute` turns the input into the `DistanceMatrix` through
+ * `engine.matrixToDistances`; the matrix's display name (file name or
+ * `.meg` `!Title`) rides in `alignmentName` for exports. */
+export function applyImportMatrix(
+  s: Session,
+  input: DistanceInput,
+  name: string | null,
+): Session {
+  return recompute(
+    clearBootstrap({
+      ...s,
+      alignment: null,
+      alignmentOrigin: "matrix",
+      matrixInput: input,
+      alphabet: s.exercise.alphabet,
+      source: "sandbox",
+      notice: null,
+      reference: null,
+      libraryDataset: null,
+      alignmentName: name,
+    }),
+  );
+}
+
+/** `editMatrix` (v1.4c spec §6.1): the typing grid's change. A complete
+ * matrix recomputes like `importMatrix` but keeps the display name and
+ * the session's `source`; `null` means the grid is incomplete — the
+ * tree, matrix and stepper clear with no error and the session stays
+ * on the matrix origin (Review Focus 3). An input the engine refuses
+ * leaves `error` set and results cleared; `matrixInput` keeps the
+ * typed values for fixing. */
+export function applyEditMatrix(
+  s: Session,
+  input: DistanceInput | null,
+): Session {
+  return recompute(
+    clearBootstrap({
+      ...s,
+      alignment: null,
+      alignmentOrigin: "matrix",
+      matrixInput: input,
+      alphabet: s.exercise.alphabet,
+      notice: null,
+      reference: null,
+      libraryDataset: null,
+    }),
   );
 }
 
@@ -458,6 +534,10 @@ export function applyImportTree(s: Session, tree: Tree): Session {
         source: "sandbox",
         libraryDataset: null,
         alignmentName: null,
+        // v1.4c: an imported reference tree is a simulation source — a
+        // matrix session has no use for it (conductor note 5), so the
+        // matrix goes too.
+        matrixInput: null,
       }),
     ),
   );
@@ -473,12 +553,15 @@ export function applyBranchScale(s: Session, scale: number): Session {
   );
 }
 
-/** True when the session holds user-imported data (an alignment or a
- * reference tree) that `exitSandbox` would clear — the UI confirms
- * before leaving sandbox in that case. An embedded alignment is lesson
- * data, not user data, so it never counts. */
+/** True when the session holds user-imported data (an alignment, a
+ * reference tree or a supplied matrix) that `exitSandbox` would clear —
+ * the UI confirms before leaving sandbox in that case. An embedded
+ * alignment and a matrix exercise's own matrix are lesson data, not
+ * user data, so they never count. */
 export function hasImportedData(s: Session): boolean {
   return (
-    s.alignmentOrigin === "imported" || s.reference?.origin === "imported"
+    s.alignmentOrigin === "imported" ||
+    s.reference?.origin === "imported" ||
+    matrixIsImported(s)
   );
 }

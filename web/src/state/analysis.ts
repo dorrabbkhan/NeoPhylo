@@ -10,6 +10,7 @@ import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
 import type { BuildResult } from "../engine/generated/BuildResult";
 import type { DistModel } from "../engine/generated/DistModel";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
@@ -48,8 +49,18 @@ export interface AnalysisState {
    * from `data.fasta` by `recompute` (v1.1 spec §3.6 — never
    * re-simulated, and it is lesson data, so it does not count as
    * "imported data" for sandbox prompts or shared links).
-   * `'imported'`: user-provided; `recompute` keeps it untouched. */
-  alignmentOrigin: "simulated" | "imported" | "embedded";
+   * `'imported'`: user-provided; `recompute` keeps it untouched.
+   * `'matrix'` (v1.4c spec §4.1): no alignment exists — the session's
+   * data is the supplied distance matrix in `matrixInput`, and
+   * `recompute` builds distances with `engine.matrixToDistances`
+   * instead of sim → dist. */
+  alignmentOrigin: "simulated" | "imported" | "embedded" | "matrix";
+  /** The supplied distance matrix while `alignmentOrigin` is
+   * `"matrix"` — from the exercise's `data` (a matrix lesson) or an
+   * `importMatrix`/`editMatrix` action (the sandbox). `null` for an
+   * incomplete grid edit (`editMatrix(null)`) and on every
+   * alignment-kind session. */
+  matrixInput: DistanceInput | null;
   /** The active alignment's alphabet, or the exercise's declared
    * alphabet before/without one. `importAlignment` sets it from the
    * parsed alignment (v1.1 plan Task 9). */
@@ -87,8 +98,8 @@ export function analysisInitial(exercise: Exercise): AnalysisState {
   return {
     reference: null,
     alignment: null,
-    alignmentOrigin:
-      exercise.data.kind === "embedded" ? "embedded" : "simulated",
+    alignmentOrigin: exerciseOrigin(exercise),
+    matrixInput: exerciseMatrixInput(exercise),
     alphabet: exercise.alphabet,
     matrix: null,
     result: null,
@@ -106,6 +117,49 @@ export function analysisInitial(exercise: Exercise): AnalysisState {
   };
 }
 
+/** The analysis origin a `data` block implies: `"matrix"` for a
+ * supplied distance matrix (v1.4c spec §4.1), `"embedded"` for lesson
+ * FASTA, `"simulated"` otherwise. */
+function exerciseOrigin(e: Exercise): AnalysisState["alignmentOrigin"] {
+  if (e.data.kind === "matrix") return "matrix";
+  return e.data.kind === "embedded" ? "embedded" : "simulated";
+}
+
+/** A matrix exercise's `DistanceInput`, or null for alignment data. */
+function exerciseMatrixInput(e: Exercise): DistanceInput | null {
+  return e.data.kind === "matrix"
+    ? { names: [...e.data.names], lower: [...e.data.lower] }
+    : null;
+}
+
+/** True while the session's data can produce an alignment — the one
+ * check alignment-only panels (pair panel, saturation chart, model
+ * menu, gap control, bootstrap) use (v1.4c spec §6.2). A matrix
+ * session has no sequences to compare or resample. */
+export function hasAlignment(s: Session): boolean {
+  return s.alignmentOrigin !== "matrix";
+}
+
+/** The session's supplied matrix counts as user-imported data when it
+ * is not the exercise's own `data` — a matrix lesson's matrix is
+ * lesson data (links address it by id and it survives `exitSandbox`),
+ * while a matrix imported or edited in the sandbox travels in
+ * `imported.matrix` (v1.4c spec §4.3). */
+export function matrixIsImported(s: Session): boolean {
+  if (s.alignmentOrigin !== "matrix" || s.matrixInput === null) {
+    return false;
+  }
+  const d = s.exercise.data;
+  if (d.kind !== "matrix") return true;
+  const m = s.matrixInput;
+  return !(
+    d.names.length === m.names.length &&
+    d.lower.length === m.lower.length &&
+    d.names.every((n, i) => n === m.names[i]) &&
+    d.lower.every((v, i) => Object.is(v, m.lower[i]))
+  );
+}
+
 /** The analysis fields of a session — the input `analysisReducer`
  * sees. */
 export function analysisSlice(s: Session): AnalysisState {
@@ -113,6 +167,7 @@ export function analysisSlice(s: Session): AnalysisState {
     reference: s.reference,
     alignment: s.alignment,
     alignmentOrigin: s.alignmentOrigin,
+    matrixInput: s.matrixInput,
     alphabet: s.alphabet,
     matrix: s.matrix,
     result: s.result,
@@ -175,8 +230,8 @@ export function analysisReducer(
         branchScale: 1,
         hover: null,
         notice: null,
-        alignmentOrigin:
-          a.exercise.data.kind === "embedded" ? "embedded" : "simulated",
+        alignmentOrigin: exerciseOrigin(a.exercise),
+        matrixInput: exerciseMatrixInput(a.exercise),
         libraryDataset: null,
         alignmentName: null,
       };
@@ -350,80 +405,100 @@ function failed(s: Session, e: Session["error"]): Session {
  *
  * `alignmentOrigin` decides the alignment source: `'imported'` keeps the
  * user's alignment untouched, `'embedded'` re-parses `data.fasta`
- * (never re-simulated, v1.1 spec §3.6), and `'simulated'` re-simulates
- * along the true tree. A trace is requested only when the alignment has
- * at most 50 taxa (Global Constraints).
+ * (never re-simulated, v1.1 spec §3.6), `'simulated'` re-simulates
+ * along the true tree, and `'matrix'` skips alignment and distances
+ * entirely — the supplied `matrixInput` becomes the `DistanceMatrix`
+ * through `engine.matrixToDistances` (v1.4c spec §4.1). A trace is
+ * requested only when the data has at most 50 taxa (Global
+ * Constraints).
  */
 export function recompute(s: Session): Session {
   let alignment = s.alignment;
   let alphabet: Alphabet = s.exercise.alphabet;
-  if (s.alignmentOrigin === "embedded") {
-    // Re-parse `data.fasta` and tag it with the declared alphabet (the
-    // declared alphabet is authoritative, v1.1 spec §3.6).
+  let matrix: DistanceMatrix;
+  if (s.alignmentOrigin === "matrix") {
+    // The supplied matrix is the distances; no sequences exist.
+    // `editMatrix(null)` (an incomplete grid) lands on the same
+    // nothing-to-analyze path as an imported origin with nothing
+    // imported: everything downstream clears, error stays null.
     alignment = null;
-    if (s.exercise.data.kind !== "embedded") {
-      // Unreachable: the origin is set from data.kind at load.
-      // Defensive stop.
+    if (s.matrixInput === null) {
       return { ...failed(s, null), alignment, alphabet };
     }
-    const parsed = engine.parseFasta(s.exercise.data.fasta);
-    if (!parsed.ok) {
-      return { ...failed(s, parsed.error), alignment, alphabet };
+    const dist = engine.matrixToDistances(s.matrixInput);
+    if (!dist.ok) {
+      return { ...failed(s, dist.error), alignment, alphabet };
     }
-    const tagged = engine.withAlphabet(parsed.value, s.exercise.alphabet);
-    if (!tagged.ok) {
-      return { ...failed(s, tagged.error), alignment, alphabet };
-    }
-    alignment = tagged.value;
-  } else if (s.alignmentOrigin === "simulated") {
-    alignment = null;
-    const spec = exerciseSim(s.exercise);
-    if (spec === null || s.exercise.data.kind !== "simulated") {
-      // Unreachable: the origin is "simulated" only for simulated
-      // data. Defensive stop.
-      return { ...failed(s, null), alignment, alphabet };
-    }
-    // The sim source is an imported reference tree when the user
-    // imported one (v1 importTree semantics), otherwise the
-    // exercise's true_tree — not `reference.tree`, which may be a
-    // different declared comparison tree.
-    let simTree: Tree;
-    if (s.reference !== null && s.reference.origin === "imported") {
-      simTree = s.reference.tree;
-    } else {
-      const parsed = engine.parseNewick(s.exercise.data.true_tree);
+    matrix = dist.value;
+  } else {
+    if (s.alignmentOrigin === "embedded") {
+      // Re-parse `data.fasta` and tag it with the declared alphabet (the
+      // declared alphabet is authoritative, v1.1 spec §3.6).
+      alignment = null;
+      if (s.exercise.data.kind !== "embedded") {
+        // Unreachable: the origin is set from data.kind at load.
+        // Defensive stop.
+        return { ...failed(s, null), alignment, alphabet };
+      }
+      const parsed = engine.parseFasta(s.exercise.data.fasta);
       if (!parsed.ok) {
         return { ...failed(s, parsed.error), alignment, alphabet };
       }
-      simTree = parsed.value;
+      const tagged = engine.withAlphabet(parsed.value, s.exercise.alphabet);
+      if (!tagged.ok) {
+        return { ...failed(s, tagged.error), alignment, alphabet };
+      }
+      alignment = tagged.value;
+    } else if (s.alignmentOrigin === "simulated") {
+      alignment = null;
+      const spec = exerciseSim(s.exercise);
+      if (spec === null || s.exercise.data.kind !== "simulated") {
+        // Unreachable: the origin is "simulated" only for simulated
+        // data. Defensive stop.
+        return { ...failed(s, null), alignment, alphabet };
+      }
+      // The sim source is an imported reference tree when the user
+      // imported one (v1 importTree semantics), otherwise the
+      // exercise's true_tree — not `reference.tree`, which may be a
+      // different declared comparison tree.
+      let simTree: Tree;
+      if (s.reference !== null && s.reference.origin === "imported") {
+        simTree = s.reference.tree;
+      } else {
+        const parsed = engine.parseNewick(s.exercise.data.true_tree);
+        if (!parsed.ok) {
+          return { ...failed(s, parsed.error), alignment, alphabet };
+        }
+        simTree = parsed.value;
+      }
+      const sim = engine.simulate(scaleTree(simTree, s.branchScale), spec);
+      if (!sim.ok) {
+        return { ...failed(s, sim.error), alignment, alphabet };
+      }
+      alignment = sim.value;
     }
-    const sim = engine.simulate(scaleTree(simTree, s.branchScale), spec);
-    if (!sim.ok) {
-      return { ...failed(s, sim.error), alignment, alphabet };
+    if (alignment === null) {
+      // Imported origin with nothing imported yet: nothing to analyze.
+      return { ...failed(s, null), alignment, alphabet };
     }
-    alignment = sim.value;
-  }
-  if (alignment === null) {
-    // Imported origin with nothing imported yet: nothing to analyze.
-    return { ...failed(s, null), alignment, alphabet };
-  }
-  alphabet = alignment.alphabet;
+    alphabet = alignment.alphabet;
 
-  // v1.4b spec §3.1: `analysis.site_filter` is the MEGA gap treatment
-  // applied before distances; `None` is `SiteFilter::Pairwise`, the
-  // pre-v1.4b path, bit-identical to `engine.distances`.
-  const dist = engine.distancesFiltered(
-    alignment,
-    s.exercise.analysis.correction,
-    s.exercise.analysis.site_filter ?? { kind: "pairwise" },
-  );
-  if (!dist.ok) {
-    return { ...failed(s, dist.error), alignment, alphabet };
+    // v1.4b spec §3.1: `analysis.site_filter` is the MEGA gap treatment
+    // applied before distances; `None` is `SiteFilter::Pairwise`, the
+    // pre-v1.4b path, bit-identical to `engine.distances`.
+    const dist = engine.distancesFiltered(
+      alignment,
+      s.exercise.analysis.correction,
+      s.exercise.analysis.site_filter ?? { kind: "pairwise" },
+    );
+    if (!dist.ok) {
+      return { ...failed(s, dist.error), alignment, alphabet };
+    }
+    matrix = dist.value;
   }
-  const matrix = dist.value;
 
   const built = engine.buildTree(matrix, s.exercise.analysis.method, {
-    trace: alignment.labels.length <= 50,
+    trace: matrix.labels.length <= 50,
   });
   if (!built.ok) {
     return {

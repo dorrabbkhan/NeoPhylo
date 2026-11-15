@@ -6,6 +6,7 @@
 import type { BootstrapResult } from "../engine/bootstrapProtocol";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { Alphabet } from "../engine/generated/Alphabet";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { NeoError } from "../engine/generated/NeoError";
 import type { SimSpec } from "../engine/generated/SimSpec";
@@ -24,6 +25,11 @@ export type Action =
   | { type: "importAlignment"; alignment: Alignment; name?: string }
   | { type: "importDataset"; id: string; title: string; alignment: Alignment }
   | { type: "importTree"; tree: Tree }
+  // v1.4c (spec §4.1): a supplied distance matrix becomes the session's
+  // data — `importMatrix` opens one in the sandbox; `editMatrix` is the
+  // grid's change (null = incomplete: clear results, keep the session).
+  | { type: "importMatrix"; input: DistanceInput; name: string | null }
+  | { type: "editMatrix"; input: DistanceInput | null }
   | { type: "step"; to: number }
   | { type: "setMode"; mode: UiState["mode"] }
   | { type: "setTheme"; theme: UiState["theme"] }

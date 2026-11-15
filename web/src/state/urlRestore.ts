@@ -12,10 +12,16 @@ import { defaultLessonJson } from "../lessons/default";
 import { loadLesson } from "../lessons/loader";
 import { listDatasets, loadDatasetFrom } from "../library/registry";
 
-import { decode } from "./url";
+import { decode, matrixOverrideField } from "./url";
 import type { UrlState } from "./url";
 import type { Session } from "./session";
-import { exerciseSim, hasImportedData, reducer } from "./session";
+import {
+  exerciseSim,
+  hasAlignment,
+  hasImportedData,
+  matrixIsImported,
+  reducer,
+} from "./session";
 
 /** How the loaded exercise should be shared: a built-in lesson links
  * by id (`?lesson=`), anything else is embedded in `#x=`. */
@@ -127,6 +133,23 @@ export async function resolveInitial(
   // Merge overrides before load so the first recompute already uses them.
   if (ex !== null && fromUrl?.overrides !== undefined) {
     const o = fromUrl.overrides;
+    // v1.4c spec §4.1: a matrix exercise's link refuses sim/model/gap
+    // overrides — the loader's rule for matrix files mirrored for
+    // links. (`#x=` matrix payloads and `d=` matrix links are already
+    // refused at decode; this covers `?lesson=` matrix exercises.)
+    if (ex.data.kind === "matrix") {
+      const field = matrixOverrideField(o);
+      if (field !== null) {
+        const def = engine.loadExercise(defaultLessonJson);
+        return {
+          exercise: def.ok ? def.value : null,
+          link: { kind: "lesson" },
+          fromUrl: null,
+          toast: true,
+          toastDetail: `a distance-matrix link cannot carry a ${field} override`,
+        };
+      }
+    }
     ex = {
       ...ex,
       analysis: { ...ex.analysis, ...o.analysis },
@@ -172,6 +195,17 @@ export function applyUrlState(
     s = reducer(s, {
       type: "importAlignment",
       alignment: fromUrl.imported.alignment,
+    });
+  }
+  if (fromUrl.imported?.matrix !== undefined) {
+    // v1.4c: a `d=` matrix becomes the session's data — the same path
+    // the import panel dispatches. A matrix never coexists with an
+    // alignment or `ds=` in one link (decode refuses that), so this
+    // runs last and wins.
+    s = reducer(s, {
+      type: "importMatrix",
+      input: fromUrl.imported.matrix,
+      name: null,
     });
   }
   if (dataset !== undefined) {
@@ -234,6 +268,15 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
     ...(s.alignmentOrigin === "imported" && s.alignment !== null && !useDs
       ? { alignment: s.alignment }
       : {}),
+    // v1.4c: a supplied matrix that is not the exercise's own data —
+    // imported or grid-edited in the sandbox — travels verbatim. A
+    // matrix lesson's matrix never duplicates into `imported` (the
+    // `?lesson=`/`#x=` exercise already carries it).
+    ...(s.alignmentOrigin === "matrix" &&
+    s.matrixInput !== null &&
+    matrixIsImported(s)
+      ? { matrix: s.matrixInput }
+      : {}),
     ...(s.reference?.origin === "imported"
       ? { trueTree: engine.writeNewick(s.reference.tree) }
       : {}),
@@ -250,19 +293,24 @@ export function sessionUrlState(s: Session, link: LinkKind): UrlState {
       seed: b.seed,
       view: b.view,
       ran:
-        b.status === "estimating" ||
-        b.status === "confirming" ||
-        b.status === "running" ||
-        b.status === "done",
+        hasAlignment(s) &&
+        (b.status === "estimating" ||
+          b.status === "confirming" ||
+          b.status === "running" ||
+          b.status === "done"),
     },
     ...(s.source === "sandbox" ? { src: "sandbox" as const } : {}),
-    overrides: {
-      ...(exerciseSim(s.exercise) !== null
-        ? { sim: exerciseSim(s.exercise)! }
-        : {}),
-      analysis: s.exercise.analysis,
-      ...(s.branchScale !== 1 ? { branchScale: s.branchScale } : {}),
-    },
+    overrides: hasAlignment(s)
+      ? {
+          ...(exerciseSim(s.exercise) !== null
+            ? { sim: exerciseSim(s.exercise)! }
+            : {}),
+          analysis: s.exercise.analysis,
+          ...(s.branchScale !== 1 ? { branchScale: s.branchScale } : {}),
+        }
+      : // v1.4c spec §4.1: on a matrix session only `method` applies —
+        // no sim override, no correction/kappa/site_filter.
+        { analysis: { method: s.exercise.analysis.method } },
     ...(link.kind === "lesson"
       ? { lesson: s.exercise.id }
       : { x: s.exercise }),
