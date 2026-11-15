@@ -11,6 +11,7 @@ import type { NeoError } from "../engine/generated/NeoError";
 import type { Tree } from "../engine/generated/Tree";
 
 import type { Action } from "./actions";
+import { hasAlignment } from "./analysis";
 import type { Session } from "./session";
 
 /** Consensus tab ids plus "support" for the original tree (§6.4).
@@ -204,6 +205,9 @@ export function bootstrapReducer(
         cancelJobId: b.jobId ?? b.cancelJobId,
       };
     case "bootstrapRequested":
+      // v1.4c: a matrix session has no alignment to resample — the
+      // request is a no-op (a `ran: true` link restores idle).
+      if (!hasAlignment(ctx)) return b;
       return {
         ...b,
         status: "estimating",

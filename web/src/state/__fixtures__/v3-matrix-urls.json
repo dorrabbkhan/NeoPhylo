@@ -1,0 +1,286 @@
+{
+  "cases": [
+    {
+      "name": "sandbox-matrix",
+      "url": "?lesson=nj-basics&s=1&m=concept&sb=1&o=N4IghgdmA2CeDOBLeIBcoC2BTALgCwHsATNEAOQCsQBfaoA&d=N4IgtghgLgTglgDxALlAOwmApgZxQbRAhABoQAjUkAYyoBMqsQBdMgGwHsB3LGAgVhIBOEgAYAdAGZRM2XPkAWYSQAcJAIyjVJAOxiSk5gF8jQA&b=N4IgTgpgDgNglgYwIYBcIGcQC4CMAGPAGhHQggBNsdiA3OCAd2xIFcooB7MFEYsJAHbYAZkhikAvkA",
+      "step": 1,
+      "method": "Nj",
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "model": "Supplied",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "custom-matrix-exercise",
+      "url": "#x=N4IgbiBcDMA0IGcAuBTADlADPAtgewBMUoQBjPAO1PSRHgCM88lkAnAQw0lFfQBsAlqXaoEUAIyZsiFCgIT4YASgDuJBAFc0aPK1rwOFKADN2fBCgC+8PGBStWAomO4h2FMwE8EAl6BwoSAAWhCQAcgBWIJbWIAAeUKAIpEEoOOwA+nasPpRQAKzwTiQ4cQC0ovogSAJIfMSQIACyIo5xAAQocfakvsTwZmhB7PSBJAQedCAEIuyJIADWAhTyjelIbVMeAS4A2m5T9FOkU-LwxAC68Hx4KvZQu4UAnLCYAHTQUl-fP5gALLAXgAOWCSWAggDsr1g0CuiDwGlY1HmvSQIgEeUalSmgmoFAsJAAwoTMFN2KRqAhcviHhcYgYUMZ7CgqA0KBo+HwBh4+N5fCjdLxSDVMSAAMpaNCCORTALBUKNSLRa54UgLGWQXZwtCsPA4NAsWkMJgsDacKDszkxIA",
+      "step": 0,
+      "method": "Nj",
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "model": "Supplied",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "matrix-upgma-step-2",
+      "url": "?lesson=nj-basics&s=2&m=concept&sb=1&o=N4IghgdmA2CeDOBLeIBcoC2BTALgCwHsATNEAVQAcBzDMEAX3qA&d=N4IgtghgLgTglgDxALlAOwmApgZxQbRAhABoQAjUkAYyoBMqsQBdMgGwHsB3LGAgVhIBOEgAYAdAGZRM2XPkAWYSQAcJAIyjVJAOxiSk5gF8jQA&b=N4IgTgpgDgNglgYwIYBcIGcQC4CMAGPAGhHQggBNsdiA3OCAd2xIFcooB7MFEYsJAHbYAZkhikAvkA",
+      "step": 2,
+      "method": "Upgma",
+      "errorKind": null,
+      "matrix": {
+        "labels": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "model": "Supplied",
+        "cells": [
+          {
+            "Value": 0
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 5
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 0.30000000000000004
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 9
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 10
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 8
+          },
+          {
+            "Value": 7
+          },
+          {
+            "Value": 0
+          },
+          {
+            "Value": 3
+          },
+          {
+            "Value": 0
+          }
+        ]
+      }
+    }
+  ]
+}
