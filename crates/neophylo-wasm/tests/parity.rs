@@ -19,12 +19,15 @@ use neophylo_core::algos::Method;
 use neophylo_core::bootstrap::{BootstrapTally, ConsensusKind, DroppedGroup, ReplicateDetail};
 use neophylo_core::dist::{Cell, DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
+use neophylo_core::matrix_input::DistanceInput;
+use neophylo_core::matrix_parse::{MatrixFile, MatrixFormat, PasteOptions, PhylipMatrixOptions};
 use neophylo_core::phylip::NameMode;
 use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::{SimModel, SimSpec};
 use neophylo_core::tree::Tree;
+use neophylo_core::worksheet::JoinFacts;
 
 // --- WasmResult unpacking -------------------------------------------------
 
@@ -586,6 +589,158 @@ fn edit_exports_smoke() {
     )));
     assert!(!malformed.ok, "a malformed tree must be an error value");
     match malformed.error.unwrap() {
+        NeoError::InvalidExercise { .. } => {}
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+}
+
+// --- v1.4c matrix + worksheet exports (v1.4c plan Task 6, spec §5) -----
+
+fn json<T: Serialize>(v: &T) -> String {
+    serde_json::to_string(v).unwrap()
+}
+
+/// The wiki5 `DistanceInput`: names a–e and the strict lower triangle.
+fn wiki5_input() -> DistanceInput {
+    DistanceInput {
+        names: vec!["a".into(), "b".into(), "c".into(), "d".into(), "e".into()],
+        lower: vec![5.0, 9.0, 10.0, 9.0, 10.0, 8.0, 8.0, 9.0, 7.0, 3.0],
+    }
+}
+
+/// Every Task 6 export crosses the boundary and produces JSON
+/// identical to the native call; refused inputs cross as error values.
+#[wasm_bindgen_test]
+fn matrix_and_worksheet_exports_parity() {
+    let input = wiki5_input();
+    let input_js = to_js(&input);
+
+    // matrix_to_distances: a valid input converts; a duplicate name is
+    // an InvalidMatrix error value.
+    let dm_js: DistanceMatrix = ok_value(neophylo_wasm::matrix_to_distances(input_js.clone()));
+    let dm_native = input.to_distance_matrix().unwrap();
+    assert_eq!(json(&dm_js), json(&dm_native));
+    let mut dup = input.clone();
+    dup.names[1] = "a".to_string();
+    let bad: WasmResult<DistanceMatrix> = unpack(neophylo_wasm::matrix_to_distances(to_js(&dup)));
+    assert!(!bad.ok, "duplicate names must be an error value");
+    match bad.error.unwrap() {
+        NeoError::InvalidMatrix { .. } => {}
+        other => panic!("expected InvalidMatrix, got {other:?}"),
+    }
+
+    // validate_matrix: () on a valid input; InvalidMatrix on the dup.
+    let ok: WasmResult<()> = unpack(neophylo_wasm::validate_matrix(input_js.clone()));
+    assert!(ok.ok);
+    let bad_v: WasmResult<()> = unpack(neophylo_wasm::validate_matrix(to_js(&dup)));
+    assert!(!bad_v.ok);
+    match bad_v.error.unwrap() {
+        NeoError::InvalidMatrix { .. } => {}
+        other => panic!("expected InvalidMatrix, got {other:?}"),
+    }
+
+    // detect_matrix_format: same answer on both sides.
+    let fmt: Option<MatrixFormat> = ok_value(neophylo_wasm::detect_matrix_format(
+        "3\na 0 1\nb 1 0\nc 2 3 0\n",
+    ));
+    assert_eq!(
+        fmt,
+        neophylo_core::detect_matrix_format("3\na 0 1\nb 1 0\nc 2 3 0\n")
+    );
+    assert_eq!(fmt, Some(MatrixFormat::Phylip));
+    // An unrecognized text is `Ok(None)` — the value crosses as null.
+    let none_res: WasmResult<MatrixFormat> =
+        unpack(neophylo_wasm::detect_matrix_format("not a matrix"));
+    assert!(
+        none_res.ok && none_res.value.is_none() && none_res.error.is_none(),
+        "unrecognized text must be ok:true with a null value"
+    );
+
+    // parse_phylip_matrix on the committed square fixture.
+    let phy = include_str!("../../../fixtures/inputs/matrix/wiki5_square.phy");
+    let opts = PhylipMatrixOptions {
+        names: NameMode::Auto,
+        use_lower_if_asymmetric: false,
+    };
+    let pf_js: MatrixFile = ok_value(neophylo_wasm::parse_phylip_matrix(phy, to_js(&opts)));
+    let pf_native = neophylo_core::parse_phylip_matrix(phy, opts).unwrap();
+    assert_eq!(json(&pf_js), json(&pf_native));
+
+    // parse_meg_matrix on the committed .meg fixture.
+    let meg = include_str!("../../../fixtures/inputs/matrix/wiki5_square.meg");
+    let mf_js: MatrixFile = ok_value(neophylo_wasm::parse_meg_matrix(meg));
+    let mf_native = neophylo_core::parse_meg_matrix(meg).unwrap();
+    assert_eq!(json(&mf_js), json(&mf_native));
+
+    // parse_pasted_matrix: a headered square grid; unset options would
+    // ask MatrixAmbiguous, fully set options parse.
+    let paste = "a b c d e\n0 5 9 9 8\n5 0 10 10 9\n9 10 0 8 7\n9 10 8 0 3\n8 9 7 3 0\n";
+    let popts = PasteOptions {
+        first_column_names: Some(false),
+        header_row: Some(true),
+        decimal_comma: Some(false),
+    };
+    let pp_js: MatrixFile = ok_value(neophylo_wasm::parse_pasted_matrix(paste, to_js(&popts)));
+    let pp_native = neophylo_core::parse_pasted_matrix(paste, popts).unwrap();
+    assert_eq!(json(&pp_js), json(&pp_native));
+    assert_eq!(pp_js.matrix.names, input.names);
+    assert_eq!(pp_js.matrix.lower, input.lower);
+    // An all-numeric grid genuinely admits two readings — the parser
+    // asks `MatrixAmbiguous` instead of guessing (spec §5.1).
+    let amb: WasmResult<MatrixFile> = unpack(neophylo_wasm::parse_pasted_matrix(
+        "0\n1 0\n2 3 0\n",
+        to_js(&PasteOptions {
+            first_column_names: None,
+            header_row: None,
+            decimal_comma: None,
+        }),
+    ));
+    assert!(!amb.ok, "an ambiguous paste must be an error value");
+    match amb.error.unwrap() {
+        NeoError::MatrixAmbiguous { .. } => {}
+        other => panic!("expected MatrixAmbiguous, got {other:?}"),
+    }
+
+    // write_meg_matrix round-trips the input.
+    let text_js: String = ok_value(neophylo_wasm::write_meg_matrix(
+        input_js.clone(),
+        to_js(&"wiki5".to_string()),
+    ));
+    let text_native = neophylo_core::write_meg_matrix(&input, "wiki5").unwrap();
+    assert_eq!(text_js, text_native);
+
+    // additive_matrix on a parsed tree, with and without rounding.
+    let tree: Tree = ok_value(neophylo_wasm::parse_newick(
+        "((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
+    ));
+    let am_js: DistanceInput = ok_value(neophylo_wasm::additive_matrix(
+        to_js(&tree),
+        JsValue::from_f64(1.0),
+    ));
+    let am_native = neophylo_core::additive_matrix(&tree, Some(1)).unwrap();
+    assert_eq!(json(&am_js), json(&am_native));
+    let am_none_js: DistanceInput =
+        ok_value(neophylo_wasm::additive_matrix(to_js(&tree), JsValue::NULL));
+    let am_none_native = neophylo_core::additive_matrix(&tree, None).unwrap();
+    assert_eq!(json(&am_none_js), json(&am_none_native));
+
+    // worksheet_facts: NJ gives steps + the final entry; UPGMA gives
+    // n - 1 — identical JSON on both sides.
+    for method in [Method::Nj, Method::Upgma] {
+        let facts_js: Vec<JoinFacts> = ok_value(neophylo_wasm::worksheet_facts(
+            to_js(&dm_native),
+            to_js(&method),
+        ));
+        let facts_native = neophylo_core::worksheet_facts(&dm_native, method).unwrap();
+        assert_eq!(json(&facts_js), json(&facts_native), "method {method:?}");
+    }
+    // A bad matrix argument is an error value, never a throw.
+    let bad_facts: WasmResult<Vec<JoinFacts>> = unpack(neophylo_wasm::worksheet_facts(
+        JsValue::from_str("x"),
+        to_js(&Method::Nj),
+    ));
+    assert!(!bad_facts.ok);
+    match bad_facts.error.unwrap() {
         NeoError::InvalidExercise { .. } => {}
         other => panic!("expected InvalidExercise, got {other:?}"),
     }

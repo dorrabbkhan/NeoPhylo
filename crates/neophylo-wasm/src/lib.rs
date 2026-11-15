@@ -22,6 +22,8 @@ use neophylo_core::bootstrap::{BootstrapTally, ConsensusKind, DroppedGroup, Repl
 use neophylo_core::dist::{DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
 use neophylo_core::exercise::Exercise;
+use neophylo_core::matrix_input::DistanceInput;
+use neophylo_core::matrix_parse::{MatrixFile, MatrixFormat, PasteOptions, PhylipMatrixOptions};
 use neophylo_core::phylip::NameMode;
 use neophylo_core::protein_dist::PairDetail;
 use neophylo_core::reroot::RerootResult;
@@ -29,6 +31,7 @@ use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
 use neophylo_core::site_filter::{SiteFilter, SiteMask};
 use neophylo_core::tree::{NodeId, Tree};
+use neophylo_core::worksheet::JoinFacts;
 
 /// The single envelope every export returns (spec §5, plan gap 3).
 /// Errors are values: a failure is `ok: false` with the `NeoError`,
@@ -563,4 +566,86 @@ pub fn edit_add_leaf(tree: JsValue, name: JsValue) -> JsValue {
 #[wasm_bindgen]
 pub fn edit_validate(tree: JsValue) -> JsValue {
     to_js::<()>(arg::<Tree>(tree, "tree").and_then(|t| neophylo_core::edit::validate_editable(&t)))
+}
+
+// --- v1.4c matrix + worksheet exports (v1.4c spec §5, §7.2) -----------
+//
+// Type conversion only — parsing, validation, format detection and the
+// join facts all live in neophylo_core.
+
+/// Validate a `DistanceInput` and return the symmetric `DistanceMatrix`
+/// the algorithms consume (`DistModel::Supplied`).
+#[wasm_bindgen]
+pub fn matrix_to_distances(input: JsValue) -> JsValue {
+    to_js::<DistanceMatrix>(
+        arg::<DistanceInput>(input, "input").and_then(|i| i.to_distance_matrix()),
+    )
+}
+
+/// Structural validation of a supplied matrix. Returns `()` — only
+/// `ok` matters.
+#[wasm_bindgen]
+pub fn validate_matrix(input: JsValue) -> JsValue {
+    to_js::<()>(
+        arg::<DistanceInput>(input, "input").and_then(|i| neophylo_core::validate_input(&i)),
+    )
+}
+
+/// Which matrix file format the text looks like (`"Phylip"`/`"Meg"`),
+/// or null.
+#[wasm_bindgen]
+pub fn detect_matrix_format(text: &str) -> JsValue {
+    to_js::<Option<MatrixFormat>>(Ok(neophylo_core::detect_matrix_format(text)))
+}
+
+/// Parse a PHYLIP distance file (`neighbor` layout); `opts` carries the
+/// name mode and the asymmetric-triangle choice.
+#[wasm_bindgen]
+pub fn parse_phylip_matrix(text: &str, opts: JsValue) -> JsValue {
+    to_js::<MatrixFile>(
+        arg::<PhylipMatrixOptions>(opts, "opts")
+            .and_then(|o| neophylo_core::parse_phylip_matrix(text, o)),
+    )
+}
+
+/// Parse a `.meg` distance file (MEGA's `!Format DataType=Distance`).
+#[wasm_bindgen]
+pub fn parse_meg_matrix(text: &str) -> JsValue {
+    to_js::<MatrixFile>(neophylo_core::parse_meg_matrix(text))
+}
+
+/// Parse a pasted table; `PasteOptions` fields left unset are asked as
+/// `MatrixAmbiguous` instead of guessed.
+#[wasm_bindgen]
+pub fn parse_pasted_matrix(text: &str, opts: JsValue) -> JsValue {
+    to_js::<MatrixFile>(
+        arg::<PasteOptions>(opts, "opts").and_then(|o| neophylo_core::parse_pasted_matrix(text, o)),
+    )
+}
+
+/// Serialize a supplied matrix as `.meg` distance text (lower-left).
+#[wasm_bindgen]
+pub fn write_meg_matrix(input: JsValue, title: JsValue) -> JsValue {
+    to_js::<String>(arg::<DistanceInput>(input, "input").and_then(|i| {
+        arg::<String>(title, "title").and_then(|t| neophylo_core::write_meg_matrix(&i, &t))
+    }))
+}
+
+/// The additive (patristic) matrix of `tree`, for the editor's
+/// "derive from tree" route; `round` is an optional decimals count.
+#[wasm_bindgen]
+pub fn additive_matrix(tree: JsValue, round: JsValue) -> JsValue {
+    to_js::<DistanceInput>(arg::<Tree>(tree, "tree").and_then(|t| {
+        arg::<Option<u8>>(round, "round").and_then(|r| neophylo_core::additive_matrix(&t, r))
+    }))
+}
+
+/// One `JoinFacts` per recorded join — worksheet row sums, ties and
+/// closest-pair flags straight from the trace (v1.4c spec §7.2).
+#[wasm_bindgen]
+pub fn worksheet_facts(matrix: JsValue, method: JsValue) -> JsValue {
+    to_js::<Vec<JoinFacts>>(arg::<DistanceMatrix>(matrix, "matrix").and_then(|m| {
+        arg::<Method>(method, "method")
+            .and_then(|method| neophylo_core::worksheet_facts(&m, method))
+    }))
 }

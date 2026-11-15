@@ -27,6 +27,7 @@ pub mod seq;
 pub mod sim;
 pub mod site_filter;
 pub mod tree;
+pub mod worksheet;
 
 pub use algos::{build_tree, BuildOptions, BuildResult, Method, NjFinal, NjStep, Trace, UpgmaStep};
 // `bootstrap::Split` stays namespaced: `compare::Split` already owns the
@@ -65,3 +66,4 @@ pub use seq::{parse_fasta, Alignment, MAX_SITES, MAX_TAXA};
 pub use sim::{simulate, SimModel, SimSpec};
 pub use site_filter::{site_mask, SiteFilter, SiteMask};
 pub use tree::{BranchAttrs, Node, NodeId, Tree};
+pub use worksheet::{worksheet_facts, JoinFacts};

@@ -4,6 +4,7 @@
 // values — nothing in this module throws on a `NeoError`.
 
 import init, {
+  additive_matrix,
   bootstrap_batch,
   bootstrap_batch_filtered,
   build_tree,
@@ -12,6 +13,7 @@ import init, {
   consensus,
   consensus_dropped,
   detect_alphabet,
+  detect_matrix_format,
   distances,
   distances_filtered,
   edit_add_leaf,
@@ -25,11 +27,15 @@ import init, {
   jtt_pair_detail_filtered,
   labels_need_quotes,
   load_exercise,
+  matrix_to_distances,
   merge_tallies,
   parse_fasta,
   parse_meg,
+  parse_meg_matrix,
   parse_newick,
+  parse_pasted_matrix,
   parse_phylip,
+  parse_phylip_matrix,
   reference_outgroup,
   replicate_detail,
   replicate_detail_filtered,
@@ -37,8 +43,11 @@ import init, {
   simulate,
   site_mask,
   support_on_tree,
+  validate_matrix,
   with_alphabet,
+  worksheet_facts,
   write_meg,
+  write_meg_matrix,
   write_newick,
   write_newick_compatible,
   write_newick_with_support,
@@ -51,16 +60,22 @@ import type { BootstrapTally } from "./generated/BootstrapTally";
 import type { BuildOptions } from "./generated/BuildOptions";
 import type { BuildResult } from "./generated/BuildResult";
 import type { ConsensusKind } from "./generated/ConsensusKind";
+import type { DistanceInput } from "./generated/DistanceInput";
 import type { DistanceMatrix } from "./generated/DistanceMatrix";
 import type { DistModel } from "./generated/DistModel";
 import type { DroppedGroup } from "./generated/DroppedGroup";
 import type { Exercise } from "./generated/Exercise";
+import type { JoinFacts } from "./generated/JoinFacts";
+import type { MatrixFile } from "./generated/MatrixFile";
+import type { MatrixFormat } from "./generated/MatrixFormat";
 import type { MegFile } from "./generated/MegFile";
 import type { Method } from "./generated/Method";
 import type { NameMode } from "./generated/NameMode";
 import type { NeoError } from "./generated/NeoError";
 import type { NodeId } from "./generated/NodeId";
 import type { PairDetail } from "./generated/PairDetail";
+import type { PasteOptions } from "./generated/PasteOptions";
+import type { PhylipMatrixOptions } from "./generated/PhylipMatrixOptions";
 import type { PhylipParseResult } from "./generated/PhylipParseResult";
 import type { ReplicateDetail } from "./generated/ReplicateDetail";
 import type { RerootResult } from "./generated/RerootResult";
@@ -346,5 +361,52 @@ export const engine = {
    * spec §5.1; engine `edit::validate_editable`). */
   editValidate(t: Tree): Result<void> {
     return edit_validate(t);
+  },
+  // --- v1.4c matrix + worksheet wrappers (v1.4c spec §5, §7.2) -------
+  /** Validate a typed/pasted matrix and get the `DistanceMatrix` the
+   * algorithms consume (`Supplied` model). */
+  matrixToDistances(input: DistanceInput): Result<DistanceMatrix> {
+    return matrix_to_distances(input);
+  },
+  /** Structural validation only — `ok` carries the verdict. */
+  validateMatrix(input: DistanceInput): Result<void> {
+    return validate_matrix(input);
+  },
+  /** Which matrix file format the text looks like, or null. */
+  detectMatrixFormat(text: string): Result<MatrixFormat | null> {
+    return detect_matrix_format(text);
+  },
+  /** Parse a PHYLIP distance file (`neighbor` layout). */
+  parsePhylipMatrix(
+    text: string,
+    opts: PhylipMatrixOptions,
+  ): Result<MatrixFile> {
+    return parse_phylip_matrix(text, opts);
+  },
+  /** Parse a `.meg` distance file (MEGA's `DataType=Distance`). */
+  parseMegMatrix(text: string): Result<MatrixFile> {
+    return parse_meg_matrix(text);
+  },
+  /** Parse a pasted table; unset option fields are asked as
+   * `MatrixAmbiguous` instead of guessed. */
+  parsePastedMatrix(text: string, opts: PasteOptions): Result<MatrixFile> {
+    return parse_pasted_matrix(text, opts);
+  },
+  /** Serialize a supplied matrix as `.meg` distance text. */
+  writeMegMatrix(input: DistanceInput, title: string): Result<string> {
+    return write_meg_matrix(input, title);
+  },
+  /** Patristic matrix of a drawn tree — the editor's "derive from
+   * tree" route; `round` is an optional decimals count. */
+  additiveMatrix(tree: Tree, round: number | null): Result<DistanceInput> {
+    return additive_matrix(tree, round);
+  },
+  /** One `JoinFacts` per recorded join — row sums, ties and
+   * closest-pair flags straight from the trace (v1.4c spec §7.2). */
+  worksheetFacts(
+    matrix: DistanceMatrix,
+    method: Method,
+  ): Result<JoinFacts[]> {
+    return worksheet_facts(matrix, method);
   },
 };
