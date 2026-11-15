@@ -23,6 +23,7 @@ import {
   SIM_MODEL_NAMES,
   analysisReducer,
   analysisSlice,
+  exerciseMatrixInput,
   hasAlignment,
   matrixIsImported,
   recompute,
@@ -120,15 +121,13 @@ function simModelValidFor(m: SimModel, a: Alphabet): boolean {
 
 /** The exercise-level core of `reconcileModels`: switch the models
  * that are invalid for `target` to that alphabet's defaults and
- * report the switch. `null` when nothing needs switching. */
+ * report the switch. `null` when nothing needs switching. `Supplied`
+ * is in no alphabet's correction list, so a matrix exercise that has
+ * moved onto alignment data reconciles like any foreign model. */
 function reconcileExercise(
   exercise: Exercise,
   target: Alphabet,
 ): { exercise: Exercise; notice: string } | null {
-  // A matrix exercise's correction is always `Supplied` (v1.4c spec
-  // §4.1): there are no sequences to correct, so it is never "invalid
-  // for" an alphabet and is never rewritten.
-  if (exercise.data.kind === "matrix") return null;
   const switches: string[] = [];
   if (!correctionValidFor(exercise.analysis.correction, target)) {
     const c = defaultCorrection(target);
@@ -178,6 +177,14 @@ function reconcileExercise(
  * after the DNA lesson errored with JC69 kept). Callers set `alphabet`
  * to the alphabet the action will display before calling. */
 export function reconcileModels(s: Session): Session {
+  // v1.4c fix round 1: the guard is the session's origin, not
+  // `exercise.data.kind`. While the session's data is the matrix
+  // there are no sequences to correct and `Supplied` is never
+  // touched; once an action lands the session on alignment data
+  // (`importAlignment`, `importDataset`) a `Supplied` correction
+  // switches to the alphabet's default like any foreign model —
+  // never a stranded ModelAlphabetMismatch (checkpoint 10).
+  if (!hasAlignment(s)) return s;
   const r = reconcileExercise(s.exercise, s.alphabet);
   if (r === null) return s;
   return { ...s, exercise: r.exercise, notice: r.notice };
@@ -510,13 +517,23 @@ export function applyImportDataset(
  * "true": it is treated as the truth to compare against). The
  * alignment returns to the exercise's own origin — simulated data is
  * re-simulated along the new tree (spec §3.1); embedded data is
- * re-parsed from `data.fasta` and compared against it. */
+ * re-parsed from `data.fasta` and compared against it. On a matrix
+ * exercise the exercise's own matrix likewise stays the session's
+ * data and the tree is the comparison reference — like embedded data
+ * there is no simulated fallback (conductor's call, v1.4c Task 7 fix
+ * round 1); a matrix that is not the exercise's own data (a sandbox
+ * import or grid edit) leaves the session like an imported
+ * alignment. */
 export function applyImportTree(s: Session, tree: Tree): Session {
   const alignmentOrigin: Session["alignmentOrigin"] =
-    s.exercise.data.kind === "embedded" ? "embedded" : "simulated";
-  // The post-action alphabet is the declared one for embedded data
-  // and the sim model's own alphabet for simulated data — not
-  // `s.alphabet`, which may still describe an imported alignment
+    s.exercise.data.kind === "embedded"
+      ? "embedded"
+      : s.exercise.data.kind === "matrix"
+        ? "matrix"
+        : "simulated";
+  // The post-action alphabet is the declared one for embedded or
+  // matrix data and the sim model's own alphabet for simulated data —
+  // not `s.alphabet`, which may still describe an imported alignment
   // this action discards.
   const alphabet: Alphabet =
     s.exercise.data.kind === "simulated"
@@ -534,10 +551,10 @@ export function applyImportTree(s: Session, tree: Tree): Session {
         source: "sandbox",
         libraryDataset: null,
         alignmentName: null,
-        // v1.4c: an imported reference tree is a simulation source — a
-        // matrix session has no use for it (conductor note 5), so the
-        // matrix goes too.
-        matrixInput: null,
+        // The exercise's own matrix, or null for alignment data: a
+        // sandbox-supplied matrix is discarded like an imported
+        // alignment.
+        matrixInput: exerciseMatrixInput(s.exercise),
       }),
     ),
   );

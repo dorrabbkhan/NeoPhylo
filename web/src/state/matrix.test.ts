@@ -32,7 +32,12 @@ import {
   migrate,
   type UrlState,
 } from "./url";
-import { applyUrlState, resolveInitial, sessionUrlState } from "./urlRestore";
+import {
+  applyUrlState,
+  resolveInitial,
+  sessionUrlState,
+  type LinkKind,
+} from "./urlRestore";
 
 // The spec §7 example exercise's shape, as a schema-2 simulated lesson.
 const LESSON_JSON = `{
@@ -710,4 +715,439 @@ describe("v3 matrix link corpus", () => {
       expect(s.error?.kind ?? null).toBe(c.errorKind);
     },
   );
+});
+
+// --- Fix round 1: leaving a matrix exercise ---------------------------
+//
+// Leaving a matrix exercise's own data must behave like leaving any
+// other exercise's data: `Supplied` reconciles to the imported
+// alignment's alphabet default, `importTree` keeps the exercise's
+// matrix and uses the tree as the comparison reference (like embedded
+// data), and a link restores into a matrix session only when the
+// link's data is a matrix. The round-trip walks below drive
+// sessionUrlState → encode → decode → resolveInitial + applyUrlState —
+// the path a shared link takes — after every action.
+
+const TREE4 = "((A:0.1,B:0.2):0.05,C:0.3,D:0.4);";
+const OWN_MATRIX: DistanceInput = {
+  names: ["A", "B", "C", "D"],
+  lower: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+};
+const DS_ID = "primate-mtdna";
+
+describe("leaving a matrix exercise (fix round 1)", () => {
+  /** The library dataset's alignment, parsed the way loadDatasetFrom
+   * does (fetch is stubbed to the same file). */
+  function dsAlignment(): Alignment {
+    const r = engine.parseFasta(
+      readFileSync(
+        resolve(process.cwd(), `public/library/${DS_ID}.fasta`),
+        "utf8",
+      ),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("parseFasta failed");
+    return r.value;
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const ex = /\/exercises\/([^/]+)\.json$/.exec(url);
+      if (ex !== null) {
+        if (ex[1] === "mx-test") {
+          return new Response(MATRIX_EXERCISE_JSON);
+        }
+        if (ex[1] === "sim-lesson") {
+          return new Response(LESSON_JSON);
+        }
+        try {
+          return new Response(
+            readFileSync(
+              resolve(
+                process.cwd(),
+                `../exercises/${decodeURIComponent(ex[1])}.json`,
+              ),
+              "utf8",
+            ),
+          );
+        } catch {
+          return new Response("not found", { status: 404 });
+        }
+      }
+      const lib = /library\/([\w.-]+)$/.exec(url);
+      if (lib !== null) {
+        try {
+          return new Response(
+            readFileSync(
+              resolve(process.cwd(), `public/library/${lib[1]}`),
+              "utf8",
+            ),
+          );
+        } catch {
+          return new Response("not found", { status: 404 });
+        }
+      }
+      return new Response("not found", { status: 404 });
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    history.replaceState(null, "", "/");
+  });
+
+  function refNewick(s: Session): string | null {
+    return s.reference === null
+      ? null
+      : engine.writeNewick(s.reference.tree);
+  }
+
+  /** The fields the emitted link must restore identically. */
+  function expectRestored(want: Session, got: Session) {
+    expect(want.error).toBeNull();
+    expect(got.error).toBeNull();
+    expect(got.alignmentOrigin).toBe(want.alignmentOrigin);
+    if (want.matrixInput === null) {
+      expect(got.matrixInput).toBeNull();
+    } else {
+      // Bitwise: names plus every lower-triangle double (the
+      // 0.1+0.2 and zero values included).
+      expect(got.matrixInput?.names).toEqual(want.matrixInput.names);
+      expect(got.matrixInput?.lower.length).toBe(
+        want.matrixInput.lower.length,
+      );
+      want.matrixInput.lower.forEach((v, i) => {
+        expect(Object.is(got.matrixInput?.lower[i], v)).toBe(true);
+      });
+    }
+    expect(got.alignment?.labels ?? null).toEqual(
+      want.alignment?.labels ?? null,
+    );
+    expect(got.exercise.analysis.method).toBe(
+      want.exercise.analysis.method,
+    );
+    expect(got.exercise.analysis.correction).toEqual(
+      want.exercise.analysis.correction,
+    );
+    expect(refNewick(got)).toBe(refNewick(want));
+    expect(got.libraryDataset).toBe(want.libraryDataset);
+  }
+
+  /** sessionUrlState → encode → decode → resolveInitial →
+   * applyUrlState — the path a shared link takes when it is opened. */
+  async function roundTrip(s: Session, link: LinkKind): Promise<Session> {
+    const st = sessionUrlState(s, link);
+    // A non-matrix session's link never writes the inert Supplied
+    // correction into overrides.
+    if (hasAlignment(s)) {
+      expect(st.overrides?.analysis?.correction).not.toBe("Supplied");
+    }
+    const d = decode(encode(st));
+    if (!d.ok) {
+      throw new Error(`decode refused the app's own link: ${d.reason}`);
+    }
+    history.replaceState(null, "", "/" + encode(st));
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    if (r.exercise === null || r.fromUrl === null) {
+      throw new Error("resolveInitial found no exercise/state");
+    }
+    const loaded = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    return applyUrlState(loaded, r.fromUrl, r.dataset);
+  }
+
+  it("importAlignment reconciles Supplied to the alphabet default — no stuck error", () => {
+    const s = reducer(loadedSession(exercise(MATRIX_EXERCISE_JSON)), {
+      type: "importAlignment",
+      alignment: ALIGNMENT,
+    });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expect(s.notice).toBe(
+      "Switched correction to JC69 because this data is now DNA.",
+    );
+    expect(s.result).not.toBeNull();
+  });
+
+  it("importDataset reconciles the same way", () => {
+    const s = reducer(loadedSession(exercise(MATRIX_EXERCISE_JSON)), {
+      type: "importDataset",
+      id: "ds-1",
+      title: "DS",
+      alignment: ALIGNMENT,
+    });
+    expect(s.error).toBeNull();
+    expect(s.libraryDataset).toBe("ds-1");
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+  });
+
+  it("importTree keeps the exercise's matrix and compares against the tree", () => {
+    const s = reducer(loadedSession(exercise(MATRIX_EXERCISE_JSON)), {
+      type: "importTree",
+      tree: parsed(TREE4),
+    });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("matrix");
+    expect(s.matrixInput).toEqual(OWN_MATRIX);
+    expect(s.reference?.origin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Supplied");
+    expect(s.matrix?.labels).toEqual(["A", "B", "C", "D"]);
+    expect(s.result).not.toBeNull();
+    expect(s.rf).not.toBeNull();
+    // The exercise's own matrix is lesson data, not imported data.
+    expect(matrixIsImported(s)).toBe(false);
+  });
+
+  it("importTree with foreign labels errors like embedded data", () => {
+    const s = reducer(loadedSession(exercise(MATRIX_EXERCISE_JSON)), {
+      type: "importTree",
+      tree: parsed("((P:0.2,Q:0.2):0.1,R:0.3);"),
+    });
+    expect(s.error?.kind).toBe("LabelMismatch");
+    expect(s.alignmentOrigin).toBe("matrix");
+    expect(s.matrixInput).toEqual(OWN_MATRIX);
+  });
+
+  it("a matrix exercise link with alignment data is not a matrix link", () => {
+    const x = exercise(MATRIX_EXERCISE_JSON);
+    // #x= matrix exercise + imported alignment or ds= + a correction
+    // override: the link lands on alignment data, so it restores.
+    for (const extra of [
+      { imported: { alignment: ALIGNMENT } },
+      { dataset: DS_ID },
+    ]) {
+      expect(
+        migrate({
+          v: 3,
+          step: 0,
+          mode: "concept",
+          x,
+          overrides: { analysis: { correction: "Jc69", method: "Nj" } },
+          ...extra,
+        }),
+      ).not.toBeNull();
+    }
+    // Still matrix links — the link restores into a matrix session:
+    // the exercise alone, plus an imported matrix, plus an imported
+    // tree all keep the override forbidden.
+    for (const extra of [
+      {},
+      { imported: { matrix: INPUT5 } },
+      { imported: { trueTree: TREE4 } },
+    ]) {
+      expect(
+        migrate({
+          v: 3,
+          step: 0,
+          mode: "concept",
+          x,
+          overrides: { analysis: { correction: "Jc69" } },
+          ...extra,
+        }),
+      ).toBeNull();
+    }
+  });
+
+  it("a #x= link carries dataset like ds= and still refuses dataset + imported", () => {
+    const st = migrate({
+      v: 3,
+      step: 0,
+      mode: "concept",
+      x: exercise(MATRIX_EXERCISE_JSON),
+      dataset: DS_ID,
+    });
+    expect(st?.dataset).toBe(DS_ID);
+    const payload = compressToEncodedURIComponent(
+      JSON.stringify({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        dataset: "x",
+        imported: { alignment: ALIGNMENT },
+      }),
+    );
+    expect(decode("#x=" + payload).ok).toBe(false);
+    expect(
+      migrate({
+        v: 3,
+        step: 0,
+        mode: "concept",
+        dataset: "x",
+        imported: { alignment: ALIGNMENT },
+      }),
+    ).toBeNull();
+  });
+
+  it("a ?lesson= matrix exercise + imported alignment restores with a correction override", async () => {
+    const d = encodeURIComponent(
+      compressToEncodedURIComponent(
+        JSON.stringify({ alignment: ALIGNMENT }),
+      ),
+    );
+    const o = encodeURIComponent(
+      compressToEncodedURIComponent(
+        JSON.stringify({ analysis: { correction: "Jc69" } }),
+      ),
+    );
+    history.replaceState(
+      null,
+      "",
+      `/?lesson=mx-test&sb=1&d=${d}&o=${o}`,
+    );
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    if (r.exercise === null || r.fromUrl === null) {
+      throw new Error("resolveInitial found no exercise/state");
+    }
+    const s = applyUrlState(
+      reducer(initialSession(r.exercise), {
+        type: "load",
+        exercise: r.exercise,
+        source: "lesson",
+      }),
+      r.fromUrl,
+      r.dataset,
+    );
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+  });
+
+  it("(a) a sandboxed simulated lesson round-trips every matrix transition", async () => {
+    const link: LinkKind = { kind: "lesson" };
+    let s = reducer(loadedSession(exercise(LESSON_JSON)), {
+      type: "enterSandbox",
+    });
+    expectRestored(s, await roundTrip(s, link));
+    s = reducer(s, { type: "importMatrix", input: INPUT5, name: "m.phy" });
+    expectRestored(s, await roundTrip(s, link));
+    // editMatrix(null) writes no matrix to the link — the restore
+    // lands on the exercise's own (simulated) data (documented
+    // builder's call).
+    s = reducer(s, { type: "editMatrix", input: null });
+    const grid = await roundTrip(s, link);
+    expect(grid.error).toBeNull();
+    expect(grid.alignmentOrigin).toBe("simulated");
+    expect(grid.matrixInput).toBeNull();
+    s = reducer(s, { type: "importAlignment", alignment: ALIGNMENT });
+    expectRestored(s, await roundTrip(s, link));
+    s = reducer(s, {
+      type: "importDataset",
+      id: DS_ID,
+      title: "Primate mtDNA",
+      alignment: dsAlignment(),
+    });
+    expectRestored(s, await roundTrip(s, link));
+    // Not a matrix exercise: importTree still leaves the matrix
+    // session like an imported alignment.
+    s = reducer(s, { type: "importTree", tree: parsed(TREE4) });
+    expect(s.alignmentOrigin).toBe("simulated");
+    expect(s.matrixInput).toBeNull();
+    expectRestored(s, await roundTrip(s, link));
+    s = reducer(s, { type: "exitSandbox" });
+    expectRestored(s, await roundTrip(s, link));
+  });
+
+  /** The fix-round-1 walk over a matrix exercise: imported tree (the
+   * exercise's own matrix stays) → empty grid → imported matrix →
+   * alignment → library dataset → back to the lesson. */
+  async function walkMatrixExercise(s: Session, link: LinkKind) {
+    expectRestored(s, await roundTrip(s, link));
+    // importTree on a matrix exercise: the tree is the comparison
+    // reference and the exercise's own matrix stays the data.
+    s = reducer(s, { type: "importTree", tree: parsed(TREE4) });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("matrix");
+    expect(s.matrixInput).toEqual(OWN_MATRIX);
+    expect(s.reference?.origin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Supplied");
+    expect(s.rf).not.toBeNull();
+    expectRestored(s, await roundTrip(s, link));
+    // editMatrix(null) writes no matrix to the link — the restore
+    // lands on the exercise's own data (documented builder's call).
+    s = reducer(s, { type: "editMatrix", input: null });
+    expect(s.matrixInput).toBeNull();
+    const grid = await roundTrip(s, link);
+    expect(grid.error).toBeNull();
+    expect(grid.alignmentOrigin).toBe("matrix");
+    expect(grid.matrixInput).toEqual(OWN_MATRIX);
+    expect(grid.exercise.analysis.correction).toBe("Supplied");
+    // A sandbox-imported matrix travels verbatim.
+    s = reducer(s, { type: "importMatrix", input: INPUT5, name: "m.phy" });
+    expect(s.matrixInput).toEqual(INPUT5);
+    expect(s.exercise.analysis.correction).toBe("Supplied");
+    expectRestored(s, await roundTrip(s, link));
+    // importAlignment leaves the matrix origin: Supplied reconciles
+    // to the alphabet's default — the reviewer's first failing path.
+    s = reducer(s, { type: "importAlignment", alignment: ALIGNMENT });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("imported");
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expectRestored(s, await roundTrip(s, link));
+    // importDataset — the second failing path; the link rides ds=.
+    s = reducer(s, {
+      type: "importDataset",
+      id: DS_ID,
+      title: "Primate mtDNA",
+      alignment: dsAlignment(),
+    });
+    expect(s.error).toBeNull();
+    expect(s.libraryDataset).toBe(DS_ID);
+    expect(s.exercise.analysis.correction).toBe("Jc69");
+    expectRestored(s, await roundTrip(s, link));
+    // exitSandbox reloads the pristine matrix exercise (Supplied).
+    s = reducer(s, { type: "exitSandbox" });
+    expect(s.error).toBeNull();
+    expect(s.alignmentOrigin).toBe("matrix");
+    expect(s.exercise.analysis.correction).toBe("Supplied");
+    expectRestored(s, await roundTrip(s, link));
+  }
+
+  it("(b) a custom #x= matrix exercise round-trips every transition", async () => {
+    // The exercise arrives through a real #x= link, like the app.
+    history.replaceState(
+      null,
+      "",
+      "/" +
+        encode({
+          v: 3,
+          x: exercise(MATRIX_EXERCISE_JSON),
+          step: 0,
+          mode: "concept",
+        }),
+    );
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    if (r.exercise === null) {
+      throw new Error("resolveInitial found no exercise");
+    }
+    const s = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    await walkMatrixExercise(s, { kind: "custom" });
+  });
+
+  it("(c) a ?lesson= matrix exercise round-trips every transition", async () => {
+    history.replaceState(null, "", "/?lesson=mx-test");
+    const r = await resolveInitial(null);
+    expect(r.toast).toBe(false);
+    if (r.exercise === null) {
+      throw new Error("resolveInitial found no exercise");
+    }
+    const s = reducer(initialSession(r.exercise), {
+      type: "load",
+      exercise: r.exercise,
+      source: "lesson",
+    });
+    await walkMatrixExercise(s, { kind: "lesson" });
+  });
 });

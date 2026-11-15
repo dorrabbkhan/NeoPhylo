@@ -336,10 +336,18 @@ export function matrixOverrideField(
 }
 
 /** The reason a decoded payload is refused, or null. Covers the
- * `imported` matrix rules for every payload and the forbidden-override
- * rule when the payload is "a matrix link": `imported.matrix` present
- * or the `#x=` exercise is `data.kind` `"matrix"`. */
+ * `imported` matrix rules for every payload, the `dataset`/`imported`
+ * exclusivity the query-string path enforces, and the
+ * forbidden-override rule when the payload is "a matrix link" — one
+ * that restores into a matrix session (v1.4c fix round 1):
+ * `imported.matrix` present, or the `#x=` exercise is `data.kind`
+ * `"matrix"` while the link carries no `imported.alignment` and no
+ * `dataset` (either lands the session on alignment data, where
+ * correction overrides apply). */
 function matrixLinkError(raw: Record<string, unknown>): string | null {
+  if (raw.dataset !== undefined && isRecord(raw.imported)) {
+    return "a link cannot carry both a library dataset (ds=) and imported data (d=)";
+  }
   if (isRecord(raw.imported)) {
     const bad = invalidImported(raw.imported);
     if (bad !== null) return bad;
@@ -348,7 +356,9 @@ function matrixLinkError(raw: Record<string, unknown>): string | null {
     (isRecord(raw.imported) && raw.imported.matrix !== undefined) ||
     (isRecord(raw.x) &&
       isRecord(raw.x.data) &&
-      raw.x.data.kind === "matrix");
+      raw.x.data.kind === "matrix" &&
+      !(isRecord(raw.imported) && raw.imported.alignment !== undefined) &&
+      raw.dataset === undefined);
   if (!matrixLink) return null;
   const field = matrixOverrideField(
     raw.overrides as UrlState["overrides"],
@@ -474,6 +484,9 @@ export function migrate(raw: unknown): UrlState | null {
     return null;
   }
   if (raw.imported !== undefined && !isRecord(raw.imported)) return null;
+  if (raw.dataset !== undefined && typeof raw.dataset !== "string") {
+    return null;
+  }
   // v1.4c matrix-link rules (see `matrixLinkError`): `raw.overrides`
   // is known to be a record or absent here.
   if (matrixLinkError(raw) !== null) return null;
@@ -503,6 +516,10 @@ export function migrate(raw: unknown): UrlState | null {
   if (raw.imported !== undefined) {
     state.imported = normalizeImported(raw.imported);
   }
+  // A `dataset` field inside `#x=` plays the `ds=` role for a custom
+  // exercise's library link (v1.4c fix round 1) — `matrixLinkError`
+  // already refused it next to `imported`.
+  if (raw.dataset !== undefined) state.dataset = raw.dataset;
   if (raw.v === 3 && raw.bootstrap !== undefined) {
     state.bootstrap = raw.bootstrap;
   }

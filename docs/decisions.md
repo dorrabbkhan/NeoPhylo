@@ -7182,9 +7182,12 @@ Owner-requested rendering fixes after the PR #139 review; branch
   override and no correction/kappa/site_filter for a matrix session,
   and a matrix link that carries `sim`, `analysis.correction`,
   `analysis.kappa` or `analysis.site_filter` is a restore error
-  naming the field; `importTree` on a matrix session clears
-  `matrixInput` and behaves exactly as it does on an imported
-  alignment; every transition out of the matrix origin clears
+  naming the field; `importTree` on a matrix exercise keeps the
+  exercise's matrix and uses the tree as the comparison reference,
+  like embedded data (conductor's call, fix round 1) — on a
+  sandbox-imported matrix it still clears `matrixInput` and leaves
+  the session like an imported alignment; every transition out of
+  the matrix origin clears
   `matrixInput` and every transition in sets `alignment: null`,
   `libraryDataset: null`, step 0 and a reset bootstrap.
 - **`imported.matrix + imported.trueTree` in one link is allowed
@@ -7208,9 +7211,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `alignmentName` and `source` and does not flip to sandbox.
 - **Files outside the Files block:** `web/src/state/lesson.ts` (the
   `apply*` data-transition helpers live there — `applyImportMatrix`,
-  `applyEditMatrix`, the `matrixInput` clears on `importAlignment`/
-  `importTree`, the `setAlphabet`/`setAnalysis` matrix guards, the
-  `Supplied` skip in `reconcileExercise`, and the matrix clause of
+  `applyEditMatrix`, the `matrixInput` transitions on
+  `importAlignment`/`importTree`, the `setAlphabet`/`setAnalysis`
+  matrix guards, the
+  matrix guard in `reconcileModels`, and the matrix clause of
   `hasImportedData`) and `web/src/state/bootstrap.ts`
   (`bootstrapRequested` must no-op on `!hasAlignment(ctx)`, conductor
   note 3). Both are inside the task's `web/src/state/*` scope.
@@ -7221,3 +7225,20 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `matrix` blobs are the engine's `DistanceMatrix` output. The matrix
   carries `0.1+0.2` (0.30000000000000004) and a zero distance, which
   round-trip bitwise through JSON.
+- **Fix round 1 (review REQUIRED):** reconciliation now follows the
+  session's origin, not `exercise.data.kind` — `Supplied` is never
+  touched while the session's data is the matrix, and an action that
+  lands the session on alignment data (`importAlignment`,
+  `importDataset`) reconciles `Supplied` to the alphabet's default
+  with the standard notice instead of stranding a
+  ModelAlphabetMismatch. "A matrix link" now means a link that
+  restores into a matrix session — `imported.matrix`, or a matrix
+  exercise (`#x=`/`?lesson=`) carrying no `imported.alignment` and no
+  `ds=` — so a matrix exercise plus imported data restores with its
+  reconciled correction. `migrate` carries `dataset` for custom
+  (`#x=`) library links and refuses `dataset`+`imported` like the
+  `ds=`+`d=` query path (builder's call — a custom exercise's
+  `importDataset` session could not otherwise round-trip).
+- **`editMatrix(null)` writes no matrix to the link (builder's
+  call):** the restore lands on the exercise's own data while the
+  screen shows an empty grid; Task 8 owns grid drafts.

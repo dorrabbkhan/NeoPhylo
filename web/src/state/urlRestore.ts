@@ -133,11 +133,19 @@ export async function resolveInitial(
   // Merge overrides before load so the first recompute already uses them.
   if (ex !== null && fromUrl?.overrides !== undefined) {
     const o = fromUrl.overrides;
-    // v1.4c spec §4.1: a matrix exercise's link refuses sim/model/gap
-    // overrides — the loader's rule for matrix files mirrored for
-    // links. (`#x=` matrix payloads and `d=` matrix links are already
-    // refused at decode; this covers `?lesson=` matrix exercises.)
-    if (ex.data.kind === "matrix") {
+    // v1.4c spec §4.1: a matrix link refuses sim/model/gap overrides —
+    // the loader's rule for matrix files mirrored for links. "Matrix
+    // link" means the link restores into a matrix session (fix round
+    // 1): the exercise's data is a matrix AND the link carries no
+    // `imported.alignment` and no `ds=` — either lands the session on
+    // alignment data, where a correction override applies. (`#x=`
+    // matrix payloads and `d=` matrix links are refused at decode;
+    // this covers `?lesson=` matrix exercises.)
+    if (
+      ex.data.kind === "matrix" &&
+      fromUrl.imported?.alignment === undefined &&
+      fromUrl.dataset === undefined
+    ) {
       const field = matrixOverrideField(o);
       if (field !== null) {
         const def = engine.loadExercise(defaultLessonJson);

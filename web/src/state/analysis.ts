@@ -126,7 +126,7 @@ function exerciseOrigin(e: Exercise): AnalysisState["alignmentOrigin"] {
 }
 
 /** A matrix exercise's `DistanceInput`, or null for alignment data. */
-function exerciseMatrixInput(e: Exercise): DistanceInput | null {
+export function exerciseMatrixInput(e: Exercise): DistanceInput | null {
   return e.data.kind === "matrix"
     ? { names: [...e.data.names], lower: [...e.data.lower] }
     : null;
