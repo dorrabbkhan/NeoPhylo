@@ -7242,3 +7242,55 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **`editMatrix(null)` writes no matrix to the link (builder's
   call):** the restore lands on the exercise's own data while the
   screen shows an empty grid; Task 8 owns grid drafts.
+
+## v1.4c Task 8: matrix import UI, matrix sessions, exports
+
+- **Changed existing assertions (conductor's call, v1.4c Task 8
+  notes):** the two places allowed, both now assert the matrix route —
+  `web/e2e/meg.spec.ts` "ignored commands and a matrix file show
+  notices" expects the matrix parser's "expected 1 matrix rows for 2
+  taxa, got 2" instead of the old "holds a distance matrix" refusal
+  notice, and `web/src/views/ImportPanel.test.tsx` got the same change
+  in its ".meg refusal doesn't leak its name" case plus the parametric
+  `.meg` test (a detected matrix `.meg` asserts a matrix session or
+  the matrix error; the refusal-notice branch is gone). No other
+  existing assertion changed.
+- **Files outside the Files block:** `web/src/index.css` (the
+  `.import-tabs` tab strip styles — the tabs are import-panel chrome,
+  not matrix CSS); `web/src/views/matrix/matrix.css` (grid/import
+  styling, beside the new components); `web/e2e/meg.spec.ts` (the
+  conductor-authorized assertion change);
+  `web/src/views/App.matrix.test.tsx` (the new App smoke tests beside
+  App); `web/src/views/ImportPanel.test.tsx` (the authorized
+  assertion changes, beside ImportPanel); `web/src/export/rscript.test.ts`
+  (the matrix R-script pins, beside rscript.ts);
+  `web/e2e/__screenshots__/matrix-*.png` — the 12 new baselines the
+  plan's Step 4 sanctions.
+- **All matrix-only code lazy-loads (conductor's call, v1.4c Task 8
+  notes):** `MatrixImport` (which pulls `MatrixGrid`, the question UI
+  and `matrix.css`) is a `React.lazy` chunk from `ImportPanel`, and
+  `exportMatrixR`, `megMatrix` and the PHYLIP matrix writer are
+  dynamic imports inside the export handlers — the initial-JS budget
+  keeps its headroom; no existing component had to be deferred.
+- **Grid commit model (builder's call):** the grid emits on every
+  committed edit — `editMatrix` in a matrix session, a local draft
+  elsewhere — and only its "Build tree" button turns a draft into
+  `importMatrix`. Raw cell text is kept per cell so half-typed input
+  is never clobbered by a reseed; `onChange(null)` for an incomplete
+  or invalid grid writes nothing to the link, so a reload of an
+  incomplete grid shows the exercise's (or last committed) matrix
+  reseeded into the grid, not the draft.
+- **Ambiguity loop cap = 3 (conductor's call, v1.4c Task 8 notes):**
+  questions chain (header before name column) and each is answered
+  with one click; after three answers the UI shows "couldn't settle
+  the matrix layout" rather than guessing.
+- **`!Title`/filename precedence (builder's call):** the matrix
+  session's display name is `file.title ?? <picked filename minus
+  extension>`; a pasted matrix has no name.
+- **Square-name mode is Auto (conductor's call, v1.4c Task 8
+  notes):** the matrix UI passes `names: "Auto"` to
+  `parsePhylipMatrix` — the strict/relaxed choice stays in the
+  alignment import's hands.
+- **No grid draft on the link (Task 7 decision, confirmed):**
+  `editMatrix(null)` emits `imported` with no matrix, so reload lands
+  on the exercise's own matrix while the screen reseeds it.

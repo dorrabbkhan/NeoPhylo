@@ -242,6 +242,8 @@ export function TeachingNotices({ session, dispatch }: TeachingNoticesProps) {
             the distances are not perfectly tree-like. It is drawn dashed. The
             calculated value is shown unchanged; use 'set to zero' to draw it
             as 0.
+            {session.alignmentOrigin === "matrix" &&
+              " This matrix is not perfectly tree-like."}
           </p>
           <button
             type="button"

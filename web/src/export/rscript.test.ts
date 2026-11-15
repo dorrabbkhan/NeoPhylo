@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Alignment } from "../engine/generated/Alignment";
 
-import { exportR } from "./rscript";
+import { exportMatrixR, exportR } from "./rscript";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 
 const ALN: Alignment = {
   labels: ["a", "b", "c"],
@@ -161,5 +162,53 @@ describe("exportR bootstrap (v1.2 spec §6.8, checkpoint 15)", () => {
   it("leaves the script unchanged when no bootstrap ran", () => {
     expect(exportR(ALN, "Jc69", "Nj")).not.toContain("seq_len(B)");
     expect(exportR(PROT, "Kimura", "Nj")).not.toContain("seq_len(B)");
+  });
+});
+
+describe("exportMatrixR (v1.4c Task 8, spec §6.3)", () => {
+  const WIKI5: DistanceInput = {
+    names: ["a", "b", "c", "d", "e"],
+    lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
+  };
+
+  it("pins the NJ script for wiki5: full square matrix inline, ape::nj", () => {
+    expect(exportMatrixR(WIKI5, "Nj")).toBe(
+      `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
+m <- matrix(c(
+0,5,9,9,8,
+5,0,10,10,9,
+9,10,0,8,7,
+9,10,8,0,3,
+8,9,7,3,0), nrow = 5, byrow = TRUE)
+dimnames(m) <- list(c("a","b","c","d","e"), c("a","b","c","d","e"))
+tree <- ape::nj(as.dist(m))
+cat(ape::write.tree(tree), "\\n")
+`,
+    );
+  });
+
+  it("pins the UPGMA script for wiki5: phangorn::upgma on the same matrix", () => {
+    const s = exportMatrixR(WIKI5, "Upgma");
+    expect(s).toContain("phangorn::upgma(as.dist(m))");
+    expect(s).not.toContain("ape::nj");
+    expect(s).toContain('dimnames(m) <- list(c("a","b","c","d","e")');
+    expect(s).toContain("0,5,9,9,8,");
+  });
+
+  it("writes numbers with JS shortest round-trip (0.1+0.2 survives)", () => {
+    const s = exportMatrixR(
+      { names: ["x", "y", "z"], lower: [0.1 + 0.2, 0.25, 1 / 3] },
+      "Nj",
+    );
+    expect(s).toContain(String(0.1 + 0.2));
+    expect(s).toContain(String(1 / 3));
+  });
+
+  it("escapes quotes in names for R string literals", () => {
+    const s = exportMatrixR(
+      { names: ["O'Brien\"s", "y", "z"], lower: [1, 2, 3] },
+      "Nj",
+    );
+    expect(s).toContain('"O\'Brien\\"s"');
   });
 });

@@ -47,8 +47,11 @@ test("ignored commands and a matrix file show notices", async ({ page }) => {
   ).toContainText(/ignored !\w+ command/);
 
   await pasteImport(page, meg("matrix.meg"));
-  await expect(page.locator(".phylip-note").first()).toContainText(
-    "this .meg file holds a distance matrix; open it as a distance matrix",
+  // Task 8 (v1.4c): a matrix .meg routes to the matrix parser — this
+  // two-taxon sample is a matrix in shape but too short, so the
+  // matrix parser's row-count error shows, not the old refusal.
+  await expect(page.locator(".import-panel .error")).toContainText(
+    "expected 1 matrix rows for 2 taxa, got 2",
   );
 });
 

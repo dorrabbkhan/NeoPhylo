@@ -12,6 +12,7 @@ import { useState } from "react";
 import { engine } from "../engine/index";
 import { errorMessage } from "../explain/errors";
 import type { Alignment } from "../engine/generated/Alignment";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
@@ -29,6 +30,13 @@ export interface ExportMenuProps {
   clampNegative: boolean;
   /** The session's current leaf distance matrix (spec §5.6 export). */
   matrix: DistanceMatrix | null;
+  /** The typed/imported matrix in a matrix session (v1.4c spec §6.3):
+   * drives "Matrix (.meg)" and the matrix R script. */
+  matrixInput?: DistanceInput | null;
+  /** True while the session runs on a supplied matrix: the alignment
+   * exports (FASTA/.meg alignment) are not offered and the data items
+   * write the matrix (v1.4c spec §6.3). */
+  matrixSession?: boolean;
   /** Which drawing `tree` is (v1.2 spec §6.7-6.8, checkpoint 15):
    * the tree items name it — "rooted": the rerooted reference
    * outgroup view ("Newick (rooted on wheat)"); "computed": the
@@ -98,6 +106,8 @@ export function ExportMenu({
   method,
   clampNegative,
   matrix,
+  matrixInput = null,
+  matrixSession = false,
   treeView,
   consensusTree,
   figure,
@@ -274,6 +284,56 @@ export function ExportMenu({
     }
   };
 
+  // Matrix sessions (v1.4c spec §6.3): the supplied matrix's own R
+  // script — the full square inline, ape::nj / phangorn::upgma on
+  // as.dist(m), no alignment and no bootstrap.
+  const onMatrixR = async () => {
+    const { exportMatrixR } = await import("../export/rscript");
+    download(
+      "neophylo-analysis.R",
+      new Blob([exportMatrixR(matrixInput as DistanceInput, method)], {
+        type: "text/plain",
+      }),
+    );
+  };
+
+  // The supplied matrix as neighbor-readable PHYLIP — the same
+  // writer as the alignment path, exported under its own name.
+  const onMatrixPhylip = async () => {
+    const { phylipMatrix } = await import("../export/phylip");
+    const r = phylipMatrix(matrix as DistanceMatrix);
+    setPhylipNote({ relaxed: r.relaxed, saturated: r.saturated });
+    download("matrix.phy", new Blob([r.text], { type: "text/plain" }));
+  };
+
+  // The supplied matrix as a MEGA distance file (v1.4c spec §6.3):
+  // the engine's writeMegMatrix; whitespace names get the same
+  // rename notice as the alignment export.
+  const onMegMatrix = async () => {
+    setMegNote(null);
+    setMegError(null);
+    const { megMatrix } = await import("../export/meg");
+    const r = megMatrix(matrixInput as DistanceInput, title);
+    if (!r.ok) {
+      const m = errorMessage(r.error);
+      setMegError(`${m.title} ${m.body}`);
+      return;
+    }
+    download(
+      "matrix.meg",
+      new Blob([r.value.text], { type: "text/plain" }),
+    );
+    const renamed = r.value.renamed;
+    if (renamed.length > 0) {
+      setMegNote(
+        `${renamed.length} taxon name${renamed.length > 1 ? "s" : ""} ` +
+          `contain${renamed.length > 1 ? "" : "s"} spaces; they are ` +
+          `written with underscores ` +
+          `(${renamed.map(([, to]) => to).join(", ")})`,
+      );
+    }
+  };
+
   // spec §6.8 + checkpoint 15: tree items follow the current display
   // and say so in their names — the rerooted outgroup view, the
   // unrooted computed view, or nothing when no toggle exists (UPGMA
@@ -308,36 +368,66 @@ export function ExportMenu({
         <button type="button" disabled={tree === null} onClick={onNewick}>
           {treeLabel("Newick")}
         </button>
-        <button
-          type="button"
-          disabled={consensusTree === null}
-          onClick={onConsensus}
-        >
-          {viewSuffix === null
-            ? "Consensus (Newick)"
-            : `Consensus (Newick, ${viewSuffix})`}
-        </button>
-        <button
-          type="button"
-          disabled={alignment === null}
-          onClick={() => void onR()}
-        >
-          R script
-        </button>
-        <button
-          type="button"
-          disabled={matrix === null}
-          onClick={() => void onPhylip()}
-        >
-          Distance matrix (PHYLIP)
-        </button>
-        <button
-          type="button"
-          disabled={alignment === null}
-          onClick={() => void onMeg()}
-        >
-          Alignment (.meg)
-        </button>
+        {matrixSession ? (
+          <>
+            {/* No alignment exports in a matrix session — no FASTA,
+                no alignment .meg, no consensus (v1.4c spec §6.3). */}
+            <button
+              type="button"
+              disabled={matrixInput === null}
+              onClick={() => void onMatrixR()}
+            >
+              R script
+            </button>
+            <button
+              type="button"
+              disabled={matrix === null}
+              onClick={() => void onMatrixPhylip()}
+            >
+              Matrix (PHYLIP)
+            </button>
+            <button
+              type="button"
+              disabled={matrixInput === null}
+              onClick={() => void onMegMatrix()}
+            >
+              Matrix (.meg)
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={consensusTree === null}
+              onClick={onConsensus}
+            >
+              {viewSuffix === null
+                ? "Consensus (Newick)"
+                : `Consensus (Newick, ${viewSuffix})`}
+            </button>
+            <button
+              type="button"
+              disabled={alignment === null}
+              onClick={() => void onR()}
+            >
+              R script
+            </button>
+            <button
+              type="button"
+              disabled={matrix === null}
+              onClick={() => void onPhylip()}
+            >
+              Distance matrix (PHYLIP)
+            </button>
+            <button
+              type="button"
+              disabled={alignment === null}
+              onClick={() => void onMeg()}
+            >
+              Alignment (.meg)
+            </button>
+          </>
+        )}
       </div>
       <label className="export-theme-match">
         <input

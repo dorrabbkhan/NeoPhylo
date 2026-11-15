@@ -1,0 +1,130 @@
+/* Distance-matrix UI (v1.4c spec §6.1, §8.3). Loaded with the
+ * lazy matrix chunks — grid, paste form and ambiguity questions all
+ * live behind the Distance matrix tab. Tokens only; the grid scrolls
+ * inside its own container so the page itself never gains a
+ * horizontal scrollbar at narrow widths. */
+
+.matrix-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.matrix-route-label {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.matrix-grid-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.matrix-grid {
+  border-collapse: collapse;
+  font-size: var(--size-xs);
+}
+
+.matrix-grid th,
+.matrix-grid td {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.matrix-grid th {
+  font-weight: 400;
+}
+
+.matrix-name,
+.matrix-cell {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  margin: 0;
+}
+
+.matrix-name {
+  width: 11ch;
+  font-weight: 600;
+}
+
+.matrix-cell {
+  width: 7ch;
+  text-align: right;
+}
+
+.matrix-cell[aria-invalid="true"],
+.matrix-name[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  background: var(--color-accent-bg);
+}
+
+.matrix-cell:focus-visible,
+.matrix-name:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -1px;
+}
+
+.matrix-row-action {
+  padding-left: var(--space-8);
+}
+
+.matrix-grid-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.matrix-grid-status {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  min-height: 1em;
+}
+
+.matrix-grid-status p {
+  margin: var(--space-4) 0 0;
+}
+
+.matrix-grid-status .matrix-error {
+  color: var(--color-danger);
+}
+
+.matrix-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.matrix-question {
+  font-size: var(--size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-8);
+  background: var(--color-surface-2);
+}
+
+.matrix-question p {
+  margin: 0 0 var(--space-8);
+}
+
+.matrix-question .matrix-answers {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* Coarse pointers: every interactive element inside the matrix UI —
+ * cells, name inputs, add/remove, Build tree, question answers, file
+ * link — keeps a ≥ 40×40 target (plan Task 8 grid notes). */
+@media (pointer: coarse) {
+  .matrix-import input,
+  .matrix-import a,
+  .matrix-grid-block input {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

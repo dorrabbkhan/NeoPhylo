@@ -39,6 +39,22 @@ const JC8_GAPS = fileURLToPath(
   new URL("../../fixtures/inputs/jc8_gaps.fasta", import.meta.url),
 );
 
+/** The wiki5 matrix files (v1.4c Task 8): the fixture lower-triangle
+ * PHYLIP both matrix scenes share, and the cells the grid scene
+ * types — the same table (strict lower triangle, row order) as
+ * fixtures/inputs/matrix/wiki5_lower.phy. */
+const WIKI5_PHY = fileURLToPath(
+  new URL(
+    "../../fixtures/inputs/matrix/wiki5_lower.phy",
+    import.meta.url,
+  ),
+);
+const WIKI5_CELLS: [string, string, string][] = [
+  ["B", "A", "5"], ["C", "A", "9"], ["C", "B", "10"],
+  ["D", "A", "9"], ["D", "B", "10"], ["D", "C", "8"],
+  ["E", "A", "8"], ["E", "B", "9"], ["E", "C", "7"], ["E", "D", "3"],
+];
+
 /** A small gapped protein alignment for the removed-columns scene. */
 const GAPPED_PROTEIN = [
   ">p1",
@@ -712,6 +728,69 @@ export const SCENES: {
           `svg text{font-family:"Inter"}` +
           `</style></head><body>${svgText}</body></html>`,
       );
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4c Task 8 (spec §6.1, §8.3): the Distance matrix tab's typed
+    // grid with wiki5 filled in, Build tree armed. Below 1280 px the
+    // grid lives in the Settings drawer, which the scene leaves open.
+    name: "matrix-grid",
+    setup: async (page) => {
+      await page.goto("/");
+      await waitForApp(page);
+      await page.getByRole("radio", { name: "Sandbox" }).click();
+      const gear = page.getByRole("button", { name: "Settings" });
+      let scope: Locator = page.locator(".col-controls");
+      if (await gear.isVisible()) {
+        await gear.click();
+        scope = page.getByRole("dialog", { name: "Settings" });
+      }
+      await scope.getByRole("tab", { name: "Distance matrix" }).click();
+      const grid = scope.locator(".matrix-import");
+      await expect(
+        grid.getByLabel("Distance between B and A"),
+      ).toBeVisible();
+      for (const [row, col, v] of WIKI5_CELLS) {
+        await grid.getByLabel(`Distance between ${row} and ${col}`).fill(v);
+      }
+      await expect(
+        grid.getByRole("button", { name: "Build tree" }),
+      ).toBeEnabled();
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4c Task 8: a matrix session at the final step — the tree,
+    // the replacement line and the "Distance matrix" badge in place
+    // of the alignment-only controls.
+    name: "matrix-session",
+    setup: async (page) => {
+      await page.goto("/");
+      await waitForApp(page);
+      await page.getByRole("radio", { name: "Sandbox" }).click();
+      const gear = page.getByRole("button", { name: "Settings" });
+      let scope: Locator = page.locator(".col-controls");
+      if (await gear.isVisible()) {
+        await gear.click();
+        scope = page.getByRole("dialog", { name: "Settings" });
+      }
+      await scope
+        .locator('.import-panel input[type="file"]')
+        .setInputFiles(WIKI5_PHY);
+      await expect(
+        page.locator('svg[aria-label="Inferred tree"]'),
+      ).toBeVisible();
+      // Close the drawer — it intercepts the stepper buttons below
+      // 1280 px and frames the grid behind the canvas otherwise.
+      await page.keyboard.press("Escape");
+      await stepToEnd(page);
+      // Below 1280 px the badge sits inside the closed drawer; the
+      // canvas's own distance-matrix grid confirms the session kind
+      // at every width.
+      await expect(
+        page.getByRole("grid", { name: /^Distance matrix/ }),
+      ).toBeVisible();
       await settleFrame(page);
     },
   },

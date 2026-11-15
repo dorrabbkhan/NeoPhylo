@@ -17,10 +17,11 @@
 // arrives back through session.error. SaturatedMatrix is handled by the
 // §6.3 teaching notice instead of being repeated here.
 
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import type { Dispatch } from "react";
 
 import { engine } from "../engine";
+import type { MatrixFormat } from "../engine/generated/MatrixFormat";
 import type { NameMode } from "../engine/generated/NameMode";
 import type { NeoError } from "../engine/generated/NeoError";
 import type { SiteFilter } from "../engine/generated/SiteFilter";
@@ -30,6 +31,16 @@ import type { Action, Session } from "../state/session";
 import { hasImportedData, siteFilterName } from "../state/session";
 
 import { EmptyState } from "./EmptyState";
+
+// The Distance-matrix tab — paste, file and the typing grid — is a
+// lazy chunk (v1.4c Task 8, initial-JS budget): it ships MatrixGrid,
+// the ambiguity-question UI and the matrix parsers' glue only when a
+// student opens the tab.
+const MatrixImport = lazy(() =>
+  import("./matrix/MatrixImport").then((m) => ({
+    default: m.MatrixImport,
+  })),
+);
 
 export interface ImportPanelProps {
   session: Session;
@@ -109,6 +120,13 @@ export function ImportPanel({
   // `.meg` parser notices — ignored !commands, auto-detected alphabet
   // and the matrix-file refusal pointing at v1.4c (v1.4b Task 11).
   const [megNotices, setMegNotices] = useState<string[] | null>(null);
+  // An asymmetric square PHYLIP matrix offers "Use the lower
+  // triangle" — one click re-parses with use_lower_if_asymmetric
+  // (v1.4c Task 8; matrix_parse names the first differing cell).
+  const [asym, setAsym] = useState<{ text: string; name?: string } | null>(
+    null,
+  );
+  const [tab, setTab] = useState<"seq" | "matrix">("seq");
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (session.source !== "sandbox") return null;
@@ -121,6 +139,17 @@ export function ImportPanel({
     const t = input.trimStart();
     if (t === "") {
       setLocalError(null);
+      return;
+    }
+    setAsym(null);
+    // A recognized matrix format routes to the matrix parsers BEFORE
+    // the alignment ones (v1.4c spec §6.1): a matrix .meg opens a
+    // matrix session instead of hitting the alignment parser's
+    // distance-matrix refusal (Task 8 — detection replaces the
+    // message-prefix match).
+    const det = engine.detectMatrixFormat(input);
+    if (det.ok && det.value !== null) {
+      importMatrixText(input, det.value, false, name);
       return;
     }
     // A picked file named *.meg goes to the .meg parser on its
@@ -177,24 +206,55 @@ export function ImportPanel({
     });
   };
 
-  // `.meg` (v1.4b Task 11): notices ride the session's notice area;
-  // the matrix-file refusal is a recognized format, not malformed
-  // input, so it reads as a notice pointing at v1.4c rather than an
-  // error line. Every other error shows the engine's line number.
+  // Matrix file/paste import (v1.4c Task 8): PHYLIP parses with the
+  // Auto name mode and no lower-triangle override; a `MatrixFile`
+  // `!Title` becomes the session's display name, falling back to the
+  // picked file's name.
+  const importMatrixText = (
+    input: string,
+    format: MatrixFormat,
+    useLower: boolean,
+    name?: string,
+  ) => {
+    const r =
+      format === "Meg"
+        ? engine.parseMegMatrix(input)
+        : engine.parsePhylipMatrix(input, {
+            names: "Auto",
+            use_lower_if_asymmetric: useLower,
+          });
+    setPhylip(null);
+    if (!r.ok) {
+      setMegNotices(null);
+      setLocalError({ error: r.error });
+      setAsym(
+        r.error.kind === "InvalidMatrix" &&
+          r.error.msg.startsWith("matrix is not symmetric")
+          ? { text: input, name }
+          : null,
+      );
+      return;
+    }
+    setLocalError(null);
+    setAsym(null);
+    setMegNotices(r.value.notices.length > 0 ? r.value.notices : null);
+    dispatch({
+      type: "importMatrix",
+      input: r.value.matrix,
+      name: r.value.title ?? name ?? null,
+    });
+  };
+
+  // `.meg` (v1.4b Task 11): notices ride the session's notice area.
+  // A matrix .meg never reaches here — `detectMatrixFormat` routes it
+  // to `importMatrixText` first, so only sequence .meg errors show
+  // the engine's line number.
   const importMeg = (input: string, name?: string) => {
     const r = engine.parseMeg(input);
     if (!r.ok) {
       setPhylip(null);
-      if (
-        r.error.kind === "Parse" &&
-        r.error.msg.startsWith("this .meg file holds a distance matrix")
-      ) {
-        setLocalError(null);
-        setMegNotices([r.error.msg]);
-      } else {
-        setMegNotices(null);
-        setLocalError({ error: r.error, meg: true });
-      }
+      setMegNotices(null);
+      setLocalError({ error: r.error, meg: true });
       return;
     }
     setLocalError(null);
@@ -266,76 +326,119 @@ export function ImportPanel({
   return (
     <section className="import-panel" aria-label="Import data">
       <h2>Import data</h2>
-      {!hasImportedData(session) && (
-        <EmptyState text="Paste or upload sequences, or try a sample:">
-          <div className="empty-actions">
-            <button type="button" onClick={() => void onCytochromeC()}>
-              Cytochrome c (protein)
-            </button>
-            <button type="button" onClick={() => void onWeakSupport()}>
-              Weak-support example (DNA)
-            </button>
-          </div>
-        </EmptyState>
-      )}
-      <label className="field import-text">
-        <span>Paste sequences or a tree</span>
-        <textarea
-          rows={6}
-          value={text}
-          spellCheck={false}
-          onChange={(e) => setText(e.target.value)}
-        />
-      </label>
-      <div className="import-actions">
-        <button type="button" onClick={() => importText(text)}>
-          Import
+      <div role="tablist" aria-label="Import kind" className="import-tabs">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "seq"}
+          onClick={() => setTab("seq")}
+        >
+          Sequences or tree
         </button>
-        <label className="field import-file">
-          <span>Choose a file</span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept={ACCEPT}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f !== undefined) void onFile(f);
-            }}
-          />
-        </label>
-        <button type="button" onClick={onOpenDatasets}>
-          Open dataset…
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "matrix"}
+          onClick={() => setTab("matrix")}
+        >
+          Distance matrix
         </button>
       </div>
+      {tab === "matrix" ? (
+        <Suspense fallback={null}>
+          <MatrixImport session={session} dispatch={dispatch} />
+        </Suspense>
+      ) : (
+        <>
+          {!hasImportedData(session) && (
+            <EmptyState text="Paste or upload sequences, or try a sample:">
+              <div className="empty-actions">
+                <button type="button" onClick={() => void onCytochromeC()}>
+                  Cytochrome c (protein)
+                </button>
+                <button type="button" onClick={() => void onWeakSupport()}>
+                  Weak-support example (DNA)
+                </button>
+              </div>
+            </EmptyState>
+          )}
+          <label className="field import-text">
+            <span>Paste sequences or a tree</span>
+            <textarea
+              rows={6}
+              value={text}
+              spellCheck={false}
+              onChange={(e) => setText(e.target.value)}
+            />
+          </label>
+          <div className="import-actions">
+            <button type="button" onClick={() => importText(text)}>
+              Import
+            </button>
+            <label className="field import-file">
+              <span>Choose a file</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={ACCEPT}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f !== undefined) void onFile(f);
+                }}
+              />
+            </label>
+            <button type="button" onClick={onOpenDatasets}>
+              Open dataset…
+            </button>
+          </div>
+          {phylip !== null && (
+            <div
+              className="phylip-names"
+              role="radiogroup"
+              aria-label="PHYLIP name style"
+            >
+              <p className="import-hint">
+                PHYLIP names: Strict takes the first 10 characters of each
+                line; Relaxed ends the name at the first space.
+              </p>
+              {(["Strict", "Relaxed"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={phylip.namesUsed === mode}
+                  onClick={() =>
+                    importPhylip(phylip.text, mode, phylip.name)
+                  }
+                >
+                  {mode} names
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="import-hint">
+            {gapHint(
+              session.exercise.analysis.site_filter ?? { kind: "pairwise" },
+            )}
+          </p>
+        </>
+      )}
+      {asym !== null && (
+        <p className="phylip-note" role="status">
+          <button
+            type="button"
+            onClick={() => {
+              importMatrixText(asym.text, "Phylip", true, asym.name);
+            }}
+          >
+            Use the lower triangle
+          </button>
+        </p>
+      )}
       {megNotices !== null && (
         <div className="phylip-note" role="status">
           {megNotices.map((n) => (
             <p key={n}>{n}</p>
-          ))}
-        </div>
-      )}
-      {phylip !== null && (
-        <div
-          className="phylip-names"
-          role="radiogroup"
-          aria-label="PHYLIP name style"
-        >
-          <p className="import-hint">
-            PHYLIP names: Strict takes the first 10 characters of each
-            line; Relaxed ends the name at the first space.
-          </p>
-          {(["Strict", "Relaxed"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              role="radio"
-              aria-checked={phylip.namesUsed === mode}
-              onClick={() =>
-                importPhylip(phylip.text, mode, phylip.name)
-              }
-            >
-              {mode} names
-            </button>
           ))}
         </div>
       )}
@@ -344,11 +447,6 @@ export function ImportPanel({
           <strong>{msg.title}.</strong> {msg.body}
         </p>
       )}
-      <p className="import-hint">
-        {gapHint(
-          session.exercise.analysis.site_filter ?? { kind: "pairwise" },
-        )}
-      </p>
       <button
         type="button"
         onClick={() => {

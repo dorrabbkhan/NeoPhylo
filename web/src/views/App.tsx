@@ -51,12 +51,13 @@ import { LONGER_RUN_SITES } from "../lessons/prompts";
 import type { Action, Session } from "../state/session";
 import {
   exerciseSim,
+  hasAlignment,
   hasImportedData,
   initialSession,
   reducer,
   siteFilterName,
 } from "../state/session";
-import { encode } from "../state/url";
+import { encode, longLinkNotice } from "../state/url";
 import {
   applyUrlState,
   resolveInitial,
@@ -265,11 +266,17 @@ export function App({ exercise }: { exercise?: Exercise }) {
   }, [exercise]);
 
   // Sync the URL on every state change with replaceState (spec §6.4):
-  // reloads and shared links land on exactly this view.
+  // reloads and shared links land on exactly this view. The encoded
+  // text is memoized so the matrix session's long-link advisory
+  // (v1.4c spec §6.4) reads the same string replaceState writes.
+  const urlText = useMemo(
+    () => (session === null ? "" : encode(sessionUrlState(session, link))),
+    [session, link],
+  );
   useEffect(() => {
-    if (session === null) return;
-    history.replaceState(null, "", encode(sessionUrlState(session, link)));
-  }, [session, link]);
+    if (session === null || urlText === "") return;
+    history.replaceState(null, "", urlText);
+  }, [session, urlText]);
 
   // Theme (v1.3 spec §3.3): <html data-theme> follows the session's
   // theme and the choice is stored device-locally — the index.html
@@ -677,6 +684,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // have no trace (Global Constraints) but still build an unrooted
   // tree that §6.7 roots on the reference's outgroup for display.
   const isNj = session.exercise.analysis.method === "Nj";
+  // The one capability check of the matrix design (v1.4c spec §4.3):
+  // a matrix session has no alignment, so every alignment-only view —
+  // simulation fields, the correction menu, gap control, pair panel,
+  // saturation chart, bootstrap — is suppressed on this flag.
+  const aligned = hasAlignment(session);
+  // A matrix import can write a link past LONG_LINK_CHARS (there is
+  // no share button to carry the warning): the advisory shows in the
+  // notice column instead (v1.4c spec §6.4).
+  const longNotice = aligned ? null : longLinkNotice(urlText);
 
   // The stepper's final position (spec §6.2-6.3): a result without a
   // trace (>50 taxa) is always "final". The panel and support labels
@@ -872,7 +888,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         alignmentOrigin={session.alignmentOrigin}
         dispatch={dispatch}
         bootstrapPanel={
-          atFinal && inferred !== null ? (
+          atFinal && inferred !== null && aligned ? (
             <Suspense fallback={null}>
               <BootstrapPanel
                 session={session}
@@ -886,7 +902,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
           ) : undefined
         }
       />
-      {session.source === "sandbox" && (
+      {/* The single replacement line for everything a matrix session
+          suppresses (v1.4c spec §6.2, plan Task 8 — verbatim). */}
+      {!aligned && (
+        <p className="matrix-note">
+          This tree was built from a distance matrix, so there are no
+          sequences to compare or resample.
+        </p>
+      )}
+      {aligned && session.source === "sandbox" && (
         <GapControl
           value={siteFilter}
           onChange={(f) =>
@@ -914,6 +938,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
         method={session.exercise.analysis.method}
         clampNegative={session.clampNegative}
         matrix={session.matrix}
+        matrixInput={aligned ? null : session.matrixInput}
+        matrixSession={!aligned}
         treeView={
           showReroot
             ? { kind: "rooted", outgroup: reroot!.outgroup }
@@ -987,6 +1013,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 {session.notice}
               </p>
             )}
+            {longNotice !== null && (
+              <p role="status" className="alphabet-notice">
+                {longNotice}
+              </p>
+            )}
             <TeachingNotices session={session} dispatch={dispatch} />
           </div>
           {shownPrompts.length > 0 && (
@@ -1049,6 +1080,13 @@ export function App({ exercise }: { exercise?: Exercise }) {
             </div>
           )}
           <div className="trees">
+            {/* A matrix session whose grid is incomplete shows the
+                reason here instead of a stale tree (Review Focus 3). */}
+            {!aligned && session.result === null && (
+              <p className="matrix-empty">
+                Complete the distance matrix to build the tree.
+              </p>
+            )}
             {referenceTree === null && (
               <p className="no-true-tree">
                 No true tree — import a Newick tree to compare
@@ -1192,7 +1230,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
               onPick={
                 gating !== null
                   ? promptGate.onPickCell
-                  : session.alphabet === "protein"
+                  : aligned && session.alphabet === "protein"
                     ? onPickPairCell
                     : undefined
               }

@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine/index";
 import type { Exercise } from "../engine/generated/Exercise";
+import { errorMessage } from "../explain/errors";
 import type { Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 import { App } from "./App";
@@ -318,7 +319,7 @@ describe("ImportPanel — file input", () => {
     expect(holder.s.alignmentName).toBeNull();
   });
 
-  it("a .meg refusal doesn't leak its name into a later paste", async () => {
+  it("a .meg matrix route doesn't leak its name into a later paste", async () => {
     const matrix = readFileSync(
       resolve(
         process.cwd(),
@@ -331,10 +332,13 @@ describe("ImportPanel — file input", () => {
     fireEvent.change(input, {
       target: { files: [new File([matrix], "matrix.meg")] },
     });
+    // The matrix .meg routes to the matrix parser (v1.4c Task 8):
+    // its own message shows — the alignment refusal notice is gone —
+    // and no alignment import happened, so no name can leak.
     await waitFor(() =>
-      expect(
-        screen.getByText(/holds a distance matrix; open it as a distance matrix/),
-      ).toBeTruthy(),
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected 1 matrix rows",
+      ),
     );
     paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
     expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
@@ -455,6 +459,25 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
     "%s gives the parser's result or its line-numbered error",
     (name) => {
       const text = readFileSync(resolve(MEG_DIR, name), "utf8");
+      // A matrix .meg routes to the matrix parser (v1.4c Task 8):
+      // a valid one starts a matrix session, an invalid one shows
+      // the matrix error — never the alignment parser's refusal.
+      const det = engine.detectMatrixFormat(text);
+      if (det.ok && det.value === "Meg") {
+        const m = engine.parseMegMatrix(text);
+        const holder = renderPanel(sandbox(NJ_BASICS));
+        paste(text);
+        if (m.ok) {
+          expect(holder.s.alignmentOrigin).toBe("matrix");
+          expect(holder.s.matrixInput).toEqual(m.value.matrix);
+        } else {
+          const em = errorMessage(m.error);
+          expect(
+            screen.getByRole("alert").textContent,
+          ).toContain(em.title);
+        }
+        return;
+      }
       const expected = engine.parseMeg(text);
       const holder = renderPanel(sandbox(NJ_BASICS));
       paste(text);
@@ -463,16 +486,9 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
           expected.value.alignment.labels,
         );
       } else if (expected.error.kind === "Parse") {
-        // The matrix refusal is a notice, not an error line.
-        if (expected.error.msg.startsWith("this .meg file holds a distance matrix")) {
-          expect(
-            screen.getByText(/holds a distance matrix; open it as a distance matrix/),
-          ).toBeTruthy();
-        } else {
-          expect(
-            document.querySelector(".import-panel .error")?.textContent,
-          ).toContain(`line ${expected.error.line}`);
-        }
+        expect(
+          document.querySelector(".import-panel .error")?.textContent,
+        ).toContain(`line ${expected.error.line}`);
       }
     },
   );

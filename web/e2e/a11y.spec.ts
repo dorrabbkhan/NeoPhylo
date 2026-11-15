@@ -10,6 +10,8 @@
 //   in playwright.config.ts) registers the PWA service worker; after
 //   one load the lesson still works with the network cut.
 
+import { fileURLToPath } from "node:url";
+
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
@@ -301,4 +303,37 @@ test("axe: the dataset sheet and the gap control have no serious violations", as
     page.getByRole("dialog", { name: "Open dataset" }).locator(".dataset-row"),
   ).toHaveCount(5);
   await expectNoSeriousViolations(page, "dataset sheet + gap control");
+});
+
+/* ---- v1.4c Task 8: the Distance-matrix UI and session ---- */
+
+const MATRIX_DIR = fileURLToPath(
+  new URL("../../fixtures/inputs/matrix/", import.meta.url),
+);
+
+test("axe: the matrix tab and a matrix session have no serious violations", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  const gear = page.getByRole("button", { name: "Settings" });
+  let scope = page.locator(".col-controls");
+  if (await gear.isVisible()) {
+    await gear.click();
+    scope = page.getByRole("dialog", { name: "Settings" });
+  }
+  await scope.getByRole("tab", { name: "Distance matrix" }).click();
+  await expect(
+    scope.locator(".matrix-import").getByLabel("Distance between B and A"),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the Distance matrix tab");
+
+  await scope
+    .locator('.import-panel input[type="file"]')
+    .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  await expectNoSeriousViolations(page, "a matrix session at step 0");
+  await stepToEnd(page);
+  await expectNoSeriousViolations(page, "a matrix session at the final step");
 });

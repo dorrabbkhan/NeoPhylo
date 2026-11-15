@@ -1066,6 +1066,19 @@ button:disabled {
   background: var(--color-accent-bg);
 }
 
+/* ---- Import kind tabs (v1.4c Task 8) ---- */
+
+.import-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.import-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
+}
+
 /* ---- Guided-lesson prompts (spec §6.2, Task 21) ---- */
 
 .prompts {
