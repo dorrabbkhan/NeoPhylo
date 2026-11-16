@@ -19,6 +19,7 @@
 // first tree only appears on a deliberate Build-tree click.
 
 import { useId, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 
 import { engine } from "../../engine/index";
 import { errorMessage } from "../../explain/errors";
@@ -161,10 +162,12 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   // round-tripped emit serializes equal and never re-seeds, so typed
   // text survives; a null that follows our own null emit leaves the
   // draft alone (Review Focus 3 keeps the typed cells on screen).
-  const emittedKey = useRef(JSON.stringify(value));
+  // State, not a ref — the "adjust state when a prop changes" pattern
+  // (refs can't be read or written during render).
+  const [emittedKey, setEmittedKey] = useState(() => JSON.stringify(value));
   const valueKey = JSON.stringify(value);
-  if (valueKey !== emittedKey.current) {
-    emittedKey.current = valueKey;
+  if (valueKey !== emittedKey) {
+    setEmittedKey(valueKey);
     if (value !== null) {
       setNames([...value.names]);
       setCells(seedCells(value));
@@ -184,7 +187,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
       input !== null && !pending && engine.validateMatrix(input).ok
         ? input
         : null;
-    emittedKey.current = JSON.stringify(out);
+    setEmittedKey(JSON.stringify(out));
     onChange(out);
   };
 
@@ -230,7 +233,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
 
   /** Arrow-key navigation over cell inputs (j ≥ 0) and name inputs
    * (j === -1), both addressable by [data-cell="i,j"]. */
-  const onKeyDown = (i: number, j: number, e: React.KeyboardEvent) => {
+  const onKeyDown = (i: number, j: number, e: KeyboardEvent) => {
     const move = (ti: number, tj: number) => {
       e.preventDefault();
       tableRef.current
@@ -270,18 +273,30 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   const build = () => {
     if (input === null) return;
     setNeedsBuild(false);
-    emittedKey.current = JSON.stringify(input);
+    setEmittedKey(JSON.stringify(input));
     onChange(input);
   };
 
   return (
     <div className="matrix-grid-block">
-      <div className="matrix-grid-wrap">
-        <table className="matrix-grid" ref={tableRef}>
-          <caption className="visually-hidden">
-            Lower triangle of the distance matrix — each row holds one
-            taxon's distances to the taxa above it.
-          </caption>
+      {/* The caption wraps inside its container (the 320 px Settings
+          drawer included); only the table scrolls, inside its own
+          named, focusable region (fix round 1). */}
+      <p className="matrix-caption" id={`${statusId}-caption`}>
+        Lower triangle of the distance matrix — each row holds one
+        taxon's distances to the taxa above it.
+      </p>
+      <div
+        className="matrix-grid-wrap"
+        role="region"
+        aria-label="Scrollable distance matrix"
+        tabIndex={0}
+      >
+        <table
+          className="matrix-grid"
+          ref={tableRef}
+          aria-labelledby={`${statusId}-caption`}
+        >
           <tbody>
             {names.map((name, i) => (
               <tr key={i}>

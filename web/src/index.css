@@ -1074,6 +1074,14 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+/* The two tabs share one row whenever they fit (the 320 px Settings
+ * drawer included); flex-wrap lets them stack only when a row can't
+ * hold both. */
+.import-tabs [role="tab"] {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
 .import-tabs [role="tab"][aria-selected="true"] {
   border-color: var(--color-accent-border);
   background: var(--color-accent-bg);

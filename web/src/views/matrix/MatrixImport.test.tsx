@@ -13,6 +13,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { engine } from "../../engine/index";
 import type { Exercise } from "../../engine/generated/Exercise";
 import type { Session } from "../../state/session";
 import { initialSession, reducer } from "../../state/session";
@@ -127,6 +128,38 @@ describe("MatrixImport — paste", () => {
     const holder = mount();
     paste("3\na\nb  5\nc  9  10\n");
     expect(holder.s.alignmentOrigin).toBe("matrix");
+    expect(holder.s.matrixInput?.lower).toEqual([5, 9, 10]);
+  });
+
+  // The e2e header-row paste, pinned through the real engine wrapper
+  // (fix round 1): a tab-separated square whose first row repeats the
+  // first column's names is UNAMBIGUOUS — no MatrixAmbiguous is
+  // raised, so the question group never renders and the e2e asserts
+  // the same path unconditionally.
+  it("the tab-separated header paste parses without asking (engine pin)", () => {
+    const text =
+      "\ta\tb\tc\n" + "a\t0\t5\t9\n" + "b\t5\t0\t10\n" + "c\t9\t10\t0\n";
+    // Detection refuses it (no file header) — parse_pasted_matrix is
+    // the path MatrixImport takes.
+    const det = engine.detectMatrixFormat(text);
+    expect(det.ok && det.value === null).toBe(true);
+    const r = engine.parsePastedMatrix(text, {
+      first_column_names: null,
+      header_row: null,
+      decimal_comma: null,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.value.matrix.names).toEqual(["a", "b", "c"]);
+      expect(r.value.matrix.lower).toEqual([5, 9, 10]);
+    }
+    // Same through the component: no question, imported matrix.
+    const holder = mount();
+    paste(text);
+    expect(
+      screen.queryByRole("group", { name: "Matrix question" }),
+    ).toBeNull();
+    expect(holder.s.matrixInput?.names).toEqual(["a", "b", "c"]);
     expect(holder.s.matrixInput?.lower).toEqual([5, 9, 10]);
   });
 });

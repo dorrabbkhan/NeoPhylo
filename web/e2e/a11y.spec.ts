@@ -330,7 +330,7 @@ test("axe: the matrix tab and a matrix session have no serious violations", asyn
   await expectNoSeriousViolations(page, "the Distance matrix tab");
 
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await expectNoSeriousViolations(page, "a matrix session at step 0");

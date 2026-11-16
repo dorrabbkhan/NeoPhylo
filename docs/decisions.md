@@ -7272,6 +7272,7 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `exportMatrixR`, `megMatrix` and the PHYLIP matrix writer are
   dynamic imports inside the export handlers — the initial-JS budget
   keeps its headroom; no existing component had to be deferred.
+  (Fix round 1 then deferred `ImportPanel` itself — see below.)
 - **Grid commit model (builder's call):** the grid emits on every
   committed edit — `editMatrix` in a matrix session, a local draft
   elsewhere — and only its "Build tree" button turns a draft into
@@ -7302,3 +7303,31 @@ Owner-requested rendering fixes after the PR #139 review; branch
   gap-partial-768x1024-light, gap-partial-768x1024-dark,
   pair-panel-removed-1920x1080-light,
   pair-panel-removed-1920x1080-dark.
+
+### Fix round 1
+
+- **ImportPanel is a lazy chunk now (builder's call):** the measured
+  initial JS was 121,157 B gz, 989 over the 120,168 budget. The
+  matrix-only moves — `MatrixSession` (the §6.2 line and the
+  empty-tree reason, fetched only inside a matrix session) and
+  `MatrixExportItems` (the three matrix export items, fetched only
+  while a matrix session renders the menu) — plus the tab-pattern
+  rework left the entry chunk over; `ImportPanel` is sandbox-only UI,
+  so it rides the standing lazy-sheet precedent (v1.3 Task 14 /
+  v1.4b) and is fetched on a sandbox session's first render, not
+  with the app. Result: 119,134 B gz. No other existing component
+  was deferred.
+- **Files outside the Files block (fix round 1):**
+  `web/src/export/download.ts` — the blob-download helper, shared by
+  `ExportMenu` and the lazy `MatrixExportItems` instead of a private
+  copy; `web/src/views/matrix/MatrixExportItems.tsx` and
+  `web/src/views/matrix/MatrixSession.tsx` — the two new lazy matrix
+  chunks; `web/src/views/matrix/MatrixImport.test.tsx` — the
+  `parse_pasted_matrix` engine pin; `web/e2e/matrix.spec.ts` and
+  `web/e2e/visualScenes.ts` — the new checks and the scene fix.
+- **MatrixGrid's reseed bookkeeping is state, not a ref (review fix
+  1):** `emittedKey` became state following the documented "adjust
+  state during render" pattern — `react-hooks/refs` forbids ref
+  reads/writes in render. Semantics are identical: a round-tripped
+  emit serializes equal and never reseeds; a new committed value
+  reseeds; a null echo leaves the draft alone.

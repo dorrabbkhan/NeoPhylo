@@ -17,6 +17,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine/index";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
 import { errorMessage } from "../explain/errors";
 import type { Session } from "../state/session";
@@ -109,7 +110,10 @@ describe("ImportPanel — visibility", () => {
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,
     ).toBe(true);
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    expect(screen.getByLabelText("Paste sequences or a tree")).toBeTruthy();
+    // The panel is a lazy chunk (v1.4c fix round 1) — findBy, not getBy.
+    expect(
+      await screen.findByLabelText("Paste sequences or a tree"),
+    ).toBeTruthy();
     expect(
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,
     ).toBe(false);
@@ -559,5 +563,83 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Open dataset/ }));
     expect(onOpenDatasets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ImportPanel — the tab strip (v1.4c fix round 1)", () => {
+  const SEQ = "Sequences or tree";
+  const MATRIX = "Distance matrix";
+  const tab = (name: string) => screen.getByRole("tab", { name });
+
+  /** A sandbox session already running on a distance matrix. */
+  function matrixSandbox(input: DistanceInput): Session {
+    return reducer(sandbox(NJ_BASICS), {
+      type: "importMatrix",
+      input,
+      name: "m.phy",
+    });
+  }
+
+  it("is a full ARIA tabs pattern: aria-controls ↔ aria-labelledby, roving tabindex", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    expect(
+      screen.getByRole("tablist", { name: "Import kind" }),
+    ).toBeTruthy();
+    // Only the selected tab is in the Tab order.
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    expect(tab(SEQ).tabIndex).toBe(0);
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("false");
+    expect(tab(MATRIX).tabIndex).toBe(-1);
+    // Each tab names its panel; each panel names its tab.
+    for (const name of [SEQ, MATRIX]) {
+      const t = tab(name);
+      const panel = document.getElementById(
+        t.getAttribute("aria-controls") as string,
+      );
+      expect(panel?.getAttribute("role")).toBe("tabpanel");
+      expect(panel?.getAttribute("aria-labelledby")).toBe(t.id);
+    }
+  });
+
+  it("Arrow keys move selection AND focus; Home/End go to the ends", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    tab(SEQ).focus();
+    fireEvent.keyDown(tab(SEQ), { key: "ArrowRight" });
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab(MATRIX));
+    expect(tab(SEQ).tabIndex).toBe(-1);
+    expect(tab(MATRIX).tabIndex).toBe(0);
+    // Right on the last tab wraps to the first.
+    fireEvent.keyDown(tab(MATRIX), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tab(SEQ));
+    // Left on the first wraps to the last.
+    fireEvent.keyDown(tab(SEQ), { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(tab(MATRIX));
+    fireEvent.keyDown(tab(MATRIX), { key: "Home" });
+    expect(document.activeElement).toBe(tab(SEQ));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(tab(SEQ), { key: "End" });
+    expect(document.activeElement).toBe(tab(MATRIX));
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a matrix session selects the Distance matrix tab by default", () => {
+    renderPanel(
+      matrixSandbox({
+        names: ["a", "b", "c", "d", "e"],
+        lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
+      }),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("a matrix import mid-session re-selects the Distance matrix tab", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // A PHYLIP matrix paste routes to the matrix parsers and flips the
+    // session's origin — the strip follows.
+    paste("5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n");
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
   });
 });

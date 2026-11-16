@@ -223,4 +223,40 @@ describe("MatrixGrid — reseed", () => {
     expect(cell("c", "b")).toHaveProperty("value", "");
     expect(cell("e", "d")).toHaveProperty("value", "3");
   });
+
+  it("an echo of the grid's own emit never resets in-progress edits", () => {
+    const { emitted } = mount(wiki5);
+    // Half-typed text that already parses: "4." emits 4 and the
+    // parent echoes the committed input straight back. The echo must
+    // not reseed the cell to "4" — the typing stays verbatim.
+    fireEvent.change(cell("e", "d"), { target: { value: "4." } });
+    expect(emitted.v).toEqual({
+      names: wiki5.names,
+      lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 4],
+    });
+    expect(cell("e", "d")).toHaveProperty("value", "4.");
+  });
+
+  it("a new committed value reseeds, replacing in-progress edits", () => {
+    const { rerender } = render(
+      <MatrixGrid value={wiki5} onChange={() => {}} />,
+    );
+    fireEvent.change(cell("e", "d"), { target: { value: "4." } });
+    const incoming: DistanceInput = {
+      names: ["x", "y", "z"],
+      lower: [2, 3, 4],
+    };
+    rerender(<MatrixGrid value={incoming} onChange={() => {}} />);
+    // The 5-taxon grid and its half-typed text are gone; the new
+    // matrix's names and distances are the draft now.
+    expect(screen.getByLabelText("Taxon 1 name")).toHaveProperty("value", "x");
+    expect(screen.getByLabelText("Taxon 3 name")).toHaveProperty("value", "z");
+    expect(cell("z", "y")).toHaveProperty("value", "4");
+    expect(
+      screen.getAllByLabelText(/Distance between /),
+    ).toHaveLength(3);
+    // A reseeded committed matrix needs no rebuild — the live region
+    // carries no empty-cell reason.
+    expect(screen.queryByText(/cells still empty/)).toBeNull();
+  });
 });

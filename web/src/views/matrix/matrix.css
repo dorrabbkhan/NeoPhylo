@@ -16,9 +16,38 @@
   margin: 0;
 }
 
+/* The caption is a real, visible line and wraps inside whatever holds
+ * it — the 320 px Settings drawer included (fix round 1): only the
+ * table may overflow, inside its own named, focusable scroll region. */
+.matrix-caption {
+  margin: 0 0 var(--space-8);
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
 .matrix-grid-wrap {
   overflow-x: auto;
   max-width: 100%;
+}
+
+.matrix-grid-wrap:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* The matrix session's replacement line and empty-tree reason —
+ * phylip-note's look (fix round 1, optional item). */
+.matrix-note {
+  margin-top: var(--space-8);
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+.matrix-empty {
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
 }
 
 .matrix-grid {

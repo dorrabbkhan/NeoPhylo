@@ -183,7 +183,7 @@ test("axe is clean on the open pair panel in both themes", async ({
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
   await page
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(P6_150);
   await expect(page.locator('[role="gridcell"]')).toHaveCount(36);
   await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();

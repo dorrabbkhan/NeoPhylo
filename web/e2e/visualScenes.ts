@@ -210,8 +210,11 @@ const EDITOR_VIEWPORTS = [
 export const SCENES: {
   name: string;
   /** Drives the UI to the frame; returning a Page shoots THAT page
-   * instead of `page` (the editor preview's popup). */
-  setup: (page: Page) => Promise<void | Page>;
+   * instead of `page` (the editor preview's popup), returning a
+   * Locator shoots just that element (the matrix-grid block — the
+   * scroll framework's settle reset makes element shots the way to
+   * frame a below-fold region). */
+  setup: (page: Page) => Promise<void | Page | Locator>;
   /** A custom viewport list (all themes). Defaults to the standard
    * three when `only` is unset. */
   viewports?: readonly { w: number; h: number }[];
@@ -635,7 +638,7 @@ export const SCENES: {
         const dlg = page.getByRole("dialog", { name: "Settings" });
         await expect(dlg).toBeVisible();
         await dlg
-          .locator('.import-panel input[type="file"]')
+          .locator('.import-file input[type="file"]')
           .setInputFiles(JC8_GAPS);
         await dlg.getByRole("radio", { name: "Partial deletion" }).click();
         await expect(dlg.locator(".gap-count")).toContainText(
@@ -643,7 +646,7 @@ export const SCENES: {
         );
       } else {
         await page
-          .locator('.import-panel input[type="file"]')
+          .locator('.import-file input[type="file"]')
           .setInputFiles(JC8_GAPS);
         await page.getByRole("radio", { name: "Partial deletion" }).click();
         await expect(page.locator(".gap-count")).toContainText(
@@ -757,7 +760,12 @@ export const SCENES: {
       await expect(
         grid.getByRole("button", { name: "Build tree" }),
       ).toBeEnabled();
+      // The plan's shot is "matrix grid (wiki5 typed)": the grid sits
+      // below the fold in every viewport and settleFrame resets scroll
+      // positions, so the frame is the grid BLOCK itself — caption,
+      // filled table and the armed Build tree (fix round 1).
       await settleFrame(page);
+      return grid.locator(".matrix-grid-block");
     },
   },
   {
@@ -776,7 +784,7 @@ export const SCENES: {
         scope = page.getByRole("dialog", { name: "Settings" });
       }
       await scope
-        .locator('.import-panel input[type="file"]')
+        .locator('.import-file input[type="file"]')
         .setInputFiles(WIKI5_PHY);
       await expect(
         page.locator('svg[aria-label="Inferred tree"]'),

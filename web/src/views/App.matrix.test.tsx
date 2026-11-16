@@ -67,8 +67,8 @@ describe("App — matrix session", () => {
         document.querySelector(".alphabet-badge-label")?.textContent,
       ).toBe("Distance matrix");
       expect(screen.queryByText(/^DNA$/)).toBeNull();
-      // The one replacement line.
-      expect(screen.getByText(REPLACEMENT)).toBeTruthy();
+      // The one replacement line — a lazy chunk (fix round 1).
+      expect(await screen.findByText(REPLACEMENT)).toBeTruthy();
       for (const label of HIDDEN) {
         expect(screen.queryByLabelText(label)).toBeNull();
       }
@@ -85,7 +85,15 @@ describe("App — matrix session", () => {
       const slider = await screen.findByRole("slider");
       const max = Number(slider.getAttribute("max"));
       fireEvent.change(slider, { target: { value: String(max) } });
-      expect(screen.getByText(REPLACEMENT)).toBeTruthy();
+      expect(await screen.findByText(REPLACEMENT)).toBeTruthy();
+      // Bootstrap is impossible without an alignment — the consensus
+      // strip and its empty state never render (fix round 1).
+      expect(
+        screen.queryByRole("tablist", { name: "Bootstrap tree views" }),
+      ).toBeNull();
+      expect(
+        screen.queryByText("Available after a bootstrap run."),
+      ).toBeNull();
     },
   );
 
@@ -111,7 +119,10 @@ describe("App — matrix session", () => {
       />,
     );
     fireEvent.click(await screen.findByRole("radio", { name: "Sandbox" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Distance matrix" }));
+    // The import panel is a lazy chunk (fix round 1) — findBy.
+    fireEvent.click(
+      await screen.findByRole("tab", { name: "Distance matrix" }),
+    );
     const area = await screen.findByLabelText("Paste a distance matrix");
     fireEvent.change(area, {
       target: { value: "5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n" },
@@ -121,7 +132,7 @@ describe("App — matrix session", () => {
     expect(
       document.querySelector(".alphabet-badge-label")?.textContent,
     ).toBe("Distance matrix");
-    expect(screen.getByText(REPLACEMENT)).toBeTruthy();
+    expect(await screen.findByText(REPLACEMENT)).toBeTruthy();
   });
 
   it("the negative-branch notice gains the matrix sentence only in a matrix session", async () => {

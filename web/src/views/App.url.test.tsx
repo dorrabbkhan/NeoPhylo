@@ -104,9 +104,11 @@ describe("URL state", () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    fireEvent.change(screen.getByLabelText("Paste sequences or a tree"), {
-      target: { value: fasta },
-    });
+    // The import panel is a lazy chunk (v1.4c fix round 1) — findBy.
+    fireEvent.change(
+      await screen.findByLabelText("Paste sequences or a tree"),
+      { target: { value: fasta } },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     await screen.findByText("No true tree — import a Newick tree to compare");
     await waitFor(() => expect(window.location.hash).toContain("#x="));

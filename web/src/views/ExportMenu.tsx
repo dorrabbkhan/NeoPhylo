@@ -7,10 +7,11 @@
 // distance matrix as neighbor-readable PHYLIP, and the equivalent R
 // script (with a boot.phylo block once a run has finished).
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { engine } from "../engine/index";
 import { errorMessage } from "../explain/errors";
+import { download } from "../export/download";
 import type { Alignment } from "../engine/generated/Alignment";
 import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
@@ -69,16 +70,6 @@ export interface ExportMenuProps {
   title?: string;
 }
 
-/** Trigger a browser download of `content` under `filename`. */
-function download(filename: string, blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** Build the two-column name-map CSV, quoting fields containing
  * `"`, `,` or newlines. */
 function nameMapCsv(pairs: [string, string][]): string {
@@ -98,6 +89,15 @@ export type TreeViewState =
   | { kind: "rooted"; outgroup: string[] }
   | { kind: "computed" }
   | { kind: "plain" };
+
+// Matrix sessions (v1.4c Task 8 fix round 1, initial-JS budget): the
+// three matrix-only items are a lazy chunk — they ship only while a
+// matrix session renders the menu.
+const MatrixExportItems = lazy(() =>
+  import("./matrix/MatrixExportItems").then((m) => ({
+    default: m.MatrixExportItems,
+  })),
+);
 
 export function ExportMenu({
   tree,
@@ -284,56 +284,6 @@ export function ExportMenu({
     }
   };
 
-  // Matrix sessions (v1.4c spec §6.3): the supplied matrix's own R
-  // script — the full square inline, ape::nj / phangorn::upgma on
-  // as.dist(m), no alignment and no bootstrap.
-  const onMatrixR = async () => {
-    const { exportMatrixR } = await import("../export/rscript");
-    download(
-      "neophylo-analysis.R",
-      new Blob([exportMatrixR(matrixInput as DistanceInput, method)], {
-        type: "text/plain",
-      }),
-    );
-  };
-
-  // The supplied matrix as neighbor-readable PHYLIP — the same
-  // writer as the alignment path, exported under its own name.
-  const onMatrixPhylip = async () => {
-    const { phylipMatrix } = await import("../export/phylip");
-    const r = phylipMatrix(matrix as DistanceMatrix);
-    setPhylipNote({ relaxed: r.relaxed, saturated: r.saturated });
-    download("matrix.phy", new Blob([r.text], { type: "text/plain" }));
-  };
-
-  // The supplied matrix as a MEGA distance file (v1.4c spec §6.3):
-  // the engine's writeMegMatrix; whitespace names get the same
-  // rename notice as the alignment export.
-  const onMegMatrix = async () => {
-    setMegNote(null);
-    setMegError(null);
-    const { megMatrix } = await import("../export/meg");
-    const r = megMatrix(matrixInput as DistanceInput, title);
-    if (!r.ok) {
-      const m = errorMessage(r.error);
-      setMegError(`${m.title} ${m.body}`);
-      return;
-    }
-    download(
-      "matrix.meg",
-      new Blob([r.value.text], { type: "text/plain" }),
-    );
-    const renamed = r.value.renamed;
-    if (renamed.length > 0) {
-      setMegNote(
-        `${renamed.length} taxon name${renamed.length > 1 ? "s" : ""} ` +
-          `contain${renamed.length > 1 ? "" : "s"} spaces; they are ` +
-          `written with underscores ` +
-          `(${renamed.map(([, to]) => to).join(", ")})`,
-      );
-    }
-  };
-
   // spec §6.8 + checkpoint 15: tree items follow the current display
   // and say so in their names — the rerooted outgroup view, the
   // unrooted computed view, or nothing when no toggle exists (UPGMA
@@ -369,31 +319,19 @@ export function ExportMenu({
           {treeLabel("Newick")}
         </button>
         {matrixSession ? (
-          <>
+          <Suspense fallback={null}>
             {/* No alignment exports in a matrix session — no FASTA,
                 no alignment .meg, no consensus (v1.4c spec §6.3). */}
-            <button
-              type="button"
-              disabled={matrixInput === null}
-              onClick={() => void onMatrixR()}
-            >
-              R script
-            </button>
-            <button
-              type="button"
-              disabled={matrix === null}
-              onClick={() => void onMatrixPhylip()}
-            >
-              Matrix (PHYLIP)
-            </button>
-            <button
-              type="button"
-              disabled={matrixInput === null}
-              onClick={() => void onMegMatrix()}
-            >
-              Matrix (.meg)
-            </button>
-          </>
+            <MatrixExportItems
+              matrix={matrix}
+              matrixInput={matrixInput}
+              method={method}
+              title={title}
+              onMegNote={setMegNote}
+              onMegError={setMegError}
+              onPhylipNote={setPhylipNote}
+            />
+          </Suspense>
         ) : (
           <>
             <button

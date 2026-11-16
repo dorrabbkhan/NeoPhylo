@@ -32,7 +32,7 @@ async function pasteImport(page: import("@playwright/test").Page, text: string) 
 test("a sequential .meg file imports and builds a tree", async ({ page }) => {
   await openSandbox(page);
   await page
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MEG_DIR}sequential_dna.meg`);
   await expect(
     page.locator('svg[aria-label="Inferred tree"]'),
@@ -72,7 +72,7 @@ test("a picked .meg file without #mega gets the engine's .meg error", async ({
   // saved without the header gets the missing-#mega error (line 1)
   // and the MEGA hint — not a Newick error.
   await page
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MEG_DIR}no_mega_header.meg`);
   const error = page.locator(".import-panel .error");
   await expect(error).toContainText("expected '#mega' on the first line");

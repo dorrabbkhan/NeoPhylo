@@ -83,7 +83,7 @@ test("a PHYLIP matrix file and its .meg copy build the same tree", async ({
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await expect(page.locator(".alphabet-badge-label")).toHaveText(
@@ -97,10 +97,105 @@ test("a PHYLIP matrix file and its .meg copy build the same tree", async ({
   await page.getByRole("radio", { name: "Sandbox" }).click();
   const scope2 = await importScope(page);
   await scope2
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.meg`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   expect(await exportedNewick(page)).toBe(phylipTree);
+});
+
+test("hidden panels: no bootstrap result tabs or empty state in a matrix session", async ({
+  page,
+}) => {
+  await openSandbox(page);
+  const scope = await importScope(page);
+  await scope
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  await stepToEnd(page);
+  // Bootstrap is impossible without an alignment — the consensus
+  // strip and its "Available after a bootstrap run" empty state never
+  // render (fix round 1).
+  await expect(
+    page.getByRole("tablist", { name: "Bootstrap tree views" }),
+  ).toHaveCount(0);
+  for (const name of [
+    "Your tree with support",
+    "Majority-rule",
+    "Extended majority",
+    "Strict",
+  ]) {
+    await expect(page.getByRole("tab", { name })).toHaveCount(0);
+  }
+  await expect(
+    page.getByText("Available after a bootstrap run."),
+  ).toHaveCount(0);
+});
+
+test("the matrix UI's text stays inside the drawer at 768×1024 (ten taxa)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await openSandbox(page);
+  const scope = await importScope(page);
+  await scope.getByRole("tab", { name: "Distance matrix" }).click();
+  const mi = scope.locator(".matrix-import");
+  for (let k = 0; k < 5; k += 1) {
+    await mi.getByRole("button", { name: "Add taxon" }).click();
+  }
+  await expect(mi.getByLabel("Taxon 10 name")).toBeVisible();
+
+  // The page itself never scrolls sideways.
+  const doc = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }));
+  expect(doc.scroll).toBeLessThanOrEqual(doc.client);
+
+  // Every text-bearing element of the matrix UI — caption, labels,
+  // notices — lies within the Settings drawer's box; the only
+  // horizontal overflow allowed is inside the table's own named,
+  // focusable scroll region.
+  const violators = await mi.evaluate((root) => {
+    const dlgBox = root.closest("[role=dialog]")?.getBoundingClientRect();
+    const bad: string[] = [];
+    for (const el of root.querySelectorAll("*")) {
+      // Inside the scroll region only the table runs past the edge.
+      if (el.closest(".matrix-grid-wrap") !== null) continue;
+      const hasText = [...el.childNodes].some(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim() !== "",
+      );
+      if (!hasText) continue;
+      const r = el.getBoundingClientRect();
+      const desc = `${el.tagName.toLowerCase()}.${el.className} ` +
+        `"${(el.textContent ?? "").trim().slice(0, 40)}"`;
+      if (el.scrollWidth > el.clientWidth + 1) {
+        bad.push(`${desc} scrollWidth ${el.scrollWidth} > ${el.clientWidth}`);
+      }
+      if (
+        dlgBox !== undefined &&
+        (r.left < dlgBox.left - 1 || r.right > dlgBox.right + 1)
+      ) {
+        bad.push(
+          `${desc} box ${r.left.toFixed(1)}..${r.right.toFixed(1)} ` +
+            `outside drawer ${dlgBox.left.toFixed(1)}..${dlgBox.right.toFixed(1)}`,
+        );
+      }
+    }
+    return bad;
+  });
+  expect(violators).toEqual([]);
+
+  // The scroll region itself never outgrows the drawer — only its
+  // contents scroll.
+  const dlgBox = await scope.boundingBox();
+  const wrapBox = await mi.locator(".matrix-grid-wrap").boundingBox();
+  expect(wrapBox).not.toBeNull();
+  expect(dlgBox).not.toBeNull();
+  expect(wrapBox!.x + wrapBox!.width).toBeLessThanOrEqual(
+    dlgBox!.x + dlgBox!.width + 1,
+  );
+  expect(wrapBox!.x).toBeGreaterThanOrEqual(dlgBox!.x - 1);
 });
 
 test("a .meg matrix !Title becomes the session's display name", async ({
@@ -109,7 +204,7 @@ test("a .meg matrix !Title becomes the session's display name", async ({
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.meg`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   // The file's !Title is the session's display name — it comes back
@@ -124,15 +219,26 @@ test("pasting each matrix form: tab-separated header, lower triangle, CSV questi
   await openSandbox(page);
   const mi = await openMatrixTab(page);
 
-  // Tab-separated square with a header row of names.
+  // Tab-separated square with a header row of names. The engine
+  // parses this paste without asking (parse_pasted_matrix raises no
+  // MatrixAmbiguous for it — pinned by the Vitest engine test in
+  // MatrixImport.test.tsx), so no question renders and the same path
+  // is asserted unconditionally.
   await mi.getByLabel("Paste a distance matrix").fill(
     "\ta\tb\tc\n" + "a\t0\t5\t9\n" + "b\t5\t0\t10\n" + "c\t9\t10\t0\n",
   );
   await mi.getByRole("button", { name: "Import matrix" }).click();
-  // If the engine asks about the header row, one click answers it.
-  const headerQ = mi.getByRole("button", { name: "First row is a header" });
-  if (await headerQ.isVisible().catch(() => false)) await headerQ.click();
+  await expect(
+    mi.getByRole("group", { name: "Matrix question" }),
+  ).toHaveCount(0);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  // The parsed names and lower triangle seed the grid.
+  for (const [i, n] of ["a", "b", "c"].entries()) {
+    await expect(mi.getByLabel(`Taxon ${i + 1} name`)).toHaveValue(n);
+  }
+  await expect(mi.getByLabel("Distance between b and a")).toHaveValue("5");
+  await expect(mi.getByLabel("Distance between c and a")).toHaveValue("9");
+  await expect(mi.getByLabel("Distance between c and b")).toHaveValue("10");
 
   // A lower-triangle tabular paste.
   await page.goto("/");
@@ -238,7 +344,7 @@ test("typing wiki5 into the grid builds the same tree as the file", async ({
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   const fileTree = await exportedNewick(page);
@@ -272,7 +378,7 @@ test("Review Focus 3: mid-session edits return to 'complete the matrix'", async 
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await stepToEnd(page);
@@ -312,7 +418,7 @@ test("UPGMA builds on a matrix session too", async ({ page }) => {
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await scope.getByLabel("Tree-building method").selectOption("Upgma");
@@ -326,7 +432,7 @@ test("the negative-branch notice gains the matrix sentence", async ({
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}nonadditive6.phy`);
   const notice = page.locator('section[aria-label="Negative branches"]');
   await expect(notice).toBeVisible();
@@ -342,7 +448,7 @@ test("matrix exports: PHYLIP and .meg round-trip; no alignment exports", async (
   await openSandbox(page);
   let scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
 
@@ -406,7 +512,7 @@ test("a 200-taxon import shows the long-link advisory", async ({ page }) => {
   );
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles({
       name: "big200.phy",
       mimeType: "text/plain",
@@ -425,7 +531,7 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   await openSandbox(page);
   const scope = await importScope(page);
   await scope
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   expect(page.url()).toContain("d=");
@@ -460,7 +566,7 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   await page.getByRole("radio", { name: "Sandbox" }).click();
   const scope3 = await importScope(page);
   await scope3
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.meg`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await expect(page.locator(".alphabet-badge-label")).toHaveText(

@@ -77,7 +77,6 @@ import { ExportMenu } from "./ExportMenu";
 import { ExplanationPanel } from "./ExplanationPanel";
 import { GapControl } from "./GapControl";
 import { Header } from "./Header";
-import { ImportPanel } from "./ImportPanel";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PromptCard } from "./PromptCard";
 import { SettingsDrawer } from "./SettingsDrawer";
@@ -151,6 +150,25 @@ const BootstrapPanel = lazy(() =>
 // keeps it working offline after first load.
 const Tour = lazy(() =>
   import("./Tour").then((m) => ({ default: m.Tour })),
+);
+
+// The import panel is a lazy chunk too (v1.4c Task 8 fix round 1,
+// the initial-JS budget — the standing lazy-load precedent): it is
+// sandbox-only UI, so it is fetched when a sandbox session renders
+// it, not with the app. The SW's `**/*.js` precache keeps it working
+// offline after first load.
+const ImportPanel = lazy(() =>
+  import("./ImportPanel").then((m) => ({ default: m.ImportPanel })),
+);
+
+// The matrix session's two replacement texts (§6.2's single line and
+// the empty-tree reason) ride the same boundary — they can only
+// render inside a matrix session (v1.4c Task 8 fix round 1).
+const MatrixNote = lazy(() =>
+  import("./matrix/MatrixSession").then((m) => ({ default: m.MatrixNote })),
+);
+const MatrixEmpty = lazy(() =>
+  import("./matrix/MatrixSession").then((m) => ({ default: m.MatrixEmpty })),
 );
 
 const NO_HIGHLIGHT = new Set<number>();
@@ -905,10 +923,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
       {/* The single replacement line for everything a matrix session
           suppresses (v1.4c spec §6.2, plan Task 8 — verbatim). */}
       {!aligned && (
-        <p className="matrix-note">
-          This tree was built from a distance matrix, so there are no
-          sequences to compare or resample.
-        </p>
+        <Suspense fallback={null}>
+          <MatrixNote />
+        </Suspense>
       )}
       {aligned && session.source === "sandbox" && (
         <GapControl
@@ -922,14 +939,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
         />
       )}
       {session.source === "sandbox" && (
-        <ImportPanel
-          session={session}
-          dispatch={dispatch}
-          onOpenDatasets={() => {
-            dispatch({ type: "setDrawer", open: false });
-            setDatasetSheet(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <ImportPanel
+            session={session}
+            dispatch={dispatch}
+            onOpenDatasets={() => {
+              dispatch({ type: "setDrawer", open: false });
+              setDatasetSheet(true);
+            }}
+          />
+        </Suspense>
       )}
       <ExportMenu
         tree={drawnTree}
@@ -1083,9 +1102,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
             {/* A matrix session whose grid is incomplete shows the
                 reason here instead of a stale tree (Review Focus 3). */}
             {!aligned && session.result === null && (
-              <p className="matrix-empty">
-                Complete the distance matrix to build the tree.
-              </p>
+              <Suspense fallback={null}>
+                <MatrixEmpty />
+              </Suspense>
             )}
             {referenceTree === null && (
               <p className="no-true-tree">
@@ -1115,8 +1134,6 @@ export function App({ exercise }: { exercise?: Exercise }) {
             {inferred !== null && drawnTree !== null && (
               <div className="tree-col" ref={treeColRef}>
                 {(() => {
-                  // Consensus tabs (spec §6.4): at the final position
-                  // the tree panel sits inside the tablist's tabpanel.
                   // A consensus view draws its tree as a cladogram with
                   // the tab's label as caption; step highlights and
                   // wrong-clade marks belong to the inferred tree only.
@@ -1160,7 +1177,12 @@ export function App({ exercise }: { exercise?: Exercise }) {
                       }
                     />
                   );
-                  return atFinal ? (
+                  // Consensus tabs (spec §6.4): at the final position
+                  // the tree panel sits inside the tablist's tabpanel —
+                  // but never in a matrix session: bootstrap is
+                  // impossible there (the single replacement line
+                  // already says why, v1.4c Task 8 fix round 1).
+                  return atFinal && aligned ? (
                     <ConsensusTabs session={session} dispatch={dispatch}>
                       {treePanel}
                     </ConsensusTabs>

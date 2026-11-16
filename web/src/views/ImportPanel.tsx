@@ -17,8 +17,8 @@
 // arrives back through session.error. SaturatedMatrix is handled by the
 // §6.3 teaching notice instead of being repeated here.
 
-import { lazy, Suspense, useRef, useState } from "react";
-import type { Dispatch } from "react";
+import { lazy, Suspense, useId, useRef, useState } from "react";
+import type { Dispatch, KeyboardEvent } from "react";
 
 import { engine } from "../engine";
 import type { MatrixFormat } from "../engine/generated/MatrixFormat";
@@ -126,8 +126,47 @@ export function ImportPanel({
   const [asym, setAsym] = useState<{ text: string; name?: string } | null>(
     null,
   );
-  const [tab, setTab] = useState<"seq" | "matrix">("seq");
+  const tabId = useId();
+  // The tab strip's selection. A matrix session defaults to the
+  // Distance matrix tab (fix round 1) and a later origin change
+  // re-derives it — a matrix import selects its tab, an alignment
+  // import brings "Sequences or tree" back (adjust-state-in-render).
+  const inMatrix = session.alignmentOrigin === "matrix";
+  const [tab, setTab] = useState<"seq" | "matrix">(
+    inMatrix ? "matrix" : "seq",
+  );
+  const [lastOrigin, setLastOrigin] = useState(session.alignmentOrigin);
+  if (session.alignmentOrigin !== lastOrigin) {
+    setLastOrigin(session.alignmentOrigin);
+    setTab(inMatrix ? "matrix" : "seq");
+  }
+  // The matrix tab's component mounts on its FIRST open — that's the
+  // lazy chunk's fetch point. Afterwards it stays mounted (the
+  // tabpanel is only `hidden`), so the grid's draft survives a switch.
+  const [matrixOpened, setMatrixOpened] = useState(inMatrix);
+  const tabRef = useRef<(HTMLButtonElement | null)[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const TABS: readonly ("seq" | "matrix")[] = ["seq", "matrix"];
+  const selectTab = (t: "seq" | "matrix") => {
+    setTab(t);
+    if (t === "matrix") setMatrixOpened(true);
+  };
+  // ARIA tabs keyboard pattern (same as ConsensusTabs): Left/Right
+  // move through the tabs with wrap-around, Home/End to the ends —
+  // focus follows and the tab activates (roving tabindex below).
+  const onTabsKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const cur = TABS.indexOf(tab);
+    let next = -1;
+    if (e.key === "ArrowRight") next = (cur + 1) % TABS.length;
+    else if (e.key === "ArrowLeft") next = (cur - 1 + TABS.length) % TABS.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = TABS.length - 1;
+    if (next < 0 || next === cur) return;
+    e.preventDefault();
+    selectTab(TABS[next]);
+    tabRef.current[next]?.focus();
+  };
 
   if (session.source !== "sandbox") return null;
 
@@ -326,29 +365,48 @@ export function ImportPanel({
   return (
     <section className="import-panel" aria-label="Import data">
       <h2>Import data</h2>
-      <div role="tablist" aria-label="Import kind" className="import-tabs">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "seq"}
-          onClick={() => setTab("seq")}
-        >
-          Sequences or tree
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "matrix"}
-          onClick={() => setTab("matrix")}
-        >
-          Distance matrix
-        </button>
+      <div
+        role="tablist"
+        aria-label="Import kind"
+        className="import-tabs"
+        onKeyDown={onTabsKeyDown}
+      >
+        {TABS.map((t, i) => (
+          <button
+            key={t}
+            ref={(el) => {
+              tabRef.current[i] = el;
+            }}
+            type="button"
+            role="tab"
+            id={`${tabId}-tab-${t}`}
+            aria-selected={tab === t}
+            aria-controls={`${tabId}-panel-${t}`}
+            tabIndex={tab === t ? 0 : -1}
+            onClick={() => selectTab(t)}
+          >
+            {t === "seq" ? "Sequences or tree" : "Distance matrix"}
+          </button>
+        ))}
       </div>
-      {tab === "matrix" ? (
-        <Suspense fallback={null}>
-          <MatrixImport session={session} dispatch={dispatch} />
-        </Suspense>
-      ) : (
+      <div
+        role="tabpanel"
+        id={`${tabId}-panel-matrix`}
+        aria-labelledby={`${tabId}-tab-matrix`}
+        hidden={tab !== "matrix"}
+      >
+        {matrixOpened && (
+          <Suspense fallback={null}>
+            <MatrixImport session={session} dispatch={dispatch} />
+          </Suspense>
+        )}
+      </div>
+      <div
+        role="tabpanel"
+        id={`${tabId}-panel-seq`}
+        aria-labelledby={`${tabId}-tab-seq`}
+        hidden={tab !== "seq"}
+      >
         <>
           {!hasImportedData(session) && (
             <EmptyState text="Paste or upload sequences, or try a sample:">
@@ -422,7 +480,7 @@ export function ImportPanel({
             )}
           </p>
         </>
-      )}
+      </div>
       {asym !== null && (
         <p className="phylip-note" role="status">
           <button

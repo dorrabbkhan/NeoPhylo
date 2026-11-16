@@ -84,7 +84,10 @@ describe("Lesson | Sandbox switch", () => {
     expect(importPanel()).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    expect(importPanel()).not.toBeNull();
+    // The import panel is a lazy chunk (v1.4c fix round 1) — findBy.
+    expect(
+      await screen.findByLabelText("Paste sequences or a tree"),
+    ).not.toBeNull();
     expect(modelSelect().disabled).toBe(false);
     expect(screen.queryByText(question)).toBeNull();
 
