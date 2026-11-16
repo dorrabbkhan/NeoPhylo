@@ -7294,3 +7294,11 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **No grid draft on the link (Task 7 decision, confirmed):**
   `editMatrix(null)` emits `imported` with no matrix, so reload lands
   on the exercise's own matrix while the screen reseeds it.
+- Baselines regenerated for the import-panel tabs (owner decision
+  relayed by the conductor, PR #154, option A):
+  dataset-sheet-1920x1080-light, dataset-sheet-1920x1080-dark,
+  gap-partial-1920x1080-light, gap-partial-1920x1080-dark,
+  gap-partial-1024x768-light, gap-partial-1024x768-dark,
+  gap-partial-768x1024-light, gap-partial-768x1024-dark,
+  pair-panel-removed-1920x1080-light,
+  pair-panel-removed-1920x1080-dark.
