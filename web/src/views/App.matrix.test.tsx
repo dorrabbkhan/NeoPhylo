@@ -135,6 +135,61 @@ describe("App — matrix session", () => {
     expect(await screen.findByText(REPLACEMENT)).toBeTruthy();
   });
 
+  it("the unbuilt grid draft picks the empty-state line (v1.4c Task 9)", async () => {
+    render(
+      <App
+        exercise={{
+          schema_version: 2,
+          id: "nj-basics",
+          title: "How Neighbor-Joining works",
+          alphabet: "dna",
+          data: {
+            kind: "simulated",
+            true_tree: "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);",
+            sim: { model: "Jc69", length: 1000, seed: 42 },
+          },
+          reference: null,
+          analysis: { correction: "Jc69", method: "Nj" },
+          locked: [],
+          prompts: [],
+          bootstrap: null,
+        }}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("radio", { name: "Sandbox" }));
+    fireEvent.click(
+      await screen.findByRole("tab", { name: "Distance matrix" }),
+    );
+    fireEvent.change(
+      await screen.findByLabelText("Paste a distance matrix"),
+      {
+        target: {
+          value: "5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n",
+        },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import matrix" }));
+    await screen.findByRole("img", { name: "Inferred tree" });
+
+    // Open the typing grid — a lazy sheet — and edit one committed
+    // cell: the draft is still complete, so the tree area asks for
+    // the button rather than a finished matrix.
+    fireEvent.click(screen.getByRole("button", { name: "Type a matrix…" }));
+    const edited = await screen.findByLabelText("Distance between b and a");
+    fireEvent.change(edited, { target: { value: "6" } });
+    expect(
+      await screen.findByText("Press Build tree to rebuild."),
+    ).toBeTruthy();
+
+    // Clearing a cell makes the draft incomplete: the line reverts.
+    fireEvent.change(edited, { target: { value: "" } });
+    expect(
+      await screen.findByText(
+        "Complete the distance matrix to build the tree.",
+      ),
+    ).toBeTruthy();
+  });
+
   it("the negative-branch notice gains the matrix sentence only in a matrix session", async () => {
     render(
       <App

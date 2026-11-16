@@ -160,6 +160,13 @@ test("a touch drag drops on the branch under the finger, matching the keyboard p
 
   const leafC = page.getByRole("button", { name: "Leaf C" });
   const edgeB = page.getByRole("button", { name: "Branch to B" });
+  // CI flake (Task 9 fix round 1): an endpoint below the fold reads a
+  // box that lands the CDP touch outside its element. Scroll both into
+  // view first, then read both boxes — the second scroll can shift the
+  // first endpoint's viewport position, so nothing is measured until
+  // every scroll has settled.
+  await leafC.scrollIntoViewIfNeeded();
+  await edgeB.scrollIntoViewIfNeeded();
   const a = await leafC.boundingBox();
   const b = await edgeB.boundingBox();
   if (a === null || b === null) throw new Error("no box");
@@ -248,6 +255,11 @@ test("touch: drops onto a node and onto a branch match the keyboard path and nev
     from: import("@playwright/test").Locator,
     to: import("@playwright/test").Locator,
   ): Promise<void> => {
+    // Same CI flake: scroll each endpoint into view before measuring,
+    // and only then read the boxes (the second scroll can move the
+    // first element).
+    await from.scrollIntoViewIfNeeded();
+    await to.scrollIntoViewIfNeeded();
     const a = await from.boundingBox();
     const b = await to.boundingBox();
     if (a === null || b === null) throw new Error("drag endpoint has no box");
@@ -704,6 +716,7 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
 
   const newLeafBtn = page.getByRole("button", { name: "New leaf" });
   await expect(newLeafBtn).toBeVisible();
+  await newLeafBtn.scrollIntoViewIfNeeded();
   const btnBox = await newLeafBtn.boundingBox();
   if (btnBox === null) throw new Error("the New leaf button has no box");
   expect(
@@ -733,6 +746,7 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
   await expect(nameInput).toBeFocused();
   await page.keyboard.insertText("F");
   const submitBtn = page.getByRole("button", { name: "Add leaf" });
+  await submitBtn.scrollIntoViewIfNeeded();
   const submitBox = await submitBtn.boundingBox();
   if (submitBox === null) throw new Error("the Add leaf button has no box");
   await tap(submitBox.x + submitBox.width / 2, submitBox.y + submitBox.height / 2);
@@ -742,6 +756,8 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
   // the keyboard path produces.
   const leafF = page.getByRole("button", { name: "Leaf F" });
   const edgeB = page.getByRole("button", { name: "Branch to B" });
+  await leafF.scrollIntoViewIfNeeded();
+  await edgeB.scrollIntoViewIfNeeded();
   const a = await leafF.boundingBox();
   const b = await edgeB.boundingBox();
   if (a === null || b === null) throw new Error("no box");
@@ -1155,6 +1171,12 @@ test("touch: a swipe over empty canvas scrolls the page while a handle drag stil
     name: "Branch to T1",
     exact: true,
   });
+  // The swipe above scrolled the page (possibly still settling), so a
+  // box read now can be stale or off-viewport — the CI flake this
+  // fixes (Task 9 fix round 1). Scroll both endpoints back into view
+  // first, then read both boxes after every scroll has settled.
+  await leaf0.scrollIntoViewIfNeeded();
+  await edge1.scrollIntoViewIfNeeded();
   const a = await leaf0.boundingBox();
   const b = await edge1.boundingBox();
   if (a === null || b === null) throw new Error("no box");

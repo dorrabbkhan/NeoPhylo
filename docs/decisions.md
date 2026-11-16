@@ -7473,6 +7473,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/src/index.css` — the `.import-tabs` comment now describes
     the real stacking behaviour (comment-only leftover from Task 8;
     no CSS changed).
+  - `web/src/state/matrix.test.ts`, `web/src/views/App.matrix.test.tsx`,
+    `web/src/views/matrix/MatrixGrid.test.tsx` — fix round 1 tests
+    pinning `draftReady`/`matrixDraftReady` end to end (grid emit →
+    `editMatrix` → the empty-state line).
   - `docs/decisions.md` — this entry.
 - **Unsaved matrix drafts ride the existing in-memory draft, not a
   new autosave:** `draftSnapshot` (the dirty-check baseline) already

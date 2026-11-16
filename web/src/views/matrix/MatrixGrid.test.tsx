@@ -20,18 +20,23 @@ import { MatrixGrid } from "./MatrixGrid";
 
 afterEach(cleanup);
 
-/** Mount the grid controlled; `emitted` holds the last onChange arg. */
+/** Mount the grid controlled; `emitted` holds the last onChange args. */
 function mount(value: DistanceInput | null = null) {
-  const emitted: { v: DistanceInput | null | undefined } = {
+  const emitted: {
+    v: DistanceInput | null | undefined;
+    ready: boolean | undefined;
+  } = {
     v: undefined,
+    ready: undefined,
   };
   function Harness({ v }: { v: DistanceInput | null }) {
     const [cur, setCur] = useState<DistanceInput | null>(v);
     return (
       <MatrixGrid
         value={cur}
-        onChange={(i) => {
+        onChange={(i, draftReady) => {
           emitted.v = i;
+          emitted.ready = draftReady;
           setCur(i);
         }}
       />
@@ -145,6 +150,23 @@ describe("MatrixGrid — emits", () => {
     expect(
       screen.getByRole("button", { name: "Build tree" }),
     ).toHaveProperty("disabled", true);
+  });
+
+  // `draftReady` (v1.4c Task 9): the flag beside every null emit tells
+  // the session whether the unbuilt draft is complete and valid — the
+  // empty-state line's "Press Build tree" vs "Complete the matrix".
+  it("editing a cell of a complete grid emits null with draftReady true", () => {
+    const { emitted } = mount(wiki5);
+    fireEvent.change(cell("e", "d"), { target: { value: "4" } });
+    expect(emitted.v).toBeNull();
+    expect(emitted.ready).toBe(true);
+  });
+
+  it("clearing a cell emits null with draftReady false", () => {
+    const { emitted } = mount(wiki5);
+    fireEvent.change(cell("c", "b"), { target: { value: "" } });
+    expect(emitted.v).toBeNull();
+    expect(emitted.ready).toBe(false);
   });
 
   it("removing a taxon emits null and arms Build tree", () => {
