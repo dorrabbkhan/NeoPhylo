@@ -7657,3 +7657,36 @@ Owner-requested rendering fixes after the PR #139 review; branch
   "No true tree" comparison placeholder stays.
 - **Owner ruling (2026-11-16):** the lessons menu order stays —
   `nj-by-hand` first, `upgma-vs-nj-matrix` right after `upgma-fails`.
+
+### Task 11 — worksheets, answer keys and instructor gate
+
+- **QR encoder vendored, not installed:** the npm registry was
+  unreachable in this environment (proxy refused), so `uqr` 0.1.3 (MIT)
+  is vendored verbatim under `web/src/worksheets/vendor/` with its
+  license recorded in `THIRD_PARTY_NOTICES.md` (and therefore in the
+  generated `licenses.html`). Encoding is verified against a
+  known-good published test vector rather than an installed decoder.
+- **Files outside the Files block:**
+  - `web/src/worksheets/qr.ts` — thin local wrapper over the vendored
+    encoder plus the text fallback rule; kept out of `build.ts` per the
+    single-purpose/≈400-line file rule.
+  - `web/src/worksheets/vendor/uqr.{mjs,d.mts}` — the vendored
+    dependency itself.
+  - `web/src/views/worksheets/blocks.tsx` — the matrix/blank/QR render
+    primitives shared by `WorksheetPage` and `KeyPage`; without it both
+    pages would duplicate the block markup and exceed ~400 lines.
+  - `web/src/views/worksheets/load.ts` — lesson/lab/custom-exercise
+    resolution and canonical link building shared by both pages.
+  - `web/src/views/worksheets/steps.ts` — per-join rendering context
+    (active clusters, per-step matrix, Q table) derived from the engine
+    trace; shared by sheet and key so the two stay aligned.
+  - `web/src/views/worksheets/worksheets.css` — worksheet/key page
+    styles including print blank sizing.
+  - `web/src/views/worksheets/worksheets.test.tsx` — page-level unit
+    tests (gate session rule, storage failure, no-answer-leak DOM
+    checks); the plan named only `build.test.ts`.
+  - `web/e2e/visualScenes.ts` — new scene definitions live there; the
+    Files block listed only the `*.spec.ts` runners.
+  - `web/e2e/__screenshots__/worksheet-*` — the 32 new snapshot
+    baselines those scenes require (no existing baseline changed).
+  - `docs/decisions.md` — this entry.

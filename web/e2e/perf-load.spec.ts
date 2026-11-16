@@ -236,6 +236,33 @@ test.describe("lazy export writer chunks", () => {
   });
 });
 
+test.describe("lazy worksheet chunks", () => {
+  // v1.4c Task 11 (conductor notes): `?worksheet`, `?key`, the
+  // builders, the QR encoder and InstructorGate must be lazy chunks —
+  // the app's initial load never fetches them. Same request-log
+  // pattern as the KaTeX/writer describes above.
+  test.use({ serviceWorkers: "block" });
+
+  test("initial load fetches no worksheet chunk", async ({ page }) => {
+    const jsChunkRequests: string[] = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/") && u.pathname.endsWith(".js")) {
+        jsChunkRequests.push(u.pathname);
+      }
+    });
+
+    await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+    await waitForApp(page);
+    for (const name of ["WorksheetPage", "KeyPage", "InstructorGate"]) {
+      expect(
+        jsChunkRequests.some((u) => u.includes(name)),
+        `${name} must not be an initial chunk`,
+      ).toBe(false);
+    }
+  });
+});
+
 test("after one online load, Math renders offline with KaTeX's own fonts", async ({
   page,
   context,
