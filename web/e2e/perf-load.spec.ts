@@ -263,6 +263,33 @@ test.describe("lazy worksheet chunks", () => {
   });
 });
 
+test.describe("lazy library chunk", () => {
+  // v1.4c Task 12 (conductor notes): `?library`/`?labs`, the lab and
+  // dataset registries (ajv included) and the worksheet builders must
+  // be lazy chunks — the app's initial load never fetches them. Same
+  // request-log pattern as the worksheet describe above.
+  test.use({ serviceWorkers: "block" });
+
+  test("initial load fetches no library chunk", async ({ page }) => {
+    const jsChunkRequests: string[] = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/") && u.pathname.endsWith(".js")) {
+        jsChunkRequests.push(u.pathname);
+      }
+    });
+
+    await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+    await waitForApp(page);
+    for (const name of ["LibraryPage", "LabIndex", "registry"]) {
+      expect(
+        jsChunkRequests.some((u) => u.includes(name)),
+        `${name} must not be an initial chunk`,
+      ).toBe(false);
+    }
+  });
+});
+
 test("after one online load, Math renders offline with KaTeX's own fonts", async ({
   page,
   context,

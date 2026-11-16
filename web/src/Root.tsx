@@ -50,10 +50,20 @@ const KeyPage = lazy(() =>
   })),
 );
 
+// v1.4c Task 12: `?library` is the same kind of lazy route — the
+// page's registries and worksheet builders stay out of the initial
+// bundle like the lab index it absorbs (§8.2).
+const LibraryPage = lazy(() =>
+  import("./views/library/LibraryPage").then((m) => ({
+    default: m.LibraryPage,
+  })),
+);
+
 const params = new URLSearchParams(window.location.search);
 const editorRoute = params.has("editor");
 const previewRoute = params.has("preview");
 const labsRoute = params.has("labs");
+const libraryRoute = params.has("library");
 const labRoute = params.get("lab");
 const worksheetRoute = params.get("worksheet");
 const keyRoute = params.get("key");
@@ -113,6 +123,13 @@ export function Root() {
     return (
       <Suspense fallback={LOADING}>
         <LabIndex />
+      </Suspense>
+    );
+  }
+  if (libraryRoute) {
+    return (
+      <Suspense fallback={LOADING}>
+        <LibraryPage />
       </Suspense>
     );
   }

@@ -58,6 +58,15 @@ test("the lab index lists the test lab and links to its page; both pages are axe
   ).toEqual([]);
 
   const testCard = page.locator(".lab-card", { hasText: "Test lab:" });
+  // v1.4c Task 12 (spec §7.1): the index is the library filtered to
+  // labs, so each card also carries the Task-11 worksheet and gated
+  // answer-key actions beside the lab's own open link.
+  await expect(
+    testCard.getByRole("link", { name: "In-app worksheet" }),
+  ).toHaveAttribute("href", "?worksheet=test-lab&kind=app");
+  await expect(
+    testCard.getByRole("link", { name: "Answer key" }),
+  ).toHaveAttribute("href", /^\?key=test-lab&kind=/);
   await testCard.getByRole("link", { name: /open lab/i }).click();
   await expect(
     page.getByRole("heading", { name: "Test lab: dnadist → neighbor" }),

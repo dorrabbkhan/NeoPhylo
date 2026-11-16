@@ -1,0 +1,126 @@
+/* The library page, `?library` and `?labs` (v1.4c plan Task 12, spec
+ * §7.1): the filter bar and the non-lab card pieces. Cards reuse the
+ * lab-page tokens and the `.lab-card` look — every color, size, space
+ * and radius is a var(), and the coarse-pointer floor gives the
+ * checkboxes, the select and the prepares/follows links the same ≥40
+ * px the lab pages already give their actions. Print hides the filter
+ * bar like the other controls. */
+
+.lib-filters {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  margin: 0 0 var(--space-24);
+  padding: var(--space-8) var(--space-16);
+}
+
+.lib-filters legend {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  padding: 0 var(--space-4);
+}
+
+.lib-filter {
+  align-items: center;
+  display: inline-flex;
+  font-size: var(--size-sm);
+  gap: var(--space-4);
+}
+
+.lib-filter select {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  margin-inline-start: var(--space-4);
+  padding: var(--space-4) var(--space-8);
+}
+
+.lib-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  /* issue 135's rule applies here too: 0 lets the card shrink to the
+   * column; a too-wide table scrolls inside its region. */
+  min-width: 0;
+  padding: var(--space-16);
+}
+
+.lib-card h3 {
+  margin: 0 0 var(--space-4);
+}
+
+.lib-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.lib-tag {
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-contrast);
+  font-size: var(--size-xs);
+  padding: 0 var(--space-4);
+}
+
+.lib-tag-level {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.lib-rel {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-4);
+}
+
+.lib-rel a {
+  color: var(--color-accent-contrast);
+}
+
+.lib-dataset-meta,
+.lib-dataset-source {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-4);
+}
+
+/* The lab index carried one action per card; the library carries up to
+ * four, so the links need a gap between them. */
+.lib-card .lab-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+}
+
+/* Touch targets ≥ 40×40 under (pointer: coarse): the filter
+ * checkboxes and select, and the inline prepares/follows links, join
+ * the floors labs.css already gives the nav and card actions. */
+@media (pointer: coarse) {
+  .lib-filter input[type="checkbox"],
+  .lib-filter select {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .lib-rel a {
+    align-items: center;
+    display: inline-flex;
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+@media print {
+  .lib-filters {
+    display: none;
+  }
+}

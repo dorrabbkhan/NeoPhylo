@@ -170,6 +170,29 @@ test("320×640: the lab index never scrolls sideways", async ({ page }) => {
   await expectNoSidewaysScroll(page, 320, "the lab index at 320 px");
 });
 
+// v1.4c Task 12 (spec §7.1): the library gets the same pass — `?labs`
+// above already covers the filtered view; `?library` adds the filter
+// bar, lesson and dataset cards and the prepares/follows links at the
+// two narrow widths.
+test("375×812: the library's header controls fit and the page never scrolls sideways", async ({
+  page,
+}) => {
+  await page.goto("/?library");
+  await expect(
+    page.getByRole("heading", { name: "Library", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".lib-card").first()).toBeVisible();
+  await checkHeaderControls(page, "the library");
+  await expectNoSidewaysScroll(page, NARROW.w, "the library");
+});
+
+test("320×640: the library never scrolls sideways", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/?library");
+  await expect(page.locator(".lib-card").first()).toBeVisible();
+  await expectNoSidewaysScroll(page, 320, "the library at 320 px");
+});
+
 /* ---- v1.4c Task 8: the matrix UI under a coarse pointer ---- */
 
 test("375×812 coarse pointer: every matrix control is ≥40×40 and the page never scrolls sideways", async ({

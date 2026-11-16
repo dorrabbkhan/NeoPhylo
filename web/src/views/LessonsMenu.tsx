@@ -18,6 +18,11 @@
 // like any other item; below 1280 the Settings drawer and the More menu
 // own the reopen path instead.
 //
+// v1.4c Task 12 (spec §7.1): a "Library" action row joins the action
+// rows — it renders at every width (the dropdown is closed in every
+// existing frame, so the closed header is unchanged) and sits before
+// the tour item in the roving order.
+//
 // Task 12 round 4: the list is taller than a 720 px window, so it caps
 // itself inside the viewport (measured top edge + a token margin) and
 // scrolls; roving focus scrolls the active item into view.
@@ -37,17 +42,27 @@ export interface LessonsMenuProps {
    * that the Settings drawer (1024–1279) and the More menu (< 1024)
    * carry the item, so each width keeps exactly one reopen path. */
   onTakeTour?: () => void;
+  /** Opens the library (v1.4c Task 12, spec §7.1). An action, not a
+   * link: the caller owns the unsaved-work question before the page
+   * change. */
+  onOpenLibrary?: () => void;
 }
 
-export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps) {
+export function LessonsMenu({ currentId, onPick, onOpenLibrary, onTakeTour }: LessonsMenuProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  // The roving index covers the tour action row too when it renders.
-  const itemCount = LESSONS.length + (onTakeTour !== undefined ? 1 : 0);
+  // The roving index covers the Library and tour action rows when
+  // they render (in that order).
+  const itemCount =
+    LESSONS.length +
+    (onOpenLibrary !== undefined ? 1 : 0) +
+    (onTakeTour !== undefined ? 1 : 0);
+  const libraryIndex = LESSONS.length;
+  const tourIndex = libraryIndex + (onOpenLibrary !== undefined ? 1 : 0);
 
   const openAt = (index: number) => {
     setActive(index);
@@ -199,6 +214,23 @@ export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps)
               <span className="lessons-menu-summary">{l.summary}</span>
             </button>
           ))}
+          {onOpenLibrary !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="lessons-menu-tour lessons-menu-library"
+              tabIndex={-1}
+              ref={(el) => {
+                itemRefs.current[libraryIndex] = el;
+              }}
+              onClick={() => {
+                closeMenu(true);
+                onOpenLibrary();
+              }}
+            >
+              Library
+            </button>
+          )}
           {onTakeTour !== undefined && (
             <button
               type="button"
@@ -206,7 +238,7 @@ export function LessonsMenu({ currentId, onPick, onTakeTour }: LessonsMenuProps)
               className="lessons-menu-tour"
               tabIndex={-1}
               ref={(el) => {
-                itemRefs.current[LESSONS.length] = el;
+                itemRefs.current[tourIndex] = el;
               }}
               onClick={() => {
                 closeMenu(true);

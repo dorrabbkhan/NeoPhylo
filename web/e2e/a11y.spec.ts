@@ -322,6 +322,32 @@ test("axe: the MEGA guide and a MEGA lab page have no serious violations", async
 
 /* ---- Task 11: dataset sheet + gap control axe scans (v1.4b) ---- */
 
+// v1.4c Task 12 (spec §7.1): the library joins the axe matrix — the
+// unfiltered page and the ?labs filtered view, in both themes (the
+// device-local pref the app's own toggle writes).
+for (const theme of ["light", "dark"] as const) {
+  test(`axe: the library and ?labs have no serious violations (${theme})`, async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript((t) => {
+      try {
+        window.localStorage.setItem("neophylo.theme", t);
+      } catch {
+        // storage can be blocked; the app tolerates it
+      }
+    }, theme);
+    await page.goto("/?library");
+    await expect(page.locator(".lib-card").first()).toBeVisible();
+    await expectNoSeriousViolations(page, `the library (${theme})`);
+    await page.goto("/?labs");
+    await expect(
+      page.getByRole("heading", { name: "Labs", exact: true }),
+    ).toBeVisible();
+    await expectNoSeriousViolations(page, `?labs (${theme})`);
+  });
+}
+
 test("axe: the dataset sheet and the gap control have no serious violations", async ({
   page,
 }) => {
