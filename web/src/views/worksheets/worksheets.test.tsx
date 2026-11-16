@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fmt } from "../../explain/math";
 import type { Exercise } from "../../engine/generated/Exercise";
 import { engine } from "../../engine/index";
-import { encode } from "../../state/url";
+import { decode, encode } from "../../state/url";
 import {
   companionKey,
   companionSheet,
@@ -36,6 +36,7 @@ import { InstructorGate } from "./InstructorGate";
 import { INSTRUCTOR_KEY } from "./instructor";
 import { KeyPage } from "./KeyPage";
 import { worksheetHref } from "./load";
+import { joinContext } from "./steps";
 import { WorksheetPage } from "./WorksheetPage";
 
 const EXERCISES = resolve("..", "exercises");
@@ -251,6 +252,70 @@ describe("WorksheetPage kind=paper", () => {
     expect(filled.length).toBe(10); // strict lower triangle of 5 taxa
   });
 
+  it("names no cluster in joins after the first — the names are write-in blanks", async () => {
+    // Fix round 1, R1: listing the join-k≥2 active clusters (or labelling
+    // that join's tables with them) tells the student which pair the
+    // previous join merged. Join 1 keeps the original names; later
+    // joins show "Clusters in play:" with a ruled blank, the same grid
+    // shape with empty header cells, and no surviving-cluster label —
+    // only new-node names ("Branch length to u2") may stay.
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const id of ["nj-by-hand", "upgma-vs-nj-matrix"]) {
+      setUrl(`/?worksheet=${id}&kind=paper`);
+      const { unmount } = render(<WorksheetPage id={id} kind="paper" />);
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "1. The distance matrix",
+      });
+      const ex = loadExerciseFile(`${id}.json`);
+      const sheet = paperSheet(ex, `?lesson=${id}`);
+      if (sheet === null) throw new Error(`${id}: sheet missing`);
+      const dm = engine.matrixToDistances(sheet.matrix);
+      if (!dm.ok) throw new Error("dm failed");
+      const run = worksheetRun(dm.value, sheet.method);
+      if (!run.ok) throw new Error("run failed");
+      const join1Header = new Set(sheet.matrix.names);
+      for (const j of run.value.joins.slice(1)) {
+        const ctx = joinContext(run.value, j.step);
+        const section = document
+          .getElementById(`ws-join-${j.step}`)!
+          .closest("section")!;
+        // Same-shaped grids, but every header cell is a write-in blank
+        // and no u<n> appears inside a table.
+        const tables = section.querySelectorAll("table");
+        expect(tables.length, `${id} join ${j.step}`).toBeGreaterThan(0);
+        for (const table of tables) {
+          for (const th of table.querySelectorAll("th")) {
+            expect(
+              (th.textContent ?? "").trim(),
+              `${id} join ${j.step} header`,
+            ).toBe("");
+          }
+          expect(
+            table.textContent,
+            `${id} join ${j.step} table`,
+          ).not.toMatch(/u\d/);
+        }
+        // "Clusters in play:" is a ruled blank, not the name list.
+        const cp = section.querySelector(".ws-clusters");
+        expect(
+          cp?.textContent?.replace(/\s+/g, " ").trim(),
+          `${id} join ${j.step} clusters line`,
+        ).toBe("Clusters in play:");
+        // No surviving-cluster label the key shows for this join may
+        // appear — join-1 header names and the new-node name are exempt.
+        for (const n of ctx.active) {
+          if (join1Header.has(n)) continue;
+          expect(
+            section.textContent,
+            `${id} join ${j.step} names ${n}`,
+          ).not.toMatch(new RegExp(`\\b${esc(n)}\\b`));
+        }
+      }
+      unmount();
+    }
+  });
+
   it("says a >8-taxon exercise has only the in-app worksheet", async () => {
     setUrl("/?worksheet=seqboot-consense&kind=paper");
     render(<WorksheetPage id="seqboot-consense" kind="paper" />);
@@ -360,6 +425,126 @@ describe("KeyPage", () => {
     );
     expect(bodyText()).toContain("replicate trees");
     expect(bodyText()).not.toMatch(FORBIDDEN);
+  });
+
+  it("join 2's closest pair is tied with the join — 'also correct', no mistake", async () => {
+    // Fix round 1, R2: at nj-by-hand join 2 the closest pair d–e is
+    // in JoinFacts.tied — picking it is a correct answer, so the key
+    // says so and no mistake line exists for it.
+    window.sessionStorage.setItem(INSTRUCTOR_KEY, "1");
+    setUrl("/?key=nj-by-hand&kind=paper");
+    render(<KeyPage id="nj-by-hand" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const join2 = document
+      .getElementById("wk-join-2")!
+      .closest("section")!;
+    expect(join2.textContent).toContain(
+      "Closest pair: d–e — tied with the join, also correct.",
+    );
+    const join1 = document
+      .getElementById("wk-join-1")!
+      .closest("section")!;
+    expect(join1.textContent).toContain("the join is not the closest pair");
+    const mistakes = document.querySelector(".ws-mistakes")!;
+    expect(mistakes.textContent).toContain("Join 1: picking d–e");
+    expect(mistakes.textContent).not.toContain("Join 2:");
+  });
+
+  it("the final join gets no closest-pair verdict and no mistake line", async () => {
+    // Fix round 1, R3: the final three-way join offers no choice —
+    // no verdict on it and no mistake names it.
+    window.sessionStorage.setItem(INSTRUCTOR_KEY, "1");
+    setUrl("/?key=nj-by-hand&kind=paper");
+    render(<KeyPage id="nj-by-hand" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const join3 = document
+      .getElementById("wk-join-3")!
+      .closest("section")!;
+    expect(join3.textContent).not.toContain("Closest pair");
+    expect(join3.textContent).not.toContain("not the closest pair");
+    const mistakes = document.querySelector(".ws-mistakes");
+    expect(mistakes?.textContent ?? "").not.toContain("Join 3:");
+  });
+
+  it("labels every join table — Distances / Q values (NJ), Cluster averages (UPGMA)", async () => {
+    // Fix round 1, R4: each join's tables carry a visible caption
+    // associated with the table.
+    window.sessionStorage.setItem(INSTRUCTOR_KEY, "1");
+    setUrl("/?key=nj-by-hand&kind=paper");
+    const { unmount } = render(<KeyPage id="nj-by-hand" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const njCaps = [...document.querySelectorAll("table caption")].map(
+      (c) => c.textContent,
+    );
+    expect(njCaps).toContain("Distances");
+    expect(njCaps).toContain("Q values");
+    unmount();
+
+    setUrl("/?key=upgma-fails&kind=paper");
+    render(<KeyPage id="upgma-fails" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const upgmaCaps = [...document.querySelectorAll("table caption")].map(
+      (c) => c.textContent,
+    );
+    expect(upgmaCaps).toContain("Cluster averages");
+    expect(upgmaCaps).not.toContain("Q values");
+  });
+
+  it("renders no table value with a trailing .000", async () => {
+    // Fix round 1, R5: the same formatter serves every table — the
+    // final join's matrix showed 3.000/2.500/1.500 where the other
+    // tables showed 3 / 2.5.
+    window.sessionStorage.setItem(INSTRUCTOR_KEY, "1");
+    setUrl("/?key=nj-by-hand&kind=paper");
+    const { container } = render(<KeyPage id="nj-by-hand" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    for (const td of container.querySelectorAll("table td")) {
+      expect(td.textContent ?? "").not.toMatch(/\d+\.000\b/);
+    }
+    expect(bodyText()).not.toMatch(/\d+\.000\b/);
+  });
+});
+
+describe("custom exercise link", () => {
+  it("opens the exercise, not the worksheet route — and round-trips", async () => {
+    // Fix round 1, R6: the sheet's link/QR must land on the exercise
+    // itself; resolving "#x=…" against the worksheet URL re-opened the
+    // sheet.
+    const ex = loadExerciseFile("nj-by-hand.json");
+    const hash = encode({ v: 3, x: ex, step: 0, mode: "concept" });
+    setUrl(`/?worksheet=custom&kind=paper${hash}`);
+    render(<WorksheetPage id="custom" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const href = document
+      .querySelector(".ws-link-text a")!
+      .getAttribute("href")!;
+    const u = new URL(href);
+    expect(u.search).toBe("");
+    expect(u.hash).toMatch(/^#x=/);
+    const d = decode(href);
+    expect(d.ok).toBe(true);
+    if (d.ok) {
+      expect(d.state.x?.id).toBe("nj-by-hand");
+      expect(d.state.x).toEqual(ex);
+    }
   });
 });
 

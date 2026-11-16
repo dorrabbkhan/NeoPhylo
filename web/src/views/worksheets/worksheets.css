@@ -40,10 +40,24 @@
   text-align: center;
 }
 
-/* Blank cells keep visible writing room on paper. */
+/* The table's visible label (fix round 1, R4). */
+.ws-matrix caption {
+  caption-side: top;
+  font-weight: 600;
+  padding: var(--space-4) 0;
+  text-align: left;
+}
+
+/* Blank cells keep visible writing room on paper — the header cells
+ * of joins past the first are write-in blanks too (fix round 1, R1). */
 .ws-matrix td.ws-cell-blank {
   min-width: 56px;
   height: 34px;
+}
+
+.ws-matrix th.ws-cell-blank {
+  min-width: 40px;
+  height: 26px;
 }
 
 /* ---- Fill-in blanks and ruled lines ---- */
@@ -66,6 +80,13 @@
 
 .ws-blank-wide {
   min-width: 140px;
+}
+
+/* The write-in space for a cluster name inside an R(…) / len(…)
+ * label (fix round 1, R1). */
+.ws-blank-mini {
+  min-width: 40px;
+  height: 1.1em;
 }
 
 .ws-fill-line {

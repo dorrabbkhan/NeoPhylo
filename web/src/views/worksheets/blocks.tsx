@@ -4,23 +4,33 @@
 // link-plus-QR footer block. Formatting only — every number rendered
 // here is an engine value the callers already hold.
 
-import { cellDecimals } from "../matrix/cellDecimals";
+import type { ReactNode } from "react";
+
+import { fmt } from "../../explain/math";
 import { qrMatrix } from "../../worksheets/qr";
 
 /** A lower-triangle matrix table for print: `names` labels the axes
  * (row names[1..], columns names[0..n-2]) and `values` carries the
  * packed strict lower triangle — null renders the same grid with
- * blank cells to write in. */
+ * blank cells to write in. `caption` labels the table for the reader
+ * ("Distances", "Q values", "Cluster averages"); `blankHeaders` keeps
+ * the same grid shape but empties the header cells so the student
+ * writes the cluster names in — naming them would reveal which pair
+ * the previous join merged (fix round 1, R1). Values render through
+ * the same `fmt` the rest of the key uses (R5). */
 export function PrintMatrix({
   names,
   values,
   label,
+  caption,
+  blankHeaders = false,
 }: {
   names: string[];
   values: number[] | null;
   label: string;
+  caption?: string;
+  blankHeaders?: boolean;
 }) {
-  const decimals = values === null ? 0 : cellDecimals(values);
   return (
     <div
       className="ws-matrix-scroll"
@@ -29,14 +39,23 @@ export function PrintMatrix({
       aria-label={label}
     >
       <table className="ws-matrix" aria-label={label}>
+        {caption !== undefined && <caption>{caption}</caption>}
         <thead>
           <tr>
-            <th scope="col">
-              <span className="visually-hidden">cluster</span>
+            <th scope="col" className={blankHeaders ? "ws-cell-blank" : undefined}>
+              {blankHeaders ? (
+                ""
+              ) : (
+                <span className="visually-hidden">cluster</span>
+              )}
             </th>
-            {names.slice(0, -1).map((n) => (
-              <th key={n} scope="col">
-                {n}
+            {names.slice(0, -1).map((n, i) => (
+              <th
+                key={blankHeaders ? i : n}
+                scope="col"
+                className={blankHeaders ? "ws-cell-blank" : undefined}
+              >
+                {blankHeaders ? "" : n}
               </th>
             ))}
           </tr>
@@ -45,14 +64,22 @@ export function PrintMatrix({
           {names.slice(1).map((row, i) => {
             const r = i + 1;
             return (
-              <tr key={row}>
-                <th scope="row">{row}</th>
+              <tr key={blankHeaders ? r : row}>
+                <th
+                  scope="row"
+                  className={blankHeaders ? "ws-cell-blank" : undefined}
+                >
+                  {blankHeaders ? "" : row}
+                </th>
                 {names.slice(0, r).map((col, j) => {
                   const idx = (r * (r - 1)) / 2 + j;
                   const v = values === null ? null : values[idx];
                   return (
-                    <td key={col} className={v === null ? "ws-cell-blank" : undefined}>
-                      {v === null ? "" : v.toFixed(decimals)}
+                    <td
+                      key={blankHeaders ? j : col}
+                      className={v === null ? "ws-cell-blank" : undefined}
+                    >
+                      {v === null ? "" : fmt(v)}
                     </td>
                   );
                 })}
@@ -66,7 +93,7 @@ export function PrintMatrix({
 }
 
 /** A "label = ___" fill-in line; `wide` gives a longer ruled space. */
-export function Blank({ label, wide = false }: { label: string; wide?: boolean }) {
+export function Blank({ label, wide = false }: { label: ReactNode; wide?: boolean }) {
   return (
     <span className="ws-fill">
       <span>{label}</span>

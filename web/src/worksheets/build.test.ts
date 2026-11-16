@@ -295,24 +295,63 @@ describe("edge cases (Review Focus 5)", () => {
 });
 
 describe("common mistakes", () => {
-  it("names every closest pair for joins that are not the closest pair", () => {
+  it("names only a closest pair outside the tie — tied-correct and final joins produce none", () => {
     const ex = loadExercise(LESSON_FILES["../../../exercises/nj-by-hand.json"]);
     const run = runFor(ex);
     if (run === null) throw new Error("run failed");
     const sheet = paperSheet(ex, "?lesson=nj-by-hand");
     if (sheet === null) throw new Error("sheet missing");
     const key = paperKey(sheet, run.joins, run.build.tree);
-    const notClosest = run.joins.filter((j) => !j.chosen_is_closest);
-    // nj-by-hand's premise: the first join is not the closest pair.
-    expect(notClosest.length).toBeGreaterThanOrEqual(1);
-    expect(key.mistakes.length).toBe(notClosest.length);
-    for (const [i, j] of notClosest.entries()) {
-      expect(key.mistakes[i]).toContain("smallest");
-      for (const c of j.closest) {
-        expect(key.mistakes[i]).toContain(c[0]);
-        expect(key.mistakes[i]).toContain(c[1]);
+    // nj-by-hand: join 1's closest pair d–e is not among the tied
+    // pairs → one mistake. Join 2's closest d–e IS in `tied` →
+    // picking it is a correct answer, no line. Join 3 is the final
+    // three-way join → no choice, no line (fix round 1, R2 + R3).
+    expect(key.mistakes).toEqual([
+      "Join 1: picking d–e because their distance is smallest.",
+    ]);
+  });
+
+  it("a closest pair in `tied` is a correct answer on wiki5 too", () => {
+    const ex = matrixExercise(WIKI5, "NJ");
+    const run = runFor(ex);
+    if (run === null) throw new Error("run failed");
+    const sheet = paperSheet(ex, "#x=t");
+    if (sheet === null) throw new Error("sheet missing");
+    const key = paperKey(sheet, run.joins, run.build.tree);
+    // wiki5 mirrors nj-by-hand: join 1's D–E is closest but wrong,
+    // join 2's closest D–E is tied with the join → correct.
+    const step2 = run.joins[1];
+    expect(step2.closest.length).toBe(1);
+    expect(
+      step2.tied.some(
+        (t) =>
+          (t[0] === step2.closest[0][0] && t[1] === step2.closest[0][1]) ||
+          (t[0] === step2.closest[0][1] && t[1] === step2.closest[0][0]),
+      ),
+    ).toBe(true);
+    expect(key.mistakes).toEqual([
+      "Join 1: picking D–E because their distance is smallest.",
+    ]);
+  });
+
+  it("no built-in key names a mistake for the final join", () => {
+    let finals = 0;
+    for (const { id, src } of allExercises()) {
+      const sheet = paperSheet(src, "test-link");
+      if (sheet === null) continue;
+      const run = runFor(src);
+      if (run === null) throw new Error(`${id}: no run`);
+      const key = paperKey(sheet, run.joins, run.build.tree);
+      const finalSteps = new Set(
+        run.joins.filter((j) => j.final_join).map((j) => j.step),
+      );
+      finals += finalSteps.size;
+      for (const m of key.mistakes) {
+        const step = Number(/^Join (\d+):/.exec(m)?.[1]);
+        expect(finalSteps.has(step), `${id}: ${m}`).toBe(false);
       }
     }
+    expect(finals).toBeGreaterThan(0);
   });
 });
 
@@ -370,23 +409,50 @@ describe("companion sheets", () => {
 });
 
 describe("qrMatrix", () => {
-  it("matches a known-good encoding of a fixed string", () => {
-    // Verified against Kazuhiko Arase's qrcode-generator (an
-    // independent implementation): uqr's mask-5 output is identical.
+  it("matches a known-good encoding of a fixed string — every module", () => {
+    // The full 29×29 module matrix (version 3, ECC L, mask 5) for the
+    // fixed text — every module pinned, not just size and the finder
+    // patterns (fix round 1, review 3). uqr's output was verified
+    // byte-identical against Kazuhiko Arase's qrcode-generator when
+    // the dependency was vendored; no independent implementation
+    // exists in the local npm caches (only uqr itself), so this pin
+    // guards the vendored file against regressions.
+    const expected =
+      "11111110101011001101001111111\n" +
+      "10000010011110101010001000001\n" +
+      "10111010111001000010101011101\n" +
+      "10111010111011100101001011101\n" +
+      "10111010100110110001101011101\n" +
+      "10000010001101000011001000001\n" +
+      "11111110101010101010101111111\n" +
+      "00000000001010000100000000000\n" +
+      "11110010101110110111110011101\n" +
+      "11000001101011001011111110001\n" +
+      "10001110011111000110001100110\n" +
+      "10110100111001011010001000001\n" +
+      "01110011111011110100100101100\n" +
+      "10000100010110111111011000111\n" +
+      "11001111001101100101100110111\n" +
+      "01111000000100011000100100010\n" +
+      "10100010101010110010110111010\n" +
+      "01101000111000011010100101110\n" +
+      "10110110000001110110001110100\n" +
+      "00100000111101110110000000100\n" +
+      "01101010010001111111111111100\n" +
+      "00000000101000001111100011111\n" +
+      "11111110011000100011101011010\n" +
+      "10000010001111110010100011001\n" +
+      "10111010010100000100111110111\n" +
+      "10111010100101011000010111001\n" +
+      "10111010101010100110100100101\n" +
+      "10000010100011011010101001010\n" +
+      "11111110100100011000111010010";
     const text = "https://neophylo.test/?lesson=nj-by-hand";
     const m = qrMatrix(text);
     expect(m).not.toBeNull();
     if (m === null) return;
-    expect(m.length).toBe(29); // version 3
-    expect(m.every((row) => row.length === 29)).toBe(true);
-    // Finder patterns are invariant across mask choices.
-    expect(m[0].slice(0, 7)).toEqual([
-      true, true, true, true, true, true, true,
-    ]);
-    expect(m[0][7]).toBe(false);
-    expect(m[28].slice(0, 7)).toEqual([
-      true, true, true, true, true, true, true,
-    ]);
+    const rendered = m.map((row) => row.map((b) => (b ? "1" : "0")).join(""));
+    expect(rendered.join("\n")).toBe(expected);
   });
 
   it("encodes every built-in paper sheet's link", () => {

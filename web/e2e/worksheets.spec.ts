@@ -17,8 +17,10 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { test, expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
+
+import { waitForApp } from "./helpers";
 
 const EXERCISES = fileURLToPath(new URL("../../exercises", import.meta.url));
 
@@ -303,6 +305,23 @@ test("a custom matrix exercise from the editor gets a paper sheet through #x=", 
     "href",
     /#x=/,
   );
+
+  // The link/QR opens the exercise itself — not the worksheet route
+  // again (fix round 1, R6). It carries no worksheet/key/kind params.
+  const href = await page
+    .locator(".ws-link-text a")
+    .getAttribute("href");
+  expect(href).not.toBeNull();
+  const linkUrl = new URL(href!);
+  expect(linkUrl.search).toBe("");
+  expect(linkUrl.hash).toMatch(/^#x=/);
+  await page.goto(href!);
+  await waitForApp(page);
+  // The pasted matrix's exercise is loaded — its distance grid is up.
+  await expect(
+    page.getByRole("gridcell", { name: "B, A: 5" }),
+  ).toBeVisible();
+  await expect(page.locator('[role="gridcell"]')).toHaveCount(25);
 });
 
 test("the paper route on a >8-taxon exercise points at the in-app worksheet", async ({
@@ -363,6 +382,65 @@ test("every built-in lesson and lab renders its in-app sheet and key without con
     ).toBeVisible({ timeout: 60_000 }); // bootstrap keys run a seeded replicate tally
     expect(errors, `${id} key console`).toEqual([]);
   }
+});
+
+// Fix round 1 (review 4): under a coarse pointer every interactive
+// element on the worksheet pages — plain links included — meets the
+// 40×40 px target the app promises elsewhere.
+test.describe("coarse-pointer targets", () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  async function expectBigTargets(scope: Page | Locator, where: string) {
+    const targets = scope.locator("a, button");
+    const count = await targets.count();
+    expect(count, `${where}: at least one link/button`).toBeGreaterThan(0);
+    for (let i = 0; i < count; i += 1) {
+      const el = targets.nth(i);
+      if (!(await el.isVisible())) continue;
+      const box = await el.boundingBox();
+      const name =
+        (await el.getAttribute("aria-label")) ??
+        ((await el.innerText().catch(() => "")) || "").trim().slice(0, 60);
+      expect(
+        box !== null && box.width >= 40 && box.height >= 40,
+        `${where}: "${name}" is ${box?.width}×${box?.height}`,
+      ).toBe(true);
+    }
+  }
+
+  test("every link and button on the worksheet pages is ≥ 40×40", async ({
+    page,
+  }) => {
+    // The spec emulates a coarse pointer; pin that the media feature
+    // really matches so the CSS rule is exercised, not skipped.
+    expect(
+      await page.evaluate(() =>
+        window.matchMedia("(pointer: coarse)").matches,
+      ),
+    ).toBe(true);
+
+    await page.goto("/?worksheet=nj-by-hand&kind=paper");
+    await expect(
+      page.getByRole("heading", { name: "1. The distance matrix" }),
+    ).toBeVisible();
+    await expectBigTargets(page, "paper sheet");
+
+    await page.goto("/?worksheet=nj-by-hand&kind=app");
+    await expect(page.locator(".ws-items")).toBeVisible();
+    await expectBigTargets(page, "app sheet");
+
+    await page.goto("/?key=nj-by-hand&kind=paper");
+    const gate = page.getByRole("dialog", {
+      name: "Answer keys are for instructors",
+    });
+    await expect(gate).toBeVisible();
+    await expectBigTargets(gate, "gate dialog");
+    await gate.getByRole("button", { name: "I'm an instructor" }).click();
+    await expect(
+      page.getByRole("heading", { name: "1. The distance matrix" }),
+    ).toBeVisible();
+    await expectBigTargets(page, "paper key");
+  });
 });
 
 test("axe-clean: the paper sheet and the gated key", async ({ page }) => {

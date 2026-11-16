@@ -22,6 +22,7 @@ import {
   exerciseOf,
   paperKey,
   paperSheet,
+  samePair,
   worksheetRun,
 } from "../../worksheets/build";
 import type {
@@ -128,12 +129,15 @@ function KeyContent({ id, kind }: KeyPageProps) {
   }
   const sheet = paperSheet(model, exerciseLink(src, id));
   if (sheet === null) {
+    const input = exerciseDistanceInput(exerciseOf(model));
+    const tooMany = input !== null && input.names.length > 8;
     return (
       <>
         <h1>{exerciseOf(model).title} — answer key</h1>
         <p>
-          This exercise has too many taxa for a paper worksheet — it has
-          an in-app worksheet and key instead.
+          {tooMany
+            ? "This exercise has too many taxa for a paper worksheet — it has an in-app worksheet and key instead."
+            : "This exercise's distances can't be printed on a worksheet — it has an in-app worksheet and key instead."}
         </p>
         <p>
           <a href={keyHref(id, "app")}>Open the in-app answer key</a>
@@ -314,6 +318,7 @@ export function PaperKeyView({
           num={i + 2}
           join={j}
           ctx={joinContext(run, j.step)}
+          isNj={isNj}
         />
       ))}
       {rest.length > 0 && (
@@ -352,7 +357,7 @@ export function PaperKeyView({
           highlight={new Set()}
           wrong={new Set()}
           clampNegative={false}
-          title="The finished tree"
+          title={`${sheet.title} — finished tree`}
         />
       </section>
       <footer className="lab-print-foot">
@@ -366,6 +371,28 @@ function pairText(pair: [string, string]): string {
   return `${pair[0]}–${pair[1]}`;
 }
 
+/** The "Closest pair: …" verdict (fix round 1, R2): a closest pair
+ * that is itself one of the join's `tied` pairs is a correct answer,
+ * so the line says so; only a closest pair outside the tie earns
+ * "the join is not the closest pair". Order-insensitive comparison. */
+function closestVerdict(join: JoinFacts): string {
+  if (join.chosen_is_closest) return "the join is the closest pair.";
+  const tiedClosest = join.closest.filter((c) =>
+    join.tied.some((t) => samePair(t, c)),
+  );
+  if (tiedClosest.length === join.closest.length) {
+    return "tied with the join, also correct.";
+  }
+  const parts: string[] = [];
+  if (tiedClosest.length > 0) {
+    parts.push(
+      `${tiedClosest.map(pairText).join(" and ")} tied with the join, also correct`,
+    );
+  }
+  parts.push("the join is not the closest pair");
+  return parts.join("; ") + ".";
+}
+
 /** One join, answered: the step's distance matrix (and Q table for
  * NJ), row sums or cluster sizes, the joined pair with every tie, the
  * closest-pair verdict, the branch lengths and the new distances —
@@ -374,10 +401,12 @@ function JoinKeyBlock({
   num,
   join,
   ctx,
+  isNj,
 }: {
   num: number;
   join: JoinFacts;
   ctx: JoinContext;
+  isNj: boolean;
 }) {
   const tied = join.tied.filter(
     (t) => t[0] !== join.chosen[0] || t[1] !== join.chosen[1],
@@ -395,6 +424,7 @@ function JoinKeyBlock({
           names={ctx.active}
           values={matrixLower(ctx.distance)}
           label={`distance matrix before join ${join.step}`}
+          caption={isNj ? "Distances" : "Cluster averages"}
         />
       )}
       {join.row_sums !== null && !join.final_join && (
@@ -413,6 +443,7 @@ function JoinKeyBlock({
           names={ctx.active}
           values={matrixLower(ctx.q)}
           label={`Q table for join ${join.step}`}
+          caption="Q values"
         />
       )}
       {ctx.sizes !== null && (
@@ -453,9 +484,7 @@ function JoinKeyBlock({
           </p>
           <p>
             Closest pair: {join.closest.map(pairText).join(" or ")} —{" "}
-            {join.chosen_is_closest
-              ? "the join is the closest pair."
-              : "the join is not the closest pair."}
+            {closestVerdict(join)}
           </p>
           <p>
             Branch lengths to {ctx.newName}: len({join.chosen[0]}) ={" "}

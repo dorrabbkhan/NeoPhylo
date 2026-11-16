@@ -188,21 +188,39 @@ function pairText(pair: [string, string]): string {
   return `${pair[0]}–${pair[1]}`;
 }
 
+/** Order-insensitive pair equality — the engine's scan order is not
+ * the student's. */
+export function samePair(
+  a: [string, string],
+  b: [string, string],
+): boolean {
+  return (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
+}
+
 /** The paper answer key: every value filled in plus one "common
- * mistake" line per join whose closest pair is not the joined pair
- * (spec §7.2). */
+ * mistake" line per join whose closest pair is a wrong pick (spec
+ * §7.2). A closest pair that is itself one of the join's `tied`
+ * pairs is a correct answer, so it earns no line (fix round 1, R2 —
+ * nj-by-hand's join-2 d–e is tied with the join); the final join
+ * offers no choice at all, so it can never produce one (R3). */
 export function paperKey(
   sheet: PaperSheet,
   joins: JoinFacts[],
   tree: Tree,
 ): PaperKey {
   const mistakes = joins
-    .filter((j) => !j.chosen_is_closest)
-    .map(
-      (j) =>
-        `Join ${j.step}: picking ${j.closest.map(pairText).join(" or ")} ` +
-        "because their distance is smallest.",
-    );
+    .filter((j) => !j.final_join)
+    .map((j) => {
+      const wrong = j.closest.filter(
+        (c) => !j.tied.some((t) => samePair(t, c)),
+      );
+      if (j.chosen_is_closest || wrong.length === 0) return null;
+      return (
+        `Join ${j.step}: picking ${wrong.map(pairText).join(" or ")} ` +
+        "because their distance is smallest."
+      );
+    })
+    .filter((m): m is string => m !== null);
   return { sheet, joins, mistakes, tree };
 }
 

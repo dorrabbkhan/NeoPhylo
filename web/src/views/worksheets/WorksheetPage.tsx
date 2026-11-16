@@ -15,6 +15,7 @@ import { engine, initEngine } from "../../engine/index";
 import { Wordmark } from "../Wordmark";
 import {
   companionSheet,
+  exerciseDistanceInput,
   exerciseOf,
   paperSheet,
   worksheetRun,
@@ -128,12 +129,17 @@ function WorksheetContent({
   }
   const sheet = paperSheet(model, exerciseLink(src, id));
   if (sheet === null) {
+    // ">8 taxa" is the common refusal; a matrix that can't be printed
+    // (e.g. saturated cells) gets its own wording.
+    const input = exerciseDistanceInput(exerciseOf(model));
+    const tooMany = input !== null && input.names.length > 8;
     return (
       <>
         <h1>{exerciseOf(model).title}</h1>
         <p>
-          This exercise has too many taxa for a paper worksheet — it has
-          an in-app worksheet instead.
+          {tooMany
+            ? "This exercise has too many taxa for a paper worksheet — it has an in-app worksheet instead."
+            : "This exercise's distances can't be printed on a worksheet — it has an in-app worksheet instead."}
         </p>
         <p>
           <a href={worksheetHref(id, "app")}>Open the in-app worksheet</a>
@@ -241,8 +247,10 @@ export function PaperSheetView({
       <section aria-labelledby="ws-finish-h">
         <h2 id="ws-finish-h">{joins.length + 2}. Finish the tree</h2>
         <p>
-          Finish the tree in NeoPhylo — open the exercise and let it run
-          the rest of the joins. Scan the code or follow the link:
+          {joins.length < run.joins.length
+            ? "Finish the tree in NeoPhylo — open the exercise and let it run the remaining joins."
+            : "Check your tree in NeoPhylo — open the exercise and let it build it."}{" "}
+          Scan the code or follow the link:
         </p>
         <LinkBlock link={sheet.link} />
         <p>Sketch the tree it builds:</p>
@@ -258,7 +266,13 @@ export function PaperSheetView({
 /** One hand-worked join block: the clusters in play, the working
  * grids the method needs (NJ: row sums + a blank Q table; UPGMA: the
  * cluster-average matrix), then ruled blanks for the join, the
- * closest-pair question, the branch lengths and the new distances. */
+ * closest-pair question, the branch lengths and the new distances.
+ * Join 1 names its clusters — they are the taxa the student just
+ * saw; joins k ≥ 2 name nothing (fix round 1, R1): printing the
+ * surviving clusters would reveal which pair the previous join
+ * merged. Their "Clusters in play:" line and every table header are
+ * write-in blanks; only the new node's own name (u1, u2, …) may
+ * appear, since it reveals nothing. */
 function JoinBlankBlock({
   num,
   join,
@@ -272,40 +286,55 @@ function JoinBlankBlock({
   isNj: boolean;
   first: boolean;
 }) {
+  // A cluster label — "R(<name>) =" / "len(<name>) =" — with the name
+  // itself a write-in blank on joins past the first.
+  const slotLabel = (pre: string, name: string, named: boolean) =>
+    named ? (
+      `${pre}(${name}) =`
+    ) : (
+      <>
+        {pre}(<span className="ws-blank ws-blank-mini" aria-hidden="true" />){" "}
+        =
+      </>
+    );
   return (
     <section className="ws-join" aria-labelledby={`ws-join-${join.step}`}>
       <h2 id={`ws-join-${join.step}`}>
         {num}. Join {join.step}
       </h2>
       <p className="ws-clusters">
-        Clusters in play: {ctx.active.join(", ")}
-      </p>
-      {!first &&
-        (isNj ? (
-          <PrintMatrix
-            names={ctx.active}
-            values={null}
-            label={`blank distance matrix before join ${join.step}`}
-          />
+        {first ? (
+          <>Clusters in play: {ctx.active.join(", ")}</>
         ) : (
-          <PrintMatrix
-            names={ctx.active}
-            values={null}
-            label={`blank cluster-average matrix before join ${join.step}`}
-          />
-        ))}
+          <>
+            Clusters in play:{" "}
+            <span className="ws-blank ws-blank-wide" aria-hidden="true" />
+          </>
+        )}
+      </p>
+      {!first && (
+        <PrintMatrix
+          names={ctx.active}
+          values={null}
+          label={`blank ${isNj ? "distance" : "cluster-average"} matrix before join ${join.step}`}
+          caption={isNj ? "Distances" : "Cluster averages"}
+          blankHeaders
+        />
+      )}
       {isNj && !join.final_join && (
         <>
           <p className="ws-sums">
             Row sums:{" "}
-            {ctx.active.map((n) => (
-              <Blank key={n} label={`R(${n}) =`} />
+            {ctx.active.map((n, i) => (
+              <Blank key={first ? n : i} label={slotLabel("R", n, first)} />
             ))}
           </p>
           <PrintMatrix
             names={ctx.active}
             values={null}
             label={`blank Q table for join ${join.step}`}
+            caption="Q values"
+            blankHeaders={!first}
           />
         </>
       )}
@@ -322,9 +351,9 @@ function JoinBlankBlock({
             three branch lengths from the final matrix:
           </p>
           <p className="ws-fill-line">
-            <Blank label={`len(${ctx.active[0] ?? ""}) =`} />
-            <Blank label={`len(${ctx.active[1] ?? ""}) =`} />
-            <Blank label={`len(${ctx.active[2] ?? ""}) =`} />
+            {ctx.active.map((n, i) => (
+              <Blank key={first ? n : i} label={slotLabel("len", n, first)} />
+            ))}
           </p>
         </>
       ) : (

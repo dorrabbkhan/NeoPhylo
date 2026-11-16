@@ -44,26 +44,18 @@ export async function loadWorksheetSource(id: string): Promise<LoadResult> {
 
 /** The link that opens the exact exercise: the normal `?lesson=` or
  * `?lab=` route for built-ins, the `#x=` payload for a custom one —
- * the same forms the menus and the lab page already emit. */
+ * the same forms the menus and the lab page already emit. Resolved
+ * against the app root, never the current page: an `#x=` fragment
+ * resolved against a `?worksheet=…`/`?key=…` URL would keep the
+ * worksheet route and reopen the sheet instead of the exercise
+ * (fix round 1, review 1). */
 export function exerciseLink(src: WorksheetSource, id: string): string {
   let rel: string;
   if (src.kind === "lesson") rel = `?lesson=${encodeURIComponent(id)}`;
   else if (src.kind === "lab") rel = `?lab=${encodeURIComponent(id)}`;
   else rel = encode({ v: 3, x: src.exercise, step: 0, mode: "concept" });
-  return new URL(rel, window.location.href).href;
-}
-
-/** True when the source is a lab — the discriminant shared by every
- * kind switch. */
-export function labOf(
-  src: WorksheetSource,
-): LabExercise | null {
-  return src.kind === "lab" ? src.lab : null;
-}
-
-/** The Exercise of any source. */
-export function exerciseOfSrc(src: WorksheetSource): Exercise {
-  return src.kind === "lab" ? src.lab.exercise : src.exercise;
+  const appRoot = new URL(import.meta.env.BASE_URL, window.location.origin);
+  return new URL(rel, appRoot).href;
 }
 
 /** The matching `?worksheet=` href for an id (a custom exercise keeps

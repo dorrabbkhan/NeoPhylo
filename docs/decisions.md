@@ -7680,6 +7680,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/src/views/worksheets/steps.ts` — per-join rendering context
     (active clusters, per-step matrix, Q table) derived from the engine
     trace; shared by sheet and key so the two stay aligned.
+  - `web/src/views/worksheets/instructor.ts` — the gate's storage
+    contract (`neophylo.instructor` = "1" in sessionStorage); kept out
+    of `InstructorGate.tsx` per the single-purpose rule (missed in the
+    original list; added in fix round 1).
   - `web/src/views/worksheets/worksheets.css` — worksheet/key page
     styles including print blank sizing.
   - `web/src/views/worksheets/worksheets.test.tsx` — page-level unit
@@ -7690,3 +7694,14 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/e2e/__screenshots__/worksheet-*` — the 32 new snapshot
     baselines those scenes require (no existing baseline changed).
   - `docs/decisions.md` — this entry.
+- **Deviations from the plan template (fix round 1):**
+  - Mistake lines carry a "Join N:" prefix ("Join 1: picking d–e
+    because their distance is smallest.") where the plan's template
+    has none — the prefix names which join the mistake belongs to.
+  - The sheet's finish line is conditional: when every join is
+    hand-worked it says "check your tree in NeoPhylo" instead of
+    "let it run the remaining joins" (no remaining joins exist).
+  - A closest pair that is one of the join's `tied` pairs is a
+    correct answer: the key's verdict says "tied with the join, also
+    correct" and such pairs produce no mistake line; the plan's
+    mistake rule only named "the closest pair" as the wrong pick.
