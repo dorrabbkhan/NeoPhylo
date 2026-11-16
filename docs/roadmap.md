@@ -105,7 +105,9 @@ validation discipline: an independent oracle, property tests and fuzzing.
 - Embed mode (iframe-friendly) for LMS pages; presenter mode; an offline "lab pack" download.
 - **Basic assessment, no accounts:**
   - randomized per-student variants from one assignment link (each student a different seed)
-  - auto-checked tasks (predict the pair, compute a Q-value, identify the weakest-supported group)
+  - auto-checked tasks (predict the pair, compute a Q-value, identify the weakest-supported group),
+    including a tie-aware `predict_pair` grader that accepts any min-Q pair when the engine reports
+    `tie_same_split` (deferred from v1.4c Task 10, owner ruling 2026-11-16)
   - signed completion codes students paste into the LMS, verifiable by the instructor offline
 - Per-lesson "copy assignment text" for the LMS.
 - Editor autosave: the unsaved draft (including a matrix draft) survives a reload (local storage,

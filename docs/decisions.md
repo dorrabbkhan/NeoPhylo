@@ -7605,3 +7605,16 @@ Owner-requested rendering fixes after the PR #139 review; branch
     in teaching order, so the two new lessons had to be added there
     (same fallout as `catalog.test.ts` ORDER).
   - `docs/decisions.md` — this entry.
+
+### Task 10 — fix round 2 (PR #156)
+
+- **Owner ruling (2026-11-16):** `nj-by-hand` keeps `predict_pair` only
+  at join 1; the complement-tie join 2 stays a `note`. A tie-aware
+  `predict_pair` grader (accept any min-Q pair with `tie_same_split`,
+  from the engine) is deferred — added to `docs/roadmap.md` under v1.5.
+- **Owner ruling (2026-11-16):** the matrix heatmap's clipped two-digit
+  values get a small view fix in a separate PR, not this one.
+- **Owner ruling (2026-11-16):** `nj-by-hand` has no reference tree; the
+  "No true tree" comparison placeholder stays.
+- **Owner ruling (2026-11-16):** the lessons menu order stays —
+  `nj-by-hand` first, `upgma-vs-nj-matrix` right after `upgma-fails`.
