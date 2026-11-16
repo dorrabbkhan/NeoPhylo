@@ -59,7 +59,6 @@ const ROUND_CHOICES = [
   { value: "0", label: "Whole numbers" },
   { value: "1", label: "1 decimal" },
   { value: "2", label: "2 decimals" },
-  { value: "3", label: "3 decimals" },
 ];
 
 export function MatrixData({

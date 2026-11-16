@@ -7440,6 +7440,14 @@ Owner-requested rendering fixes after the PR #139 review; branch
   the asymmetric-square offer and the 3-question cap are one
   implementation.
 - **Files outside the Files block:**
+  - `web/src/views/editor/MatrixData.tsx` — the editor's matrix
+    route component (new): paste, "Type a matrix…" sheet launch,
+    derive + "Round to", the stale-derive line.
+  - `web/src/editor/draft.test.ts` — the draft-level tests the
+    task's Test block didn't name (matrix serialization, meta,
+    hand_steps, mode switching).
+  - `web/src/views/editor/SettingsForm.test.tsx` — the form's new
+    props (`tree`, `prompts`, `preserved`) needed host updates.
   - `web/src/views/matrix/matrixPaste.ts` — the extracted paste
     hook (new; shared with the editor).
   - `web/src/views/matrix/MatrixImport.tsx` — refactored onto the

@@ -186,26 +186,6 @@ export function SettingsForm({
           />
           <FieldProblems problems={problems} field="matrix" />
           <FieldProblems problems={problems} field="prompts" />
-          <div className="settings-row">
-            <label className="field">
-              <span>Hand-worked joins on the paper worksheet</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={settings.handSteps}
-                aria-invalid={hasError("handSteps") || undefined}
-                onChange={(e) =>
-                  patch({ handSteps: e.target.value })
-                }
-              />
-            </label>
-          </div>
-          <p className="editor-hint">
-            Blank uses the worksheet&apos;s default rule (every join for
-            six taxa or fewer, the first two for seven or eight). Only
-            files with a meta block can carry the count.
-          </p>
-          <FieldProblems problems={problems} field="handSteps" />
         </>
       ) : (
         <>
@@ -392,6 +372,27 @@ export function SettingsForm({
       <FieldProblems problems={problems} field="length" />
         </>
       )}
+      {/* `meta.hand_steps` belongs to the file, not the data route —
+       * it renders in both modes so its verdict can never hide
+       * behind the route switch (review fix). */}
+      <div className="settings-row">
+        <label className="field">
+          <span>Hand-worked joins on the paper worksheet</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={settings.handSteps}
+            aria-invalid={hasError("handSteps") || undefined}
+            onChange={(e) => patch({ handSteps: e.target.value })}
+          />
+        </label>
+      </div>
+      <p className="editor-hint">
+        Blank uses the worksheet&apos;s default rule (every join for six
+        taxa or fewer, the first two for seven or eight). Only files
+        with a meta block can carry the count.
+      </p>
+      <FieldProblems problems={problems} field="handSteps" />
     </div>
   );
 }
