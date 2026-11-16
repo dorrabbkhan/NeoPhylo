@@ -7496,3 +7496,24 @@ Owner-requested rendering fixes after the PR #139 review; branch
   field shows only for files that already carry `meta` (schema 5
   requires objectives/minutes/level/prepares_for); custom exercises
   use the default rule.
+- **Baselines regenerated for the editor matrix route (owner
+  decision, PR #155, option 1A):**
+  editor-default-768x1024-light-linux,
+  editor-default-768x1024-dark-linux,
+  editor-f84-1920x1080-light-linux,
+  editor-f84-1920x1080-dark-linux,
+  editor-f84-1024x768-light-linux,
+  editor-f84-1024x768-dark-linux,
+  editor-f84-768x1024-light-linux,
+  editor-f84-768x1024-dark-linux,
+  editor-f84-1280x800-light-linux,
+  editor-f84-1280x800-dark-linux,
+  editor-prompts-1920x1080-light-linux,
+  editor-prompts-1920x1080-dark-linux,
+  editor-prompts-1024x768-light-linux,
+  editor-prompts-1024x768-dark-linux,
+  editor-prompts-768x1024-light-linux,
+  editor-prompts-768x1024-dark-linux,
+  editor-prompts-1280x800-light-linux,
+  editor-prompts-1280x800-dark-linux — regenerated in the pinned CI
+  Playwright image; no other baseline changed.
