@@ -589,9 +589,11 @@ fn current_schema_version_is_5() {
 
 #[test]
 fn repo_exercises_load_and_reserialize_unchanged() {
-    // Every committed exercise (v2 lessons, v3 and v4 labs) loads and
+    // Every committed exercise (v5 lessons, v3 and v4 labs) loads and
     // re-serializes as before — no meta key appears when none was
-    // declared.
+    // declared. v1.4c Task 10: the lessons declare `meta`, so it is
+    // stripped from the parsed document before the load; nothing else
+    // may differ.
     for (name, text) in [
         (
             "bootstrap-basics",
@@ -606,6 +608,10 @@ fn repo_exercises_load_and_reserialize_unchanged() {
             include_str!("../../../exercises/nj-basics.json"),
         ),
         (
+            "nj-by-hand",
+            include_str!("../../../exercises/nj-by-hand.json"),
+        ),
+        (
             "protein-models",
             include_str!("../../../exercises/protein-models.json"),
         ),
@@ -616,6 +622,10 @@ fn repo_exercises_load_and_reserialize_unchanged() {
         (
             "upgma-fails",
             include_str!("../../../exercises/upgma-fails.json"),
+        ),
+        (
+            "upgma-vs-nj-matrix",
+            include_str!("../../../exercises/upgma-vs-nj-matrix.json"),
         ),
         (
             "labs/dnadist-neighbor",
@@ -646,7 +656,9 @@ fn repo_exercises_load_and_reserialize_unchanged() {
             include_str!("../../../exercises/labs/seqboot-consense.json"),
         ),
     ] {
-        let ex = load_exercise(text).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let mut doc: serde_json::Value = serde_json::from_str(text).unwrap();
+        doc.as_object_mut().unwrap().remove("meta");
+        let ex = load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert!(ex.meta.is_none(), "{name}");
         let s = serde_json::to_string(&ex).unwrap();
         let doc: serde_json::Value = serde_json::from_str(&s).unwrap();

@@ -186,8 +186,14 @@ fn v1_lessons_identical() {
             "saturation.json" => include_str!("../../../exercises/saturation.json"),
             _ => include_str!("../../../exercises/upgma-fails.json"),
         };
+        // v1.4c Task 10: the files are v5 now and carry `meta` — strip
+        // it and reload at v2 for the v1 comparison; nothing else may
+        // differ.
+        let mut doc: serde_json::Value = serde_json::from_str(v2).unwrap();
+        doc.as_object_mut().unwrap().remove("meta");
+        doc["schema_version"] = serde_json::json!(2);
         let a = load_exercise(v1).unwrap_or_else(|e| panic!("v1 {v2_path}: {e}"));
-        let b = load_exercise(v2).unwrap_or_else(|e| panic!("v2 {v2_path}: {e}"));
+        let b = load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("v2 {v2_path}: {e}"));
         assert_eq!(a, b, "v1 and v2 {v2_path} load differently");
     }
 }

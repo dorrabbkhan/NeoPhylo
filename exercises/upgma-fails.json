@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "upgma-fails",
   "title": "When UPGMA fails: the molecular clock",
   "summary": "UPGMA assumes a molecular clock — see where it joins the wrong pair.",
+  "meta": {
+    "objectives": [
+      "State the molecular-clock assumption UPGMA makes",
+      "Spot where a fast lineage misleads UPGMA's join order",
+      "Contrast UPGMA and Neighbor-Joining on the same data"
+    ],
+    "minutes": 15,
+    "level": "intro",
+    "prepares_for": ["upgma-vs-nj-matrix", "mega-nj-vs-upgma"]
+  },
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

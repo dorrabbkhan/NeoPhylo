@@ -404,8 +404,12 @@ fn repo_exercises_load_as_v4_unchanged() {
             include_str!("../../../exercises/labs/seqboot-consense.json"),
         ),
     ] {
-        let orig = load_exercise(text).unwrap_or_else(|e| panic!("{name}: {e}"));
+        // v1.4c Task 10: the lessons are v5 now and carry `meta` —
+        // strip it for the v4 load and for the comparison; nothing
+        // else may differ.
         let mut doc: serde_json::Value = serde_json::from_str(text).unwrap();
+        doc.as_object_mut().unwrap().remove("meta");
+        let orig = load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("{name}: {e}"));
         doc["schema_version"] = serde_json::json!(4);
         let mut v4 =
             load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("{name} as v4: {e}"));

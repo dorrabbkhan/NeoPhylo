@@ -10,8 +10,10 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { waitForApp } from "./helpers";
 
 const ORDER = [
+  "Neighbor-Joining, by hand",
   "How Neighbor-Joining works",
   "When UPGMA fails: the molecular clock",
+  "UPGMA vs Neighbor-Joining, on a perfect matrix",
   "Saturation and distance correction",
   "Bootstrap: how sure is the tree?",
   "Protein distances: when counting isn't enough",

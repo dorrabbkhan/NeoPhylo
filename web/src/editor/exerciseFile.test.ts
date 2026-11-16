@@ -51,14 +51,26 @@ function load(text: string): Exercise {
 }
 
 describe("saveExercise", () => {
-  it.each(exerciseFiles())("round-trips exercises/%s through schema 3", (f) => {
-    const loaded = load(readFileSync(resolve(EXERCISES, f), "utf8"));
+  it.each(exerciseFiles())("round-trips exercises/%s through the save path", (f) => {
+    // v1.4c Task 10: lessons carry v5-only `meta` — strip it and reload
+    // at 3 for the schema-3 round-trip; a matrix lesson can only exist
+    // at v5, so it round-trips at 5. Nothing else may differ.
+    const doc = JSON.parse(readFileSync(resolve(EXERCISES, f), "utf8")) as {
+      schema_version: number;
+      meta?: unknown;
+      data: { kind: string };
+    };
+    delete doc.meta;
+    const isMatrix = doc.data.kind === "matrix";
+    if (!isMatrix) doc.schema_version = 3;
+    const loaded = load(JSON.stringify(doc));
     const saved = saveExercise({ exercise: loaded });
     if (!("json" in saved)) {
       throw new Error(`saveExercise(${f}) failed: ${saved.error}`);
     }
+    const want = isMatrix ? 5 : 3;
     const parsed = JSON.parse(saved.json);
-    expect(parsed.schema_version).toBe(3);
+    expect(parsed.schema_version).toBe(want);
     expect(
       validate(parsed),
       `ajv errors for ${f}: ${JSON.stringify(validate.errors)}`,
@@ -66,7 +78,7 @@ describe("saveExercise", () => {
     const reloaded = engine.loadExercise(saved.json);
     expect(reloaded.ok).toBe(true);
     if (reloaded.ok) {
-      expect(reloaded.value).toEqual({ ...loaded, schema_version: 3 });
+      expect(reloaded.value).toEqual({ ...loaded, schema_version: want });
     }
   });
 
@@ -357,9 +369,14 @@ describe("schema 4 save (v1.4b Task 11)", () => {
   });
 
   it("no v4 fields saves schema 3 as today", () => {
-    const ex = load(
+    // v1.4c Task 10: nj-basics carries v5-only `meta` now — strip it
+    // and reload at 3; nothing else may differ.
+    const doc = JSON.parse(
       readFileSync(resolve(EXERCISES, "nj-basics.json"), "utf8"),
-    );
+    ) as { schema_version: number; meta?: unknown };
+    delete doc.meta;
+    doc.schema_version = 3;
+    const ex = load(JSON.stringify(doc));
     const saved = saveExercise({ exercise: ex });
     if ("error" in saved) throw new Error(saved.error);
     expect((JSON.parse(saved.json) as Record<string, unknown>).schema_version)

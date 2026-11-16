@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "nj-basics",
   "title": "How Neighbor-Joining works",
   "summary": "Step through Neighbor-Joining: predict each join, then watch the tree assemble.",
+  "meta": {
+    "objectives": [
+      "Predict which pair Neighbor-Joining joins at each step",
+      "Explain how the Q score can beat the smallest distance",
+      "Read a finished NJ tree against its true tree"
+    ],
+    "minutes": 20,
+    "level": "intro",
+    "prepares_for": ["dnadist-neighbor"]
+  },
   "alphabet": "dna",
   "data": {
     "kind": "simulated",
