@@ -443,6 +443,54 @@ describe("library page — filters", () => {
     await readyCards();
   });
 
+  it("an empty type= means no types — the boxes stay unticked and the no-match line shows", async () => {
+    setUrl("?library&type=");
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(
+        screen.getByText("No items match these filters."),
+      ).toBeTruthy();
+    });
+    expect(cards()).toHaveLength(0);
+    for (const name of [
+      "Lessons",
+      "PHYLIP labs",
+      "MEGA labs",
+      "Datasets",
+    ]) {
+      expect(
+        (screen.getByRole("checkbox", { name }) as HTMLInputElement)
+          .checked,
+      ).toBe(false);
+    }
+    // Unticking the last box writes the same empty type= back out.
+    setUrl("?library");
+    cleanup();
+    render(<LibraryPage />);
+    await readyCards();
+    for (const name of [
+      "Lessons",
+      "PHYLIP labs",
+      "MEGA labs",
+      "Datasets",
+    ]) {
+      fireEvent.click(screen.getByRole("checkbox", { name }));
+    }
+    expect(window.location.search).toBe("?library&type=");
+  });
+
+  it("any other filter combination with zero matches shows the same line", async () => {
+    // Datasets carry no minutes, so "≤ 30 min" hides every one.
+    setUrl("?library&type=datasets&short=1");
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(
+        screen.getByText("No items match these filters."),
+      ).toBeTruthy();
+    });
+    expect(cards()).toHaveLength(0);
+  });
+
   it("changing a filter writes ?library&… and a reload keeps it", async () => {
     setUrl("?labs");
     render(<LibraryPage />);

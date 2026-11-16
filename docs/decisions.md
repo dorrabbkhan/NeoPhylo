@@ -7714,9 +7714,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - "Open dataset" on a card is a plain `?ds=<id>` link — the same
     restore path as a shared link. The unsaved-work question lives
     where work can actually be lost: the in-app Lessons/More menu
-    Library entry asks DatasetSheet's "Replace your unsaved work?"
-    (same Sheet, same keep/replace pair) only while the sandbox holds
-    user data; a clean session navigates directly. The plan's
+    Library entry asks "Leave your unsaved work?" (DatasetSheet's
+    Sheet and keep/confirm pair, worded for a leave since nothing is
+    replaced) only while the sandbox holds user data; a clean
+    session navigates directly. The plan's
     "including the unsaved-work prompt" for card opens resolves this
     way because a `?ds=` navigation lands on a fresh page with nothing
     to lose.
@@ -7727,10 +7728,12 @@ Owner-requested rendering fixes after the PR #139 review; branch
     the filter state then rewrites to the canonical `?library&…` via
     `history.replaceState`. The heading reads "Labs" while the type
     set is exactly {phylip, mega} and "Library" otherwise.
-  - Unknown filter values are ignored: a `type=` list with no valid
-    entries falls back to every type (an empty `type=` is reachable
-    only by unticking all four boxes and means "no types"), and an
-    unknown `level=` means "all". A unit test pins this.
+  - Unknown filter values are ignored: a non-empty `type=` list with
+    no valid entries (`type=foo`) falls back to every type, and an
+    unknown `level=` means "all". The explicit empty `type=` the page
+    writes when all four type boxes are unticked is the exception —
+    it means "no types" and round-trips through a reload; a filter
+    state with zero matches shows "No items match these filters."
   - Lesson `meta` reaches the page through an eager `?raw` glob inside
     the lazy chunk (the same pattern as `labs/registry.ts`), so
     `lessons/catalog.ts` keeps its three-string imports and the initial
@@ -7759,6 +7762,27 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/e2e/sheets.spec.ts` — the More-menu item list assertion
     names every menuitem; "Library" joined it between Labs and the
     tour (a one-line addition, no expectation weakened).
+  - `web/e2e/visualScenes.ts` — the new `library` and `library-labs`
+    scene definitions live there; `visual.spec.ts` consumes them.
   - `web/e2e/__screenshots__/library-*` — the 12 new snapshot
     baselines for the two new scenes (no existing baseline changed).
   - `docs/decisions.md` — this entry.
+
+#### Task 12 — fix round 1 (PR #159)
+
+- `parseFilters` treated the explicit empty `type=` the page writes
+  for the all-boxes-unticked state as "no valid entries → every
+  type", so a reload lost the empty selection. Empty now decodes to
+  no types and any zero-match filter state shows "No items match
+  these filters."; a `type=` of only unknown values (`type=foo`)
+  still falls back to every type.
+- The in-app unsaved-work prompt was reworded for a leave, not a
+  replace: heading "Leave your unsaved work?", buttons "Leave and
+  open the library" / "Keep my work". DatasetSheet's own "Replace
+  your unsaved work?" is unchanged.
+- `web/e2e/visualScenes.ts` added to the files-outside list above
+  (the scene definitions live there; `visual.spec.ts` consumes
+  them).
+- `web/src/views/library/items.test.ts` — new unit file for the
+  parseFilters/filtersQuery round-trips; outside the Files block
+  like the other test files.

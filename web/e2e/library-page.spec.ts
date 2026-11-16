@@ -7,7 +7,7 @@
 // Card actions use Task 11's worksheet/key routes; datasets open
 // through the `ds=` path; "prepares for / follows" comes from the
 // exercise metas. The in-app Library entries (Lessons menu, More
-// menu) ask "Replace your unsaved work?" before a dirty sandbox is
+// menu) ask "Leave your unsaved work?" before a dirty sandbox is
 // left, and every control is ≥40×40 under a coarse pointer.
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -170,6 +170,34 @@ test("filters combine, ignore unknown values and survive a reload", async ({
   await expect(cards(page)).toHaveCount(filtered);
 });
 
+test("unticking every type writes type=, and a reload keeps none checked with the empty line", async ({
+  page,
+}) => {
+  await page.goto("/?library");
+  await allCards(page);
+  for (const name of ["Lessons", "PHYLIP labs", "MEGA labs", "Datasets"]) {
+    await page.getByRole("checkbox", { name }).uncheck();
+  }
+  await expect(page).toHaveURL(/\?library&type=$/);
+  await expect(cards(page)).toHaveCount(0);
+  await expect(
+    page.getByText("No items match these filters."),
+  ).toBeVisible();
+
+  // The empty selection round-trips: the reload restores no types —
+  // before the fix, `type=` decoded to every type.
+  await page.reload();
+  for (const name of ["Lessons", "PHYLIP labs", "MEGA labs", "Datasets"]) {
+    await expect(
+      page.getByRole("checkbox", { name }),
+    ).not.toBeChecked();
+  }
+  await expect(cards(page)).toHaveCount(0);
+  await expect(
+    page.getByText("No items match these filters."),
+  ).toBeVisible();
+});
+
 test("a lesson card shows the actions; a dataset card shows only Open dataset", async ({
   page,
 }) => {
@@ -246,7 +274,7 @@ test("choosing Library over unsaved sandbox work asks first; declining keeps the
   await page.getByRole("button", { name: "Lessons" }).click();
   await page.getByRole("menuitem", { name: "Library" }).click();
   await expect(
-    page.getByRole("heading", { name: "Replace your unsaved work?" }),
+    page.getByRole("heading", { name: "Leave your unsaved work?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: /keep my work/i }).click();
   // Declining keeps the imported work exactly — still on the app.
@@ -255,7 +283,9 @@ test("choosing Library over unsaved sandbox work asks first; declining keeps the
 
   await page.getByRole("button", { name: "Lessons" }).click();
   await page.getByRole("menuitem", { name: "Library" }).click();
-  await page.getByRole("button", { name: /replace my work/i }).click();
+  await page
+    .getByRole("button", { name: /leave and open the library/i })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Library", exact: true }),
   ).toBeVisible();

@@ -304,6 +304,13 @@ export function LibraryPage({
   );
   const visible = allItems.filter((i) => matches(i, filters));
   const labsOnly = sameTypes(filters.types, LAB_TYPES);
+  // The zero-match line waits on the dataset fetch whenever datasets
+  // could still match — while it's in flight "no items" would be a lie.
+  const nothingMatches =
+    visible.length === 0 &&
+    (datasets !== null ||
+      datasetError !== null ||
+      !filters.types.has("datasets"));
 
   const groupBody = (type: TypeKey, shown: CardItem[]) => {
     const anyOfType = allItems.some((i) => i.type === type);
@@ -418,8 +425,8 @@ export function LibraryPage({
             ≤ 30 min
           </label>
         </fieldset>
-        {filters.types.size === 0 && (
-          <p className="labs-empty">Select a type to show its cards.</p>
+        {nothingMatches && (
+          <p className="labs-empty">No items match these filters.</p>
         )}
         {TYPE_ORDER.map((t) => {
           if (!filters.types.has(t)) return null;

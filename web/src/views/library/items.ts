@@ -215,8 +215,11 @@ function isType(s: string): s is TypeKey {
 
 /** Read the filter state from a query string. `?labs` means the two lab
  * types; an explicit `type=` comma list wins when both are present.
- * Unknown values are ignored — a type list with no valid entries falls
- * back to every type, and unknown levels mean "all". */
+ * Unknown values are ignored — a non-empty `type=` list with no valid
+ * entries falls back to every type, and unknown levels mean "all". The
+ * one exception is the empty `type=` filtersQuery writes for the
+ * all-boxes-unticked state: it means no types, so the selection
+ * round-trips through a reload. */
 export function parseFilters(
   search: string,
   fallbackTypes?: ReadonlySet<TypeKey>,
@@ -226,7 +229,12 @@ export function parseFilters(
   let types: Set<TypeKey>;
   if (raw !== null) {
     const valid = raw.split(",").filter(isType);
-    types = valid.length > 0 ? new Set(valid) : new Set(ALL_TYPES);
+    types =
+      raw === ""
+        ? new Set()
+        : valid.length > 0
+          ? new Set(valid)
+          : new Set(ALL_TYPES);
   } else if (params.has("labs")) {
     types = new Set<TypeKey>(["phylip", "mega"]);
   } else {

@@ -204,8 +204,8 @@ export function App({ exercise }: { exercise?: Exercise }) {
   const [datasetSheet, setDatasetSheet] = useState(false);
   // The in-app "Library" menu item's unsaved-work confirm (v1.4c Task
   // 12, spec §7.1): the library is a page change, so leaving a dirty
-  // sandbox asks the same "Replace your unsaved work?" the dataset
-  // sheet does.
+  // sandbox asks "Leave your unsaved work?" — DatasetSheet's keep/
+  // replace pattern with leave wording, since nothing is replaced.
   const [libraryAsk, setLibraryAsk] = useState(false);
   // The last replicate detail delivered by a worker job (spec §6.5);
   // keyed by replicate index so a stale result can't paint the panel.
@@ -1353,11 +1353,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
           onClose={() => setLibraryAsk(false)}
           closeOnBackdrop
         >
-          {/* DatasetSheet's unsaved-work pattern (v1.4c Task 12): the
-              same wording and the same keep/replace pair — accepting
-              navigates to the library and the work is gone. */}
+          {/* DatasetSheet's unsaved-work pattern (v1.4c Task 12) with
+              leave wording: accepting navigates to the library — the
+              work is lost, not replaced. */}
           <div className="lab-confirm">
-            <h3 id="library-confirm-title">Replace your unsaved work?</h3>
+            <h3 id="library-confirm-title">Leave your unsaved work?</h3>
             <p>
               Opening the library leaves this page — your imported data
               and tree will be lost.
@@ -1367,7 +1367,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 type="button"
                 onClick={() => window.location.assign("?library")}
               >
-                Replace my work
+                Leave and open the library
               </button>
               <button type="button" onClick={() => setLibraryAsk(false)}>
                 Keep my work
