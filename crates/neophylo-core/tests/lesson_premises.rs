@@ -136,6 +136,28 @@ fn nj_by_hand_has_no_ambiguous_tie() {
 }
 
 #[test]
+fn nj_by_hand_tied_join_picks_the_first_pair_in_scan_order() {
+    // The at_step 3 note tells the student "NeoPhylo picks the first
+    // tied pair in scan order" — pin it on this lesson's join 2.
+    // `tied` lists every minimum-Q pair in the engine's lexicographic
+    // (i, j) scan order, so `tied[0]` is the first pair scanned.
+    let (_, facts) = facts("nj-by-hand", Method::Nj);
+    let tie = facts
+        .iter()
+        .find(|f| f.tied.len() > 1)
+        .expect("nj-by-hand has a tied join");
+    assert_eq!(tie.step, 2);
+    assert_eq!(
+        tie.tied,
+        vec![
+            ("c".to_string(), "u1".to_string()),
+            ("d".to_string(), "e".to_string()),
+        ]
+    );
+    assert_eq!(tie.chosen, ("c".to_string(), "u1".to_string()));
+}
+
+#[test]
 fn predict_pair_prompts_target_tie_free_non_final_joins() {
     // The predict_pair grader accepts only the engine's chosen pair, so
     // a lesson may only ask at a join with a unique answer — the tied

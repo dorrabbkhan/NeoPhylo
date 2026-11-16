@@ -30,20 +30,20 @@
     {
       "at_step": 1,
       "type": "note",
-      "concept": "A distance matrix alone is enough to build a tree — no sequences needed. This one is small enough to work by hand, like a paper exercise: predict each join before the app makes it.",
+      "concept": "A distance matrix alone is enough to build a tree — no sequences needed. This one is small enough to work by hand, like a paper exercise: predict the first join, then step through — the later joins are explained as they happen.",
       "math": "With a supplied matrix there is no correction step — the numbers in the cells are the distances the methods work on directly."
     },
     {
       "at_step": 1,
       "type": "predict_pair",
-      "concept": "Neighbor-Joining starts from the distance matrix. Which two taxa join first? The smallest cell is tempting — check whether it wins on Q before you pick.",
-      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins.",
-      "reveal": "a and b join first even though d and e sit closest in the matrix: a and b are each farther from everything else, and the Q score subtracts exactly that."
+      "concept": "Neighbor-Joining starts from the distance matrix. Which two taxa join first? Work out Q for the pairs before you pick.",
+      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. Work the Q scores out by hand — the smallest one wins.",
+      "reveal": "a and b join first even though d and e sit closest in the matrix: a and b are each farther from everything else, and the Q score subtracts exactly that. Now switch the matrix to Q to check your working."
     },
     {
       "at_step": 3,
       "type": "note",
-      "concept": "The join you just passed had a hidden tie: joining c to the cluster made in the first join scored exactly the same on Q as joining d and e. When two tied pairs are complements — together they cover every active cluster — either choice builds the same split, so the tie changes nothing. NeoPhylo picks the first pair in scan order, as PHYLIP does.",
+      "concept": "The join you just passed had a hidden tie: joining c to the cluster made in the first join scored exactly the same on Q as joining d and e. When two tied pairs are complements — together they cover every active cluster — either choice builds the same split, so the tie changes nothing. NeoPhylo picks the first tied pair in scan order.",
       "math": "At four active clusters, a pair and its complement that share the minimum Q always resolve to the same unrooted split — an ambiguous tie, by contrast, would change the tree."
     },
     {

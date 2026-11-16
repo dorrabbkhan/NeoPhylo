@@ -33,13 +33,13 @@
     {
       "at_step": 1,
       "type": "note",
-      "concept": "The reference panel shows the true tree this matrix came from: every distance in the cells is the exact path between two tips of that tree. A matrix like this is called additive — it holds the whole tree, if the method can find it. Neighbor-Joining is selected; build and step to the end.",
+      "concept": "The reference panel shows the true tree this matrix came from: every distance in the cells is the exact path between two tips of that tree. A matrix like this is called additive — it holds the whole tree, if the method can find it. Start with Neighbor-Joining: build and step to the end.",
       "math": "On an additive matrix, d(i,j) equals the total branch length on the path from i to j — building the tree is exactly the inverse problem of reading the matrix."
     },
     {
       "at_step": 5,
       "type": "note",
-      "concept": "With Neighbor-Joining, the comparison shows no differences — every split of the true tree came back, because NJ is built to invert additive distances. Now switch the Method control to UPGMA and step through again: the comparison tells a different story.",
+      "concept": "If you are on Neighbor-Joining, the tree is now complete and the comparison shows no differences — every split of the true tree came back, because NJ is built to invert additive distances. Then switch the Method control to UPGMA and step through to the end: watch whether its tree still matches.",
       "math": "NJ's Q score corrects for how far each cluster sits from all the others, so it copes with branches of very different lengths."
     },
     {

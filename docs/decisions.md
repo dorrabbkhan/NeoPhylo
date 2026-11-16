@@ -7535,7 +7535,11 @@ Owner-requested rendering fixes after the PR #139 review; branch
   tie and both give the same tree; `predict_pair` sits only at joins
   whose engine step has `tie: false` (join 1), never at the final
   three-way join. Pinned by
-  `predict_pair_prompts_target_tie_free_non_final_joins`. Owner
+  `predict_pair_prompts_target_tie_free_non_final_joins`. The note's
+  "first tied pair in scan order" sentence is kept only because
+  `nj_by_hand_tied_join_picks_the_first_pair_in_scan_order` pins the
+  engine's chosen pair at join 2 to the first tied pair in
+  lexicographic scan order (fix round 1). Owner
   question: add a tie-aware grader in a later task?
 - **The catalog carries only `id`/`title`/`summary`** (owner ruling —
   the initial-JS budget is never raised): `catalog.ts` now uses named
@@ -7597,4 +7601,7 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/src/views/LessonsMenu.test.tsx`, `web/src/views/App.lessons.test.tsx`,
     `web/src/views/Controls.test.tsx` — menu order and matrix-origin
     fallout from adding two lessons.
+  - `web/e2e/lesson-picker.spec.ts` — its ORDER list names every lesson
+    in teaching order, so the two new lessons had to be added there
+    (same fallout as `catalog.test.ts` ORDER).
   - `docs/decisions.md` — this entry.
