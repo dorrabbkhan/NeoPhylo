@@ -7399,3 +7399,77 @@ Owner-requested rendering fixes after the PR #139 review; branch
   three viewports × both themes — the scene changed shape (open
   sheet instead of the inline grid block; the matrix tabpanel now
   mounts its content on an origin-driven selection).
+
+## v1.4c Task 9: editor matrix route and derive-from-tree
+
+- **Tree changed after deriving → visible warning, not live re-derive
+  (conductor's call, per-task notes):** a committed matrix carries
+  `derivedFrom` — `engine.writeNewick` of the drawn tree at derive
+  time (null for anything typed, pasted or loaded). When the marker
+  no longer matches the tree's canonical Newick the form shows "The
+  drawn tree changed since this matrix was derived — press Derive
+  from the drawn tree again to refresh it." The alternative (the
+  matrix silently re-deriving on every accepted edit) was rejected:
+  it would overwrite a pasted matrix with no visible change and make
+  a committed matrix the user typed something into vanish on the
+  next tree edit. A stale matrix is never silently saved — the
+  warning stays up until the author re-derives or switches back.
+- **A fresh matrix's `data.alphabet` is the selected model preset's**
+  (builder's call; the spec requires the field but says only that it
+  "describes the distances' source data"): the hidden Model select
+  still picks it — JC69/K80/F84/K2P_PHYLIP write `dna`, the protein
+  presets write `protein`. An imported matrix file keeps its own
+  declared alphabet; a paste, grid or derive commit takes the
+  preset's.
+- **`meta.hand_steps` needs an existing meta block (builder's
+  call):** the editor never fabricates objectives, minutes or level,
+  so a hand-worked-joins count on a meta-less file is a clear form
+  error, not a silently dropped value. Blank removes only the
+  `hand_steps` key; the rest of `meta` rides through `preserved`
+  byte-identical.
+- **`predict_branch` prompts and preserved bootstrap settings block
+  the matrix route** (Review Focus 1 — the form shows what save
+  refuses): both are `settingsProblems` errors naming the fix
+  (remove the prompt; switch back to simulated data), never silent
+  drops of file data.
+- **The paste path is a shared hook (conductor's note — "reuse it,
+  don't re-implement"):** `web/src/views/matrix/matrixPaste.ts`
+  extracts the detect → parse → MatrixAmbiguous-question loop from
+  `MatrixImport.tsx` verbatim; the editor's `MatrixData` and the
+  import tab both call `useMatrixPaste`, so ambiguity answers,
+  the asymmetric-square offer and the 3-question cap are one
+  implementation.
+- **Files outside the Files block:**
+  - `web/src/views/matrix/matrixPaste.ts` — the extracted paste
+    hook (new; shared with the editor).
+  - `web/src/views/matrix/MatrixImport.tsx` — refactored onto the
+    hook; also removed the dead `!tooManyTaxa` guard (optional
+    leftover from Task 8).
+  - `web/src/views/matrix/MatrixGrid.tsx` — `onChange` emits a
+    `draftReady` flag with every null emit, and the stale
+    commit-model JSDoc was corrected (optional leftover).
+  - `web/src/views/matrix/MatrixGridSheet.tsx` — the `onChange`
+    prop type follows the grid's.
+  - `web/src/views/matrix/MatrixSession.tsx` — `MatrixEmpty` takes
+    `draftReady` so a complete-but-unbuilt draft says "Press Build
+    tree to rebuild." instead of "Complete the distance matrix"
+    (optional leftover).
+  - `web/src/views/matrix/matrix.css` — `.matrix-data` /
+    `.matrix-derive-row` spacing inside the editor's settings form.
+  - `web/src/state/actions.ts`, `web/src/state/session.ts`,
+    `web/src/state/lesson.ts`, `web/src/state/analysis.ts` — the
+    `editMatrix` action carries `draftReady` and the session holds
+    `matrixDraftReady` for the differentiated empty state.
+  - `web/src/views/App.tsx` — passes `session.matrixDraftReady`
+    to `MatrixEmpty`.
+  - `web/src/index.css` — the `.import-tabs` comment now describes
+    the real stacking behaviour (comment-only leftover from Task 8;
+    no CSS changed).
+  - `docs/decisions.md` — this entry.
+- **Unsaved matrix drafts ride the existing in-memory draft, not a
+  new autosave:** `draftSnapshot` (the dirty-check baseline) already
+  serializes `settings`, and the matrix is inside `EditorSettings`,
+  so the unsaved-work question and a lab-load decline keep an
+  unsaved matrix exactly like any other draft field. No
+  localStorage path exists or was added (the task note's "draft.ts
+  autosave" is this in-memory draft model).

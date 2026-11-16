@@ -32,10 +32,12 @@ export interface MatrixGridProps {
   /** The committed matrix — the session's `matrixInput` while a matrix
    * session runs, else the parent's draft. `null` = nothing committed. */
   value: DistanceInput | null;
-  /** `null` while the typed matrix is empty, invalid or
-   * structure-pending; a complete `DistanceInput` on a cell/name edit
-   * of a committed matrix and on a Build-tree click. */
-  onChange(input: DistanceInput | null): void;
+  /** The commit channel (fix round 2's model): EVERY uncommitted
+   * change — cell, name or taxon — emits `(null, draftReady)`, where
+   * `draftReady` is true when the draft on screen is complete and
+   * valid but waiting on the button; only Build tree emits the
+   * finished `DistanceInput`. */
+  onChange(input: DistanceInput | null, draftReady?: boolean): void;
 }
 
 /** The grid's taxon cap (plan "Decided in this plan": 3–30). */
@@ -187,24 +189,29 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   /** Every uncommitted change emits null — the session's matrix drops
    * until Build tree emits the finished input (fix round 2's model:
    * an in-place editMatrix on each keystroke made the rebuild hint a
-   * lie, since the tree always matched the screen). */
-  const emitNull = () => {
+   * lie, since the tree always matched the screen). `draftReady`
+   * flags the draft that is complete and valid but still unbuilt, so
+   * the empty-state line can ask for the button (v1.4c Task 9). */
+  const emitNull = (ns: string[], cs: string[][]) => {
     setEmittedKey("null");
-    onChange(null);
+    onChange(
+      null,
+      completeInput(ns, cs) !== null && buildReason(ns, cs) === null,
+    );
   };
 
   const setCell = (i: number, j: number, text: string) => {
     const cs = cells.map((row) => [...row]);
     cs[i][j] = text;
     setCells(cs);
-    emitNull();
+    emitNull(names, cs);
   };
 
   const setName = (i: number, text: string) => {
     const ns = [...names];
     ns[i] = text;
     setNames(ns);
-    emitNull();
+    emitNull(ns, cells);
   };
 
   const addTaxon = () => {
@@ -212,7 +219,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
     const cs = [...cells.map((row) => [...row]), names.map(() => "")];
     setNames(ns);
     setCells(cs);
-    emitNull();
+    emitNull(ns, cs);
   };
 
   const removeTaxon = (i: number) => {
@@ -228,7 +235,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
     });
     setNames(ns);
     setCells(rebuilt);
-    emitNull();
+    emitNull(ns, rebuilt);
   };
 
   /** The one remove control (fix round 2): a per-row Remove button

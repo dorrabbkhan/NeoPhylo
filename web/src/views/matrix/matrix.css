@@ -202,3 +202,17 @@
     min-width: 40px;
   }
 }
+
+/* The editor's matrix route (v1.4c Task 9): the paste, grid and
+ * derive controls inside the settings form. Buttons sit on the
+ * row's baseline beside the Round to select. */
+.matrix-data {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.matrix-data .matrix-derive-row {
+  align-items: flex-end;
+}

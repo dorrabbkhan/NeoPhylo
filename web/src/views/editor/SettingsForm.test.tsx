@@ -11,12 +11,21 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   DEFAULT_SETTINGS,
+  EMPTY_PRESERVED,
   type EditorSettings,
 } from "../../editor/draft";
+import { engine } from "../../engine/index";
+import type { Tree } from "../../engine/generated/Tree";
 
 import { SettingsForm } from "./SettingsForm";
 
 afterEach(cleanup);
+
+function aTree(): Tree {
+  const r = engine.parseNewick("(A:0.1,B:0.2,C:0.3);");
+  if (!r.ok) throw new Error("fixture Newick must parse");
+  return r.value;
+}
 
 function renderForm(initial: Partial<EditorSettings> = {}) {
   function Host() {
@@ -24,7 +33,15 @@ function renderForm(initial: Partial<EditorSettings> = {}) {
       ...DEFAULT_SETTINGS,
       ...initial,
     });
-    return <SettingsForm settings={s} onChange={setS} />;
+    return (
+      <SettingsForm
+        settings={s}
+        onChange={setS}
+        tree={aTree()}
+        prompts={[]}
+        preserved={EMPTY_PRESERVED}
+      />
+    );
   }
   render(<Host />);
 }

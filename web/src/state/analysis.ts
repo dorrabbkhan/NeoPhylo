@@ -61,6 +61,11 @@ export interface AnalysisState {
    * incomplete grid edit (`editMatrix(null)`) and on every
    * alignment-kind session. */
   matrixInput: DistanceInput | null;
+  /** v1.4c Task 9: while `matrixInput` is null on a matrix session —
+   * the grid's uncommitted draft — this says the draft is complete
+   * and valid, so the empty-state line asks for "Build tree" rather
+   * than a finished matrix. */
+  matrixDraftReady: boolean;
   /** The active alignment's alphabet, or the exercise's declared
    * alphabet before/without one. `importAlignment` sets it from the
    * parsed alignment (v1.1 plan Task 9). */
@@ -100,6 +105,7 @@ export function analysisInitial(exercise: Exercise): AnalysisState {
     alignment: null,
     alignmentOrigin: exerciseOrigin(exercise),
     matrixInput: exerciseMatrixInput(exercise),
+    matrixDraftReady: false,
     alphabet: exercise.alphabet,
     matrix: null,
     result: null,
@@ -168,6 +174,7 @@ export function analysisSlice(s: Session): AnalysisState {
     alignment: s.alignment,
     alignmentOrigin: s.alignmentOrigin,
     matrixInput: s.matrixInput,
+    matrixDraftReady: s.matrixDraftReady,
     alphabet: s.alphabet,
     matrix: s.matrix,
     result: s.result,
@@ -232,6 +239,7 @@ export function analysisReducer(
         notice: null,
         alignmentOrigin: exerciseOrigin(a.exercise),
         matrixInput: exerciseMatrixInput(a.exercise),
+        matrixDraftReady: false,
         libraryDataset: null,
         alignmentName: null,
       };

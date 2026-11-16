@@ -17,12 +17,16 @@ export function MatrixNote() {
   );
 }
 
-/** What the tree area shows while the grid is incomplete — a matrix
- * session's reason instead of a stale tree (Review Focus 3). */
-export function MatrixEmpty() {
+/** What the tree area shows while the grid is uncommitted — a matrix
+ * session's reason instead of a stale tree (Review Focus 3). A
+ * complete-but-unbuilt draft asks for the button; anything else asks
+ * for a finished matrix (v1.4c Task 9). */
+export function MatrixEmpty({ draftReady }: { draftReady: boolean }) {
   return (
     <p className="matrix-empty">
-      Complete the distance matrix to build the tree.
+      {draftReady
+        ? "Press Build tree to rebuild."
+        : "Complete the distance matrix to build the tree."}
     </p>
   );
 }

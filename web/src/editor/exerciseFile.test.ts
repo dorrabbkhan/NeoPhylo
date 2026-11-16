@@ -423,3 +423,52 @@ describe("schema 5 save (v1.4c Task 5)", () => {
     expect(validate(file), JSON.stringify(validate.errors)).toBe(true);
   });
 });
+
+// v1.4c Task 9: a matrix exercise built through the editor's draft
+// model must survive every channel the save path feeds — schema
+// validation, the engine loader (Supplied, names/lower identical) and
+// the #x= share link.
+describe("editor-built matrix exercise (v1.4c Task 9)", () => {
+  const MATRIX = {
+    names: ["A", "B", "C", "D"],
+    lower: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+  };
+
+  it("save → schema → loader → share link all carry the matrix", () => {
+    const exercise: Exercise = {
+      schema_version: 5,
+      id: "matrix-draft",
+      title: "Matrix draft",
+      alphabet: "dna",
+      data: {
+        kind: "matrix",
+        names: MATRIX.names,
+        lower: MATRIX.lower,
+        source: { citation: "", license: "", accessions: [] },
+      },
+      reference: null,
+      analysis: { correction: "Supplied", method: "Nj" },
+      locked: [],
+      prompts: [],
+      bootstrap: null,
+    };
+    const saved = saveExercise({ exercise });
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(validate(file), JSON.stringify(validate.errors)).toBe(true);
+    expect(file.schema_version).toBe(5);
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    expect(back.value.analysis.correction).toBe("Supplied");
+
+    const link = shareLink({ exercise }, "https://neophylo.test/app");
+    if (!("url" in link)) throw new Error(JSON.stringify(link));
+    const imp = importExercise(link.url);
+    if (!imp.ok) throw new Error(JSON.stringify(imp.error));
+    if (imp.value.exercise.data.kind !== "matrix") {
+      throw new Error("matrix");
+    }
+    expect(imp.value.exercise.data.names).toEqual(MATRIX.names);
+    expect(imp.value.exercise.data.lower).toEqual(MATRIX.lower);
+  });
+});

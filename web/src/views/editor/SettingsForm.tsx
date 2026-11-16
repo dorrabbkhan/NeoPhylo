@@ -12,14 +12,24 @@
 // dnadist's clamping rule instead of refusing, because the engine —
 // like dnadist — accepts it (owner decision, PR #88).
 
-import type { EditorSettings } from "../../editor/draft";
-import { settingsProblems } from "../../editor/draft";
+import type { EditorSettings, PreservedFields } from "../../editor/draft";
+import { presetAlphabet, settingsProblems } from "../../editor/draft";
 import type { Method } from "../../engine/generated/Method";
+import type { Prompt } from "../../engine/generated/Prompt";
+import type { Tree } from "../../engine/generated/Tree";
 import { k2pLabel } from "../../state/analysis";
+
+import { MatrixData } from "./MatrixData";
 
 export interface SettingsFormProps {
   settings: EditorSettings;
   onChange: (next: EditorSettings) => void;
+  /** The drawn tree — the derive route's source (v1.4c Task 9). */
+  tree: Tree;
+  /** The draft's prompts and preserved fields — `settingsProblems`
+   * needs them for the matrix route's cross-field verdicts. */
+  prompts: Prompt[];
+  preserved: PreservedFields;
 }
 
 /** The select's display labels; the option values are
@@ -65,8 +75,14 @@ function FieldProblems({
   );
 }
 
-export function SettingsForm({ settings, onChange }: SettingsFormProps) {
-  const problems = settingsProblems(settings);
+export function SettingsForm({
+  settings,
+  onChange,
+  tree,
+  prompts,
+  preserved,
+}: SettingsFormProps) {
+  const problems = settingsProblems(settings, { prompts, preserved });
   const patch = (p: Partial<EditorSettings>) =>
     onChange({ ...settings, ...p });
   const hasError = (field: string) =>
@@ -103,6 +119,29 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
       <FieldProblems problems={problems} field="title" />
       <div className="settings-row">
         <label className="field">
+          <span>Exercise data</span>
+          <select
+            aria-label="Exercise data"
+            value={settings.dataMode}
+            onChange={(e) => {
+              const v = e.target.value as EditorSettings["dataMode"];
+              // Simulate keeps every hidden setting and drops the
+              // matrix — from the saved file AND the draft (spec
+              // §6.4). The sim fields are never cleared, so the way
+              // back restores them exactly.
+              patch({
+                dataMode: v,
+                matrix: v === "simulate" ? null : settings.matrix,
+              });
+            }}
+          >
+            <option value="simulate">Simulate along the drawn tree</option>
+            <option value="matrix">Start from a matrix</option>
+          </select>
+        </label>
+      </div>
+      <div className="settings-row">
+        <label className="field">
           <span>Short description</span>
           <input
             type="text"
@@ -119,6 +158,57 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           />
         </label>
       </div>
+      {settings.dataMode === "matrix" ? (
+        <>
+          {/* The matrix route (spec §6.4): only the method setting
+           * survives — every simulation control leaves the form while
+           * staying in the draft. */}
+          <div className="settings-row">
+            <label className="field">
+              <span>Method</span>
+              <select
+                aria-label="Tree-building method"
+                value={settings.method}
+                onChange={(e) =>
+                  patch({ method: e.target.value as Method })
+                }
+              >
+                <option value="Nj">Neighbor-Joining</option>
+                <option value="Upgma">UPGMA</option>
+              </select>
+            </label>
+          </div>
+          <MatrixData
+            tree={tree}
+            matrix={settings.matrix}
+            alphabet={presetAlphabet(settings)}
+            onCommit={(m) => patch({ matrix: m })}
+          />
+          <FieldProblems problems={problems} field="matrix" />
+          <FieldProblems problems={problems} field="prompts" />
+          <div className="settings-row">
+            <label className="field">
+              <span>Hand-worked joins on the paper worksheet</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={settings.handSteps}
+                aria-invalid={hasError("handSteps") || undefined}
+                onChange={(e) =>
+                  patch({ handSteps: e.target.value })
+                }
+              />
+            </label>
+          </div>
+          <p className="editor-hint">
+            Blank uses the worksheet&apos;s default rule (every join for
+            six taxa or fewer, the first two for seven or eight). Only
+            files with a meta block can carry the count.
+          </p>
+          <FieldProblems problems={problems} field="handSteps" />
+        </>
+      ) : (
+        <>
       <div className="settings-row">
         <label className="field">
           <span>Model</span>
@@ -300,6 +390,8 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
       </div>
       <FieldProblems problems={problems} field="seed" />
       <FieldProblems problems={problems} field="length" />
+        </>
+      )}
     </div>
   );
 }

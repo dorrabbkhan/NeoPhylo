@@ -172,3 +172,116 @@ describe("EditorPanel", () => {
     expect(branchInput("X").value).toBe("0.5");
   });
 });
+
+// v1.4c Task 9 (spec §6.4): the editor's data step offers "Start from
+// a matrix" — type or paste one, or derive it from the drawn tree.
+// Choosing the matrix route hides the simulation settings; switching
+// back restores them exactly.
+describe("matrix route (v1.4c Task 9)", () => {
+  const dataSelect = () =>
+    screen.getByRole("combobox", { name: "Exercise data" });
+
+  function toMatrix() {
+    renderPanel("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.change(dataSelect(), { target: { value: "matrix" } });
+  }
+
+  it("the matrix route hides the simulation settings and keeps method", () => {
+    toMatrix();
+    expect(screen.queryByRole("combobox", { name: "Model" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Seed" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Sequence length" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("combobox", { name: "Gap treatment" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("combobox", { name: "Tree-building method" }),
+    ).toBeTruthy();
+    // Nothing to save yet — no matrix committed.
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Save file",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("switching back to simulate restores the simulation settings exactly", () => {
+    toMatrix();
+    fireEvent.change(dataSelect(), { target: { value: "simulate" } });
+    const seed = screen.getByRole("textbox", { name: "Seed" });
+    fireEvent.change(seed, { target: { value: "77" } });
+    fireEvent.change(dataSelect(), { target: { value: "matrix" } });
+    expect(screen.queryByRole("textbox", { name: "Seed" })).toBeNull();
+    fireEvent.change(dataSelect(), { target: { value: "simulate" } });
+    expect(
+      (screen.getByRole("textbox", { name: "Seed" }) as HTMLInputElement)
+        .value,
+    ).toBe("77");
+  });
+
+  it("derive from the drawn tree commits the engine's additive matrix", () => {
+    const model = renderPanel("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.change(dataSelect(), { target: { value: "matrix" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Derive from the drawn tree" }),
+    );
+    const want = engine.additiveMatrix(model.tree, null);
+    if (!want.ok) throw new Error("additiveMatrix must succeed");
+    expect(
+      screen.getByText(
+        new RegExp(`derived .*${want.value.names.length} taxa`, "i"),
+      ),
+    ).toBeTruthy();
+    // A committed matrix unblocks save.
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Save file",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+  });
+
+  it("the rounding note shows only when a Round to value is set", () => {
+    renderPanel("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.change(dataSelect(), { target: { value: "matrix" } });
+    expect(
+      screen.queryByText(
+        "Rounded distances may no longer fit this tree exactly.",
+      ),
+    ).toBeNull();
+    const round = screen.getByRole("combobox", { name: "Round to" });
+    fireEvent.change(round, { target: { value: "2" } });
+    expect(
+      screen.getByText(
+        "Rounded distances may no longer fit this tree exactly.",
+      ),
+    ).toBeTruthy();
+    fireEvent.change(round, { target: { value: "none" } });
+    expect(
+      screen.queryByText(
+        "Rounded distances may no longer fit this tree exactly.",
+      ),
+    ).toBeNull();
+  });
+
+  it("editing the tree after deriving shows the tree-changed line", () => {
+    renderPanel("(A:0.1,B:0.2,C:0.3);");
+    fireEvent.change(dataSelect(), { target: { value: "matrix" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Derive from the drawn tree" }),
+    );
+    expect(screen.queryByText(/tree changed/i)).toBeNull();
+    fireEvent.change(newickBox(), {
+      target: { value: "(A:0.1,B:0.9,C:0.3);" },
+    });
+    fireEvent.blur(newickBox());
+    expect(screen.getByText(/tree changed/i)).toBeTruthy();
+  });
+});
