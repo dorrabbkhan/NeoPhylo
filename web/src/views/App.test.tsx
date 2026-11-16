@@ -14,6 +14,7 @@ import type { Exercise } from "../engine/generated/Exercise";
 import { initialSession, reducer } from "../state/session";
 import { pressKey } from "../test/keys";
 import { App } from "./App";
+import { cellDecimals } from "./matrix/cellDecimals";
 
 afterEach(cleanup);
 
@@ -188,7 +189,7 @@ describe("App shell", () => {
     );
   });
 
-  it("shows the current step's Q values (3 decimals) with the Q toggle on", async () => {
+  it("shows the current step's Q values with the Q toggle on", async () => {
     const s = loaded(NJ_BASICS);
     const trace = s.result!.trace!;
     if (!("Nj" in trace)) throw new Error("expected an NJ trace");
@@ -197,10 +198,14 @@ describe("App shell", () => {
     await screen.findByRole("grid", { name: "Distance matrix" });
     fireEvent.click(screen.getByRole("switch", { name: "Distance / Q" }));
     const grid = await screen.findByRole("grid", { name: "Q matrix" });
+    // The cell count per matrix is cellDecimals' — a Q view with
+    // negative non-integer values fits the cell at ≤ 2 decimals
+    // (v1.4c ruling 2A, sign-aware).
+    const decimals = cellDecimals(q.data);
     cellTexts(grid).forEach((text, idx) => {
       const i = Math.floor(idx / q.n);
       const j = idx % q.n;
-      expect(text).toContain(q.data[i * q.n + j].toFixed(3));
+      expect(text).toBe(q.data[i * q.n + j].toFixed(decimals));
     });
   });
 });

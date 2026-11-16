@@ -9,7 +9,12 @@ import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
-import { readStep, stepToEnd, waitForApp } from "./helpers";
+import {
+  answerPredictPrompt,
+  readStep,
+  stepToEnd,
+  waitForApp,
+} from "./helpers";
 
 const MATRIX_DIR = fileURLToPath(
   new URL("../../fixtures/inputs/matrix/", import.meta.url),
@@ -778,12 +783,19 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   expect(page.url()).not.toContain("ds=");
 });
 
-// Cell-digit fit (v1.4c owner ruling 2A on PR #156): values ≥ 10 at 3
-// decimals ("15.000") used to run to the cell edges. Every cell value
-// text must measure within the 34 px cell — getComputedTextLength is
-// in viewBox units, so the check is scale-independent. Chromium only:
-// the bundled fonts pin the metrics. nj_by_hand is all-integer (0
-// decimals); upgma_vs_nj reduces to .5 values ≥ 10 (2 decimals).
+// Cell-digit fit (v1.4c owner ruling 2A on PR #156, sign-aware after
+// the PR #157 review): values ≥ 10 at 3 decimals ("15.000") used to
+// run to the cell edges, and non-integer negatives overflowed at every
+// count the old magnitude buckets picked ("-82.50" ≈ 37 px). Every
+// cell value text must measure within the 34 px cell —
+// getComputedTextLength is in viewBox units, so the check is
+// scale-independent. Chromium only: the bundled fonts pin the metrics.
+// nj_by_hand is all-integer (0 decimals); upgma_vs_nj reduces to .5
+// values ≥ 10 (2 decimals); the pasted .5 matrix's Q view holds
+// non-integer negatives ("-114.5" forces 0 decimals at step 0, "-55.5"
+// renders at 1 decimal at step 1) — the overflow class the two fixture
+// files can't reach (their Q views are all-integer); the nj-basics
+// lesson covers an alignment session's Q view ("-0.45" at 2 decimals).
 test("cell value text never exceeds the 34 px cell (Chromium)", async ({
   page,
   browserName,
@@ -805,6 +817,29 @@ test("cell value text never exceeds the 34 px cell (Chromium)", async ({
       return out;
     });
 
+  /** Every step position of the current session, both the distance
+   * and (when enabled) the Q view. A disabled Next step means a
+   * predict prompt is gating — answer it from the distance view (the
+   * Q toggle is disabled while a prompt gates, checkpoint 12). */
+  const checkSession = async (tag: string) => {
+    const qToggle = page.getByRole("switch", { name: "Distance / Q" });
+    const next = page.getByRole("button", { name: "Next step" });
+    for (;;) {
+      expect(await overflowing(page), `${tag} distance view`).toEqual(
+        [],
+      );
+      if (await qToggle.isEnabled().catch(() => false)) {
+        await qToggle.click();
+        expect(await overflowing(page), `${tag} Q view`).toEqual([]);
+        await qToggle.click();
+      }
+      const { k, max } = await readStep(page);
+      if (k === max) break;
+      if (await next.isDisabled()) await answerPredictPrompt(page);
+      else await next.click();
+    }
+  };
+
   for (const file of ["nj_by_hand.phy", "upgma_vs_nj.phy"]) {
     await openSandbox(page);
     const scope = await importScope(page);
@@ -815,21 +850,35 @@ test("cell value text never exceeds the 34 px cell (Chromium)", async ({
       page.locator('svg[aria-label="Inferred tree"]'),
     ).toBeVisible();
     await page.keyboard.press("Escape");
-
-    // Every step position, both the distance and (NJ) Q views.
-    const qToggle = page.getByRole("switch", { name: "Distance / Q" });
-    for (;;) {
-      expect(await overflowing(page), `${file} distance view`).toEqual(
-        [],
-      );
-      if (await qToggle.isEnabled().catch(() => false)) {
-        await qToggle.click();
-        expect(await overflowing(page), `${file} Q view`).toEqual([]);
-        await qToggle.click();
-      }
-      const { k, max } = await readStep(page);
-      if (k === max) break;
-      await page.getByRole("button", { name: "Next step" }).click();
-    }
+    await checkSession(file);
   }
+
+  // A pasted .5 matrix (tab-separated square with a header row — the
+  // engine parses this form without asking). Step 0's Q matrix runs
+  // -66.5…-114.5 → 0 decimals ("-114.5" is a 6-glyph string); step 1's
+  // is all ".5" in [-57.5, -55.5] → 1 decimal ("-55.5").
+  await openSandbox(page);
+  const mi = await openMatrixTab(page);
+  await mi.getByLabel("Paste a distance matrix").fill(
+    "\ta\tb\tc\td\te\n" +
+      "a\t0\t10.5\t30.5\t18.5\t16.5\n" +
+      "b\t10.5\t0\t20.5\t20.5\t18.5\n" +
+      "c\t30.5\t20.5\t0\t16.5\t14.5\n" +
+      "d\t18.5\t20.5\t16.5\t0\t6.5\n" +
+      "e\t16.5\t18.5\t14.5\t6.5\t0\n",
+  );
+  await mi.getByRole("button", { name: "Import matrix" }).click();
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  await page.keyboard.press("Escape");
+  await checkSession("pasted .5 matrix");
+
+  // An alignment session: nj-basics's JC69 distances are fractional,
+  // so its Q view shows small non-integer negatives ("-0.45" at 2
+  // decimals — the pre-existing "-0.450" overflow class).
+  await page.goto("/?lesson=nj-basics");
+  await waitForApp(page);
+  await expect(page.locator("h1")).toHaveText(
+    "How Neighbor-Joining works",
+  );
+  await checkSession("nj-basics");
 });

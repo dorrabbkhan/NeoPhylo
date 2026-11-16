@@ -7524,15 +7524,35 @@ Owner-requested rendering fixes after the PR #139 review; branch
   decimals, so values ≥ 10 ("15.000") clipped the 34 px cell in matrix
   sessions. `cellDecimals` picks ONE decimal count per displayed
   matrix: 0 when every finite value is an integer; otherwise the
-  largest d ≤ 3 whose widest formatted value fits the cell at 12 px
-  (in practice: widest |v| < 10 → 3, < 100 → 2, < 1000 → 1, else 0).
-  Every matrix with all values < 10 and not all integers keeps 3
-  decimals byte-identically; saturated cells keep "∞"; the aria-label
-  uses the displayed text.
+  largest d ≤ 3 such that EVERY finite value's `toFixed(d)` string —
+  sign included — is at most 5 characters (fall back to 0 when no
+  d ≤ 3 fits). The 5-glyph cap is the fit proxy: measured in the real
+  app (pinned-image Chromium, Inter 12 px) every 5-glyph string fits
+  the 34 px cell (worst "-9999" at 33.6 px) while 6-glyph strings run
+  32.4–37.2 px — "-114.5" fits but "-144.0" doesn't, so the cap is on
+  character count, not measured width. Every matrix with all values
+  in [0, 10) and not all integers keeps 3 decimals byte-identically;
+  saturated cells keep "∞"; the aria-label uses the displayed text.
+- **Sign fix (PR #157 review round 1):** the first cut bucketed on
+  |v| and never saw the minus sign, so non-integer negatives
+  ("-82.50" ≈ 37 px, "-148.5" ≈ 35 px — the normal shape of a Q view
+  for a pasted non-integer matrix) still overflowed. The rule above
+  counts the sign via `toFixed(d)` length; as a side effect it also
+  fixes the pre-existing "-0.450" overflow in alignment Q views
+  (now "-0.45"). The e2e cell-width check gained a pasted .5 matrix
+  whose Q view holds non-integer negatives (all steps, both views;
+  `nonadditive6.phy` was rejected — its Q view is all-integer) and an
+  nj-basics lesson pass in Q view.
 - **Files:** `web/src/views/matrix/cellDecimals.ts` (new — the lint
   rule `react-refresh/only-export-components` forbids a non-component
   export from `MatrixHeatmap.tsx`), `web/src/views/MatrixHeatmap.tsx`,
-  `web/src/views/MatrixHeatmap.test.tsx`, `web/e2e/matrix.spec.ts`,
-  `web/e2e/__screenshots__/matrix-session-{1024x768,768x1024}-{light,dark}-linux.png`
-  (4 frames regenerated in the pinned CI image; the 1920×1080 frames
-  changed within the 0.001 tolerance and were left), this entry.
+  `web/src/views/MatrixHeatmap.test.tsx`, `web/src/views/App.test.tsx`
+  (the Q-toggle assertion now formats at `cellDecimals` instead of a
+  hard-coded 3), `web/e2e/matrix.spec.ts`,
+  `web/e2e/__screenshots__/matrix-session-{1024x768,768x1024,1920x1080}-{light,dark}-linux.png`
+  — all 6 frames regenerated in the pinned CI image: the four
+  1024×768/768×1024 frames in the original commit,
+  matrix-session-1920x1080-light-linux and
+  matrix-session-1920x1080-dark-linux in fix round 1 (they had changed
+  within the 0.001 tolerance and were regenerated explicitly), this
+  entry.

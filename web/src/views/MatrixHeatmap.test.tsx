@@ -103,9 +103,14 @@ describe("MatrixHeatmap", () => {
   });
 });
 
-/* ---- per-matrix decimal count (v1.4c owner ruling 2A on PR #156):
- * one decimal count for the whole displayed matrix so values ≥ 10
- * still fit the 34 px cell. Matrices with all values < 10 and not
+/* ---- per-matrix decimal count (v1.4c owner ruling 2A on PR #156,
+ * sign-aware after the PR #157 review): one decimal count for the
+ * whole displayed matrix so the widest formatted value — the minus
+ * sign included — still fits the 34 px cell. 0 when every finite
+ * value is an integer; otherwise the largest d ≤ 3 whose every
+ * toFixed(d) string is at most 5 characters (5 glyphs fit the cell;
+ * 6 glyphs run ~32–37 px — too risky to allow). Matrices with all
+ * values in [0, 10) and not
  * all integers keep the shipped 3 decimals byte-identically. ---- */
 
 describe("cellDecimals", () => {
@@ -114,21 +119,27 @@ describe("cellDecimals", () => {
     expect(cellDecimals([0, -35, -49])).toBe(0);
   });
 
-  it("returns 3 when a non-integer matrix's widest magnitude is < 10", () => {
-    expect(cellDecimals([0, 0.5, 9.999, -1.25])).toBe(3);
+  it("returns 3 when a non-integer matrix's values are all in [0, 10)", () => {
+    expect(cellDecimals([0, 0.5, 9.999])).toBe(3);
   });
 
-  it("returns 2 when the widest magnitude is < 100", () => {
-    expect(cellDecimals([0, 2.5, 24.5])).toBe(2);
-    expect(cellDecimals([0, -49.5])).toBe(2);
+  it("returns 2 when some value's 3-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 2.5, 24.5])).toBe(2); // "24.500" is 6
+    expect(cellDecimals([0, -0.45, 0.3])).toBe(2); // "-0.450" is 6
+    expect(cellDecimals([0, 0.5, 9.999, -1.25])).toBe(2); // "-1.250" is 6
   });
 
-  it("returns 1 when the widest magnitude is < 1000", () => {
-    expect(cellDecimals([0, 150.25])).toBe(1);
+  it("returns 1 when some value's 2-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 150.25])).toBe(1); // "150.25" is 6
+    expect(cellDecimals([0, -82.5, -70.5])).toBe(1); // "-82.50" is 6
+    expect(cellDecimals([0, -49.5])).toBe(1); // "-49.50" is 6
   });
 
-  it("returns 0 when the widest magnitude is ≥ 1000", () => {
-    expect(cellDecimals([0, 1234.5])).toBe(0);
+  it("returns 0 when even the 1-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 1234.5])).toBe(0); // "1234.5" is 6
+    expect(cellDecimals([0, -148.5])).toBe(0); // "-148.5" → "-148"
+    // No d ≤ 3 fits |v| ≥ 10000 — the fallback is still 0.
+    expect(cellDecimals([0, -99999.9])).toBe(0);
   });
 
   it("ignores non-finite values (saturated/∞ cells)", () => {
