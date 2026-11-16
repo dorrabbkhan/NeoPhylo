@@ -15,6 +15,10 @@ const MATRIX_DIR = fileURLToPath(
   new URL("../../fixtures/inputs/matrix/", import.meta.url),
 );
 
+const PROTEIN_DIR = fileURLToPath(
+  new URL("../../fixtures/inputs/protein/", import.meta.url),
+);
+
 const WIKI5_LOWER = {
   names: ["a", "b", "c", "d", "e"],
   lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
@@ -47,6 +51,72 @@ async function openMatrixTab(page: Page): Promise<Locator> {
   const scope = await importScope(page);
   await scope.getByRole("tab", { name: "Distance matrix" }).click();
   return scope.locator(".matrix-import");
+}
+
+/** Open the typing grid's Sheet from the matrix tab (fix round 2: the
+ * grid left the sidebar for the lazy "Type a matrix…" sheet). The
+ * returned locator names the dialog; the grid's own controls are also
+ * reachable through the `mi` scope since the sheet is DOM-nested
+ * inside `.matrix-import`. */
+async function openGridSheet(
+  page: Page,
+  mi: Locator,
+): Promise<Locator> {
+  await mi.getByRole("button", { name: "Type a matrix…" }).click();
+  const sheet = page.getByRole("dialog", { name: "Distance matrix" });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+/** Every grid control inside the viewport, the scroll container
+ * never scrolling sideways and cell text ≥ 12 px — fix round 2's
+ * fit contract, at each named viewport. One evaluate pass: the
+ * per-element locator round-trips blew the default timeout on
+ * Firefox. */
+async function expectGridFits(sheet: Locator): Promise<void> {
+  const bad = await sheet.evaluate((root) => {
+    const out: string[] = [];
+    const wrap = root.querySelector(".matrix-grid-wrap");
+    if (
+      wrap !== null &&
+      wrap.scrollWidth > wrap.clientWidth + 1
+    ) {
+      out.push(
+        `scroll region ${wrap.scrollWidth} > clientWidth ${wrap.clientWidth}`,
+      );
+    }
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const controls = root.querySelectorAll(
+      ".matrix-grid input, .matrix-grid-block button, " +
+        ".matrix-grid-block select",
+    );
+    for (const el of controls) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      const label =
+        el.getAttribute("aria-label") ??
+        (el.textContent ?? "").trim().slice(0, 30);
+      if (
+        r.left < -0.5 ||
+        r.right > vw + 0.5 ||
+        r.top < -0.5 ||
+        r.bottom > vh + 0.5
+      ) {
+        out.push(
+          `"${label}" box ${r.left.toFixed(1)},${r.top.toFixed(1)} ` +
+            `${r.width.toFixed(1)}×${r.height.toFixed(1)} outside ` +
+            `${vw}×${vh}`,
+        );
+      }
+    }
+    const cell = root.querySelector(".matrix-cell");
+    const fs =
+      cell === null ? 0 : parseFloat(getComputedStyle(cell).fontSize);
+    if (fs < 11.95) out.push(`cell text ${fs} px < 12`);
+    return out;
+  });
+  expect(bad).toEqual([]);
 }
 
 /** The inferred tree's exported Newick, for comparing builds. */
@@ -132,70 +202,75 @@ test("hidden panels: no bootstrap result tabs or empty state in a matrix session
   ).toHaveCount(0);
 });
 
-test("the matrix UI's text stays inside the drawer at 768×1024 (ten taxa)", async ({
+test("the grid sheet fits 5 and 10 taxa at every named viewport (fix round 2)", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 768, height: 1024 });
-  await openSandbox(page);
-  const scope = await importScope(page);
-  await scope.getByRole("tab", { name: "Distance matrix" }).click();
-  const mi = scope.locator(".matrix-import");
-  for (let k = 0; k < 5; k += 1) {
-    await mi.getByRole("button", { name: "Add taxon" }).click();
-  }
-  await expect(mi.getByLabel("Taxon 10 name")).toBeVisible();
+  for (const vp of [
+    { width: 1920, height: 1080 },
+    { width: 1024, height: 768 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(vp);
+    await page.goto("/");
+    await waitForApp(page);
+    await page.getByRole("radio", { name: "Sandbox" }).click();
+    const mi = await openMatrixTab(page);
+    const sheet = await openGridSheet(page, mi);
 
-  // The page itself never scrolls sideways.
-  const doc = await page.evaluate(() => ({
-    scroll: document.documentElement.scrollWidth,
-    client: document.documentElement.clientWidth,
-  }));
-  expect(doc.scroll).toBeLessThanOrEqual(doc.client);
+    // Five taxa — the sheet's default grid.
+    await expect(mi.getByLabel("Taxon 5 name")).toBeVisible();
+    await expectGridFits(sheet);
 
-  // Every text-bearing element of the matrix UI — caption, labels,
-  // notices — lies within the Settings drawer's box; the only
-  // horizontal overflow allowed is inside the table's own named,
-  // focusable scroll region.
-  const violators = await mi.evaluate((root) => {
-    const dlgBox = root.closest("[role=dialog]")?.getBoundingClientRect();
-    const bad: string[] = [];
-    for (const el of root.querySelectorAll("*")) {
-      // Inside the scroll region only the table runs past the edge.
-      if (el.closest(".matrix-grid-wrap") !== null) continue;
-      const hasText = [...el.childNodes].some(
-        (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim() !== "",
-      );
-      if (!hasText) continue;
-      const r = el.getBoundingClientRect();
-      const desc = `${el.tagName.toLowerCase()}.${el.className} ` +
-        `"${(el.textContent ?? "").trim().slice(0, 40)}"`;
-      if (el.scrollWidth > el.clientWidth + 1) {
-        bad.push(`${desc} scrollWidth ${el.scrollWidth} > ${el.clientWidth}`);
-      }
-      if (
-        dlgBox !== undefined &&
-        (r.left < dlgBox.left - 1 || r.right > dlgBox.right + 1)
-      ) {
-        bad.push(
-          `${desc} box ${r.left.toFixed(1)}..${r.right.toFixed(1)} ` +
-            `outside drawer ${dlgBox.left.toFixed(1)}..${dlgBox.right.toFixed(1)}`,
-        );
-      }
+    // Ten taxa — still no sideways scroll anywhere.
+    for (let k = 0; k < 5; k += 1) {
+      await mi.getByRole("button", { name: "Add taxon" }).click();
     }
-    return bad;
-  });
-  expect(violators).toEqual([]);
+    await expect(mi.getByLabel("Taxon 10 name")).toBeVisible();
+    await expectGridFits(sheet);
 
-  // The scroll region itself never outgrows the drawer — only its
-  // contents scroll.
-  const dlgBox = await scope.boundingBox();
-  const wrapBox = await mi.locator(".matrix-grid-wrap").boundingBox();
-  expect(wrapBox).not.toBeNull();
-  expect(dlgBox).not.toBeNull();
-  expect(wrapBox!.x + wrapBox!.width).toBeLessThanOrEqual(
-    dlgBox!.x + dlgBox!.width + 1,
-  );
-  expect(wrapBox!.x).toBeGreaterThanOrEqual(dlgBox!.x - 1);
+    // The page itself never scrolls sideways either.
+    const doc = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(
+      doc.scroll,
+      `no sideways page scroll at ${vp.width}×${vp.height}`,
+    ).toBeLessThanOrEqual(doc.client);
+    await page.keyboard.press("Escape");
+  }
+});
+
+test("a matrix file opened in the Sequences tab mounts the matrix tab's content (fix round 2, 1920 and the 768 drawer)", async ({
+  page,
+}) => {
+  for (const vp of [
+    { width: 1920, height: 1080 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(vp);
+    await page.goto("/");
+    await waitForApp(page);
+    await page.getByRole("radio", { name: "Sandbox" }).click();
+    const scope = await importScope(page);
+    await scope
+      .locator('.import-file input[type="file"]')
+      .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
+    await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+    // The origin change selected the Distance matrix tab…
+    await expect(
+      scope.getByRole("tab", { name: "Distance matrix" }),
+    ).toHaveAttribute("aria-selected", "true");
+    // …and the tabpanel mounted its content — the bug this round
+    // fixes rendered it EMPTY behind the selected tab.
+    const mi = scope.locator(".matrix-import");
+    await openGridSheet(page, mi);
+    for (const [i, n] of ["a", "b", "c", "d", "e"].entries()) {
+      await expect(mi.getByLabel(`Taxon ${i + 1} name`)).toHaveValue(n);
+    }
+    await expect(mi.getByLabel("Distance between e and d")).toHaveValue("3");
+    await page.keyboard.press("Escape");
+  }
 });
 
 test("a .meg matrix !Title becomes the session's display name", async ({
@@ -232,13 +307,15 @@ test("pasting each matrix form: tab-separated header, lower triangle, CSV questi
     mi.getByRole("group", { name: "Matrix question" }),
   ).toHaveCount(0);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
-  // The parsed names and lower triangle seed the grid.
+  // The parsed names and lower triangle seed the grid (in its sheet).
+  await openGridSheet(page, mi);
   for (const [i, n] of ["a", "b", "c"].entries()) {
     await expect(mi.getByLabel(`Taxon ${i + 1} name`)).toHaveValue(n);
   }
   await expect(mi.getByLabel("Distance between b and a")).toHaveValue("5");
   await expect(mi.getByLabel("Distance between c and a")).toHaveValue("9");
   await expect(mi.getByLabel("Distance between c and b")).toHaveValue("10");
+  await page.keyboard.press("Escape");
 
   // A lower-triangle tabular paste.
   await page.goto("/");
@@ -353,6 +430,7 @@ test("typing wiki5 into the grid builds the same tree as the file", async ({
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
   const mi = await openMatrixTab(page);
+  await openGridSheet(page, mi);
   // The wiki5 names (lowercase in the fixture), then the lower
   // triangle typed cell by cell.
   for (const [i, n] of ["a", "b", "c", "d", "e"].entries()) {
@@ -369,6 +447,93 @@ test("typing wiki5 into the grid builds the same tree as the file", async ({
   }
   await mi.getByRole("button", { name: "Build tree" }).click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  // The sheet's scrim covers the export menu — close it first.
+  await page.keyboard.press("Escape");
+  expect(await exportedNewick(page)).toBe(fileTree);
+});
+
+test("keyboard-only grid entry builds the same tree as the file (fix round 2)", async ({
+  page,
+}) => {
+  await openSandbox(page);
+  const scope = await importScope(page);
+  await scope
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  const fileTree = await exportedNewick(page);
+
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  const mi = await openMatrixTab(page);
+  const sheet = await openGridSheet(page, mi);
+
+  // The sheet focuses its first control (the × close) on open —
+  // everything from here is keyboard: Tab into the grid, a name edit
+  // is select-all + retype, arrows walk cells row by row.
+  const rename = async (name: string) => {
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(name);
+  };
+  const cell = (data: string) =>
+    sheet.locator(`input[data-cell="${data}"]`);
+  // Tab #1 lands on the grid's named scroll region (tabindex=0),
+  // Tab #2 on the first cell — Taxon 1's name input.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(cell("0,-1")).toBeFocused();
+  await rename("a");
+  for (const n of ["b", "c", "d", "e"]) {
+    await page.keyboard.press("ArrowDown"); // → next name input
+    await rename(n);
+  }
+  await expect(cell("0,-1")).toHaveValue("a");
+  await expect(cell("4,-1")).toHaveValue("e");
+
+  // From the last name input: ArrowUp three times to row b's name,
+  // ArrowRight into the first distance cell, then arrow-key through
+  // the lower triangle typing each value.
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await expect(cell("1,-1")).toBeFocused(); // taxon b's name
+  await page.keyboard.press("ArrowRight");
+  await expect(cell("1,0")).toBeFocused();
+  await page.keyboard.type("5"); // d(b,a)
+  await page.keyboard.press("ArrowDown");
+  await expect(cell("2,0")).toBeFocused();
+  await page.keyboard.type("9"); // d(c,a)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("10"); // d(c,b)
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.type("10"); // d(d,b)
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type("9"); // d(d,a)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("8"); // d(d,c)
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.type("7"); // d(e,c) — (4,2)
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type("8"); // d(e,a)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("9"); // d(e,b)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("3"); // d(e,d)
+
+  // Tab past Add taxon, the remove select and Remove taxon to Build
+  // tree — the keyboard reaches it and Enter fires it.
+  for (let k = 0; k < 4; k += 1) await page.keyboard.press("Tab");
+  await expect(
+    sheet.getByRole("button", { name: "Build tree" }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  // The sheet's scrim covers the export menu — close it first.
+  await page.keyboard.press("Escape");
   expect(await exportedNewick(page)).toBe(fileTree);
 });
 
@@ -386,6 +551,7 @@ test("Review Focus 3: mid-session edits return to 'complete the matrix'", async 
 
   const mi = scope.locator(".matrix-import");
   await scope.getByRole("tab", { name: "Distance matrix" }).click();
+  const sheet = await openGridSheet(page, mi);
 
   // Clear a cell → no tree, no Q matrix, stepper gone.
   await mi.getByLabel("Distance between e and d").fill("");
@@ -393,15 +559,26 @@ test("Review Focus 3: mid-session edits return to 'complete the matrix'", async 
   await expect(page.getByRole("group", { name: "Trace stepper" })).toHaveCount(0);
   await expect(page.locator("text=/Complete the distance matrix/")).toBeVisible();
   await expect(mi.getByRole("button", { name: "Build tree" })).toBeDisabled();
+  // …and the rebuild hint names what changed (fix round 2).
+  await expect(
+    sheet.getByText("The matrix changed — press Build tree to rebuild."),
+  ).toBeVisible();
 
-  // Refill → the edit path rebuilds at step 0.
+  // Refill stays an uncommitted draft — Build tree rebuilds at step 0
+  // (fix round 2's commit model: no keystroke ever rebuilds).
   await mi.getByLabel("Distance between e and d").fill("3");
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toHaveCount(0);
+  await mi.getByRole("button", { name: "Build tree" }).click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   expect((await readStep(page)).k).toBe(0);
 
   // Remove a taxon → back to "complete the matrix"; Build tree rebuilds.
+  // The sheet hides for the stepper, then reopens with the matrix.
+  await page.keyboard.press("Escape");
   await stepToEnd(page);
-  await mi.getByRole("button", { name: "Remove taxon a" }).click();
+  await openGridSheet(page, mi);
+  await mi.getByLabel("Taxon to remove").selectOption({ label: "a" });
+  await mi.getByRole("button", { name: "Remove taxon" }).click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Trace stepper" })).toHaveCount(0);
   await mi.getByRole("button", { name: "Build tree" }).click();
@@ -477,10 +654,11 @@ test("matrix exports: PHYLIP and .meg round-trip; no alignment exports", async (
   await mi.getByLabel("Paste a distance matrix").fill(meg);
   await mi.getByRole("button", { name: "Import matrix" }).click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
-  // The seeded grid holds the same names and values.
+  // The seeded grid holds the same names and values (in its sheet).
   const scope2 = await importScope(page);
   const grid = scope2.locator(".matrix-import");
   await scope2.getByRole("tab", { name: "Distance matrix" }).click();
+  await openGridSheet(page, grid);
   for (const [i, n] of WIKI5_LOWER.names.entries()) {
     await expect(grid.getByLabel(`Taxon ${i + 1} name`)).toHaveValue(n);
   }
@@ -551,6 +729,30 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
     page.locator("text=" + REPLACEMENT),
   ).toHaveCount(0);
   expect(page.url()).not.toContain("matrix");
+
+  // The pair panel and the bootstrap panel return too (fix round 2 —
+  // the original check stopped at the correction/gap controls). The
+  // pair panel is a protein feature (spec §5.2), so a protein file
+  // goes in and a distance cell opens it.
+  const scope2b = await importScope(page);
+  await scope2b
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(`${PROTEIN_DIR}p6_150.fasta`);
+  await expect(page.locator(".alphabet-badge-label")).toContainText("Protein");
+  await stepToEnd(page);
+  // "How sure are we?" — the bootstrap panel the matrix session hid
+  // (a named <section>, so its ARIA role is `region`).
+  await expect(
+    page.getByRole("region", { name: "How sure are we?" }),
+  ).toBeVisible();
+  // The pair details panel opens from a distance-matrix cell.
+  await page.locator('[role="gridcell"][data-i="0"][data-j="1"]').click();
+  const pairDlg = page.getByRole("dialog", {
+    name: /How was this distance computed/,
+  });
+  await expect(pairDlg).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(pairDlg).toHaveCount(0);
 
   // A lesson load clears the imported alignment from the link.
   await page.getByRole("button", { name: "Lessons" }).click();

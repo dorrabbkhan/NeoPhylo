@@ -208,12 +208,44 @@ test("375×812 coarse pointer: every matrix control is ≥40×40 and the page ne
     ).toBeGreaterThanOrEqual(39.95);
   }
 
-  // Ten taxa: the grid scrolls inside its own container, never the page.
+  // The typing grid lives in the "Type a matrix…" sheet (fix round 2)
+  // — full-screen at this width. Its cells keep the same 40 px floor.
   const grid = dlg.locator(".matrix-import");
-  for (let k = 0; k < 5; k += 1) {
-    await grid.getByRole("button", { name: "Add taxon" }).click();
+  await grid.getByRole("button", { name: "Type a matrix…" }).click();
+  const sheet = page.getByRole("dialog", { name: "Distance matrix" });
+  await expect(sheet).toBeVisible();
+  const sheetControls = sheet.locator(
+    "button, input, select, a, [tabindex='0']",
+  );
+  for (let i = 0; i < (await sheetControls.count()); i += 1) {
+    const control = sheetControls.nth(i);
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    if (box === null) continue;
+    const label =
+      (await control.getAttribute("aria-label")) ??
+      (await control.innerText().catch(() => "")).slice(0, 40) ??
+      `control ${i}`;
+    expect(
+      box.width,
+      `matrix sheet: "${label}" ≥40 px wide (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box.height,
+      `matrix sheet: "${label}" ≥40 px tall (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
   }
-  await expect(grid.getByLabel("Taxon 10 name")).toBeVisible();
+
+  // Ten taxa: the sheet itself fits the viewport; the table scrolls
+  // inside its own region, never the page.
+  for (let k = 0; k < 5; k += 1) {
+    await sheet.getByRole("button", { name: "Add taxon" }).click();
+  }
+  await expect(sheet.getByLabel("Taxon 10 name")).toBeVisible();
+  const sheetBox = await sheet.boundingBox();
+  expect(sheetBox).not.toBeNull();
+  expect(sheetBox!.x).toBeGreaterThanOrEqual(-0.5);
+  expect(sheetBox!.x + sheetBox!.width).toBeLessThanOrEqual(NARROW.w + 0.5);
   await expectNoSidewaysScroll(page, NARROW.w, "the matrix grid at 375 px");
 
   // The matrix session's own export items keep the same floor.
@@ -233,6 +265,8 @@ test("375×812 coarse pointer: every matrix control is ≥40×40 and the page ne
   await grid.getByRole("button", { name: "Build tree" }).click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
   await expectNoSidewaysScroll(page, NARROW.w, "a matrix session at 375 px");
+  // Close the sheet — it covers the Settings drawer's export strip.
+  await page.keyboard.press("Escape");
 
   const exports = dlg.locator(".export-menu a, .export-menu button");
   for (let i = 0; i < (await exports.count()); i += 1) {

@@ -181,8 +181,13 @@ describe("MatrixImport — asymmetric square", () => {
 });
 
 describe("MatrixImport — grid wiring", () => {
-  it("a finished grid commits through importMatrix", () => {
-    const holder = mount();
+  /** Open the lazy "Type a matrix…" sheet and fill every cell. */
+  async function openSheetAndFill() {
+    fireEvent.click(
+      screen.getByRole("button", { name: "Type a matrix…" }),
+    );
+    // The sheet is a lazy chunk — findBy, not getBy.
+    await screen.findByLabelText("Distance between B and A");
     for (const [r, c] of [
       ["B", "A"], ["C", "A"], ["C", "B"],
       ["D", "A"], ["D", "B"], ["D", "C"],
@@ -193,6 +198,11 @@ describe("MatrixImport — grid wiring", () => {
         { target: { value: "1" } },
       );
     }
+  }
+
+  it("a finished grid commits through importMatrix", async () => {
+    const holder = mount();
+    await openSheetAndFill();
     fireEvent.click(screen.getByRole("button", { name: "Build tree" }));
     expect(holder.s.alignmentOrigin).toBe("matrix");
     expect(holder.s.matrixInput?.names).toEqual(["A", "B", "C", "D", "E"]);
@@ -200,19 +210,9 @@ describe("MatrixImport — grid wiring", () => {
     expect(holder.s.result).not.toBeNull();
   });
 
-  it("a mid-session clear returns to 'complete the matrix' via editMatrix(null)", () => {
+  it("a mid-session clear returns to 'complete the matrix'; Build rebuilds (fix round 2)", async () => {
     const holder = mount();
-    // Commit a matrix through the grid first.
-    for (const [r, c] of [
-      ["B", "A"], ["C", "A"], ["C", "B"],
-      ["D", "A"], ["D", "B"], ["D", "C"],
-      ["E", "A"], ["E", "B"], ["E", "C"], ["E", "D"],
-    ]) {
-      fireEvent.change(
-        screen.getByLabelText(`Distance between ${r} and ${c}`),
-        { target: { value: "1" } },
-      );
-    }
+    await openSheetAndFill();
     fireEvent.click(screen.getByRole("button", { name: "Build tree" }));
     expect(holder.s.result).not.toBeNull();
     // Clearing one cell edits the session back to incomplete.
@@ -222,11 +222,32 @@ describe("MatrixImport — grid wiring", () => {
     expect(holder.s.matrixInput).toBeNull();
     expect(holder.s.result).toBeNull();
     expect(holder.s.alignmentOrigin).toBe("matrix");
-    // Refill → the edit path rebuilds at once.
+    // Refill stays uncommitted — Build tree rebuilds at step 0.
     fireEvent.change(screen.getByLabelText("Distance between C and B"), {
       target: { value: "2" },
     });
+    expect(holder.s.result).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Build tree" }));
     expect(holder.s.result).not.toBeNull();
     expect(holder.s.matrixInput?.lower).toEqual([1, 1, 2, 1, 1, 1, 1, 1, 1, 1]);
+  });
+
+  it("a close hides the sheet but keeps the typed draft (fix round 2)", async () => {
+    mount();
+    await openSheetAndFill();
+    // Esc closes: the sheet hides (it stays mounted — the draft is
+    // grid state an unmount would destroy).
+    const dialog = screen.getByRole("dialog", { name: "Distance matrix" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "Distance matrix" }),
+    ).toBeNull();
+    // Reopen: the typed values are still there.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Type a matrix…" }),
+    );
+    expect(
+      screen.getByLabelText("Distance between E and D"),
+    ).toHaveProperty("value", "1");
   });
 });

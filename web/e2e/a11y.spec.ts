@@ -324,10 +324,23 @@ test("axe: the matrix tab and a matrix session have no serious violations", asyn
     scope = page.getByRole("dialog", { name: "Settings" });
   }
   await scope.getByRole("tab", { name: "Distance matrix" }).click();
+  const mi = scope.locator(".matrix-import");
   await expect(
-    scope.locator(".matrix-import").getByLabel("Distance between B and A"),
+    mi.getByRole("button", { name: "Type a matrix…" }),
   ).toBeVisible();
   await expectNoSeriousViolations(page, "the Distance matrix tab");
+
+  // The typing grid lives in its Sheet (fix round 2) — open it and
+  // scan the open sheet too.
+  await mi.getByRole("button", { name: "Type a matrix…" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Distance matrix" }),
+  ).toBeVisible();
+  await expect(
+    mi.getByLabel("Distance between B and A"),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the open matrix grid sheet");
+  await page.keyboard.press("Escape");
 
   await scope
     .locator('.import-file input[type="file"]')

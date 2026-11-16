@@ -140,9 +140,12 @@ export function ImportPanel({
     setLastOrigin(session.alignmentOrigin);
     setTab(inMatrix ? "matrix" : "seq");
   }
-  // The matrix tab's component mounts on its FIRST open — that's the
-  // lazy chunk's fetch point. Afterwards it stays mounted (the
-  // tabpanel is only `hidden`), so the grid's draft survives a switch.
+  // The matrix tab's component mounts whenever its tab is selected —
+  // click, arrow keys, the origin-change re-derive above, the initial
+  // render or a URL restore — and stays mounted afterwards (the
+  // tabpanel is only `hidden`), so the lazy chunk fetches on the first
+  // selection and the panel's state survives a switch (fix round 2:
+  // an origin-driven selection counts too, not only selectTab).
   const [matrixOpened, setMatrixOpened] = useState(inMatrix);
   const tabRef = useRef<(HTMLButtonElement | null)[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -395,7 +398,7 @@ export function ImportPanel({
         aria-labelledby={`${tabId}-tab-matrix`}
         hidden={tab !== "matrix"}
       >
-        {matrixOpened && (
+        {(matrixOpened || tab === "matrix") && (
           <Suspense fallback={null}>
             <MatrixImport session={session} dispatch={dispatch} />
           </Suspense>

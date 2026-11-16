@@ -642,4 +642,64 @@ describe("ImportPanel — the tab strip (v1.4c fix round 1)", () => {
     paste("5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n");
     expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
   });
+
+  it("a matrix file opened from the Sequences tab mounts the matrix panel AND its grid (fix round 2)", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // The bug this round fixes: the origin change re-selected the tab
+    // but matrixOpened stayed false, so the tabpanel rendered EMPTY.
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(
+            ["5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n"],
+            "wiki5_lower.phy",
+          ),
+        ],
+      },
+    });
+    await waitFor(() =>
+      expect(holder.s.alignmentOrigin).toBe("matrix"),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    // The panel's content is mounted: the grid sheet opens with the
+    // imported names and values (the lazy chunk needs findBy).
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Type a matrix…" }),
+    );
+    for (const [i, n] of ["a", "b", "c", "d", "e"].entries()) {
+      expect(
+        await screen.findByLabelText(`Taxon ${i + 1} name`),
+      ).toHaveProperty("value", n);
+    }
+    expect(
+      screen.getByLabelText("Distance between e and d"),
+    ).toHaveProperty("value", "3");
+    expect(
+      screen.getByLabelText("Distance between b and a"),
+    ).toHaveProperty("value", "5");
+  });
+
+  it("a manual 'Sequences or tree' pick survives re-renders in a matrix session", () => {
+    renderPanel(
+      matrixSandbox({
+        names: ["a", "b", "c", "d", "e"],
+        lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
+      }),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(tab(SEQ));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // A local-state re-render (typing in the box) and a session
+    // re-render (a same-origin matrix re-paste) must not snap the
+    // strip back — the origin never changed.
+    fireEvent.change(
+      screen.getByLabelText("Paste sequences or a tree"),
+      { target: { value: ">a\nAC" } },
+    );
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    paste("3\nx\ny  1\nz  2  3\n");
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+  });
 });

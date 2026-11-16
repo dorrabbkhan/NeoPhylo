@@ -71,17 +71,16 @@ describe("MatrixGrid — shape", () => {
     for (let k = 0; k < 25; k += 1) fireEvent.click(add);
     expect(screen.getAllByLabelText(/Taxon \d+ name/)).toHaveLength(30);
     expect(add).toHaveProperty("disabled", true);
-    const remove = screen.getAllByRole("button", { name: /Remove taxon / });
-    for (let k = 0; k < 27; k += 1) {
-      fireEvent.click(
-        screen.getAllByRole("button", { name: /Remove taxon / })[0],
-      );
-    }
+    // The one remove control (fix round 2): the select tracks the
+    // first taxon, each click removes it.
+    const remove = screen.getByRole("button", { name: "Remove taxon" });
+    for (let k = 0; k < 27; k += 1) fireEvent.click(remove);
     expect(screen.getAllByLabelText(/Taxon \d+ name/)).toHaveLength(3);
-    screen
-      .getAllByRole("button", { name: /Remove taxon / })
-      .forEach((b) => expect(b).toHaveProperty("disabled", true));
-    void remove;
+    expect(remove).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText("Taxon to remove")).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 
   it("labels each cell with both taxon names", () => {
@@ -123,9 +122,16 @@ describe("MatrixGrid — emits", () => {
     expect(screen.getByText("d(b, a) must be a number ≥ 0.")).toBeTruthy();
   });
 
-  it("a committed matrix re-emits on a cell edit (editMatrix path)", () => {
+  it("a cell edit on a committed matrix emits null until Build (fix round 2)", () => {
     const { emitted } = mount(wiki5);
     fireEvent.change(cell("e", "d"), { target: { value: "4" } });
+    // The draft is uncommitted — the session drops to
+    // "complete the matrix" and the hint explains the rebuild.
+    expect(emitted.v).toBeNull();
+    expect(
+      screen.getByText("The matrix changed — press Build tree to rebuild."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Build tree" }));
     expect(emitted.v).toEqual({
       names: wiki5.names,
       lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 4],
@@ -143,9 +149,11 @@ describe("MatrixGrid — emits", () => {
 
   it("removing a taxon emits null and arms Build tree", () => {
     const { emitted } = mount(wiki5);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove taxon a" }),
-    );
+    // Pick "a" in the remove select, then the one Remove button.
+    fireEvent.change(screen.getByLabelText("Taxon to remove"), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Remove taxon" }));
     expect(emitted.v).toBeNull();
     // b–e remain with their mutual distances intact.
     expect(cell("e", "d")).toHaveProperty("value", "3");
@@ -180,6 +188,70 @@ describe("MatrixGrid — emits", () => {
       target: { value: "a" },
     });
     expect(screen.getByText(/share the name 'a'/)).toBeTruthy();
+  });
+});
+
+describe("MatrixGrid — the rebuild hint (fix round 2)", () => {
+  const HINT = "The matrix changed — press Build tree to rebuild.";
+
+  /** Fill all 10 cells of a fresh grid and click Build tree. */
+  function fillAndBuild() {
+    for (const [r, c] of [
+      ["B", "A"], ["C", "A"], ["C", "B"],
+      ["D", "A"], ["D", "B"], ["D", "C"],
+      ["E", "A"], ["E", "B"], ["E", "C"], ["E", "D"],
+    ]) {
+      fireEvent.change(cell(r, c), { target: { value: "1" } });
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Build tree" }));
+  }
+
+  it("a fresh grid's first fill shows no hint — nothing was built yet", () => {
+    mount();
+    for (const [r, c] of [
+      ["B", "A"], ["C", "A"], ["C", "B"],
+      ["D", "A"], ["D", "B"], ["D", "C"],
+      ["E", "A"], ["E", "B"], ["E", "C"], ["E", "D"],
+    ]) {
+      fireEvent.change(cell(r, c), { target: { value: "1" } });
+    }
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(screen.queryByText(/press Build tree/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Build tree" }),
+    ).toHaveProperty("disabled", false);
+  });
+
+  it("build, then edit a value → the hint names what changed", () => {
+    mount();
+    fillAndBuild();
+    expect(screen.queryByText(HINT)).toBeNull();
+    fireEvent.change(cell("E", "D"), { target: { value: "2" } });
+    expect(screen.getByText(HINT)).toBeTruthy();
+    // Reverting to the built values clears the hint again.
+    fireEvent.change(cell("E", "D"), { target: { value: "1" } });
+    expect(screen.queryByText(HINT)).toBeNull();
+  });
+
+  it("build, then remove a taxon → the hint shows", () => {
+    mount();
+    fillAndBuild();
+    fireEvent.click(screen.getByRole("button", { name: "Remove taxon" }));
+    expect(screen.getByText(HINT)).toBeTruthy();
+  });
+
+  it("build, then add a taxon → the hint shows beside the empty-cell reason", () => {
+    mount();
+    fillAndBuild();
+    fireEvent.click(screen.getByRole("button", { name: "Add taxon" }));
+    expect(screen.getByText(HINT)).toBeTruthy();
+    expect(screen.getByText(/cells still empty/)).toBeTruthy();
+  });
+
+  it("a seeded (imported) matrix counts as built: removing a taxon shows the hint", () => {
+    mount(wiki5);
+    fireEvent.click(screen.getByRole("button", { name: "Remove taxon" }));
+    expect(screen.getByText(HINT)).toBeTruthy();
   });
 });
 
@@ -224,16 +296,14 @@ describe("MatrixGrid — reseed", () => {
     expect(cell("e", "d")).toHaveProperty("value", "3");
   });
 
-  it("an echo of the grid's own emit never resets in-progress edits", () => {
+  it("an echo of the grid's own null emit never resets in-progress edits", () => {
     const { emitted } = mount(wiki5);
-    // Half-typed text that already parses: "4." emits 4 and the
-    // parent echoes the committed input straight back. The echo must
-    // not reseed the cell to "4" — the typing stays verbatim.
+    // Half-typed text that already parses: "4." emits null like every
+    // uncommitted change (fix round 2) and the parent echoes null
+    // straight back. The echo must not reseed the cell — the typing
+    // stays verbatim.
     fireEvent.change(cell("e", "d"), { target: { value: "4." } });
-    expect(emitted.v).toEqual({
-      names: wiki5.names,
-      lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 4],
-    });
+    expect(emitted.v).toBeNull();
     expect(cell("e", "d")).toHaveProperty("value", "4.");
   });
 

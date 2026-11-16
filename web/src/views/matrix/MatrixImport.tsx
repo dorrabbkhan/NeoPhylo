@@ -1,6 +1,9 @@
 // The Distance-matrix tab of the import panel (v1.4c spec §6.1; plan
 // Task 8). Three routes into one matrix workspace: open a .meg or
-// PHYLIP distance file, paste matrix text, or type into the grid.
+// PHYLIP distance file, paste matrix text, or type into the grid —
+// the grid lives in the "Type a matrix…" sheet (fix round 2: a
+// 5–10-taxon table never fit the import column; the sheet is lazy and
+// stays mounted once opened, so the typed draft survives a close).
 //
 // Paste ambiguities are never guessed (spec §6.1): the engine's
 // MatrixAmbiguous error carries one question at a time — first-column
@@ -13,12 +16,13 @@
 // use_lower_if_asymmetric.
 //
 // Grid wiring: while a matrix session runs, the grid's onChange maps
-// to editMatrix (cell edits rebuild at step 0; null keeps the typed
-// draft and returns the session to "complete the matrix"); outside a
-// matrix session a complete grid commits through importMatrix — the
-// grid only emits a finished input from its Build-tree button.
+// to editMatrix — every uncommitted change emits null, dropping the
+// session's matrix, tree and stepper to "complete the matrix" until
+// the grid's Build-tree button emits the finished input (fix round
+// 2's commit model); outside a matrix session only a Build-tree emit
+// commits, through importMatrix.
 
-import { useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 
 import { engine } from "../../engine/index";
 import { errorMessage } from "../../explain/errors";
@@ -30,7 +34,14 @@ import type { PasteQuestion } from "../../engine/generated/PasteQuestion";
 import type { Action } from "../../state/actions";
 import type { Session } from "../../state/session";
 
-import { MatrixGrid } from "./MatrixGrid";
+// The grid and its Sheet are a lazy chunk inside this already-lazy
+// tab (fix round 2): fetched on the first "Type a matrix…" click,
+// never with the import panel.
+const MatrixGridSheet = lazy(() =>
+  import("./MatrixGridSheet").then((m) => ({
+    default: m.MatrixGridSheet,
+  })),
+);
 
 import "./matrix.css";
 
@@ -121,7 +132,12 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
   const [offerLower, setOfferLower] = useState(false);
   const [error, setError] = useState<NeoError | null>(null);
   const [notices, setNotices] = useState<string[]>([]);
-  const [draft, setDraft] = useState<DistanceInput | null>(null);
+  // The grid sheet: mounted on the first "Type a matrix…" click and
+  // only `hidden` afterwards, so a close keeps the typed draft (the
+  // grid's cells are its state — nothing else holds them).
+  const [gridMounted, setGridMounted] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const openButtonRef = useRef<HTMLButtonElement>(null);
 
   const commit = (f: MatrixFile, name: string | null) => {
     setQuestion(null);
@@ -197,30 +213,41 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
     } else if (r.error !== null) fail(r.error);
   };
 
-  /** The grid's commit channel: a matrix session edits in place; any
-   * other session starts on a finished matrix (Build-tree emit). */
+  /** The grid's commit channel: a matrix session maps every change
+   * to editMatrix (null while the draft is uncommitted); any other
+   * session only sees Build-tree emits, which start it through
+   * importMatrix. */
   const onGridChange = (input: DistanceInput | null) => {
     if (inMatrix) {
       dispatch({ type: "editMatrix", input });
-    } else {
-      setDraft(input);
-      if (input !== null) {
-        dispatch({ type: "importMatrix", input, name: null });
-      }
+    } else if (input !== null) {
+      dispatch({ type: "importMatrix", input, name: null });
     }
   };
 
+  const openGrid = () => {
+    setGridMounted(true);
+    setGridOpen(true);
+  };
+  const closeGrid = () => {
+    setGridOpen(false);
+    // Sheet can't return focus itself — it stays mounted (hidden), so
+    // its unmount-time restore never runs. The opener is the one
+    // stable target (fix round 2).
+    openButtonRef.current?.focus();
+  };
+
   const shown = error !== null ? errorMessage(error) : null;
-  const gridValue = inMatrix ? session.matrixInput : draft;
+  const gridValue = inMatrix ? session.matrixInput : null;
   const tooManyTaxa =
     gridValue !== null && gridValue.names.length > 30;
 
   return (
     <div className="matrix-import">
       <p className="matrix-route-label">
-        Open a .meg or PHYLIP distance file, paste a matrix, or type it
-        into the grid. Three to two hundred taxa; the typing grid holds
-        up to 30.
+        Open a .meg or PHYLIP distance file, paste a matrix, or type
+        one into the grid. Three to two hundred taxa; the typing grid
+        holds up to 30.
       </p>
       <input
         type="file"
@@ -302,7 +329,26 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
           grid holds up to 30. Open a file or paste to work with it.
         </p>
       ) : (
-        <MatrixGrid value={gridValue} onChange={onGridChange} />
+        <>
+          <button
+            type="button"
+            className="matrix-open-grid"
+            ref={openButtonRef}
+            onClick={openGrid}
+          >
+            Type a matrix…
+          </button>
+          {gridMounted && !tooManyTaxa && (
+            <Suspense fallback={null}>
+              <MatrixGridSheet
+                open={gridOpen}
+                value={gridValue}
+                onChange={onGridChange}
+                onClose={closeGrid}
+              />
+            </Suspense>
+          )}
+        </>
       )}
     </div>
   );

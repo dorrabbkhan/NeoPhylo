@@ -735,9 +735,11 @@ export const SCENES: {
     },
   },
   {
-    // v1.4c Task 8 (spec §6.1, §8.3): the Distance matrix tab's typed
-    // grid with wiki5 filled in, Build tree armed. Below 1280 px the
-    // grid lives in the Settings drawer, which the scene leaves open.
+    // v1.4c Task 8 (spec §6.1, §8.3): the typing grid's open Sheet
+    // with wiki5 filled in, Build tree armed (fix round 2: the grid
+    // left the import column for the "Type a matrix…" sheet, so the
+    // frame is the whole viewport — the dialog centered on its
+    // scrim — not an element shot).
     name: "matrix-grid",
     setup: async (page) => {
       await page.goto("/");
@@ -751,21 +753,21 @@ export const SCENES: {
       }
       await scope.getByRole("tab", { name: "Distance matrix" }).click();
       const grid = scope.locator(".matrix-import");
+      await grid
+        .getByRole("button", { name: "Type a matrix…" })
+        .click();
+      const sheet = page.getByRole("dialog", { name: "Distance matrix" });
+      await expect(sheet).toBeVisible();
       await expect(
-        grid.getByLabel("Distance between B and A"),
+        sheet.getByLabel("Distance between B and A"),
       ).toBeVisible();
       for (const [row, col, v] of WIKI5_CELLS) {
-        await grid.getByLabel(`Distance between ${row} and ${col}`).fill(v);
+        await sheet.getByLabel(`Distance between ${row} and ${col}`).fill(v);
       }
       await expect(
-        grid.getByRole("button", { name: "Build tree" }),
+        sheet.getByRole("button", { name: "Build tree" }),
       ).toBeEnabled();
-      // The plan's shot is "matrix grid (wiki5 typed)": the grid sits
-      // below the fold in every viewport and settleFrame resets scroll
-      // positions, so the frame is the grid BLOCK itself — caption,
-      // filled table and the armed Build tree (fix round 1).
       await settleFrame(page);
-      return grid.locator(".matrix-grid-block");
     },
   },
   {

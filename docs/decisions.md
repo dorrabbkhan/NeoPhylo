@@ -7331,7 +7331,7 @@ Owner-requested rendering fixes after the PR #139 review; branch
   reads/writes in render. Semantics are identical: a round-tripped
   emit serializes equal and never reseeds; a new committed value
   reseeds; a null echo leaves the draft alone.
-- **Baselines regenerated again for the side-by-side import tabs
+- **Baselines regenerated again for the reworked import tabs
   (same 10 frames, owner's option A, conductor's call):**
   dataset-sheet-1920x1080-light, dataset-sheet-1920x1080-dark,
   gap-partial-1920x1080-light, gap-partial-1920x1080-dark,
@@ -7339,8 +7339,63 @@ Owner-requested rendering fixes after the PR #139 review; branch
   gap-partial-768x1024-light, gap-partial-768x1024-dark,
   pair-panel-removed-1920x1080-light,
   pair-panel-removed-1920x1080-dark.
+  (Correction, fix round 2: this bullet said "side-by-side" — wrong.
+  The tabs have always stacked one per row, full-width, in the
+  320 px drawer and the sidebar; `flex: 1 1 auto` wraps them. No
+  tab CSS or import-section layout changed in fix round 2.)
 - **Existing tests edited mechanically (no expectation changed):**
   `.import-panel input[type=file]` → `.import-file input[type=file]`
   in a11y/alphabet/gaps/meg/pair-panel/perf-protein/theme specs;
   App.bootstrap/lessons/sandbox/url tests await the lazy ImportPanel
   (`findBy…`).
+
+### Fix round 2
+
+- **The matrix tabpanel mounts whenever the tab is selected (review
+  fix A):** the origin-change effect selects the matrix tab when a
+  file/paste import lands a matrix session, but `matrixOpened` only
+  tracked clicks — the selected tabpanel rendered empty. The panel
+  now renders `MatrixImport` whenever `tab === "matrix"` however it
+  was selected (click, keyboard, origin change, initial render, URL
+  restore).
+- **The typing grid moved into a `Sheet` (builder's call — the
+  conductor's recommended option):** a 5-taxon table cannot fit the
+  200–282 px import column or the 320 px drawer at any viewport, so
+  the tab keeps file + paste and gains a "Type a matrix…" button
+  that opens the grid in the shared `Sheet` component
+  (`MatrixGridSheet`, a lazy chunk inside the already-lazy
+  `MatrixImport`, `width: min(760px, calc(100vw - 32px))` — 10 taxa
+  fit without horizontal scrolling at 1920×1080, 1024×768 and
+  768×1024; wider grids scroll inside the grid's own region). The
+  sheet stays mounted once opened (`hidden` while closed) because
+  the draft lives only in grid state — an unmount would destroy it.
+- **One remove control (builder's call — conductor's first
+  suggestion):** a per-row Remove button widened every row; the
+  actions row now carries a `Taxon to remove` select plus one
+  `Remove taxon` button, no per-row control.
+- **Grid commit model, take 2 (review fixes B+C):** every cell,
+  name or taxon change emits `onChange(null)` — in a matrix session
+  `editMatrix(null)` drops the session's matrix, tree and stepper to
+  "complete the matrix" — and only Build tree emits the finished
+  `DistanceInput` (`editMatrix` in a session, `importMatrix` outside
+  one). The old "emit the complete input on every keystroke" model
+  rebuilt the tree on each edit, so the rebuild hint could never be
+  true. This supersedes the earlier "Grid commit model" bullet.
+- **The rebuild hint only names a real drift (review fix C):** the
+  grid remembers the last matrix it committed or was seeded with;
+  "The matrix changed — press Build tree to rebuild." shows exactly
+  while the on-screen draft differs from that matrix. The old
+  unconditional "Taxa changed — press Build tree to rebuild." is
+  gone — a fresh fill shows no hint.
+- **Files outside the Files block (fix round 2):**
+  `web/src/views/matrix/MatrixGridSheet.tsx` — the sheet host
+  (new); `web/e2e/visualScenes.ts` — the `matrix-grid` scene now
+  shoots the open sheet across the whole viewport instead of the
+  grid block element; `web/e2e/narrow.spec.ts` and
+  `web/e2e/a11y.spec.ts` — the coarse-pointer and axe checks follow
+  the grid into the sheet; `docs/decisions.md` — this entry.
+- **Baselines regenerated (only the 12 this PR adds, owner's
+  standing rule):** `matrix-grid-*` and `matrix-session-*` at all
+  three viewports × both themes — the scene changed shape (open
+  sheet instead of the inline grid block; the matrix tabpanel now
+  mounts its content on an origin-driven selection).

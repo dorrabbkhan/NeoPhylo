@@ -6,17 +6,18 @@
 // (the grid's own cap; files and paste accept MAX_TAXA).
 //
 // The grid keeps raw text per cell so half-typed input is never
-// clobbered: `onChange(null)` fires while any cell is empty or not a
-// finite number ≥ 0, and on a structural failure the engine's
+// clobbered, and on a structural failure the engine's
 // `validateMatrix` message is shown verbatim — the grid never
 // re-validates names or values beyond "a number ≥ 0 typed as text".
-// A cell or name edit to a COMMITTED matrix emits the new
-// DistanceInput directly (the parent maps that to editMatrix, so the
-// tree rebuilds at step 0); adding or removing a taxon always emits
-// null and arms "Build tree" — a structural change returns the
-// session to "complete the matrix" until the button rebuilds it
-// (Review Focus 3). A fresh grid starts armed the same way, so the
-// first tree only appears on a deliberate Build-tree click.
+// EVERY change — cell, name or taxon — emits `onChange(null)`: fix
+// round 2's commit model drops the session's matrix, tree and
+// stepper to "complete the matrix" until Build tree emits the
+// finished DistanceInput (Review Focus 3; an in-place editMatrix on
+// each keystroke made the rebuild hint a lie — the tree always
+// matched the screen). The hint only claims what it means: it shows
+// once a matrix this grid committed (or was seeded with) differs
+// from the draft on screen — a fresh grid's first fill built nothing
+// yet, so it shows no hint.
 
 import { useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -147,15 +148,20 @@ function cellProblems(names: string[], cells: string[][]): string[] {
 export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   const statusId = useId();
   const tableRef = useRef<HTMLTableElement>(null);
+  const removeRef = useRef<HTMLSelectElement>(null);
   const [names, setNames] = useState<string[]>(
     () => value?.names ?? START_NAMES,
   );
   const [cells, setCells] = useState<string[][]>(() =>
     value === null ? EMPTY_CELLS() : seedCells(value),
   );
-  // Structure-pending: a fresh grid or one whose taxa changed since the
-  // last commit — edits emit null until Build tree commits the matrix.
-  const [needsBuild, setNeedsBuild] = useState(value === null);
+  // The matrix the tree was last built from, as JSON: a committed
+  // `value` the grid was seeded with, or this grid's last Build-tree
+  // emit. `null` = nothing built from this grid yet — the rebuild
+  // hint only makes sense against a built matrix (fix round 2).
+  const [committed, setCommitted] = useState<string | null>(() =>
+    value === null ? null : JSON.stringify(value),
+  );
 
   // Re-seed only when `value` carries a matrix this grid did not emit —
   // an import, a lesson's data or another grid instance's commit. A
@@ -168,41 +174,37 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   const valueKey = JSON.stringify(value);
   if (valueKey !== emittedKey) {
     setEmittedKey(valueKey);
+    setCommitted(value === null ? null : valueKey);
     if (value !== null) {
       setNames([...value.names]);
       setCells(seedCells(value));
-      setNeedsBuild(false);
     } else {
       setNames(START_NAMES);
       setCells(EMPTY_CELLS());
-      setNeedsBuild(true);
     }
   }
 
-  /** Emit `input` when the draft is complete, valid and not
-   * structure-pending, else null. */
-  const emit = (ns: string[], cs: string[][], pending: boolean) => {
-    const input = completeInput(ns, cs);
-    const out =
-      input !== null && !pending && engine.validateMatrix(input).ok
-        ? input
-        : null;
-    setEmittedKey(JSON.stringify(out));
-    onChange(out);
+  /** Every uncommitted change emits null — the session's matrix drops
+   * until Build tree emits the finished input (fix round 2's model:
+   * an in-place editMatrix on each keystroke made the rebuild hint a
+   * lie, since the tree always matched the screen). */
+  const emitNull = () => {
+    setEmittedKey("null");
+    onChange(null);
   };
 
   const setCell = (i: number, j: number, text: string) => {
     const cs = cells.map((row) => [...row]);
     cs[i][j] = text;
     setCells(cs);
-    emit(names, cs, needsBuild);
+    emitNull();
   };
 
   const setName = (i: number, text: string) => {
     const ns = [...names];
     ns[i] = text;
     setNames(ns);
-    emit(ns, cells, needsBuild);
+    emitNull();
   };
 
   const addTaxon = () => {
@@ -210,8 +212,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
     const cs = [...cells.map((row) => [...row]), names.map(() => "")];
     setNames(ns);
     setCells(cs);
-    setNeedsBuild(true);
-    emit(ns, cs, true);
+    emitNull();
   };
 
   const removeTaxon = (i: number) => {
@@ -227,8 +228,15 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
     });
     setNames(ns);
     setCells(rebuilt);
-    setNeedsBuild(true);
-    emit(ns, rebuilt, true);
+    emitNull();
+  };
+
+  /** The one remove control (fix round 2): a per-row Remove button
+   * made every row wider than the taxa it showed — a name select and
+   * one button carry the same action without touching the table. */
+  const removeSelected = () => {
+    const i = removeRef.current?.selectedIndex ?? -1;
+    if (i >= 0 && i < names.length) removeTaxon(i);
   };
 
   /** Arrow-key navigation over cell inputs (j ≥ 0) and name inputs
@@ -269,10 +277,17 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
   const reason = buildReason(names, cells);
   const problems = cellProblems(names, cells);
   const ready = input !== null && reason === null;
+  // The rebuild hint (fix round 2): a tree exists only for a matrix
+  // this grid committed — `committed` — so it shows exactly while the
+  // on-screen draft differs from that matrix (an incomplete draft
+  // differs by definition; the reason above it says why Build is
+  // disabled).
+  const differs =
+    committed !== null && JSON.stringify(input) !== committed;
 
   const build = () => {
     if (input === null) return;
-    setNeedsBuild(false);
+    setCommitted(JSON.stringify(input));
     setEmittedKey(JSON.stringify(input));
     onChange(input);
   };
@@ -329,17 +344,6 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
                     />
                   </td>
                 ))}
-                <td className="matrix-row-action">
-                  <button
-                    type="button"
-                    className="link-button"
-                    aria-label={`Remove taxon ${name}`}
-                    disabled={names.length <= GRID_MIN_TAXA}
-                    onClick={() => removeTaxon(i)}
-                  >
-                    Remove
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -353,6 +357,26 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
         >
           Add taxon
         </button>
+        <span className="matrix-remove">
+          <select
+            ref={removeRef}
+            aria-label="Taxon to remove"
+            disabled={names.length <= GRID_MIN_TAXA}
+          >
+            {names.map((n, i) => (
+              <option key={i} value={i}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={names.length <= GRID_MIN_TAXA}
+            onClick={removeSelected}
+          >
+            Remove taxon
+          </button>
+        </span>
         <button
           type="button"
           className="primary"
@@ -374,8 +398,8 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
             <p key={p}>{p}</p>
           ),
         )}
-        {reason === null && needsBuild && ready && (
-          <p>Taxa changed — press Build tree to rebuild.</p>
+        {differs && (
+          <p>The matrix changed — press Build tree to rebuild.</p>
         )}
       </div>
     </div>
