@@ -202,8 +202,14 @@ export function settingsProblems(
       });
     }
   }
+  // The hand-steps input renders only when the file carries a meta
+  // block (owner ruling, PR #155) — on a meta-less draft the field is
+  // hidden, so a stale value is ignored here rather than blocking
+  // save. `meta.hand_steps` can only live inside a complete meta
+  // block, and the editor never fabricates objectives, minutes or
+  // level.
   const handSteps = parseDecimal(s.handSteps);
-  if (s.handSteps.trim() !== "") {
+  if (s.handSteps.trim() !== "" && ctx.preserved.meta !== undefined) {
     if (
       handSteps === null ||
       !Number.isInteger(handSteps) ||
@@ -213,14 +219,6 @@ export function settingsProblems(
         field: "handSteps",
         level: "error",
         msg: `hand-worked joins must be a whole number of 1 or more (got "${s.handSteps.trim()}") — blank uses the worksheet's default rule.`,
-      });
-    } else if (ctx.preserved.meta === undefined) {
-      // `meta.hand_steps` can only live inside a complete meta block,
-      // and the editor never fabricates objectives, minutes or level.
-      out.push({
-        field: "handSteps",
-        level: "error",
-        msg: "the count lives in the exercise's meta block (objectives, minutes, level), which this file doesn't have — leave it blank or add meta in the file.",
       });
     }
   }

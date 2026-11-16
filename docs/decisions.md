@@ -7478,6 +7478,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
     pinning `draftReady`/`matrixDraftReady` end to end (grid emit →
     `editMatrix` → the empty-state line).
   - `docs/decisions.md` — this entry.
+  - `docs/roadmap.md` — the v1.5 editor-autosave bullet (owner
+    ruling below).
 - **Unsaved matrix drafts ride the existing in-memory draft, not a
   new autosave:** `draftSnapshot` (the dirty-check baseline) already
   serializes `settings`, and the matrix is inside `EditorSettings`,
@@ -7485,3 +7487,12 @@ Owner-requested rendering fixes after the PR #139 review; branch
   unsaved matrix exactly like any other draft field. No
   localStorage path exists or was added (the task note's "draft.ts
   autosave" is this in-memory draft model).
+- **Owner ruling (2026-11-16, PR #155):** the plan's "an unsaved
+  matrix draft survives reload" assumed an editor autosave that does
+  not exist on main; accepted as not applicable for v1.4c — the
+  save/load round trip is pinned instead; editor autosave added to
+  the roadmap.
+- **Owner ruling (2026-11-16, PR #155):** the hand-worked joins
+  field shows only for files that already carry `meta` (schema 5
+  requires objectives/minutes/level/prepares_for); custom exercises
+  use the default rule.

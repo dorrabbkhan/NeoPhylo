@@ -866,21 +866,30 @@ describe("meta.hand_steps (v1.4c Task 9)", () => {
     'hand-steps "%s" is refused with a message and never written',
     (bad) => {
       const s = settings({ handSteps: bad });
-      expect(verdict(s, "handSteps")).toBe("error");
+      // The field only exists with a meta block — the verdict it
+      // gates on is the with-meta one.
+      const probs = settingsProblems(s, {
+        prompts: [],
+        preserved: withMeta,
+      });
+      expect(
+        probs.some(
+          (p) => p.field === "handSteps" && p.level === "error",
+        ),
+        JSON.stringify(probs),
+      ).toBe(true);
       const state = buildExerciseState(tree(), s, [], undefined, withMeta);
       expect(state.exercise.meta).toEqual(META);
     },
   );
 
-  it("a valid count on a meta-less exercise can't be written — clear message", () => {
+  it("no meta → the hidden field's value is ignored: no verdict, nothing written (owner ruling, PR #155)", () => {
     const s = settings({ handSteps: "3" });
     const probs = settingsProblems(s, {
       prompts: [],
       preserved: EMPTY_PRESERVED,
     });
-    const p = probs.find((p) => p.field === "handSteps");
-    expect(p?.level).toBe("error");
-    expect(p?.msg).toMatch(/meta/i);
+    expect(probs.filter((p) => p.field === "handSteps")).toEqual([]);
     const state = buildExerciseState(
       tree(),
       s,

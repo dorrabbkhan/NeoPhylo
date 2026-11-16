@@ -4,6 +4,9 @@
 // duplicate taxon names, negative lengths) leave the model's tree
 // untouched while naming the problem inline.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import {
   cleanup,
   fireEvent,
@@ -283,5 +286,37 @@ describe("matrix route (v1.4c Task 9)", () => {
     });
     fireEvent.blur(newickBox());
     expect(screen.getByText(/tree changed/i)).toBeTruthy();
+  });
+});
+
+// Owner ruling, PR #155 (fix round 2): the "Hand-worked joins" input
+// only exists while the loaded file carries a meta block.
+describe("hand-worked joins field — import gate (owner ruling, PR #155)", () => {
+  const handField = () =>
+    screen.queryByLabelText(
+      "Hand-worked joins on the paper worksheet",
+    );
+
+  function importFile(name: string) {
+    const json = readFileSync(
+      resolve("src", "lessons", "__fixtures__", name),
+      "utf8",
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", {
+        name: "Import a file or #x= link",
+      }),
+      { target: { value: json } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import text" }));
+  }
+
+  it("a fresh editor hides it; a meta file shows it; a meta-less file hides it again", () => {
+    renderPanel("(A:0.1,B:0.2,C:0.3);");
+    expect(handField()).toBeNull();
+    importFile("v5-meta-valid.json");
+    expect(handField()).toBeTruthy();
+    importFile("v5-matrix-valid.json");
+    expect(handField()).toBeNull();
   });
 });
