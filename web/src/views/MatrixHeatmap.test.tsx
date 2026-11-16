@@ -5,6 +5,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { cellDecimals } from "./matrix/cellDecimals";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 
 afterEach(cleanup);
@@ -99,6 +100,109 @@ describe("MatrixHeatmap", () => {
     target.focus();
     fireEvent.keyDown(target, { key: "Enter" });
     expect(onPick).toHaveBeenCalledWith(2, 1);
+  });
+});
+
+/* ---- per-matrix decimal count (v1.4c owner ruling 2A on PR #156,
+ * sign-aware after the PR #157 review): one decimal count for the
+ * whole displayed matrix so the widest formatted value — the minus
+ * sign included — still fits the 34 px cell. 0 when every finite
+ * value is an integer; otherwise the largest d ≤ 3 whose every
+ * toFixed(d) string is at most 5 characters (5 glyphs fit the cell;
+ * 6 glyphs run ~32–37 px — too risky to allow). Matrices with all
+ * values in [0, 10) and not
+ * all integers keep the shipped 3 decimals byte-identically. ---- */
+
+describe("cellDecimals", () => {
+  it("returns 0 when every finite value is an integer", () => {
+    expect(cellDecimals([0, 5, 15, 10, 3])).toBe(0);
+    expect(cellDecimals([0, -35, -49])).toBe(0);
+  });
+
+  it("returns 3 when a non-integer matrix's values are all in [0, 10)", () => {
+    expect(cellDecimals([0, 0.5, 9.999])).toBe(3);
+  });
+
+  it("returns 2 when some value's 3-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 2.5, 24.5])).toBe(2); // "24.500" is 6
+    expect(cellDecimals([0, -0.45, 0.3])).toBe(2); // "-0.450" is 6
+    expect(cellDecimals([0, 0.5, 9.999, -1.25])).toBe(2); // "-1.250" is 6
+  });
+
+  it("returns 1 when some value's 2-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 150.25])).toBe(1); // "150.25" is 6
+    expect(cellDecimals([0, -82.5, -70.5])).toBe(1); // "-82.50" is 6
+    expect(cellDecimals([0, -49.5])).toBe(1); // "-49.50" is 6
+  });
+
+  it("returns 0 when even the 1-decimal string exceeds 5 characters", () => {
+    expect(cellDecimals([0, 1234.5])).toBe(0); // "1234.5" is 6
+    expect(cellDecimals([0, -148.5])).toBe(0); // "-148.5" → "-148"
+    // No d ≤ 3 fits |v| ≥ 10000 — the fallback is still 0.
+    expect(cellDecimals([0, -99999.9])).toBe(0);
+  });
+
+  it("ignores non-finite values (saturated/∞ cells)", () => {
+    expect(cellDecimals([0.5, Infinity, NaN, -Infinity])).toBe(3);
+    expect(cellDecimals([Infinity, NaN])).toBe(3);
+  });
+
+  it("does not throw on an empty matrix", () => {
+    expect(() => cellDecimals([])).not.toThrow();
+    expect(cellDecimals([])).toBe(3);
+  });
+});
+
+describe("MatrixHeatmap cell digits", () => {
+  /** The <text> inside cell (i, j). */
+  const cellText = (container: HTMLElement, i: number, j: number) =>
+    cell(container, i, j).querySelector("text")?.textContent;
+
+  // fixtures/inputs/matrix/nj_by_hand.phy — the nj-by-hand lesson's
+  // step-0 distance matrix (all integers, some ≥ 10). Before the fix
+  // "15.000" and "10.000" clipped the 34 px cell.
+  const NJ_BY_HAND: number[] = [
+    0, 5, 15, 9, 8,
+    5, 0, 10, 10, 9,
+    15, 10, 0, 8, 7,
+    9, 10, 8, 0, 3,
+    8, 9, 7, 3, 0,
+  ];
+
+  it("an all-integer matrix prints values with no decimals", () => {
+    const { container } = renderMatrix({
+      labels: ["a", "b", "c", "d", "e"],
+      values: NJ_BY_HAND,
+    });
+    expect(cellText(container, 0, 2)).toBe("15");
+    expect(cellText(container, 0, 1)).toBe("5");
+    expect(cellText(container, 1, 2)).toBe("10");
+    for (const g of container.querySelectorAll('[role="gridcell"] text')) {
+      expect(g.textContent).not.toContain(".");
+    }
+  });
+
+  it("a reduced matrix with 2.5 and 24.5 prints two decimals", () => {
+    const { container } = renderMatrix({
+      values: [
+        0, 2.5, 24.5,
+        2.5, 0, 12.5,
+        24.5, 12.5, 0,
+      ],
+    });
+    expect(cellText(container, 0, 1)).toBe("2.50");
+    expect(cellText(container, 0, 2)).toBe("24.50");
+    expect(cellText(container, 1, 2)).toBe("12.50");
+  });
+
+  it("the aria-label carries the same displayed text", () => {
+    const { container } = renderMatrix({
+      labels: ["a", "b", "c", "d", "e"],
+      values: NJ_BY_HAND,
+    });
+    expect(cell(container, 0, 2).getAttribute("aria-label")).toBe(
+      "a, c: 15",
+    );
   });
 });
 
