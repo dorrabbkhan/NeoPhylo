@@ -36,11 +36,27 @@ const LabPage = lazy(() =>
   import("./views/labs/LabPage").then((m) => ({ default: m.LabPage })),
 );
 
+// v1.4c Task 11: the worksheet and key pages are lazy chunks too —
+// the builders, the QR encoder and the instructor gate join the
+// registry in deferring until the route is used (§8.2 budget).
+const WorksheetPage = lazy(() =>
+  import("./views/worksheets/WorksheetPage").then((m) => ({
+    default: m.WorksheetPage,
+  })),
+);
+const KeyPage = lazy(() =>
+  import("./views/worksheets/KeyPage").then((m) => ({
+    default: m.KeyPage,
+  })),
+);
+
 const params = new URLSearchParams(window.location.search);
 const editorRoute = params.has("editor");
 const previewRoute = params.has("preview");
 const labsRoute = params.has("labs");
 const labRoute = params.get("lab");
+const worksheetRoute = params.get("worksheet");
+const keyRoute = params.get("key");
 
 const LOADING = (
   <div className="app-loading">
@@ -73,6 +89,23 @@ export function Root() {
     return (
       <Suspense fallback={LOADING}>
         <LabPage id={labRoute} />
+      </Suspense>
+    );
+  }
+  if (worksheetRoute !== null && worksheetRoute !== "") {
+    return (
+      <Suspense fallback={LOADING}>
+        <WorksheetPage
+          id={worksheetRoute}
+          kind={params.get("kind") ?? "app"}
+        />
+      </Suspense>
+    );
+  }
+  if (keyRoute !== null && keyRoute !== "") {
+    return (
+      <Suspense fallback={LOADING}>
+        <KeyPage id={keyRoute} kind={params.get("kind") ?? "app"} />
       </Suspense>
     );
   }

@@ -72,6 +72,38 @@ for (const id of LESSONS) {
   });
 }
 
+// v1.4c Task 11: the worksheet routes join the axe matrix — the paper
+// sheet and the in-app companion, the gated key both before and after
+// the instructor confirm, and the gate dialog itself (a labelled,
+// focus-trapped modal).
+test("axe: the worksheet and key pages have no serious violations", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=nj-by-hand&kind=paper");
+  await expect(
+    page.getByRole("heading", { name: "1. The distance matrix" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "nj-by-hand paper sheet");
+
+  await page.goto("/?worksheet=nj-by-hand&kind=app");
+  await expect(page.locator(".ws-items")).toBeVisible();
+  await expectNoSeriousViolations(page, "nj-by-hand companion sheet");
+
+  await page.goto("/?key=nj-by-hand&kind=paper");
+  const gate = page.getByRole("dialog", {
+    name: "Answer keys are for instructors",
+  });
+  await expect(gate).toBeVisible();
+  await expectNoSeriousViolations(page, "instructor gate");
+  await gate
+    .getByRole("button", { name: "I'm an instructor" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "1. The distance matrix" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "nj-by-hand paper key");
+});
+
 /* ---- keyboard-only lesson completion ---- */
 
 interface Focused {

@@ -804,4 +804,106 @@ export const SCENES: {
       await settleFrame(page);
     },
   },
+  {
+    // v1.4c Task 11 (spec §7.2): the nj-by-hand paper worksheet —
+    // matrix, join blocks and blanks, the link and QR. fullPage so
+    // every join block is in frame; screen colours in both themes.
+    name: "worksheet-paper",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?worksheet=nj-by-hand&kind=paper");
+      await expect(
+        page.getByRole("heading", { name: "1. The distance matrix" }),
+      ).toBeVisible();
+      await expect(page.locator("svg.ws-qr")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Task 11: the paper worksheet as it prints — LabPrintStyles'
+    // light remap in both themes (same treatment as the lab print
+    // scenes).
+    name: "worksheet-paper-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?worksheet=nj-by-hand&kind=paper");
+      await expect(
+        page.getByRole("heading", { name: "1. The distance matrix" }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await expect(page.locator(".lab-nav")).toBeHidden();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Task 11: the nj-by-hand answer key after the instructor gate —
+    // filled joins, the mistakes list and the finished tree.
+    name: "worksheet-key",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?key=nj-by-hand&kind=paper");
+      await page
+        .getByRole("button", { name: "I'm an instructor" })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "1. The distance matrix" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /The finished tree/ }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Task 11: the paper key as it prints — same light remap as the
+    // sheet.
+    name: "worksheet-key-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?key=nj-by-hand&kind=paper");
+      await page
+        .getByRole("button", { name: "I'm an instructor" })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "1. The distance matrix" }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Task 11: an in-app companion sheet — one item per prompt plus
+    // the lab chain items, each with ruled writing space.
+    name: "worksheet-companion",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?worksheet=dnadist-neighbor&kind=app");
+      await expect(page.locator(".ws-items")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Task 11: the instructor gate — the labelled modal over the
+    // scrim, before the grant.
+    name: "worksheet-gate",
+    setup: async (page) => {
+      await page.goto("/?key=nj-by-hand&kind=paper");
+      await expect(
+        page.getByRole("dialog", {
+          name: "Answer keys are for instructors",
+        }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
 ];

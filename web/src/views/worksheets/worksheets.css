@@ -1,0 +1,260 @@
+/* Worksheets, keys and the instructor gate (v1.4c plan Task 11, spec
+ * §7.2). The pages reuse the lab chrome (`.lab-page`, `.lab-print`,
+ * LabPrintStyles' light-paper variable remap); everything here is
+ * worksheet-specific: the ruled blanks, the matrix grid, the sketch
+ * box, the QR block and the gate dialog. Blanks need real writing
+ * space on paper — that is what the generous heights are for. */
+
+.ws-meta {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-16);
+}
+
+.ws-page h2 {
+  margin: var(--space-24) 0 var(--space-8);
+}
+
+/* ---- Matrix grids ---- */
+
+.ws-matrix-scroll {
+  overflow-x: auto;
+  margin: var(--space-8) 0;
+}
+
+.ws-matrix {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+}
+
+.ws-matrix th,
+.ws-matrix td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-8);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ws-matrix thead th {
+  text-align: center;
+}
+
+/* The table's visible label (fix round 1, R4). */
+.ws-matrix caption {
+  caption-side: top;
+  font-weight: 600;
+  padding: var(--space-4) 0;
+  text-align: left;
+}
+
+/* Blank cells keep visible writing room on paper — the header cells
+ * of joins past the first are write-in blanks too (fix round 1, R1). */
+.ws-matrix td.ws-cell-blank {
+  min-width: 56px;
+  height: 34px;
+}
+
+.ws-matrix th.ws-cell-blank {
+  min-width: 40px;
+  height: 26px;
+}
+
+/* ---- Fill-in blanks and ruled lines ---- */
+
+.ws-fill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-right: var(--space-16);
+  white-space: nowrap;
+}
+
+.ws-blank {
+  display: inline-block;
+  min-width: 72px;
+  height: 1.4em;
+  border-bottom: 1px solid var(--color-text);
+  vertical-align: baseline;
+}
+
+.ws-blank-wide {
+  min-width: 140px;
+}
+
+/* The write-in space for a cluster name inside an R(…) / len(…)
+ * label (fix round 1, R1). */
+.ws-blank-mini {
+  min-width: 40px;
+  height: 1.1em;
+}
+
+.ws-fill-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+  align-items: baseline;
+}
+
+.ws-sums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  align-items: baseline;
+}
+
+.ws-rules {
+  display: block;
+}
+
+.ws-rule {
+  display: block;
+  height: 2em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ws-sketch {
+  border: 1px dashed var(--color-text-muted);
+  border-radius: var(--radius-md);
+  height: 260px;
+  margin: var(--space-8) 0;
+}
+
+.ws-clusters {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+}
+
+/* ---- Link + QR ---- */
+
+.ws-linkblock {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-16);
+  margin: var(--space-8) 0;
+}
+
+.ws-qr {
+  width: 120px;
+  height: 120px;
+  flex: none;
+}
+
+.ws-link-text {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  margin: 0;
+}
+
+.ws-link-note {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+}
+
+/* ---- Companion sheet / key ---- */
+
+.ws-items {
+  padding-left: var(--space-24);
+}
+
+.ws-item {
+  margin-bottom: var(--space-16);
+}
+
+.ws-question {
+  margin: 0 0 var(--space-4);
+}
+
+.ws-item-tag {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+}
+
+.ws-answer {
+  color: var(--color-text-h);
+  font-weight: 600;
+  margin: var(--space-4) 0 0;
+}
+
+.ws-caption {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.ws-rest {
+  padding-left: var(--space-24);
+}
+
+.ws-rest li {
+  margin-bottom: var(--space-4);
+}
+
+.ws-mistakes li {
+  margin-bottom: var(--space-4);
+}
+
+/* ---- Instructor gate ---- */
+
+.ws-gate {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+  max-width: min(460px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: var(--space-24);
+}
+
+.ws-gate h2 {
+  font-size: var(--size-lg);
+  margin: 0 0 var(--space-8);
+}
+
+.ws-gate-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-top: var(--space-16);
+}
+
+.ws-gate-actions button {
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+  font-size: var(--size-base);
+  padding: var(--space-8) var(--space-16);
+}
+
+/* Touch: every link/button on the new pages meets the 40×40 target
+ * under a coarse pointer (Task 11 notes). */
+@media (pointer: coarse) {
+  .ws-page a,
+  .ws-page button,
+  .ws-gate a,
+  .ws-gate-actions button {
+    align-items: center;
+    display: inline-flex;
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+@media print {
+  /* The whole matrix grid prints — the screen-only scroll region
+   * must not clip it on paper (same rule the lab settings table
+   * gets). */
+  .ws-matrix-scroll {
+    overflow: visible;
+  }
+
+  /* The QR is a print artifact; the screen-only nav is already
+   * hidden by labs.css's .lab-nav rule. */
+  .ws-page section {
+    break-inside: avoid-page;
+  }
+}
