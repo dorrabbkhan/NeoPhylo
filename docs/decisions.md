@@ -7331,3 +7331,16 @@ Owner-requested rendering fixes after the PR #139 review; branch
   reads/writes in render. Semantics are identical: a round-tripped
   emit serializes equal and never reseeds; a new committed value
   reseeds; a null echo leaves the draft alone.
+- **Baselines regenerated again for the side-by-side import tabs
+  (same 10 frames, owner's option A, conductor's call):**
+  dataset-sheet-1920x1080-light, dataset-sheet-1920x1080-dark,
+  gap-partial-1920x1080-light, gap-partial-1920x1080-dark,
+  gap-partial-1024x768-light, gap-partial-1024x768-dark,
+  gap-partial-768x1024-light, gap-partial-768x1024-dark,
+  pair-panel-removed-1920x1080-light,
+  pair-panel-removed-1920x1080-dark.
+- **Existing tests edited mechanically (no expectation changed):**
+  `.import-panel input[type=file]` → `.import-file input[type=file]`
+  in a11y/alphabet/gaps/meg/pair-panel/perf-protein/theme specs;
+  App.bootstrap/lessons/sandbox/url tests await the lazy ImportPanel
+  (`findBy…`).
