@@ -17,7 +17,7 @@ async function openSandboxWithGaps(page: import("@playwright/test").Page) {
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
   await page
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(JC8_GAPS);
   await expect(page.locator(".gap-count")).toContainText("0 of 500");
 }
@@ -123,7 +123,7 @@ test("under (pointer: coarse) the gap radios and the number inputs are ≥40×40
   await page.getByRole("button", { name: "Settings" }).click();
   const dlg = page.getByRole("dialog", { name: "Settings" });
   await dlg
-    .locator('.import-panel input[type="file"]')
+    .locator('.import-file input[type="file"]')
     .setInputFiles(JC8_GAPS);
   await dlg.getByRole("radio", { name: "Partial deletion" }).click();
 

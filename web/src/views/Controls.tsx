@@ -234,6 +234,11 @@ export function Controls({
 
   return (
     <div className="controls">
+      {/* A matrix session has no sequences: the Simulation section and
+          the correction menu collapse to nothing (the single
+          replacement line lives beside them in App) — v1.4c spec §6.2. */}
+      {alignmentOrigin !== "matrix" && (
+      <>
       <h2>Simulation</h2>
       {alignmentOrigin !== "simulated" ? (
         <p className="sim-real">
@@ -317,8 +322,11 @@ export function Controls({
       </div>
         </>
       )}
+      </>
+      )}
 
       <h2>Analysis</h2>
+      {alignmentOrigin !== "matrix" && (
       <label className="field">
         <span>Correction</span>
         <select
@@ -351,7 +359,9 @@ export function Controls({
           )}
         </select>
       </label>
-      {typeof analysis.correction === "object" && (
+      )}
+      {alignmentOrigin !== "matrix" &&
+        typeof analysis.correction === "object" && (
         <NumberField
           label="Ratio (κ)"
           value={k2pRatio}

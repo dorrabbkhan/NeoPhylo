@@ -7,11 +7,13 @@
 // distance matrix as neighbor-readable PHYLIP, and the equivalent R
 // script (with a boot.phylo block once a run has finished).
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { engine } from "../engine/index";
 import { errorMessage } from "../explain/errors";
+import { download } from "../export/download";
 import type { Alignment } from "../engine/generated/Alignment";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { DistanceMatrix } from "../engine/generated/DistanceMatrix";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
@@ -29,6 +31,13 @@ export interface ExportMenuProps {
   clampNegative: boolean;
   /** The session's current leaf distance matrix (spec §5.6 export). */
   matrix: DistanceMatrix | null;
+  /** The typed/imported matrix in a matrix session (v1.4c spec §6.3):
+   * drives "Matrix (.meg)" and the matrix R script. */
+  matrixInput?: DistanceInput | null;
+  /** True while the session runs on a supplied matrix: the alignment
+   * exports (FASTA/.meg alignment) are not offered and the data items
+   * write the matrix (v1.4c spec §6.3). */
+  matrixSession?: boolean;
   /** Which drawing `tree` is (v1.2 spec §6.7-6.8, checkpoint 15):
    * the tree items name it — "rooted": the rerooted reference
    * outgroup view ("Newick (rooted on wheat)"); "computed": the
@@ -61,16 +70,6 @@ export interface ExportMenuProps {
   title?: string;
 }
 
-/** Trigger a browser download of `content` under `filename`. */
-function download(filename: string, blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** Build the two-column name-map CSV, quoting fields containing
  * `"`, `,` or newlines. */
 function nameMapCsv(pairs: [string, string][]): string {
@@ -91,6 +90,15 @@ export type TreeViewState =
   | { kind: "computed" }
   | { kind: "plain" };
 
+// Matrix sessions (v1.4c Task 8 fix round 1, initial-JS budget): the
+// three matrix-only items are a lazy chunk — they ship only while a
+// matrix session renders the menu.
+const MatrixExportItems = lazy(() =>
+  import("./matrix/MatrixExportItems").then((m) => ({
+    default: m.MatrixExportItems,
+  })),
+);
+
 export function ExportMenu({
   tree,
   alignment,
@@ -98,6 +106,8 @@ export function ExportMenu({
   method,
   clampNegative,
   matrix,
+  matrixInput = null,
+  matrixSession = false,
   treeView,
   consensusTree,
   figure,
@@ -308,36 +318,54 @@ export function ExportMenu({
         <button type="button" disabled={tree === null} onClick={onNewick}>
           {treeLabel("Newick")}
         </button>
-        <button
-          type="button"
-          disabled={consensusTree === null}
-          onClick={onConsensus}
-        >
-          {viewSuffix === null
-            ? "Consensus (Newick)"
-            : `Consensus (Newick, ${viewSuffix})`}
-        </button>
-        <button
-          type="button"
-          disabled={alignment === null}
-          onClick={() => void onR()}
-        >
-          R script
-        </button>
-        <button
-          type="button"
-          disabled={matrix === null}
-          onClick={() => void onPhylip()}
-        >
-          Distance matrix (PHYLIP)
-        </button>
-        <button
-          type="button"
-          disabled={alignment === null}
-          onClick={() => void onMeg()}
-        >
-          Alignment (.meg)
-        </button>
+        {matrixSession ? (
+          <Suspense fallback={null}>
+            {/* No alignment exports in a matrix session — no FASTA,
+                no alignment .meg, no consensus (v1.4c spec §6.3). */}
+            <MatrixExportItems
+              matrix={matrix}
+              matrixInput={matrixInput}
+              method={method}
+              title={title}
+              onMegNote={setMegNote}
+              onMegError={setMegError}
+              onPhylipNote={setPhylipNote}
+            />
+          </Suspense>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={consensusTree === null}
+              onClick={onConsensus}
+            >
+              {viewSuffix === null
+                ? "Consensus (Newick)"
+                : `Consensus (Newick, ${viewSuffix})`}
+            </button>
+            <button
+              type="button"
+              disabled={alignment === null}
+              onClick={() => void onR()}
+            >
+              R script
+            </button>
+            <button
+              type="button"
+              disabled={matrix === null}
+              onClick={() => void onPhylip()}
+            >
+              Distance matrix (PHYLIP)
+            </button>
+            <button
+              type="button"
+              disabled={alignment === null}
+              onClick={() => void onMeg()}
+            >
+              Alignment (.meg)
+            </button>
+          </>
+        )}
       </div>
       <label className="export-theme-match">
         <input

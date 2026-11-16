@@ -126,9 +126,12 @@ describe("Lessons menu in the header", () => {
     render(<App />);
     await screen.findByRole("img", { name: "Inferred tree" });
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    fireEvent.change(screen.getByLabelText("Paste sequences or a tree"), {
-      target: { value: ">p1\nMKVL\n>p2\nMKIL\n>p3\nMRVL\n>p4\nMKVA" },
-    });
+    fireEvent.change(
+      await screen.findByLabelText("Paste sequences or a tree"),
+      {
+        target: { value: ">p1\nMKVL\n>p2\nMKIL\n>p3\nMRVL\n>p4\nMKVA" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     // The protein import switched the correction to JTT with a notice.
     await screen.findByText(/Switched correction to JTT/);

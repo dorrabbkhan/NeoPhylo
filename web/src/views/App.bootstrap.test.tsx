@@ -471,8 +471,9 @@ describe("reference rooting display (spec §6.7)", () => {
   }
 
   /** Sandbox: import the Newick reference, then the matching FASTA. */
-  function importReferenceThenAlignment(newick: string) {
-    const box = screen.getByLabelText("Paste sequences or a tree");
+  async function importReferenceThenAlignment(newick: string) {
+    // The import panel is a lazy chunk (v1.4c fix round 1) — findBy.
+    const box = await screen.findByLabelText("Paste sequences or a tree");
     fireEvent.change(box, { target: { value: newick } });
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     fireEvent.change(box, { target: { value: SIXTY_FASTA } });
@@ -498,7 +499,7 @@ describe("reference rooting display (spec §6.7)", () => {
     render(<App exercise={NJ_BASICS} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    importReferenceThenAlignment(newick);
+    await importReferenceThenAlignment(newick);
 
     // No stepper above 50 taxa — the tree is final as soon as it
     // exists, and it is drawn rerooted on the reference's outgroup.
@@ -556,7 +557,7 @@ describe("reference rooting display (spec §6.7)", () => {
     render(<App exercise={makeExercise(TREE5, "Upgma")} />);
     await screen.findByRole("img", { name: "Inferred tree" });
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    importReferenceThenAlignment(sixtyTaxonReference(og));
+    await importReferenceThenAlignment(sixtyTaxonReference(og));
 
     // The drawn tree is the computed UPGMA tree itself — no extra
     // degree-2 root, and no reroot caption at all.

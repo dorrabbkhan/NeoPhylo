@@ -68,7 +68,7 @@ test(
     // the wait is on the grid's svg label, not 40,000 cells.
     const t0 = Date.now();
     await page
-      .locator('.import-panel input[type="file"]')
+      .locator('.import-file input[type="file"]')
       .setInputFiles({
         name: "perf.fasta",
         mimeType: "text/plain",

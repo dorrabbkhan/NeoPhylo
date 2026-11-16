@@ -17,7 +17,9 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine/index";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
+import { errorMessage } from "../explain/errors";
 import type { Session } from "../state/session";
 import { initialSession, reducer } from "../state/session";
 import { App } from "./App";
@@ -108,7 +110,10 @@ describe("ImportPanel — visibility", () => {
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,
     ).toBe(true);
     fireEvent.click(screen.getByRole("radio", { name: "Sandbox" }));
-    expect(screen.getByLabelText("Paste sequences or a tree")).toBeTruthy();
+    // The panel is a lazy chunk (v1.4c fix round 1) — findBy, not getBy.
+    expect(
+      await screen.findByLabelText("Paste sequences or a tree"),
+    ).toBeTruthy();
     expect(
       (screen.getByLabelText("Simulation model") as HTMLSelectElement).disabled,
     ).toBe(false);
@@ -318,7 +323,7 @@ describe("ImportPanel — file input", () => {
     expect(holder.s.alignmentName).toBeNull();
   });
 
-  it("a .meg refusal doesn't leak its name into a later paste", async () => {
+  it("a .meg matrix route doesn't leak its name into a later paste", async () => {
     const matrix = readFileSync(
       resolve(
         process.cwd(),
@@ -331,10 +336,13 @@ describe("ImportPanel — file input", () => {
     fireEvent.change(input, {
       target: { files: [new File([matrix], "matrix.meg")] },
     });
+    // The matrix .meg routes to the matrix parser (v1.4c Task 8):
+    // its own message shows — the alignment refusal notice is gone —
+    // and no alignment import happened, so no name can leak.
     await waitFor(() =>
-      expect(
-        screen.getByText(/holds a distance matrix; open it as a distance matrix/),
-      ).toBeTruthy(),
+      expect(screen.getByRole("alert").textContent).toContain(
+        "expected 1 matrix rows",
+      ),
     );
     paste(">a\nACGT\n>b\nACGA\n>c\nACGG\n");
     expect(holder.s.alignment?.labels).toEqual(["a", "b", "c"]);
@@ -455,6 +463,25 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
     "%s gives the parser's result or its line-numbered error",
     (name) => {
       const text = readFileSync(resolve(MEG_DIR, name), "utf8");
+      // A matrix .meg routes to the matrix parser (v1.4c Task 8):
+      // a valid one starts a matrix session, an invalid one shows
+      // the matrix error — never the alignment parser's refusal.
+      const det = engine.detectMatrixFormat(text);
+      if (det.ok && det.value === "Meg") {
+        const m = engine.parseMegMatrix(text);
+        const holder = renderPanel(sandbox(NJ_BASICS));
+        paste(text);
+        if (m.ok) {
+          expect(holder.s.alignmentOrigin).toBe("matrix");
+          expect(holder.s.matrixInput).toEqual(m.value.matrix);
+        } else {
+          const em = errorMessage(m.error);
+          expect(
+            screen.getByRole("alert").textContent,
+          ).toContain(em.title);
+        }
+        return;
+      }
       const expected = engine.parseMeg(text);
       const holder = renderPanel(sandbox(NJ_BASICS));
       paste(text);
@@ -463,16 +490,9 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
           expected.value.alignment.labels,
         );
       } else if (expected.error.kind === "Parse") {
-        // The matrix refusal is a notice, not an error line.
-        if (expected.error.msg.startsWith("this .meg file holds a distance matrix")) {
-          expect(
-            screen.getByText(/holds a distance matrix; open it as a distance matrix/),
-          ).toBeTruthy();
-        } else {
-          expect(
-            document.querySelector(".import-panel .error")?.textContent,
-          ).toContain(`line ${expected.error.line}`);
-        }
+        expect(
+          document.querySelector(".import-panel .error")?.textContent,
+        ).toContain(`line ${expected.error.line}`);
       }
     },
   );
@@ -543,5 +563,143 @@ describe("ImportPanel — .meg (v1.4b Task 11)", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Open dataset/ }));
     expect(onOpenDatasets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ImportPanel — the tab strip (v1.4c fix round 1)", () => {
+  const SEQ = "Sequences or tree";
+  const MATRIX = "Distance matrix";
+  const tab = (name: string) => screen.getByRole("tab", { name });
+
+  /** A sandbox session already running on a distance matrix. */
+  function matrixSandbox(input: DistanceInput): Session {
+    return reducer(sandbox(NJ_BASICS), {
+      type: "importMatrix",
+      input,
+      name: "m.phy",
+    });
+  }
+
+  it("is a full ARIA tabs pattern: aria-controls ↔ aria-labelledby, roving tabindex", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    expect(
+      screen.getByRole("tablist", { name: "Import kind" }),
+    ).toBeTruthy();
+    // Only the selected tab is in the Tab order.
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    expect(tab(SEQ).tabIndex).toBe(0);
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("false");
+    expect(tab(MATRIX).tabIndex).toBe(-1);
+    // Each tab names its panel; each panel names its tab.
+    for (const name of [SEQ, MATRIX]) {
+      const t = tab(name);
+      const panel = document.getElementById(
+        t.getAttribute("aria-controls") as string,
+      );
+      expect(panel?.getAttribute("role")).toBe("tabpanel");
+      expect(panel?.getAttribute("aria-labelledby")).toBe(t.id);
+    }
+  });
+
+  it("Arrow keys move selection AND focus; Home/End go to the ends", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    tab(SEQ).focus();
+    fireEvent.keyDown(tab(SEQ), { key: "ArrowRight" });
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab(MATRIX));
+    expect(tab(SEQ).tabIndex).toBe(-1);
+    expect(tab(MATRIX).tabIndex).toBe(0);
+    // Right on the last tab wraps to the first.
+    fireEvent.keyDown(tab(MATRIX), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tab(SEQ));
+    // Left on the first wraps to the last.
+    fireEvent.keyDown(tab(SEQ), { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(tab(MATRIX));
+    fireEvent.keyDown(tab(MATRIX), { key: "Home" });
+    expect(document.activeElement).toBe(tab(SEQ));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(tab(SEQ), { key: "End" });
+    expect(document.activeElement).toBe(tab(MATRIX));
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a matrix session selects the Distance matrix tab by default", () => {
+    renderPanel(
+      matrixSandbox({
+        names: ["a", "b", "c", "d", "e"],
+        lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
+      }),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("a matrix import mid-session re-selects the Distance matrix tab", () => {
+    renderPanel(sandbox(NJ_BASICS));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // A PHYLIP matrix paste routes to the matrix parsers and flips the
+    // session's origin — the strip follows.
+    paste("5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n");
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a matrix file opened from the Sequences tab mounts the matrix panel AND its grid (fix round 2)", async () => {
+    const holder = renderPanel(sandbox(NJ_BASICS));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // The bug this round fixes: the origin change re-selected the tab
+    // but matrixOpened stayed false, so the tabpanel rendered EMPTY.
+    const input = screen.getByLabelText(/choose a file/i);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(
+            ["5\na\nb  5\nc  9  10\nd  9  10  8\ne  8  9  7  3\n"],
+            "wiki5_lower.phy",
+          ),
+        ],
+      },
+    });
+    await waitFor(() =>
+      expect(holder.s.alignmentOrigin).toBe("matrix"),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    // The panel's content is mounted: the grid sheet opens with the
+    // imported names and values (the lazy chunk needs findBy).
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Type a matrix…" }),
+    );
+    for (const [i, n] of ["a", "b", "c", "d", "e"].entries()) {
+      expect(
+        await screen.findByLabelText(`Taxon ${i + 1} name`),
+      ).toHaveProperty("value", n);
+    }
+    expect(
+      screen.getByLabelText("Distance between e and d"),
+    ).toHaveProperty("value", "3");
+    expect(
+      screen.getByLabelText("Distance between b and a"),
+    ).toHaveProperty("value", "5");
+  });
+
+  it("a manual 'Sequences or tree' pick survives re-renders in a matrix session", () => {
+    renderPanel(
+      matrixSandbox({
+        names: ["a", "b", "c", "d", "e"],
+        lower: [5, 9, 10, 9, 10, 8, 8, 9, 7, 3],
+      }),
+    );
+    expect(tab(MATRIX).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(tab(SEQ));
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    // A local-state re-render (typing in the box) and a session
+    // re-render (a same-origin matrix re-paste) must not snap the
+    // strip back — the origin never changed.
+    fireEvent.change(
+      screen.getByLabelText("Paste sequences or a tree"),
+      { target: { value: ">a\nAC" } },
+    );
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
+    paste("3\nx\ny  1\nz  2  3\n");
+    expect(tab(SEQ).getAttribute("aria-selected")).toBe("true");
   });
 });

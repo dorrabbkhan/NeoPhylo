@@ -10,6 +10,7 @@
 // matches the engine's.
 
 import type { Alignment } from "../engine/generated/Alignment";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { DistModel } from "../engine/generated/DistModel";
 import type { Method } from "../engine/generated/Method";
 
@@ -256,4 +257,34 @@ if (inherits(tree, "error")) {
 write.table(format(m, digits = 15), file = stdout(), sep = " ",
             row.names = FALSE, col.names = FALSE, quote = FALSE)
 ${boot}`;
+}
+
+/**
+ * The equivalent analysis as an R script for a matrix session (v1.4c
+ * spec §6.3): the full square matrix is written inline and the tree
+ * comes from `ape::nj(as.dist(m))` or `phangorn::upgma(as.dist(m))` —
+ * no alignment, so no dist.* call and no bootstrap. Numbers are
+ * JavaScript's shortest round-trip (`String(x)`), the only TS-side
+ * formatting the plan allows.
+ */
+export function exportMatrixR(input: DistanceInput, method: Method): string {
+  const n = input.names.length;
+  const at = (i: number, j: number) =>
+    i === j
+      ? 0
+      : i > j
+        ? input.lower[(i * (i - 1)) / 2 + j]
+        : input.lower[(j * (j - 1)) / 2 + i];
+  const rows = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => String(at(i, j))).join(","),
+  );
+  const names = input.names.map((l) => `"${escapeR(l)}"`).join(",");
+  const build = method === "Upgma" ? "phangorn::upgma" : "ape::nj";
+  return `# NeoPhylo export — reproduce this analysis in R (ape / phangorn)
+m <- matrix(c(
+${rows.join(",\n")}), nrow = ${n}, byrow = TRUE)
+dimnames(m) <- list(c(${names}), c(${names}))
+tree <- ${build}(as.dist(m))
+cat(ape::write.tree(tree), "\\n")
+`;
 }

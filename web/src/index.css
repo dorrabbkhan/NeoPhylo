@@ -1066,6 +1066,27 @@ button:disabled {
   background: var(--color-accent-bg);
 }
 
+/* ---- Import kind tabs (v1.4c Task 8) ---- */
+
+.import-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The two tabs share one row whenever they fit (the 320 px Settings
+ * drawer included); flex-wrap lets them stack only when a row can't
+ * hold both. */
+.import-tabs [role="tab"] {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.import-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-bg);
+}
+
 /* ---- Guided-lesson prompts (spec §6.2, Task 21) ---- */
 
 .prompts {

@@ -169,3 +169,119 @@ test("320×640: the lab index never scrolls sideways", async ({ page }) => {
   await expect(page.locator(".lab-card").first()).toBeVisible();
   await expectNoSidewaysScroll(page, 320, "the lab index at 320 px");
 });
+
+/* ---- v1.4c Task 8: the matrix UI under a coarse pointer ---- */
+
+test("375×812 coarse pointer: every matrix control is ≥40×40 and the page never scrolls sideways", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  // At 375 px the import panel sits in the Settings drawer.
+  await page.getByRole("button", { name: "Settings" }).click();
+  const dlg = page.getByRole("dialog", { name: "Settings" });
+  await dlg.getByRole("tab", { name: "Distance matrix" }).click();
+
+  const controls = dlg.locator(
+    ".import-panel a, .import-panel button, .import-panel input, " +
+      ".import-panel [role=tab]",
+  );
+  const count = await controls.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i += 1) {
+    const control = controls.nth(i);
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    if (box === null) continue;
+    const label =
+      (await control.getAttribute("aria-label")) ??
+      (await control.innerText().catch(() => "")).slice(0, 40) ??
+      `control ${i}`;
+    expect(
+      box.width,
+      `matrix UI: "${label}" at least 40 px wide (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box.height,
+      `matrix UI: "${label}" at least 40 px tall (got ${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+
+  // The typing grid lives in the "Type a matrix…" sheet (fix round 2)
+  // — full-screen at this width. Its cells keep the same 40 px floor.
+  const grid = dlg.locator(".matrix-import");
+  await grid.getByRole("button", { name: "Type a matrix…" }).click();
+  const sheet = page.getByRole("dialog", { name: "Distance matrix" });
+  await expect(sheet).toBeVisible();
+  const sheetControls = sheet.locator(
+    "button, input, select, a, [tabindex='0']",
+  );
+  for (let i = 0; i < (await sheetControls.count()); i += 1) {
+    const control = sheetControls.nth(i);
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    if (box === null) continue;
+    const label =
+      (await control.getAttribute("aria-label")) ??
+      (await control.innerText().catch(() => "")).slice(0, 40) ??
+      `control ${i}`;
+    expect(
+      box.width,
+      `matrix sheet: "${label}" ≥40 px wide (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box.height,
+      `matrix sheet: "${label}" ≥40 px tall (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+
+  // Ten taxa: the sheet itself fits the viewport; the table scrolls
+  // inside its own region, never the page.
+  for (let k = 0; k < 5; k += 1) {
+    await sheet.getByRole("button", { name: "Add taxon" }).click();
+  }
+  await expect(sheet.getByLabel("Taxon 10 name")).toBeVisible();
+  const sheetBox = await sheet.boundingBox();
+  expect(sheetBox).not.toBeNull();
+  expect(sheetBox!.x).toBeGreaterThanOrEqual(-0.5);
+  expect(sheetBox!.x + sheetBox!.width).toBeLessThanOrEqual(NARROW.w + 0.5);
+  await expectNoSidewaysScroll(page, NARROW.w, "the matrix grid at 375 px");
+
+  // The matrix session's own export items keep the same floor.
+  for (const n of ["B", "C", "D", "E", "F", "G", "H", "I", "J"]) {
+    await grid.getByLabel(`Distance between ${n} and A`).fill("1");
+  }
+  for (const [r, c] of [
+    ["C", "B"], ["D", "B"], ["D", "C"], ["E", "B"], ["E", "C"], ["E", "D"],
+    ["F", "B"], ["F", "C"], ["F", "D"], ["F", "E"],
+    ["G", "B"], ["G", "C"], ["G", "D"], ["G", "E"], ["G", "F"],
+    ["H", "B"], ["H", "C"], ["H", "D"], ["H", "E"], ["H", "F"], ["H", "G"],
+    ["I", "B"], ["I", "C"], ["I", "D"], ["I", "E"], ["I", "F"], ["I", "G"], ["I", "H"],
+    ["J", "B"], ["J", "C"], ["J", "D"], ["J", "E"], ["J", "F"], ["J", "G"], ["J", "H"], ["J", "I"],
+  ] as const) {
+    await grid.getByLabel(`Distance between ${r} and ${c}`).fill("2");
+  }
+  await grid.getByRole("button", { name: "Build tree" }).click();
+  await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
+  await expectNoSidewaysScroll(page, NARROW.w, "a matrix session at 375 px");
+  // Close the sheet — it covers the Settings drawer's export strip.
+  await page.keyboard.press("Escape");
+
+  const exports = dlg.locator(".export-menu a, .export-menu button");
+  for (let i = 0; i < (await exports.count()); i += 1) {
+    const control = exports.nth(i);
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    if (box === null) continue;
+    const label = (await control.innerText().catch(() => "")).slice(0, 40);
+    expect(
+      box.height,
+      `matrix export "${label}" at least 40 px tall`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+
+  // 768 px: the whole matrix session again, no sideways scroll.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expectNoSidewaysScroll(page, 768, "a matrix session at 768 px");
+});

@@ -7242,3 +7242,160 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **`editMatrix(null)` writes no matrix to the link (builder's
   call):** the restore lands on the exercise's own data while the
   screen shows an empty grid; Task 8 owns grid drafts.
+
+## v1.4c Task 8: matrix import UI, matrix sessions, exports
+
+- **Changed existing assertions (conductor's call, v1.4c Task 8
+  notes):** the two places allowed, both now assert the matrix route —
+  `web/e2e/meg.spec.ts` "ignored commands and a matrix file show
+  notices" expects the matrix parser's "expected 1 matrix rows for 2
+  taxa, got 2" instead of the old "holds a distance matrix" refusal
+  notice, and `web/src/views/ImportPanel.test.tsx` got the same change
+  in its ".meg refusal doesn't leak its name" case plus the parametric
+  `.meg` test (a detected matrix `.meg` asserts a matrix session or
+  the matrix error; the refusal-notice branch is gone). No other
+  existing assertion changed.
+- **Files outside the Files block:** `web/src/index.css` (the
+  `.import-tabs` tab strip styles — the tabs are import-panel chrome,
+  not matrix CSS); `web/src/views/matrix/matrix.css` (grid/import
+  styling, beside the new components); `web/e2e/meg.spec.ts` (the
+  conductor-authorized assertion change);
+  `web/src/views/App.matrix.test.tsx` (the new App smoke tests beside
+  App); `web/src/views/ImportPanel.test.tsx` (the authorized
+  assertion changes, beside ImportPanel); `web/src/export/rscript.test.ts`
+  (the matrix R-script pins, beside rscript.ts);
+  `web/e2e/__screenshots__/matrix-*.png` — the 12 new baselines the
+  plan's Step 4 sanctions.
+- **All matrix-only code lazy-loads (conductor's call, v1.4c Task 8
+  notes):** `MatrixImport` (which pulls `MatrixGrid`, the question UI
+  and `matrix.css`) is a `React.lazy` chunk from `ImportPanel`, and
+  `exportMatrixR`, `megMatrix` and the PHYLIP matrix writer are
+  dynamic imports inside the export handlers — the initial-JS budget
+  keeps its headroom; no existing component had to be deferred.
+  (Fix round 1 then deferred `ImportPanel` itself — see below.)
+- **Grid commit model (builder's call):** the grid emits on every
+  committed edit — `editMatrix` in a matrix session, a local draft
+  elsewhere — and only its "Build tree" button turns a draft into
+  `importMatrix`. Raw cell text is kept per cell so half-typed input
+  is never clobbered by a reseed; `onChange(null)` for an incomplete
+  or invalid grid writes nothing to the link, so a reload of an
+  incomplete grid shows the exercise's (or last committed) matrix
+  reseeded into the grid, not the draft.
+- **Ambiguity loop cap = 3 (conductor's call, v1.4c Task 8 notes):**
+  questions chain (header before name column) and each is answered
+  with one click; after three answers the UI shows "couldn't settle
+  the matrix layout" rather than guessing.
+- **`!Title`/filename precedence (builder's call):** the matrix
+  session's display name is `file.title ?? <picked filename minus
+  extension>`; a pasted matrix has no name.
+- **Square-name mode is Auto (conductor's call, v1.4c Task 8
+  notes):** the matrix UI passes `names: "Auto"` to
+  `parsePhylipMatrix` — the strict/relaxed choice stays in the
+  alignment import's hands.
+- **No grid draft on the link (Task 7 decision, confirmed):**
+  `editMatrix(null)` emits `imported` with no matrix, so reload lands
+  on the exercise's own matrix while the screen reseeds it.
+- Baselines regenerated for the import-panel tabs (owner decision
+  relayed by the conductor, PR #154, option A):
+  dataset-sheet-1920x1080-light, dataset-sheet-1920x1080-dark,
+  gap-partial-1920x1080-light, gap-partial-1920x1080-dark,
+  gap-partial-1024x768-light, gap-partial-1024x768-dark,
+  gap-partial-768x1024-light, gap-partial-768x1024-dark,
+  pair-panel-removed-1920x1080-light,
+  pair-panel-removed-1920x1080-dark.
+
+### Fix round 1
+
+- **ImportPanel is a lazy chunk now (builder's call):** the measured
+  initial JS was 121,157 B gz, 989 over the 120,168 budget. The
+  matrix-only moves — `MatrixSession` (the §6.2 line and the
+  empty-tree reason, fetched only inside a matrix session) and
+  `MatrixExportItems` (the three matrix export items, fetched only
+  while a matrix session renders the menu) — plus the tab-pattern
+  rework left the entry chunk over; `ImportPanel` is sandbox-only UI,
+  so it rides the standing lazy-sheet precedent (v1.3 Task 14 /
+  v1.4b) and is fetched on a sandbox session's first render, not
+  with the app. Result: 119,134 B gz. No other existing component
+  was deferred.
+- **Files outside the Files block (fix round 1):**
+  `web/src/export/download.ts` — the blob-download helper, shared by
+  `ExportMenu` and the lazy `MatrixExportItems` instead of a private
+  copy; `web/src/views/matrix/MatrixExportItems.tsx` and
+  `web/src/views/matrix/MatrixSession.tsx` — the two new lazy matrix
+  chunks; `web/src/views/matrix/MatrixImport.test.tsx` — the
+  `parse_pasted_matrix` engine pin; `web/e2e/matrix.spec.ts` and
+  `web/e2e/visualScenes.ts` — the new checks and the scene fix.
+- **MatrixGrid's reseed bookkeeping is state, not a ref (review fix
+  1):** `emittedKey` became state following the documented "adjust
+  state during render" pattern — `react-hooks/refs` forbids ref
+  reads/writes in render. Semantics are identical: a round-tripped
+  emit serializes equal and never reseeds; a new committed value
+  reseeds; a null echo leaves the draft alone.
+- **Baselines regenerated again for the reworked import tabs
+  (same 10 frames, owner's option A, conductor's call):**
+  dataset-sheet-1920x1080-light, dataset-sheet-1920x1080-dark,
+  gap-partial-1920x1080-light, gap-partial-1920x1080-dark,
+  gap-partial-1024x768-light, gap-partial-1024x768-dark,
+  gap-partial-768x1024-light, gap-partial-768x1024-dark,
+  pair-panel-removed-1920x1080-light,
+  pair-panel-removed-1920x1080-dark.
+  (Correction, fix round 2: this bullet said "side-by-side" — wrong.
+  The tabs have always stacked one per row, full-width, in the
+  320 px drawer and the sidebar; `flex: 1 1 auto` wraps them. No
+  tab CSS or import-section layout changed in fix round 2.)
+- **Existing tests edited mechanically (no expectation changed):**
+  `.import-panel input[type=file]` → `.import-file input[type=file]`
+  in a11y/alphabet/gaps/meg/pair-panel/perf-protein/theme specs;
+  App.bootstrap/lessons/sandbox/url tests await the lazy ImportPanel
+  (`findBy…`).
+
+### Fix round 2
+
+- **The matrix tabpanel mounts whenever the tab is selected (review
+  fix A):** the origin-change effect selects the matrix tab when a
+  file/paste import lands a matrix session, but `matrixOpened` only
+  tracked clicks — the selected tabpanel rendered empty. The panel
+  now renders `MatrixImport` whenever `tab === "matrix"` however it
+  was selected (click, keyboard, origin change, initial render, URL
+  restore).
+- **The typing grid moved into a `Sheet` (builder's call — the
+  conductor's recommended option):** a 5-taxon table cannot fit the
+  200–282 px import column or the 320 px drawer at any viewport, so
+  the tab keeps file + paste and gains a "Type a matrix…" button
+  that opens the grid in the shared `Sheet` component
+  (`MatrixGridSheet`, a lazy chunk inside the already-lazy
+  `MatrixImport`, `width: min(760px, calc(100vw - 32px))` — 10 taxa
+  fit without horizontal scrolling at 1920×1080, 1024×768 and
+  768×1024; wider grids scroll inside the grid's own region). The
+  sheet stays mounted once opened (`hidden` while closed) because
+  the draft lives only in grid state — an unmount would destroy it.
+- **One remove control (builder's call — conductor's first
+  suggestion):** a per-row Remove button widened every row; the
+  actions row now carries a `Taxon to remove` select plus one
+  `Remove taxon` button, no per-row control.
+- **Grid commit model, take 2 (review fixes B+C):** every cell,
+  name or taxon change emits `onChange(null)` — in a matrix session
+  `editMatrix(null)` drops the session's matrix, tree and stepper to
+  "complete the matrix" — and only Build tree emits the finished
+  `DistanceInput` (`editMatrix` in a session, `importMatrix` outside
+  one). The old "emit the complete input on every keystroke" model
+  rebuilt the tree on each edit, so the rebuild hint could never be
+  true. This supersedes the earlier "Grid commit model" bullet.
+- **The rebuild hint only names a real drift (review fix C):** the
+  grid remembers the last matrix it committed or was seeded with;
+  "The matrix changed — press Build tree to rebuild." shows exactly
+  while the on-screen draft differs from that matrix. The old
+  unconditional "Taxa changed — press Build tree to rebuild." is
+  gone — a fresh fill shows no hint.
+- **Files outside the Files block (fix round 2):**
+  `web/src/views/matrix/MatrixGridSheet.tsx` — the sheet host
+  (new); `web/e2e/visualScenes.ts` — the `matrix-grid` scene now
+  shoots the open sheet across the whole viewport instead of the
+  grid block element; `web/e2e/narrow.spec.ts` and
+  `web/e2e/a11y.spec.ts` — the coarse-pointer and axe checks follow
+  the grid into the sheet; `docs/decisions.md` — this entry.
+- **Baselines regenerated (only the 12 this PR adds, owner's
+  standing rule):** `matrix-grid-*` and `matrix-session-*` at all
+  three viewports × both themes — the scene changed shape (open
+  sheet instead of the inline grid block; the matrix tabpanel now
+  mounts its content on an origin-driven selection).

@@ -1,0 +1,204 @@
+/* Distance-matrix UI (v1.4c spec §6.1, §8.3). Loaded with the
+ * lazy matrix chunks — grid, paste form and ambiguity questions all
+ * live behind the Distance matrix tab. Tokens only; the grid scrolls
+ * inside its own container so the page itself never gains a
+ * horizontal scrollbar at narrow widths. */
+
+.matrix-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.matrix-route-label {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* The caption is a real, visible line and wraps inside whatever holds
+ * it — the 320 px Settings drawer included (fix round 1): only the
+ * table may overflow, inside its own named, focusable scroll region. */
+.matrix-caption {
+  margin: 0 0 var(--space-8);
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.matrix-grid-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.matrix-grid-wrap:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* The matrix session's replacement line and empty-tree reason —
+ * phylip-note's look (fix round 1, optional item). */
+.matrix-note {
+  margin-top: var(--space-8);
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+.matrix-empty {
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+/* The grid's sheet (fix round 2): a centered dialog wide enough for
+ * a 10-taxon table at every viewport — below 1024 px the shared
+ * sheet rule makes it full-screen, so only the padding varies. */
+.matrix-sheet {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  font-size: var(--size-sm);
+}
+
+.matrix-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: var(--space-8);
+}
+
+.matrix-sheet-head h2 {
+  margin: 0;
+  font-size: var(--size-lg);
+  color: var(--color-text-h);
+}
+
+.matrix-open-grid {
+  align-self: flex-start;
+}
+
+/* The one remove control: a name select + one button in the actions
+ * row, so no per-row button widens the table (fix round 2). */
+.matrix-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.matrix-remove select {
+  font-size: var(--size-xs);
+  font-family: var(--font-mono);
+  max-width: 16ch;
+}
+
+.matrix-grid {
+  border-collapse: collapse;
+  font-size: var(--size-xs);
+}
+
+.matrix-grid th,
+.matrix-grid td {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.matrix-grid th {
+  font-weight: 400;
+}
+
+.matrix-name,
+.matrix-cell {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  margin: 0;
+}
+
+.matrix-name {
+  width: 11ch;
+  font-weight: 600;
+}
+
+.matrix-cell {
+  width: 7ch;
+  text-align: right;
+}
+
+.matrix-cell[aria-invalid="true"],
+.matrix-name[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  background: var(--color-accent-bg);
+}
+
+.matrix-cell:focus-visible,
+.matrix-name:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -1px;
+}
+
+.matrix-grid-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.matrix-grid-status {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  min-height: 1em;
+}
+
+.matrix-grid-status p {
+  margin: var(--space-4) 0 0;
+}
+
+.matrix-grid-status .matrix-error {
+  color: var(--color-danger);
+}
+
+.matrix-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.matrix-question {
+  font-size: var(--size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-8);
+  background: var(--color-surface-2);
+}
+
+.matrix-question p {
+  margin: 0 0 var(--space-8);
+}
+
+.matrix-question .matrix-answers {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+/* Coarse pointers: every interactive element inside the matrix UI —
+ * cells, name inputs, the remove select, add/remove, Build tree,
+ * question answers, file link — keeps a ≥ 40×40 target (plan Task 8
+ * grid notes). Buttons are covered by the global coarse rule. */
+@media (pointer: coarse) {
+  .matrix-import input,
+  .matrix-import a,
+  .matrix-grid-block input,
+  .matrix-grid-block select {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

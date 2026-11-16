@@ -37,7 +37,7 @@ test.describe("alphabet badge", () => {
     await page.getByRole("radio", { name: "Sandbox" }).click();
 
     await page
-      .locator('.import-panel input[type="file"]')
+      .locator('.import-file input[type="file"]')
       .setInputFiles(P6_150);
 
     // Protein badge with the imported-data override, the correction

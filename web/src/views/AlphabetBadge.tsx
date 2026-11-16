@@ -35,16 +35,22 @@ export function AlphabetBadge({
   return (
     <div className="alphabet-badge">
       <span className="alphabet-badge-label">
-        {alphabet === "protein" ? "Protein · 20 amino acids" : "DNA"}
+        {alignmentOrigin === "matrix"
+          ? "Distance matrix"
+          : alphabet === "protein"
+            ? "Protein · 20 amino acids"
+            : "DNA"}
       </span>
-      {source === "sandbox" && alignmentOrigin !== "simulated" && (
-        <button
-          type="button"
-          onClick={() => dispatch({ type: "setAlphabet", alphabet: other })}
-        >
-          Treat as {other === "protein" ? "protein" : "DNA"}
-        </button>
-      )}
+      {source === "sandbox" &&
+        alignmentOrigin !== "simulated" &&
+        alignmentOrigin !== "matrix" && (
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "setAlphabet", alphabet: other })}
+          >
+            Treat as {other === "protein" ? "protein" : "DNA"}
+          </button>
+        )}
     </div>
   );
 }
