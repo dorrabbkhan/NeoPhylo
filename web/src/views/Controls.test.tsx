@@ -453,11 +453,28 @@ describe("Controls — exercise-prescribed v1.4 models", () => {
             analysis: ex.analysis,
             locked: ex.locked,
             alignmentOrigin:
-              ex.data.kind === "embedded" ? "embedded" : "simulated",
+              ex.data.kind === "embedded"
+                ? "embedded"
+                : ex.data.kind === "matrix"
+                  ? "matrix"
+                  : "simulated",
             alphabet: ex.alphabet,
           })}
         />,
       );
+      // A matrix exercise supplies distances directly: there is no
+      // simulation section and no correction menu to pin.
+      if (ex.data.kind === "matrix") {
+        expect(
+          screen.queryByLabelText("Simulation model"),
+          `${f}: sim menu`,
+        ).toBeNull();
+        expect(
+          screen.queryByLabelText("Distance correction"),
+          `${f}: correction menu`,
+        ).toBeNull();
+        continue;
+      }
       // No built-in prescribes F84/K2P_PHYLIP, so the menus are the
       // same option lists as before the v1.4 display fix.
       const simSelect = screen.queryByLabelText("Simulation model");

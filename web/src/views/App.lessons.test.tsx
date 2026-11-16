@@ -74,7 +74,7 @@ describe("Lessons menu in the header", () => {
     await screen.findByRole("img", { name: "Inferred tree" });
     openMenu();
     fireEvent.click(
-      screen.getAllByRole("menuitemradio")[1], // upgma-fails
+      screen.getAllByRole("menuitemradio")[2], // upgma-fails
     );
     await screen.findByText("When UPGMA fails: the molecular clock");
     await waitFor(() =>
@@ -98,7 +98,7 @@ describe("Lessons menu in the header", () => {
     await screen.findByText("Protein distances: when counting isn't enough");
 
     openMenu();
-    fireEvent.click(screen.getAllByRole("menuitemradio")[0]);
+    fireEvent.click(screen.getAllByRole("menuitemradio")[1]); // nj-basics
     await screen.findByText("How Neighbor-Joining works");
 
     const correction = screen.getByLabelText(
@@ -142,7 +142,7 @@ describe("Lessons menu in the header", () => {
 
     // Picking nj-basics confirms (imported data is cleared), then loads.
     openMenu();
-    fireEvent.click(screen.getAllByRole("menuitemradio")[0]);
+    fireEvent.click(screen.getAllByRole("menuitemradio")[1]); // nj-basics
     await screen.findByText("How Neighbor-Joining works");
     expect(confirmSpy).toHaveBeenCalledWith(
       "Leave sandbox? Your imported data will be cleared.",

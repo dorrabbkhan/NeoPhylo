@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "saturation",
   "title": "Saturation and distance correction",
   "summary": "When mutations pile up, raw distances mislead — corrections recover the tree.",
+  "meta": {
+    "objectives": [
+      "Explain how multiple substitutions hide in raw distances",
+      "Recognize when a distance correction breaks down and why",
+      "Choose between more data, shorter branches and a corrected distance"
+    ],
+    "minutes": 15,
+    "level": "intermediate",
+    "prepares_for": ["mega-jc69-vs-k2p"]
+  },
   "alphabet": "dna",
   "data": {
     "kind": "simulated",

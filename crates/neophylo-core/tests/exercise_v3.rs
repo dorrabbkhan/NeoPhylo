@@ -459,8 +459,13 @@ fn repo_exercises_v3_twins_load_identically() {
             include_str!("../../../exercises/upgma-fails.json"),
         ),
     ] {
-        let v2 = load_exercise(text).unwrap_or_else(|e| panic!("{name}: {e}"));
+        // v1.4c Task 10: the files are v5 now and carry `meta` — strip
+        // it and reload at v2 for the twin comparison; nothing else may
+        // differ.
         let mut doc: serde_json::Value = serde_json::from_str(text).unwrap();
+        doc.as_object_mut().unwrap().remove("meta");
+        doc["schema_version"] = serde_json::json!(2);
+        let v2 = load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("{name}: {e}"));
         doc["schema_version"] = serde_json::json!(3);
         let mut v3 =
             load_exercise(&doc.to_string()).unwrap_or_else(|e| panic!("{name} as v3: {e}"));

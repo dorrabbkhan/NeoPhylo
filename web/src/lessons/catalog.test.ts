@@ -19,8 +19,10 @@ const lessonFiles = () =>
     .sort();
 
 const ORDER = [
+  "nj-by-hand",
   "nj-basics",
   "upgma-fails",
+  "upgma-vs-nj-matrix",
   "saturation",
   "bootstrap-basics",
   "protein-models",

@@ -54,7 +54,7 @@ describe("LessonsMenu", () => {
     const onPick = vi.fn();
     render(<LessonsMenu currentId="nj-basics" onPick={onPick} />);
     fireEvent.click(menuButton());
-    fireEvent.click(items()[4]);
+    fireEvent.click(items()[6]);
     expect(onPick).toHaveBeenCalledWith("protein-models");
     expect(screen.queryByRole("menu")).toBeNull();
     // Focus returns to the menu button after a pick.
@@ -80,7 +80,9 @@ describe("LessonsMenu", () => {
     expect(document.activeElement?.textContent).toContain(
       "When UPGMA fails",
     );
-    // Wrap-around: ArrowUp on the second item lands on the first…
+    // Wrap-around: ArrowUp walks back through nj-basics to the first
+    // item (nj-by-hand), then wraps to the last.
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     expect(document.activeElement?.textContent).toContain("Cytochrome c");
@@ -107,7 +109,7 @@ describe("LessonsMenu", () => {
     expect(document.activeElement?.textContent).toContain("Cytochrome c");
     fireEvent.keyDown(menu, { key: "Home" });
     expect(document.activeElement?.textContent).toContain(
-      "How Neighbor-Joining works",
+      "Neighbor-Joining, by hand",
     );
   });
 
@@ -159,7 +161,7 @@ describe("LessonsMenu — Take the tour item (§6.7, owner decision B)", () => {
     // ArrowDown wraps back to the first lesson, End returns to the row.
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     expect(document.activeElement?.textContent).toContain(
-      "How Neighbor-Joining works",
+      "Neighbor-Joining, by hand",
     );
     fireEvent.keyDown(menu, { key: "End" });
     expect(document.activeElement?.textContent).toBe("Take the tour");

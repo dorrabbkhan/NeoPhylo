@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "cytochrome-c",
   "title": "Cytochrome c: a real protein tree",
   "summary": "Build a tree from real cytochrome c sequences and compare it with the accepted classification.",
+  "meta": {
+    "objectives": [
+      "Build a distance tree from real protein sequences",
+      "Distinguish a classification reference from a known true tree",
+      "Read an unrooted tree and the effect of rooting it"
+    ],
+    "minutes": 20,
+    "level": "intermediate",
+    "prepares_for": ["protdist-neighbor"]
+  },
   "alphabet": "protein",
   "data": {
     "kind": "embedded",

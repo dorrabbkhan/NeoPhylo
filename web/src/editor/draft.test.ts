@@ -390,7 +390,11 @@ describe("import → save preserves uneditable fields", () => {
         `${f} carries at least one uneditable field`,
       ).toBeGreaterThan(0);
       const t = parseTree(
-        original.data.kind === "simulated" ? original.data.true_tree : "",
+        original.data.kind === "simulated"
+          ? original.data.true_tree
+          : "(a:0.1,b:0.2,c:0.3);", // matrix data (v1.4c Task 10): the
+        // drawn tree is unused on the matrix route — a placeholder
+        // satisfies buildExerciseState's signature.
       );
       const saved = saveExercise(
         buildExerciseState(
