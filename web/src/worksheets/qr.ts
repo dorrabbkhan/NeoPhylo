@@ -1,10 +1,10 @@
 // QR encoding for worksheet links (v1.4c plan Task 11, spec §7.2):
-// generated locally by the vendored uqr encoder — no QR web API and no
-// remote image (the no-outside-network rule). The 10 kB-gz budget lives
-// inside the lazy worksheet chunk; the whole vendored file gzips to
-// ~7.8 kB even before tree-shaking.
+// generated locally by the uqr encoder — no QR web API and no remote
+// image (the no-outside-network rule). The 10 kB-gz budget lives inside
+// the lazy worksheet chunk; the package gzips to ~7.8 kB even before
+// tree-shaking.
 
-import { encode } from "./vendor/uqr.mjs";
+import { encode } from "uqr";
 
 export interface QrMatrix {
   /** Module count per side (version × 4 + 17). */

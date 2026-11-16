@@ -413,10 +413,10 @@ describe("qrMatrix", () => {
     // The full 29×29 module matrix (version 3, ECC L, mask 5) for the
     // fixed text — every module pinned, not just size and the finder
     // patterns (fix round 1, review 3). uqr's output was verified
-    // byte-identical against Kazuhiko Arase's qrcode-generator when
-    // the dependency was vendored; no independent implementation
-    // exists in the local npm caches (only uqr itself), so this pin
-    // guards the vendored file against regressions.
+    // byte-identical against Kazuhiko Arase's qrcode-generator; no
+    // independent implementation exists in the local npm caches (only
+    // uqr itself), so this pin guards the dependency against
+    // regressions.
     const expected =
       "11111110101011001101001111111\n" +
       "10000010011110101010001000001\n" +

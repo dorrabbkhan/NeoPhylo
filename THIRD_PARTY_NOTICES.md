@@ -119,11 +119,10 @@ archive).
 
 ## uqr — QR code generator
 
-`web/src/worksheets/vendor/uqr.mjs` is a verbatim copy of uqr 0.1.3's
-`dist/index.mjs` (https://github.com/unjs/uqr), vendored because the
-package registry was unreachable in the build environment. uqr is
-distributed under the MIT license; the upstream copyright notices and
-license text follow.
+uqr 0.1.3 (https://github.com/unjs/uqr) is an npm production dependency
+used to encode the worksheet QR codes locally — no QR web API and no
+remote image. uqr is distributed under the MIT license; the upstream
+copyright notices and license text follow.
 
 > MIT License
 >

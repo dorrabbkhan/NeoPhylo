@@ -7660,18 +7660,16 @@ Owner-requested rendering fixes after the PR #139 review; branch
 
 ### Task 11 — worksheets, answer keys and instructor gate
 
-- **QR encoder vendored, not installed:** the npm registry was
-  unreachable in this environment (proxy refused), so `uqr` 0.1.3 (MIT)
-  is vendored verbatim under `web/src/worksheets/vendor/` with its
-  license recorded in `THIRD_PARTY_NOTICES.md` (and therefore in the
-  generated `licenses.html`). Encoding is verified against a
+- **QR encoder:** uqr 0.1.3 from npm (exact pin; owner decision on
+  PR #158), MIT, recorded in `THIRD_PARTY_NOTICES.md` (and therefore in
+  the generated `licenses.html`). Encoding is verified against a
   known-good published test vector rather than an installed decoder.
 - **Files outside the Files block:**
-  - `web/src/worksheets/qr.ts` — thin local wrapper over the vendored
+  - `web/src/worksheets/qr.ts` — thin local wrapper over the uqr
     encoder plus the text fallback rule; kept out of `build.ts` per the
     single-purpose/≈400-line file rule.
-  - `web/src/worksheets/vendor/uqr.{mjs,d.mts}` — the vendored
-    dependency itself.
+  - `web/package.json`, `web/package-lock.json` — the uqr 0.1.3
+    dependency pin (added in fix round 2 per the owner decision).
   - `web/src/views/worksheets/blocks.tsx` — the matrix/blank/QR render
     primitives shared by `WorksheetPage` and `KeyPage`; without it both
     pages would duplicate the block markup and exceed ~400 lines.
