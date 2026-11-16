@@ -20,11 +20,14 @@
 // the engine, like dnadist, accepts it and clamps to 0.5 (owner
 // decision, PR #88).
 
+import type { Alphabet } from "../engine/generated/Alphabet";
 import type { Analysis } from "../engine/generated/Analysis";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
 import type { Method } from "../engine/generated/Method";
 import type { Prompt } from "../engine/generated/Prompt";
 import type { SimModel } from "../engine/generated/SimModel";
+import type { Source } from "../engine/generated/Source";
 import type { Tree } from "../engine/generated/Tree";
 import { engine } from "../engine/index";
 
@@ -40,6 +43,24 @@ export type EditorModelChoice =
   | "Kimura"
   | "JTT"
   | "Poisson";
+
+/** The matrix the draft commits when `dataMode` is `"matrix"`
+ * (v1.4c spec §6.4): the typed/pasted `DistanceInput` or one derived
+ * from the drawn tree, plus the provenance written to `data.source`
+ * and the alphabet the file declares the distances were computed
+ * from. */
+export interface EditorMatrix {
+  input: DistanceInput;
+  source: Source;
+  /** `engine.writeNewick` of the drawn tree at derive time; `null`
+   * for a typed, pasted or imported matrix. Drives the "the tree
+   * changed" line — a typed matrix never claims to fit the tree. */
+  derivedFrom: string | null;
+  /** `data.alphabet` — required on every exercise; a fresh matrix
+   * takes the current preset's alphabet, an imported file keeps its
+   * own. */
+  alphabet: Alphabet;
+}
 
 export interface EditorSettings {
   id: string;
@@ -63,6 +84,20 @@ export interface EditorSettings {
   /** The partial-deletion site-coverage cutoff, as typed (only used
    * when siteFilter is partial). */
   cutoff: string;
+  /** The data step's route (v1.4c spec §6.4): "simulate" keeps today's
+   * sim settings visible; "matrix" hides them (they stay in the draft
+   * and come back unchanged on the way back) and writes
+   * `data.kind: "matrix"`. */
+  dataMode: "simulate" | "matrix";
+  /** The committed matrix while `dataMode` is "matrix" — `null` until
+   * the author types, pastes or derives one. Always `null` in
+   * simulate mode: switching back drops the matrix from the draft. */
+  matrix: EditorMatrix | null;
+  /** The "Hand-worked joins on the paper worksheet" input, as typed
+   * (v1.4c §7.2); blank = the worksheet's default rule. Written into
+   * `meta.hand_steps` — a meta block must exist, since the editor
+   * never fabricates objectives, minutes or level. */
+  handSteps: string;
 }
 
 export const DEFAULT_SETTINGS: EditorSettings = {
@@ -78,6 +113,9 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   method: "Nj",
   siteFilter: null,
   cutoff: "95",
+  dataMode: "simulate",
+  matrix: null,
+  handSteps: "",
 };
 
 export interface SettingProblem {
@@ -88,7 +126,10 @@ export interface SettingProblem {
     | "seed"
     | "length"
     | "title"
-    | "cutoff";
+    | "cutoff"
+    | "matrix"
+    | "handSteps"
+    | "prompts";
   level: "error" | "warning";
   msg: string;
 }
@@ -117,12 +158,71 @@ function parseFreqs(s: EditorSettings): [number, number, number, number] {
 
 const SUM_EPS = 1e-6;
 
+/** Draft-level context `settingsProblems` needs for the cross-field
+ * verdicts the matrix route adds: a `predict_branch` prompt and
+ * preserved bootstrap settings are refused on a matrix exercise, so
+ * the form must call them out (Review Focus 1 — never a value the
+ * form accepts that save refuses). */
+export interface DraftContext {
+  prompts: Prompt[];
+  preserved: PreservedFields;
+}
+
 /** The live verdicts behind the form's inline messages and the
  * save/preview gates. Order is stable: κ, then frequencies, seed,
  * length, title. */
-export function settingsProblems(s: EditorSettings): SettingProblem[] {
+export function settingsProblems(
+  s: EditorSettings,
+  ctx: DraftContext = EMPTY_CONTEXT,
+): SettingProblem[] {
   const out: SettingProblem[] = [];
-  if (s.model === "K2P_PHYLIP") {
+  if (s.dataMode === "matrix") {
+    // The simulation fields are hidden — their values are kept, not
+    // judged. What save can still refuse: an empty matrix, a
+    // predict_branch prompt and preserved bootstrap settings.
+    if (s.matrix === null) {
+      out.push({
+        field: "matrix",
+        level: "error",
+        msg: "the matrix route needs a matrix — type or paste one, or derive it from the drawn tree.",
+      });
+    }
+    if (ctx.prompts.some((p) => p.type === "predict_branch")) {
+      out.push({
+        field: "prompts",
+        level: "error",
+        msg: "a predict_branch prompt needs the bootstrap stage — a matrix exercise has none; remove the prompt to save.",
+      });
+    }
+    if (ctx.preserved.bootstrap !== null) {
+      out.push({
+        field: "matrix",
+        level: "error",
+        msg: "the imported bootstrap settings can't go on a matrix exercise — switch back to simulated data to keep them.",
+      });
+    }
+  }
+  // The hand-steps input renders only when the file carries a meta
+  // block (owner ruling, PR #155) — on a meta-less draft the field is
+  // hidden, so a stale value is ignored here rather than blocking
+  // save. `meta.hand_steps` can only live inside a complete meta
+  // block, and the editor never fabricates objectives, minutes or
+  // level.
+  const handSteps = parseDecimal(s.handSteps);
+  if (s.handSteps.trim() !== "" && ctx.preserved.meta !== undefined) {
+    if (
+      handSteps === null ||
+      !Number.isInteger(handSteps) ||
+      handSteps < 1
+    ) {
+      out.push({
+        field: "handSteps",
+        level: "error",
+        msg: `hand-worked joins must be a whole number of 1 or more (got "${s.handSteps.trim()}") — blank uses the worksheet's default rule.`,
+      });
+    }
+  }
+  if (s.model === "K2P_PHYLIP" && s.dataMode === "simulate") {
     const k = parseDecimal(s.kappa);
     if (k === null) {
       out.push({
@@ -144,7 +244,7 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
       });
     }
   }
-  if (s.model === "F84") {
+  if (s.model === "F84" && s.dataMode === "simulate") {
     const names = ["A", "C", "G", "T"];
     const vals = s.baseFreqs.map((t) => parseDecimal(t));
     const bad = vals.findIndex((v) => v === null || (v as number) <= 0);
@@ -165,7 +265,7 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
       }
     }
   }
-  if (s.siteFilter?.kind === "partial") {
+  if (s.siteFilter?.kind === "partial" && s.dataMode === "simulate") {
     const c = parseDecimal(s.cutoff);
     if (c === null || !Number.isInteger(c) || c < 0 || c > 100) {
       out.push({
@@ -176,7 +276,10 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
     }
   }
   const seed = parseDecimal(s.seed);
-  if (seed === null || !Number.isInteger(seed) || seed < 0) {
+  if (
+    s.dataMode === "simulate" &&
+    (seed === null || !Number.isInteger(seed) || seed < 0)
+  ) {
     out.push({
       field: "seed",
       level: "error",
@@ -185,10 +288,11 @@ export function settingsProblems(s: EditorSettings): SettingProblem[] {
   }
   const length = parseDecimal(s.length);
   if (
-    length === null ||
-    !Number.isInteger(length) ||
-    length < 10 ||
-    length > 10000
+    s.dataMode === "simulate" &&
+    (length === null ||
+      !Number.isInteger(length) ||
+      length < 10 ||
+      length > 10000)
   ) {
     out.push({
       field: "length",
@@ -255,6 +359,13 @@ const PRESETS: Record<EditorModelChoice, Preset> = {
   },
 };
 
+/** The alphabet the selected preset implies — a fresh matrix's
+ * `data.alphabet` too (the hidden model still picks it while the
+ * matrix route is on, v1.4c Task 9). */
+export function presetAlphabet(s: EditorSettings): Alphabet {
+  return PRESETS[s.model].alphabet;
+}
+
 /** Leaves of the ROOT component only — the alignment's taxa (detached
  * components never reach the saved file's true_tree). */
 function mainLeafCount(tree: Tree): number {
@@ -289,12 +400,22 @@ export interface PreservedFields {
   reference: Exercise["reference"];
   locked: Exercise["locked"];
   bootstrap: Exercise["bootstrap"];
+  /** v1.4c Task 9: a lesson's meta block rides through verbatim so an
+   * open-and-save keeps objectives/minutes/level byte-identical;
+   * the hand-steps input only ever touches `hand_steps`. */
+  meta: Exercise["meta"];
 }
 
 export const EMPTY_PRESERVED: PreservedFields = {
   reference: null,
   locked: [],
   bootstrap: null,
+  meta: undefined,
+};
+
+export const EMPTY_CONTEXT: DraftContext = {
+  prompts: [],
+  preserved: EMPTY_PRESERVED,
 };
 
 /** Short names for the fields `preserved` actually carries, for the
@@ -304,6 +425,7 @@ export function preservedFieldNames(p: PreservedFields): string[] {
   if (p.reference !== null) names.push("reference");
   if (p.locked.length > 0) names.push("locked controls");
   if (p.bootstrap !== null) names.push("bootstrap");
+  if (p.meta !== undefined) names.push("meta");
   return names;
 }
 
@@ -327,38 +449,75 @@ export function buildExerciseState(
   const preset = PRESETS[s.model];
   const seed = parseDecimal(s.seed) ?? NaN;
   const length = parseDecimal(s.length) ?? NaN;
-  const correction = preset.correction(s);
-  const analysis: Exercise["analysis"] = { correction, method: s.method };
-  if (s.model === "K2P_PHYLIP") {
+  const analysis: Exercise["analysis"] =
+    s.dataMode === "matrix"
+      ? // A matrix exercise runs the supplied-distance model (v1.4c
+        // §4.3): `method` is its only analysis setting — never kappa
+        // or a site filter.
+        { correction: "Supplied", method: s.method }
+      : { correction: preset.correction(s), method: s.method };
+  if (s.dataMode === "simulate" && s.model === "K2P_PHYLIP") {
     analysis.kappa = parseDecimal(s.kappa) ?? NaN;
   }
-  if (s.siteFilter !== null) {
+  if (s.dataMode === "simulate" && s.siteFilter !== null) {
     analysis.site_filter =
       s.siteFilter.kind === "partial"
         ? { kind: "partial", cutoff_pct: parseDecimal(s.cutoff) ?? NaN }
         : s.siteFilter;
   }
   const atStep = bootstrapStep(tree, s.method);
+  const handSteps = parseDecimal(s.handSteps);
+  // Schema 5 the moment the file carries any v5 field — matrix data
+  // or a meta block — else the pre-v1.4c rule (v1.4b Task 11).
+  const schemaVersion =
+    s.dataMode === "matrix" || preserved.meta !== undefined
+      ? 5
+      : s.model === "Poisson" || s.siteFilter !== null
+        ? 4
+        : 3;
   const exercise: Exercise = {
-    // Schema 4 exactly when a v4 field is used (v1.4b Task 11):
-    // Poisson or any site_filter — including an explicit pairwise.
-    schema_version: s.model === "Poisson" || s.siteFilter !== null ? 4 : 3,
+    schema_version: schemaVersion,
     id: s.id.trim() || "exercise",
     title: s.title,
-    alphabet: preset.alphabet,
-    data: {
-      kind: "simulated",
-      true_tree: engine.writeNewick(tree),
-      sim: { model: preset.sim(s), length, seed },
-    },
+    alphabet:
+      s.dataMode === "matrix" && s.matrix !== null
+        ? s.matrix.alphabet
+        : preset.alphabet,
+    data:
+      s.dataMode === "matrix" && s.matrix !== null
+        ? {
+            kind: "matrix",
+            names: s.matrix.input.names,
+            lower: s.matrix.input.lower,
+            source: s.matrix.source,
+          }
+        : {
+            kind: "simulated",
+            true_tree: engine.writeNewick(tree),
+            sim: { model: preset.sim(s), length, seed },
+          },
     reference: preserved.reference,
     analysis,
     locked: preserved.locked,
     prompts: prompts.map((p) =>
       p.type === "predict_branch" ? { ...p, at_step: atStep } : p,
     ),
-    bootstrap: preserved.bootstrap,
+    bootstrap: s.dataMode === "matrix" ? null : preserved.bootstrap,
   };
+  if (preserved.meta !== undefined) {
+    // `hand_steps` is the only meta field the form edits — the rest
+    // of the block survives byte-identical; blank removes only it.
+    exercise.meta = { ...preserved.meta };
+    if (
+      handSteps !== null &&
+      Number.isInteger(handSteps) &&
+      handSteps >= 1
+    ) {
+      exercise.meta.hand_steps = handSteps;
+    } else {
+      delete exercise.meta.hand_steps;
+    }
+  }
   const fileExtras: Record<string, unknown> = { ...extras };
   // `summary` is required by the schema and lives outside Exercise —
   // keep it in fileExtras like an imported file's would be.
@@ -383,6 +542,38 @@ export function settingsFromExercise(
 ):
   | { settings: EditorSettings; prompts: Prompt[]; preserved: PreservedFields }
   | { error: string } {
+  if (ex.data.kind === "matrix") {
+    // v1.4c Task 9: a matrix exercise loads into the matrix route
+    // verbatim — names, lower triangle, source and the declared
+    // alphabet. `derivedFrom` stays null: a file never claims its
+    // matrix came from the drawn tree.
+    return {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        id: ex.id,
+        title: ex.title,
+        method: ex.analysis.method,
+        dataMode: "matrix",
+        matrix: {
+          input: { names: ex.data.names, lower: ex.data.lower },
+          source: ex.data.source,
+          derivedFrom: null,
+          alphabet: ex.alphabet,
+        },
+        handSteps:
+          ex.meta?.hand_steps === undefined
+            ? ""
+            : String(ex.meta.hand_steps),
+      },
+      prompts: ex.prompts,
+      preserved: {
+        reference: ex.reference,
+        locked: ex.locked,
+        bootstrap: ex.bootstrap,
+        meta: ex.meta,
+      },
+    };
+  }
   if (ex.data.kind !== "simulated") {
     return {
       error:
@@ -464,6 +655,14 @@ export function settingsFromExercise(
         ex.analysis.site_filter?.kind === "partial"
           ? String(ex.analysis.site_filter.cutoff_pct)
           : "95",
+      // A pre-Task-9 draft has no matrix fields — they take the
+      // simulate defaults so an old file loads exactly as before.
+      dataMode: "simulate",
+      matrix: null,
+      handSteps:
+        ex.meta?.hand_steps === undefined
+          ? ""
+          : String(ex.meta.hand_steps),
     },
     prompts: ex.prompts,
     // Fields the form can't edit ride along verbatim so a save writes
@@ -472,6 +671,7 @@ export function settingsFromExercise(
       reference: ex.reference,
       locked: ex.locked,
       bootstrap: ex.bootstrap,
+      meta: ex.meta,
     },
   };
 }

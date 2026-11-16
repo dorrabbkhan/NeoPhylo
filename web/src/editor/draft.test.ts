@@ -13,7 +13,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { engine } from "../engine/index";
+import type { DistanceInput } from "../engine/generated/DistanceInput";
 import type { Exercise } from "../engine/generated/Exercise";
+import type { Prompt } from "../engine/generated/Prompt";
 import type { Tree } from "../engine/generated/Tree";
 
 import {
@@ -555,5 +557,346 @@ describe("site filter and Poisson (v1.4b Task 11)", () => {
       kind: "partial",
       cutoff_pct: 80,
     });
+  });
+});
+
+// --- v1.4c Task 9: matrix exercises, derive-from-tree and meta ------
+//
+// The editor's data step gains "Start from a matrix" (spec §6.4): the
+// draft carries the committed matrix (typed, pasted or derived), and
+// the saved file writes `data.kind: "matrix"`, `schema_version: 5` and
+// a method-only analysis. Switching back to "simulate" restores the
+// simulation settings exactly and drops the matrix from the draft and
+// the saved file. `meta` rides through like the other uneditable
+// fields; the hand-steps input edits only `meta.hand_steps`.
+
+const MATRIX4: DistanceInput = {
+  names: ["A", "B", "C", "D"],
+  lower: [0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+};
+const MATRIX_SOURCE = { citation: "", license: "", accessions: [] };
+
+function matrixSettings(
+  patch: Partial<EditorSettings> = {},
+): EditorSettings {
+  return settings({
+    dataMode: "matrix",
+    matrix: {
+      input: MATRIX4,
+      source: MATRIX_SOURCE,
+      derivedFrom: null,
+      alphabet: "dna",
+    },
+    ...patch,
+  });
+}
+
+describe("matrix data mode (v1.4c Task 9)", () => {
+  it("the matrix route needs a committed matrix before save", () => {
+    const s = settings({ dataMode: "matrix", matrix: null });
+    expect(verdict(s, "matrix")).toBe("error");
+    expect(
+      errors(s).find((p) => p.field === "matrix")?.msg ?? "",
+    ).toMatch(/type|paste|derive/i);
+  });
+
+  it("a committed matrix draft saves as kind matrix with a method-only analysis", () => {
+    const state = buildExerciseState(tree(), matrixSettings(), []);
+    expect(state.exercise.data).toEqual({
+      kind: "matrix",
+      names: MATRIX4.names,
+      lower: MATRIX4.lower,
+      source: MATRIX_SOURCE,
+    });
+    expect(state.exercise.analysis).toEqual({
+      correction: "Supplied",
+      method: "Nj",
+    });
+    const saved = saveExercise(state);
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as Record<string, unknown>;
+    expect(file.schema_version).toBe(5);
+    expect((file.data as Record<string, unknown>).kind).toBe("matrix");
+    expect(file.analysis).not.toHaveProperty("correction");
+    // The engine loader accepts the saved file: Supplied correction,
+    // names/lower identical (the end-to-end pin from the task notes).
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    expect(back.value.analysis.correction).toBe("Supplied");
+    if (back.value.data.kind !== "matrix") throw new Error("matrix");
+    expect(back.value.data.names).toEqual(MATRIX4.names);
+    expect(back.value.data.lower).toEqual(MATRIX4.lower);
+  });
+
+  it("hidden simulation fields can't block a matrix save", () => {
+    const s = matrixSettings({
+      model: "F84",
+      baseFreqs: ["1", "1", "1", "1"],
+      seed: "abc",
+      length: "5",
+      siteFilter: { kind: "partial" },
+      cutoff: "x",
+    });
+    expect(errors(s)).toEqual([]);
+    const saved = saveExercise(buildExerciseState(tree(), s, []));
+    expect(
+      "json" in saved,
+      "error" in saved ? saved.error : "",
+    ).toBe(true);
+  });
+
+  it("switching back to simulate restores the sim settings and drops the matrix", () => {
+    const back: EditorSettings = {
+      ...matrixSettings({ model: "K80", seed: "42", length: "400" }),
+      dataMode: "simulate",
+      matrix: null,
+    };
+    const state = buildExerciseState(tree(), back, []);
+    expect(state.exercise.data.kind).toBe("simulated");
+    expect(state.exercise.analysis.correction).toBe("K80");
+    if (state.exercise.data.kind === "simulated") {
+      expect(state.exercise.data.sim.seed).toBe(42);
+      expect(state.exercise.data.sim.length).toBe(400);
+    }
+    const saved = saveExercise(state);
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as {
+      data: Record<string, unknown>;
+    };
+    expect(file.data.kind).toBe("simulated");
+    expect(file.data).not.toHaveProperty("names");
+  });
+
+  it("an unsaved matrix draft survives the save-path reload", () => {
+    // The unsaved draft reloaded through the save path — the same
+    // round trip the preview handshake runs (decisions.md, fix
+    // round 3): build → save → import → settings → build gives the
+    // same exercise.
+    const state = buildExerciseState(
+      tree(),
+      matrixSettings({ method: "Upgma" }),
+      [],
+    );
+    const saved = saveExercise(state);
+    if ("error" in saved) throw new Error(saved.error);
+    const re = importExercise(saved.json);
+    if (!re.ok) throw new Error(JSON.stringify(re.error));
+    const conv = settingsFromExercise(
+      re.value.exercise,
+      re.value.fileExtras,
+    );
+    if ("error" in conv) throw new Error(conv.error);
+    expect(conv.settings.dataMode).toBe("matrix");
+    expect(conv.settings.matrix?.input).toEqual(MATRIX4);
+    expect(conv.settings.method).toBe("Upgma");
+    const rebuilt = buildExerciseState(
+      tree(),
+      conv.settings,
+      conv.prompts,
+      re.value.fileExtras,
+      conv.preserved,
+    );
+    expect(rebuilt.exercise).toEqual(state.exercise);
+  });
+
+  it("a predict_branch prompt blocks a matrix save with the reason", () => {
+    const prompts: Prompt[] = [
+      {
+        at_step: 2,
+        type: "predict_branch",
+        concept: "support",
+        math: null,
+        reveal: null,
+        reveal_pair: null,
+        after: null,
+      },
+    ];
+    const probs = settingsProblems(matrixSettings(), {
+      prompts,
+      preserved: EMPTY_PRESERVED,
+    });
+    const p = probs.find(
+      (p) => p.field === "prompts" && p.level === "error",
+    );
+    expect(p, JSON.stringify(probs)).toBeDefined();
+    expect(p?.msg).toMatch(/predict_branch|bootstrap/i);
+  });
+
+  it("imported bootstrap settings block a matrix save", () => {
+    const probs = settingsProblems(matrixSettings(), {
+      prompts: [],
+      preserved: {
+        ...EMPTY_PRESERVED,
+        bootstrap: { replicates: 100, seed: 1 },
+      },
+    });
+    expect(probs.some((p) => p.level === "error")).toBe(true);
+  });
+
+  it("a pre-Task-9 draft blob (schema 3, no matrix fields) loads as a simulate draft", () => {
+    const r = engine.loadExercise(
+      JSON.stringify({
+        schema_version: 3,
+        id: "old-draft",
+        title: "Old draft",
+        summary: "Old draft",
+        alphabet: "dna",
+        data: {
+          kind: "simulated",
+          true_tree: STARTER,
+          sim: { model: "JC69", length: 100, seed: 1 },
+        },
+        analysis: { correction: "JC69", method: "NJ" },
+      }),
+    );
+    if (!r.ok) throw new Error(JSON.stringify(r.error));
+    const conv = settingsFromExercise(r.value);
+    if ("error" in conv) throw new Error(conv.error);
+    expect(conv.settings.dataMode).toBe("simulate");
+    expect(conv.settings.matrix).toBeNull();
+    expect(conv.settings.handSteps).toBe("");
+    expect(conv.preserved.meta).toBeUndefined();
+  });
+});
+
+describe("derive from the drawn tree (v1.4c Task 9, spec §5.3)", () => {
+  it("the drawn 5-leaf tree's additive matrix is the draft's matrix, and NJ recovers the drawn topology", () => {
+    // The editor calls engine.additiveMatrix on the drawn tree — the
+    // draft stores exactly what the engine returns, and NJ on that
+    // matrix recovers the drawn tree (the preview's truth, compared
+    // via the engine's RF, never a drawn view).
+    const drawn = parseTree(STARTER);
+    const m = engine.additiveMatrix(drawn, null);
+    if (!m.ok) throw new Error(JSON.stringify(m.error));
+    const state = buildExerciseState(
+      drawn,
+      matrixSettings({
+        matrix: {
+          input: m.value,
+          source: MATRIX_SOURCE,
+          derivedFrom: engine.writeNewick(drawn),
+          alphabet: "dna",
+        },
+      }),
+      [],
+    );
+    const saved = saveExercise(state);
+    if ("error" in saved) throw new Error(saved.error);
+    const back = engine.loadExercise(saved.json);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
+    if (back.value.data.kind !== "matrix") throw new Error("matrix");
+    const dm = engine.matrixToDistances({
+      names: back.value.data.names,
+      lower: back.value.data.lower,
+    });
+    if (!dm.ok) throw new Error(JSON.stringify(dm.error));
+    const built = engine.buildTree(dm.value, "Nj", { trace: false });
+    if (!built.ok) throw new Error(JSON.stringify(built.error));
+    const cmp = engine.compare(drawn, built.value.tree);
+    if (!cmp.ok) throw new Error(JSON.stringify(cmp.error));
+    expect(cmp.value.rf).toBe(0);
+  });
+});
+
+describe("meta.hand_steps (v1.4c Task 9)", () => {
+  const META = {
+    objectives: ["read a tree"],
+    minutes: 15,
+    level: "intermediate" as const,
+    prepares_for: ["nj-basics"],
+  };
+  const withMeta = { ...EMPTY_PRESERVED, meta: META };
+
+  it("a lesson's meta rides through untouched — import and re-save are byte-identical", () => {
+    const imp = importExercise(
+      readFileSync(
+        resolve("src", "lessons", "__fixtures__", "v5-meta-valid.json"),
+        "utf8",
+      ),
+    );
+    if (!imp.ok) throw new Error(JSON.stringify(imp.error));
+    const conv = settingsFromExercise(
+      imp.value.exercise,
+      imp.value.fileExtras,
+    );
+    if ("error" in conv) throw new Error(conv.error);
+    expect(conv.preserved.meta).toEqual(imp.value.exercise.meta);
+    // hand_steps initializes from the file's value so an untouched
+    // draft writes it back unchanged.
+    expect(conv.settings.handSteps).toBe(
+      String(imp.value.exercise.meta?.hand_steps ?? ""),
+    );
+    const saved = saveExercise(
+      buildExerciseState(
+        tree(),
+        conv.settings,
+        conv.prompts,
+        imp.value.fileExtras,
+        conv.preserved,
+      ),
+    );
+    if ("error" in saved) throw new Error(saved.error);
+    const file = JSON.parse(saved.json) as { meta: unknown };
+    expect(file.meta).toEqual(imp.value.exercise.meta);
+  });
+
+  it("a ≥1 integer lands in meta.hand_steps; blank removes only that key", () => {
+    const metaWithSteps = { ...META, hand_steps: 2 };
+    const preserved = { ...EMPTY_PRESERVED, meta: metaWithSteps };
+    const set = buildExerciseState(
+      tree(),
+      settings({ handSteps: "4" }),
+      [],
+      undefined,
+      preserved,
+    );
+    expect(set.exercise.meta).toEqual({ ...META, hand_steps: 4 });
+    const blanked = buildExerciseState(
+      tree(),
+      settings({ handSteps: "" }),
+      [],
+      undefined,
+      preserved,
+    );
+    expect(blanked.exercise.meta).toEqual(META);
+    expect(blanked.exercise.meta).not.toHaveProperty("hand_steps");
+  });
+
+  it.each(["0", "-2", "1.5", "abc"])(
+    'hand-steps "%s" is refused with a message and never written',
+    (bad) => {
+      const s = settings({ handSteps: bad });
+      // The field only exists with a meta block — the verdict it
+      // gates on is the with-meta one.
+      const probs = settingsProblems(s, {
+        prompts: [],
+        preserved: withMeta,
+      });
+      expect(
+        probs.some(
+          (p) => p.field === "handSteps" && p.level === "error",
+        ),
+        JSON.stringify(probs),
+      ).toBe(true);
+      const state = buildExerciseState(tree(), s, [], undefined, withMeta);
+      expect(state.exercise.meta).toEqual(META);
+    },
+  );
+
+  it("no meta → the hidden field's value is ignored: no verdict, nothing written (owner ruling, PR #155)", () => {
+    const s = settings({ handSteps: "3" });
+    const probs = settingsProblems(s, {
+      prompts: [],
+      preserved: EMPTY_PRESERVED,
+    });
+    expect(probs.filter((p) => p.field === "handSteps")).toEqual([]);
+    const state = buildExerciseState(
+      tree(),
+      s,
+      [],
+      undefined,
+      EMPTY_PRESERVED,
+    );
+    expect(state.exercise.meta).toBeUndefined();
   });
 });

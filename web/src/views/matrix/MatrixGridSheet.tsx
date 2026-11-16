@@ -26,7 +26,7 @@ export interface MatrixGridSheetProps {
   /** The committed matrix — the session's `matrixInput` while a
    * matrix session runs, else null. */
   value: DistanceInput | null;
-  onChange(input: DistanceInput | null): void;
+  onChange(input: DistanceInput | null, draftReady?: boolean): void;
   onClose(): void;
 }
 

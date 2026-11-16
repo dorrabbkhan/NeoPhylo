@@ -156,7 +156,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
     [],
   );
 
-  const problems = settingsProblems(settings);
+  const problems = settingsProblems(settings, { prompts, preserved });
   const canSave = !problems.some((p) => p.level === "error");
   const buildState = () =>
     buildExerciseState(tree, settings, prompts, fileExtras, preserved);
@@ -272,31 +272,36 @@ export function EditorPanel({ model }: EditorPanelProps) {
     }
     // The engine already validated the file; the tree still has to
     // satisfy the editor's editable-tree rules (a unary node or a
-    // missing length is refused the same way as a Newick edit).
-    const exTree = ex.data.kind === "simulated" ? ex.data.true_tree : "";
-    const parsed = engine.parseNewick(exTree);
-    if (!parsed.ok) {
-      setNotice({
-        level: "error",
-        text: `Not ${verb} — the exercise's true tree did not parse.`,
-      });
-      return false;
-    }
-    const replaced = model.replace(parsed.value);
-    if (!replaced.ok) {
-      const m = errorMessage(replaced.error);
-      setNotice({
-        level: "error",
-        text: `Not ${verb} — ${m.title}: ${m.body}`,
-      });
-      return false;
+    // missing length is refused the same way as a Newick edit). A
+    // matrix exercise carries no true tree — the drawn tree stays as
+    // it is (v1.4c Task 9: it's a derive source, not file data).
+    let baseTree = model.tree;
+    if (ex.data.kind === "simulated") {
+      const parsed = engine.parseNewick(ex.data.true_tree);
+      if (!parsed.ok) {
+        setNotice({
+          level: "error",
+          text: `Not ${verb} — the exercise's true tree did not parse.`,
+        });
+        return false;
+      }
+      const replaced = model.replace(parsed.value);
+      if (!replaced.ok) {
+        const m = errorMessage(replaced.error);
+        setNotice({
+          level: "error",
+          text: `Not ${verb} — ${m.title}: ${m.body}`,
+        });
+        return false;
+      }
+      baseTree = parsed.value;
     }
     setSettings(conv.settings);
     setPrompts(conv.prompts);
     setFileExtras(state.fileExtras);
     setPreserved(conv.preserved);
     baseline.current = draftSnapshot(
-      parsed.value,
+      baseTree,
       conv.settings,
       conv.prompts,
       state.fileExtras,
@@ -513,7 +518,13 @@ export function EditorPanel({ model }: EditorPanelProps) {
             {preservedFieldNames(preserved).join(", ")}
           </p>
         )}
-        <SettingsForm settings={settings} onChange={setSettings} />
+        <SettingsForm
+          settings={settings}
+          onChange={setSettings}
+          tree={tree}
+          prompts={prompts}
+          preserved={preserved}
+        />
       </section>
       <section
         className="editor-section"

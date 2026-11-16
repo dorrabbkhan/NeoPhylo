@@ -160,6 +160,13 @@ test("a touch drag drops on the branch under the finger, matching the keyboard p
 
   const leafC = page.getByRole("button", { name: "Leaf C" });
   const edgeB = page.getByRole("button", { name: "Branch to B" });
+  // CI flake (Task 9 fix round 1): an endpoint below the fold reads a
+  // box that lands the CDP touch outside its element. Scroll both into
+  // view first, then read both boxes — the second scroll can shift the
+  // first endpoint's viewport position, so nothing is measured until
+  // every scroll has settled.
+  await leafC.scrollIntoViewIfNeeded();
+  await edgeB.scrollIntoViewIfNeeded();
   const a = await leafC.boundingBox();
   const b = await edgeB.boundingBox();
   if (a === null || b === null) throw new Error("no box");
@@ -248,6 +255,11 @@ test("touch: drops onto a node and onto a branch match the keyboard path and nev
     from: import("@playwright/test").Locator,
     to: import("@playwright/test").Locator,
   ): Promise<void> => {
+    // Same CI flake: scroll each endpoint into view before measuring,
+    // and only then read the boxes (the second scroll can move the
+    // first element).
+    await from.scrollIntoViewIfNeeded();
+    await to.scrollIntoViewIfNeeded();
     const a = await from.boundingBox();
     const b = await to.boundingBox();
     if (a === null || b === null) throw new Error("drag endpoint has no box");
@@ -704,6 +716,7 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
 
   const newLeafBtn = page.getByRole("button", { name: "New leaf" });
   await expect(newLeafBtn).toBeVisible();
+  await newLeafBtn.scrollIntoViewIfNeeded();
   const btnBox = await newLeafBtn.boundingBox();
   if (btnBox === null) throw new Error("the New leaf button has no box");
   expect(
@@ -733,6 +746,7 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
   await expect(nameInput).toBeFocused();
   await page.keyboard.insertText("F");
   const submitBtn = page.getByRole("button", { name: "Add leaf" });
+  await submitBtn.scrollIntoViewIfNeeded();
   const submitBox = await submitBtn.boundingBox();
   if (submitBox === null) throw new Error("the Add leaf button has no box");
   await tap(submitBox.x + submitBox.width / 2, submitBox.y + submitBox.height / 2);
@@ -742,6 +756,8 @@ test("touch: the New leaf button, its ≥40 px target and a touch-drag graft", a
   // the keyboard path produces.
   const leafF = page.getByRole("button", { name: "Leaf F" });
   const edgeB = page.getByRole("button", { name: "Branch to B" });
+  await leafF.scrollIntoViewIfNeeded();
+  await edgeB.scrollIntoViewIfNeeded();
   const a = await leafF.boundingBox();
   const b = await edgeB.boundingBox();
   if (a === null || b === null) throw new Error("no box");
@@ -1155,6 +1171,12 @@ test("touch: a swipe over empty canvas scrolls the page while a handle drag stil
     name: "Branch to T1",
     exact: true,
   });
+  // The swipe above scrolled the page (possibly still settling), so a
+  // box read now can be stale or off-viewport — the CI flake this
+  // fixes (Task 9 fix round 1). Scroll both endpoints back into view
+  // first, then read both boxes after every scroll has settled.
+  await leaf0.scrollIntoViewIfNeeded();
+  await edge1.scrollIntoViewIfNeeded();
   const a = await leaf0.boundingBox();
   const b = await edge1.boundingBox();
   if (a === null || b === null) throw new Error("no box");
@@ -1169,4 +1191,144 @@ test("touch: a swipe over empty canvas scrolls the page while a handle drag stil
   await page.getByRole("button", { name: "Newick tree" }).click();
   await expect(newick).toHaveValue(/\(T1:0\.05,T0:0\.1\):0\.05/);
   await context.close();
+});
+
+// v1.4c Task 9 (spec §6.4): the editor's data step offers "Start from
+// a matrix" — pasted or typed, or derived from the drawn tree. The
+// matrix route hides the simulation settings and keeps them for the
+// way back.
+test("the matrix route hides sim settings, derives from the drawn tree and previews", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/?editor");
+
+  // A simulation setting to watch come back exactly.
+  const data = page.getByRole("combobox", { name: "Exercise data" });
+  await page.getByRole("textbox", { name: "Seed" }).fill("77");
+
+  await data.selectOption("matrix");
+  await expect(
+    page.getByRole("combobox", { name: "Model" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Seed" })).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Gap treatment" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Tree-building method" }),
+  ).toBeVisible();
+  // No matrix yet — nothing can be saved.
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeDisabled();
+
+  // The derive path: additiveMatrix on the drawn tree, committed.
+  await page
+    .getByRole("button", { name: "Derive from the drawn tree" })
+    .click();
+  await expect(
+    page.getByText(/Derived from the drawn tree — 5 taxa\./),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save file" }),
+  ).toBeEnabled();
+
+  // Rounding shows the exact note — and only then.
+  await page.getByRole("combobox", { name: "Round to" }).selectOption("2");
+  await expect(
+    page.getByText(
+      "Rounded distances may no longer fit this tree exactly.",
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Round to" })
+    .selectOption("none");
+  await expect(
+    page.getByText(
+      "Rounded distances may no longer fit this tree exactly.",
+    ),
+  ).toHaveCount(0);
+  // The rounded choice changes nothing committed — re-derive clean.
+  await page
+    .getByRole("button", { name: "Derive from the drawn tree" })
+    .click();
+
+  // An edit after deriving flags the drift — never a silent stale
+  // save (the stale line is the documented contract).
+  await NEWICK(page).fill("(A:0.1,B:0.9,C:0.3,(D:0.1,E:0.15):0.1);");
+  await NEWICK(page).press("Enter");
+  await expect(page.getByText(/tree changed/i)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Derive from the drawn tree" })
+    .click();
+  await expect(page.getByText(/tree changed/i)).toHaveCount(0);
+
+  // The preview is the real lesson player on a matrix exercise.
+  const [popup] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("button", { name: "Preview" }).click(),
+  ]);
+  await popup.waitForLoadState();
+  await expect(popup.locator(".app")).toBeVisible();
+  // A matrix session has no sequences — the player's own line proves
+  // the saved exercise really is data.kind matrix.
+  await expect(
+    popup.getByText(
+      "This tree was built from a distance matrix, so there are no sequences to compare or resample.",
+    ),
+  ).toBeVisible();
+  await popup.close();
+
+  // Back to simulate — the sim settings return exactly.
+  await data.selectOption("simulate");
+  await expect(page.getByRole("textbox", { name: "Seed" })).toHaveValue(
+    "77",
+  );
+});
+
+test("a pasted matrix commits and saves as schema 5", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  await page
+    .getByRole("combobox", { name: "Exercise data" })
+    .selectOption("matrix");
+  // The tab-separated header square — the format MatrixImport.test
+  // pins as unambiguous, so no question renders here either.
+  await page
+    .getByRole("textbox", { name: "Paste a distance matrix" })
+    .fill(
+      "\tA\tB\tC\tD\n" +
+        "A\t0\t0.2\t0.3\t0.5\n" +
+        "B\t0.2\t0\t0.4\t0.6\n" +
+        "C\t0.3\t0.4\t0\t0.7\n" +
+        "D\t0.5\t0.6\t0.7\t0\n",
+    );
+  await page
+    .getByRole("button", { name: "Use this matrix" })
+    .click();
+  await expect(
+    page.getByText(/A matrix is committed — 4 taxa\./),
+  ).toBeVisible();
+
+  // The saved file is a schema-5 matrix exercise with method-only
+  // analysis (the download's contents are the contract).
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save file" }).click(),
+  ]);
+  const { readFileSync } = await import("node:fs");
+  const file = JSON.parse(
+    readFileSync((await download.path())!, "utf8"),
+  ) as {
+    schema_version: number;
+    data: { kind: string; names: string[]; lower: number[] };
+    analysis: Record<string, unknown>;
+  };
+  expect(file.schema_version).toBe(5);
+  expect(file.data.kind).toBe("matrix");
+  expect(file.data.names).toEqual(["A", "B", "C", "D"]);
+  expect(file.data.lower).toEqual([0.2, 0.3, 0.4, 0.5, 0.6, 0.7]);
+  expect(file.analysis).toEqual({ method: "NJ" });
 });

@@ -448,6 +448,78 @@ describe("matrix sessions", () => {
   });
 });
 
+// `matrixDraftReady` (v1.4c Task 9): while the grid holds an
+// uncommitted draft — `matrixInput` null on a matrix session — this
+// flag says the draft is complete and valid, so the empty-state line
+// asks for "Build tree" instead of a finished matrix. `editMatrix`
+// is the only writer; every other data action resets it so a stale
+// "Build tree" never outlives its draft.
+describe("matrixDraftReady", () => {
+  /** A matrix session parked on a complete-but-unbuilt grid draft. */
+  const readyDraft = () =>
+    reducer(matrixSession(), {
+      type: "editMatrix",
+      input: null,
+      draftReady: true,
+    });
+
+  it("editMatrix(null, draftReady: true) sets it; a bare null does not", () => {
+    const s = readyDraft();
+    expect(s.matrixDraftReady).toBe(true);
+    // The flag rides beside an empty matrixInput — the draft itself
+    // lives only in the grid.
+    expect(s.matrixInput).toBeNull();
+    expect(s.alignmentOrigin).toBe("matrix");
+    expect(
+      reducer(matrixSession(), { type: "editMatrix", input: null })
+        .matrixDraftReady,
+    ).toBe(false);
+  });
+
+  it("a committed input never sets it — the flag is for unbuilt drafts only", () => {
+    const s = reducer(matrixSession(), {
+      type: "editMatrix",
+      input: { names: ["p", "q", "r"], lower: [0.1, 0.2, 0.3] },
+      draftReady: true,
+    });
+    expect(s.matrixDraftReady).toBe(false);
+    expect(s.matrixInput?.names).toEqual(["p", "q", "r"]);
+  });
+
+  it.each<[string, (s: Session) => Session]>([
+    [
+      "importMatrix",
+      (s) =>
+        reducer(s, { type: "importMatrix", input: INPUT5, name: "m.phy" }),
+    ],
+    [
+      "importAlignment",
+      (s) => reducer(s, { type: "importAlignment", alignment: ALIGNMENT }),
+    ],
+    [
+      "importTree",
+      (s) =>
+        reducer(s, {
+          type: "importTree",
+          tree: parsed("((P:0.2,Q:0.2):0.1,R:0.3);"),
+        }),
+    ],
+    [
+      "loading an exercise",
+      (s) =>
+        reducer(s, {
+          type: "load",
+          exercise: exercise(LESSON_JSON),
+          source: "lesson",
+        }),
+    ],
+  ])("%s resets it to false", (_name, act) => {
+    const s = readyDraft();
+    expect(s.matrixDraftReady).toBe(true);
+    expect(act(s).matrixDraftReady).toBe(false);
+  });
+});
+
 describe("matrix links", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {

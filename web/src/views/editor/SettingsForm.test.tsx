@@ -11,20 +11,41 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   DEFAULT_SETTINGS,
+  EMPTY_PRESERVED,
   type EditorSettings,
+  type PreservedFields,
 } from "../../editor/draft";
+import { engine } from "../../engine/index";
+import type { Tree } from "../../engine/generated/Tree";
 
 import { SettingsForm } from "./SettingsForm";
 
 afterEach(cleanup);
 
-function renderForm(initial: Partial<EditorSettings> = {}) {
+function aTree(): Tree {
+  const r = engine.parseNewick("(A:0.1,B:0.2,C:0.3);");
+  if (!r.ok) throw new Error("fixture Newick must parse");
+  return r.value;
+}
+
+function renderForm(
+  initial: Partial<EditorSettings> = {},
+  preserved: PreservedFields = EMPTY_PRESERVED,
+) {
   function Host() {
     const [s, setS] = useState<EditorSettings>({
       ...DEFAULT_SETTINGS,
       ...initial,
     });
-    return <SettingsForm settings={s} onChange={setS} />;
+    return (
+      <SettingsForm
+        settings={s}
+        onChange={setS}
+        tree={aTree()}
+        prompts={[]}
+        preserved={preserved}
+      />
+    );
   }
   render(<Host />);
 }
@@ -102,5 +123,63 @@ describe("SettingsForm", () => {
     fireEvent.change(modelSelect(), { target: { value: "K2P_PHYLIP" } });
     expect(kappaField()).toBeTruthy();
     expect(freqField("A")).toBeNull();
+  });
+});
+
+// Owner ruling, PR #155 (v1.4c Task 9 fix round 2): the "Hand-worked
+// joins" input writes `meta.hand_steps`, and a meta block requires
+// objectives/minutes/level/prepares_for the editor never fabricates —
+// so the field renders ONLY for a file that already carries meta. A
+// meta-less draft gets the worksheet's default rule and no input.
+describe("hand-worked joins — meta gate (owner ruling, PR #155)", () => {
+  const META = {
+    objectives: ["read a tree"],
+    minutes: 15,
+    level: "intermediate" as const,
+    prepares_for: ["nj-basics"],
+  };
+  const withMeta: PreservedFields = { ...EMPTY_PRESERVED, meta: META };
+  const handField = () =>
+    screen.queryByLabelText("Hand-worked joins on the paper worksheet");
+
+  it("no meta → the field does not render in either data mode", () => {
+    renderForm();
+    expect(handField()).toBeNull();
+    cleanup();
+    renderForm({ dataMode: "matrix" });
+    expect(handField()).toBeNull();
+  });
+
+  it("a file with meta shows the field and it keeps the typed value", () => {
+    renderForm({}, withMeta);
+    const f = handField() as HTMLInputElement;
+    expect(f).toBeTruthy();
+    fireEvent.change(f, { target: { value: "4" } });
+    expect(f.value).toBe("4");
+    // The same field hides in matrix mode only when meta is absent —
+    // meta survives the route switch.
+    fireEvent.change(screen.getByRole("combobox", { name: "Exercise data" }), {
+      target: { value: "matrix" },
+    });
+    expect(handField()).toBeTruthy();
+  });
+
+  it("meta, then a fresh meta-less draft → the field hides again", () => {
+    function Host({ preserved }: { preserved: PreservedFields }) {
+      const [s, setS] = useState<EditorSettings>({ ...DEFAULT_SETTINGS });
+      return (
+        <SettingsForm
+          settings={s}
+          onChange={setS}
+          tree={aTree()}
+          prompts={[]}
+          preserved={preserved}
+        />
+      );
+    }
+    const { rerender } = render(<Host preserved={withMeta} />);
+    expect(handField()).toBeTruthy();
+    rerender(<Host preserved={EMPTY_PRESERVED} />);
+    expect(handField()).toBeNull();
   });
 });

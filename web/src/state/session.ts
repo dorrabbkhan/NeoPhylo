@@ -118,7 +118,7 @@ export function reducer(s: Session, a: Action): Session {
     case "importMatrix":
       return applyImportMatrix(s, a.input, a.name);
     case "editMatrix":
-      return applyEditMatrix(s, a.input);
+      return applyEditMatrix(s, a.input, a.draftReady);
     case "setBranchScale":
       return applyBranchScale(s, a.scale);
     case "enterSandbox":

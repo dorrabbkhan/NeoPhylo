@@ -439,6 +439,7 @@ export function applyImportAlignment(
         alignmentName: name ?? null,
         // v1.4c: alignment data replaces any supplied matrix.
         matrixInput: null,
+        matrixDraftReady: false,
       }),
     ),
   );
@@ -463,6 +464,7 @@ export function applyImportMatrix(
       alignment: null,
       alignmentOrigin: "matrix",
       matrixInput: input,
+      matrixDraftReady: false,
       alphabet: s.exercise.alphabet,
       source: "sandbox",
       notice: null,
@@ -477,12 +479,15 @@ export function applyImportMatrix(
  * matrix recomputes like `importMatrix` but keeps the display name and
  * the session's `source`; `null` means the grid is incomplete — the
  * tree, matrix and stepper clear with no error and the session stays
- * on the matrix origin (Review Focus 3). An input the engine refuses
- * leaves `error` set and results cleared; `matrixInput` keeps the
- * typed values for fixing. */
+ * on the matrix origin (Review Focus 3). `draftReady` distinguishes
+ * the two null cases for the empty-state line: a complete, valid
+ * draft waits on "Build tree", an incomplete one on more typing. An
+ * input the engine refuses leaves `error` set and results cleared;
+ * `matrixInput` keeps the typed values for fixing. */
 export function applyEditMatrix(
   s: Session,
   input: DistanceInput | null,
+  draftReady = false,
 ): Session {
   return recompute(
     clearBootstrap({
@@ -490,6 +495,7 @@ export function applyEditMatrix(
       alignment: null,
       alignmentOrigin: "matrix",
       matrixInput: input,
+      matrixDraftReady: input === null && draftReady,
       alphabet: s.exercise.alphabet,
       notice: null,
       reference: null,
@@ -555,6 +561,7 @@ export function applyImportTree(s: Session, tree: Tree): Session {
         // sandbox-supplied matrix is discarded like an imported
         // alignment.
         matrixInput: exerciseMatrixInput(s.exercise),
+        matrixDraftReady: false,
       }),
     ),
   );

@@ -1103,7 +1103,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 reason here instead of a stale tree (Review Focus 3). */}
             {!aligned && session.result === null && (
               <Suspense fallback={null}>
-                <MatrixEmpty />
+                <MatrixEmpty draftReady={session.matrixDraftReady} />
               </Suspense>
             )}
             {referenceTree === null && (

@@ -179,3 +179,36 @@ describe("EditorModel.apply", () => {
     expect(calls).toBe(1);
   });
 });
+
+// v1.4c Task 9 (spec §5.3): "Derive from the drawn tree" calls
+// engine.additiveMatrix on the model's tree; NJ on that matrix
+// recovers the drawn topology (RF via the engine — never a drawn
+// view), and the derivedFrom marker is writeNewick's canonical text
+// so a later edit flags the drift.
+describe("derive from the drawn tree (v1.4c Task 9)", () => {
+  it("additiveMatrix(model.tree) equals NJ's recovered tree", () => {
+    const m = new EditorModel(
+      parseTree("((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);"),
+    );
+    const mat = engine.additiveMatrix(m.tree, null);
+    if (!mat.ok) throw new Error(JSON.stringify(mat.error));
+    expect(mat.value.names).toEqual(["A", "B", "C", "D", "E"]);
+    const dm = engine.matrixToDistances(mat.value);
+    if (!dm.ok) throw new Error(JSON.stringify(dm.error));
+    const built = engine.buildTree(dm.value, "Nj", { trace: false });
+    if (!built.ok) throw new Error(JSON.stringify(built.error));
+    const cmp = engine.compare(m.tree, built.value.tree);
+    if (!cmp.ok) throw new Error(JSON.stringify(cmp.error));
+    expect(cmp.value.rf).toBe(0);
+  });
+
+  it("an edit after deriving changes writeNewick — the stale marker fires", () => {
+    const m = new EditorModel(parseTree("(A:0.1,B:0.2,C:0.3);"));
+    const derivedFrom = engine.writeNewick(m.tree);
+    const b = nodeId(m.tree, "B");
+    expect(
+      m.apply({ kind: "setLength", child: b, length: 0.9 }).ok,
+    ).toBe(true);
+    expect(engine.writeNewick(m.tree)).not.toBe(derivedFrom);
+  });
+});

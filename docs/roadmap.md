@@ -108,6 +108,8 @@ validation discipline: an independent oracle, property tests and fuzzing.
   - auto-checked tasks (predict the pair, compute a Q-value, identify the weakest-supported group)
   - signed completion codes students paste into the LMS, verifiable by the instructor offline
 - Per-lesson "copy assignment text" for the LMS.
+- Editor autosave: the unsaved draft (including a matrix draft) survives a reload (local storage,
+  every access in try/catch); deferred from v1.4c Task 9.
 - **Accessibility conformance for adoption:** a WCAG 2.1 AA self-audit (the existing axe checks plus a
   manual keyboard and screen-reader pass over every view, including embed mode) and a published
   Accessibility Conformance Report (VPAT). US public universities must meet WCAG 2.1 AA under ADA

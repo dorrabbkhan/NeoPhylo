@@ -29,7 +29,14 @@ export type Action =
   // data — `importMatrix` opens one in the sandbox; `editMatrix` is the
   // grid's change (null = incomplete: clear results, keep the session).
   | { type: "importMatrix"; input: DistanceInput; name: string | null }
-  | { type: "editMatrix"; input: DistanceInput | null }
+  // `draftReady` (v1.4c Task 9) marks an uncommitted but COMPLETE grid
+  // draft — the empty-state line can then say "Press Build tree"
+  // instead of "Complete the distance matrix".
+  | {
+      type: "editMatrix";
+      input: DistanceInput | null;
+      draftReady?: boolean;
+    }
   | { type: "step"; to: number }
   | { type: "setMode"; mode: UiState["mode"] }
   | { type: "setTheme"; theme: UiState["theme"] }
