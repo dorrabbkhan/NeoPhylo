@@ -1,0 +1,56 @@
+{
+  "schema_version": 5,
+  "id": "nj-by-hand",
+  "title": "Neighbor-Joining, by hand",
+  "summary": "Work a small distance matrix like a paper exercise: predict the join, then watch NJ make it.",
+  "meta": {
+    "objectives": [
+      "Predict which pair Neighbor-Joining joins from a small distance matrix",
+      "Explain why the closest pair is not always the pair NJ joins first",
+      "Recognize a tied join that leaves the tree unchanged"
+    ],
+    "minutes": 20,
+    "level": "intro",
+    "prepares_for": ["nj-basics", "dnadist-neighbor"]
+  },
+  "alphabet": "dna",
+  "data": {
+    "kind": "matrix",
+    "names": ["a", "b", "c", "d", "e"],
+    "lower": [5, 15, 10, 9, 10, 8, 8, 9, 7, 3],
+    "source": {
+      "citation": "Constructed for NeoPhylo: the textbook five-taxon Neighbor-Joining example matrix (the one in the Wikipedia article 'Neighbor joining') with one cell changed so the closest pair is not joined first",
+      "license": "CC0 1.0",
+      "accessions": []
+    }
+  },
+  "analysis": { "method": "NJ" },
+  "locked": ["analysis.method"],
+  "prompts": [
+    {
+      "at_step": 1,
+      "type": "note",
+      "concept": "A distance matrix alone is enough to build a tree — no sequences needed. This one is small enough to work by hand, like a paper exercise: predict each join before the app makes it.",
+      "math": "With a supplied matrix there is no correction step — the numbers in the cells are the distances the methods work on directly."
+    },
+    {
+      "at_step": 1,
+      "type": "predict_pair",
+      "concept": "Neighbor-Joining starts from the distance matrix. Which two taxa join first? The smallest cell is tempting — check whether it wins on Q before you pick.",
+      "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins.",
+      "reveal": "a and b join first even though d and e sit closest in the matrix: a and b are each farther from everything else, and the Q score subtracts exactly that."
+    },
+    {
+      "at_step": 3,
+      "type": "note",
+      "concept": "The join you just passed had a hidden tie: joining c to the cluster made in the first join scored exactly the same on Q as joining d and e. When two tied pairs are complements — together they cover every active cluster — either choice builds the same split, so the tie changes nothing. NeoPhylo picks the first pair in scan order, as PHYLIP does.",
+      "math": "At four active clusters, a pair and its complement that share the minimum Q always resolve to the same unrooted split — an ambiguous tie, by contrast, would change the tree."
+    },
+    {
+      "at_step": 4,
+      "type": "note",
+      "concept": "The tree is complete — and the first join was not the closest pair. NJ's Q score subtracts each taxon's total divergence from the rest, so a pair that looks close can still lose to a pair whose members sit far from everything else. That is the point of the method: it joins on relative closeness, not raw distance.",
+      "math": "Q(i,j) = (n−2)·d(i,j) − R_i − R_j: the row sums R_i and R_j are each cluster's total divergence, and subtracting them is what let the winner beat the smallest cell."
+    }
+  ]
+}

@@ -7517,3 +7517,84 @@ Owner-requested rendering fixes after the PR #139 review; branch
   editor-prompts-1280x800-light-linux,
   editor-prompts-1280x800-dark-linux — regenerated in the pinned CI
   Playwright image; no other baseline changed.
+
+## v1.4c Task 10: matrix lessons, lesson metadata, numbers-in-text test
+
+- **`lesson_premises.rs` is a new test file** (conductor note: no
+  lesson-premise test existed under `crates/neophylo-core/tests/`):
+  matrix lessons build their `DistanceMatrix` through
+  `DistanceInput::to_distance_matrix`; simulated/embedded lessons keep
+  the parse → simulate/compute path. `saturation` fails `compute` by
+  design (deliberately saturated sim), so `adding_meta_changes_nothing_else`
+  compares the whole `Result` — both sides fail identically.
+- **The complement-tie join uses a `note`, not `predict_pair`
+  (conductor's decision):** `PromptCard`'s grader accepts only the
+  engine's chosen pair, so at nj-by-hand join 2 (two tied pairs, same
+  split) a `predict_pair` would mark a correct alternative wrong. The
+  tied join gets a `note` placed at the join explaining that two pairs
+  tie and both give the same tree; `predict_pair` sits only at joins
+  whose engine step has `tie: false` (join 1), never at the final
+  three-way join. Pinned by
+  `predict_pair_prompts_target_tie_free_non_final_joins`. Owner
+  question: add a tie-aware grader in a later task?
+- **The catalog carries only `id`/`title`/`summary`** (owner ruling —
+  the initial-JS budget is never raised): `catalog.ts` now uses named
+  JSON imports (`import { id, title, summary } from "../../exercises/x.json"`),
+  which tree-shake the file bodies out of the initial chunk; `loadLesson`
+  still fetches `/exercises/<id>.json` at pick time.
+- **`meta` for the six lessons:** objectives written from each lesson's
+  own prompts; minutes/level estimated (intro 15–25 min, intermediate
+  15–25 min). `prepares_for` per the plan: `nj-basics` → `dnadist-neighbor`;
+  `bootstrap-basics` → `seqboot-consense`, `mega-bootstrap-100`;
+  `protein-models` → `protdist-neighbor`; `cytochrome-c` → `protdist-neighbor`;
+  `saturation` → `mega-jc69-vs-k2p`; `upgma-fails` → `upgma-vs-nj-matrix`,
+  `mega-nj-vs-upgma`. New lessons: `nj-by-hand` intro 20 min → `nj-basics`,
+  `dnadist-neighbor`; `upgma-vs-nj-matrix` intro 20 min →
+  `mega-nj-vs-upgma`. `every_prepares_for_id_exists` pins every id.
+- **`upgma-vs-nj-matrix` notes stay true after the switch:** the
+  invite-to-switch note is conditioned on "with NJ, …" phrasing so it
+  does not assert NJ's result once the student may already be on UPGMA.
+- **Existing tests edited** (the one allowed kind — strip only `meta`,
+  set the version the test already sets, nothing else differs):
+  - `exercise_v2.rs::v1_lessons_identical` — `meta` deleted from the
+    parsed doc before the v1 comparison.
+  - `exercise_v3.rs::repo_exercises_v3_twins_load_identically` — `meta`
+    deleted before the v3 twin load.
+  - `exercise_v4.rs::repo_exercises_load_as_v4_unchanged` — `meta`
+    deleted before the v4 load.
+  - `exercise_v5.rs::repo_exercises_load_and_reserialize_unchanged` —
+    `meta` deleted before the load (the test still asserts no `meta`
+    is fabricated on serialize); the two new lessons added to the list.
+  - `schema.test.ts::every exercises/*.json declares schema_version 5` —
+    assertion renamed 2 → 5: the test pins repo lessons at the current
+    schema version, which is now 5.
+  - `exerciseFile.test.ts` `round-trips exercises/%s` — `meta` stripped,
+    non-matrix files reloaded at 3, matrix lessons round-trip at 5;
+    `no v4 fields saves schema 3 as today` — `meta` stripped, reloaded
+    at 3.
+  - `draft.test.ts` `import → save preserves uneditable fields` — matrix
+    exercises pass a placeholder Newick to `buildExerciseState`; the
+    drawn tree is unused on the matrix save route.
+  - `catalog.test.ts` ORDER — the two new lesson ids added in teaching
+    order (nj-by-hand first, upgma-vs-nj-matrix after upgma-fails).
+  - `lessons.test.ts` — the matrix `expect.fail` branch replaced with
+    real checks (leaf count from `names`, final-join and prompt-range
+    checks); not a skip.
+  - `LessonsMenu.test.tsx`, `App.lessons.test.tsx` — positional menu
+    expectations re-pointed at the same lessons in the 8-item order.
+  - `Controls.test.tsx::keeps every built-in exercise's model menus
+    unchanged` — matrix exercises pass `alignmentOrigin: "matrix"` and
+    assert the simulation/correction menus are absent (matrix sessions
+    hide them); non-matrix assertions unchanged.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/tests/{exercise_v2,exercise_v3,exercise_v4,exercise_v5}.rs` —
+    the allowed meta-stripping edits above (the task names the file
+    family, not each test file).
+  - `web/src/lessons/schema.test.ts`, `web/src/lessons/catalog.test.ts` —
+    schema-version pin and catalog ORDER for the new lessons.
+  - `web/src/editor/exerciseFile.test.ts`, `web/src/editor/draft.test.ts` —
+    save-path tests that reload repo lessons now at v5.
+  - `web/src/views/LessonsMenu.test.tsx`, `web/src/views/App.lessons.test.tsx`,
+    `web/src/views/Controls.test.tsx` — menu order and matrix-origin
+    fallout from adding two lessons.
+  - `docs/decisions.md` — this entry.

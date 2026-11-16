@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "protein-models",
   "title": "Protein distances: when counting isn't enough",
   "summary": "Protein sites saturate fast — compare raw p distances with JTT on the same data.",
+  "meta": {
+    "objectives": [
+      "Explain why p-distances underestimate long protein branches",
+      "Contrast a raw count with a model-based protein distance",
+      "See how the correction choice changes the inferred tree"
+    ],
+    "minutes": 20,
+    "level": "intermediate",
+    "prepares_for": ["protdist-neighbor"]
+  },
   "alphabet": "protein",
   "data": {
     "kind": "simulated",

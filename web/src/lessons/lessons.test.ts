@@ -54,11 +54,13 @@ describe("exercises/*.json lesson content", () => {
     for (const f of lessonFiles()) {
       const ex = load(f);
 
-      // The alignment the lesson's pipeline sees, and its leaf count:
+      // The leaf set and the DistanceMatrix the lesson's pipeline sees:
       // simulated data needs the true tree first, embedded data is the
-      // FASTA itself (v1.1 spec §3.6).
+      // FASTA itself (v1.1 spec §3.6), and a matrix lesson's `names`
+      // and `lower` become the DistanceMatrix directly (v1.4c spec
+      // §4.1 — correction stays "Supplied").
       let leafCount: number;
-      let alnRes;
+      let dm;
       if (ex.data.kind === "simulated") {
         const tt = engine.parseNewick(ex.data.true_tree);
         expect(tt.ok, `${f} true_tree parses`).toBe(true);
@@ -66,22 +68,24 @@ describe("exercises/*.json lesson content", () => {
         leafCount = tt.value.nodes.filter(
           (n) => n.children.length === 0,
         ).length;
-        alnRes = engine.simulate(tt.value, ex.data.sim);
+        const alnRes = engine.simulate(tt.value, ex.data.sim);
+        dm = alnRes.ok
+          ? engine.distances(alnRes.value, ex.analysis.correction)
+          : null;
       } else if (ex.data.kind === "embedded") {
-        alnRes = engine.parseFasta(ex.data.fasta);
+        const alnRes = engine.parseFasta(ex.data.fasta);
         expect(alnRes.ok, `${f} embedded fasta parses`).toBe(true);
         if (!alnRes.ok) continue;
         leafCount = alnRes.value.labels.length;
+        dm = engine.distances(alnRes.value, ex.analysis.correction);
       } else {
-        // data.kind "matrix" lessons come in v1.4c Task 10; the first
-        // one must extend this test's checks, not slip past them.
-        expect.fail(
-          `${f}: matrix lessons need lesson-content checks (v1.4c Task 10)`,
-        );
+        leafCount = ex.data.names.length;
+        dm = engine.matrixToDistances({
+          names: ex.data.names,
+          lower: ex.data.lower,
+        });
+        expect(dm.ok, `${f} matrix builds a DistanceMatrix`).toBe(true);
       }
-      const dm = alnRes.ok
-        ? engine.distances(alnRes.value, ex.analysis.correction)
-        : null;
       const built =
         dm && dm.ok
           ? engine.buildTree(dm.value, ex.analysis.method, { trace: true })

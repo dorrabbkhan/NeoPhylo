@@ -1,8 +1,18 @@
 {
-  "schema_version": 2,
+  "schema_version": 5,
   "id": "bootstrap-basics",
   "title": "Bootstrap: how sure is the tree?",
   "summary": "Predict which grouping the data supports least, then resample and see.",
+  "meta": {
+    "objectives": [
+      "Predict which grouping a resampling run supports least",
+      "Explain what a bootstrap support value counts",
+      "Judge how alignment length and seed change support"
+    ],
+    "minutes": 25,
+    "level": "intermediate",
+    "prepares_for": ["seqboot-consense", "mega-bootstrap-100"]
+  },
   "alphabet": "dna",
   "data": {
     "kind": "simulated",
