@@ -6,8 +6,9 @@
 //
 // Accessibility (§6.5): a colorblind-safe sequential palette (viridis) is
 // never the only carrier of meaning — the numeric value is printed in each
-// cell at 3 decimals, saturated cells use a hatch <pattern> and show "∞",
-// and the chosen pair also gets a thick border plus aria-selected.
+// cell (cellDecimals picks one decimal count per matrix, v1.4c ruling 2A),
+// saturated cells use a hatch <pattern> and show "∞", and the chosen pair
+// also gets a thick border plus aria-selected.
 //
 // Large matrices (v1.1 Task 14, §3.4's 200-taxon budget): past COMPACT_N
 // taxa a per-cell DOM (three SVG nodes × n² cells) cannot render inside
@@ -20,6 +21,8 @@ import { useCallback, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent } from "react";
 
 import { size } from "../design/tokens";
+
+import { cellDecimals } from "./matrix/cellDecimals";
 
 export type MatrixCell = number | "sat";
 
@@ -117,6 +120,12 @@ export function MatrixHeatmap({
     }
   }
   const t = (v: number) => (max > min ? (v - min) / (max - min) : 0.5);
+
+  // One decimal count for the whole matrix (owner ruling 2A): values
+  // ≥ 10 would clip the cell at the shipped 3 decimals.
+  const decimals = cellDecimals(
+    values.filter((v): v is number => typeof v === "number"),
+  );
 
   // Roving tabindex: one cell is tabbable, arrow keys move it (WAI-ARIA
   // grid pattern). Defaults to the chosen cell so keyboard focus starts on
@@ -393,7 +402,7 @@ export function MatrixHeatmap({
               v === "sat" || (typeof v === "number" && !Number.isFinite(v));
             const tv = saturated ? 0 : t(v as number);
             const fill = saturated ? "url(#hatch)" : viridis(tv);
-            const text = saturated ? "∞" : (v as number).toFixed(3);
+            const text = saturated ? "∞" : (v as number).toFixed(decimals);
             return (
               <g
                 key={`cell-${i}-${j}`}

@@ -5,6 +5,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { cellDecimals } from "./matrix/cellDecimals";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 
 afterEach(cleanup);
@@ -99,6 +100,98 @@ describe("MatrixHeatmap", () => {
     target.focus();
     fireEvent.keyDown(target, { key: "Enter" });
     expect(onPick).toHaveBeenCalledWith(2, 1);
+  });
+});
+
+/* ---- per-matrix decimal count (v1.4c owner ruling 2A on PR #156):
+ * one decimal count for the whole displayed matrix so values ≥ 10
+ * still fit the 34 px cell. Matrices with all values < 10 and not
+ * all integers keep the shipped 3 decimals byte-identically. ---- */
+
+describe("cellDecimals", () => {
+  it("returns 0 when every finite value is an integer", () => {
+    expect(cellDecimals([0, 5, 15, 10, 3])).toBe(0);
+    expect(cellDecimals([0, -35, -49])).toBe(0);
+  });
+
+  it("returns 3 when a non-integer matrix's widest magnitude is < 10", () => {
+    expect(cellDecimals([0, 0.5, 9.999, -1.25])).toBe(3);
+  });
+
+  it("returns 2 when the widest magnitude is < 100", () => {
+    expect(cellDecimals([0, 2.5, 24.5])).toBe(2);
+    expect(cellDecimals([0, -49.5])).toBe(2);
+  });
+
+  it("returns 1 when the widest magnitude is < 1000", () => {
+    expect(cellDecimals([0, 150.25])).toBe(1);
+  });
+
+  it("returns 0 when the widest magnitude is ≥ 1000", () => {
+    expect(cellDecimals([0, 1234.5])).toBe(0);
+  });
+
+  it("ignores non-finite values (saturated/∞ cells)", () => {
+    expect(cellDecimals([0.5, Infinity, NaN, -Infinity])).toBe(3);
+    expect(cellDecimals([Infinity, NaN])).toBe(3);
+  });
+
+  it("does not throw on an empty matrix", () => {
+    expect(() => cellDecimals([])).not.toThrow();
+    expect(cellDecimals([])).toBe(3);
+  });
+});
+
+describe("MatrixHeatmap cell digits", () => {
+  /** The <text> inside cell (i, j). */
+  const cellText = (container: HTMLElement, i: number, j: number) =>
+    cell(container, i, j).querySelector("text")?.textContent;
+
+  // fixtures/inputs/matrix/nj_by_hand.phy — the nj-by-hand lesson's
+  // step-0 distance matrix (all integers, some ≥ 10). Before the fix
+  // "15.000" and "10.000" clipped the 34 px cell.
+  const NJ_BY_HAND: number[] = [
+    0, 5, 15, 9, 8,
+    5, 0, 10, 10, 9,
+    15, 10, 0, 8, 7,
+    9, 10, 8, 0, 3,
+    8, 9, 7, 3, 0,
+  ];
+
+  it("an all-integer matrix prints values with no decimals", () => {
+    const { container } = renderMatrix({
+      labels: ["a", "b", "c", "d", "e"],
+      values: NJ_BY_HAND,
+    });
+    expect(cellText(container, 0, 2)).toBe("15");
+    expect(cellText(container, 0, 1)).toBe("5");
+    expect(cellText(container, 1, 2)).toBe("10");
+    for (const g of container.querySelectorAll('[role="gridcell"] text')) {
+      expect(g.textContent).not.toContain(".");
+    }
+  });
+
+  it("a reduced matrix with 2.5 and 24.5 prints two decimals", () => {
+    const { container } = renderMatrix({
+      values: [
+        0, 2.5, 24.5,
+        2.5, 0, 12.5,
+        24.5, 12.5, 0,
+      ],
+    });
+    expect(cellText(container, 0, 1)).toBe("2.50");
+    expect(cellText(container, 0, 2)).toBe("24.50");
+    expect(cellText(container, 1, 2)).toBe("12.50");
+  });
+
+  it("the aria-label carries the same displayed text", () => {
+    const { container } = renderMatrix({
+      labels: ["a", "b", "c", "d", "e"],
+      values: NJ_BY_HAND,
+    });
+    expect(cell(container, 0, 2).getAttribute("aria-label")).toBe(
+      "a, c: 15",
+    );
   });
 });
 

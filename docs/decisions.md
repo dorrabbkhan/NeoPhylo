@@ -7517,3 +7517,22 @@ Owner-requested rendering fixes after the PR #139 review; branch
   editor-prompts-1280x800-light-linux,
   editor-prompts-1280x800-dark-linux — regenerated in the pinned CI
   Playwright image; no other baseline changed.
+
+## v1.4c owner ruling 2A (PR #156, 2026-11-16): heatmap cell digits fit the cell
+
+- **Owner ruling 2A:** the matrix heatmap printed every cell at 3
+  decimals, so values ≥ 10 ("15.000") clipped the 34 px cell in matrix
+  sessions. `cellDecimals` picks ONE decimal count per displayed
+  matrix: 0 when every finite value is an integer; otherwise the
+  largest d ≤ 3 whose widest formatted value fits the cell at 12 px
+  (in practice: widest |v| < 10 → 3, < 100 → 2, < 1000 → 1, else 0).
+  Every matrix with all values < 10 and not all integers keeps 3
+  decimals byte-identically; saturated cells keep "∞"; the aria-label
+  uses the displayed text.
+- **Files:** `web/src/views/matrix/cellDecimals.ts` (new — the lint
+  rule `react-refresh/only-export-components` forbids a non-component
+  export from `MatrixHeatmap.tsx`), `web/src/views/MatrixHeatmap.tsx`,
+  `web/src/views/MatrixHeatmap.test.tsx`, `web/e2e/matrix.spec.ts`,
+  `web/e2e/__screenshots__/matrix-session-{1024x768,768x1024}-{light,dark}-linux.png`
+  (4 frames regenerated in the pinned CI image; the 1920×1080 frames
+  changed within the 0.001 tolerance and were left), this entry.

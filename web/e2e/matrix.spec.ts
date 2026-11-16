@@ -777,3 +777,59 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   expect(page.url()).toContain("d=");
   expect(page.url()).not.toContain("ds=");
 });
+
+// Cell-digit fit (v1.4c owner ruling 2A on PR #156): values ≥ 10 at 3
+// decimals ("15.000") used to run to the cell edges. Every cell value
+// text must measure within the 34 px cell — getComputedTextLength is
+// in viewBox units, so the check is scale-independent. Chromium only:
+// the bundled fonts pin the metrics. nj_by_hand is all-integer (0
+// decimals); upgma_vs_nj reduces to .5 values ≥ 10 (2 decimals).
+test("cell value text never exceeds the 34 px cell (Chromium)", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium");
+
+  /** Every gridcell value text wider than the 34 px cell. */
+  const overflowing = (page: Page) =>
+    page.evaluate(() => {
+      const out: string[] = [];
+      for (const g of document.querySelectorAll('[role="gridcell"]')) {
+        const t = g.querySelector("text");
+        if (t === null) continue;
+        const w = t.getComputedTextLength();
+        if (w > 34) {
+          out.push(`"${t.textContent}" ${w.toFixed(1)}px > 34px cell`);
+        }
+      }
+      return out;
+    });
+
+  for (const file of ["nj_by_hand.phy", "upgma_vs_nj.phy"]) {
+    await openSandbox(page);
+    const scope = await importScope(page);
+    await scope
+      .locator('.import-file input[type="file"]')
+      .setInputFiles(`${MATRIX_DIR}${file}`);
+    await expect(
+      page.locator('svg[aria-label="Inferred tree"]'),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // Every step position, both the distance and (NJ) Q views.
+    const qToggle = page.getByRole("switch", { name: "Distance / Q" });
+    for (;;) {
+      expect(await overflowing(page), `${file} distance view`).toEqual(
+        [],
+      );
+      if (await qToggle.isEnabled().catch(() => false)) {
+        await qToggle.click();
+        expect(await overflowing(page), `${file} Q view`).toEqual([]);
+        await qToggle.click();
+      }
+      const { k, max } = await readStep(page);
+      if (k === max) break;
+      await page.getByRole("button", { name: "Next step" }).click();
+    }
+  }
+});
