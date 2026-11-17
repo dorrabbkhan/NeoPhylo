@@ -8054,4 +8054,9 @@ Owner-requested rendering fixes after the PR #139 review; branch
   the committed baselines, which already showed the print-fit
   appearance — the pre-change baseline run raced the old reflow and
   only the 1920-light frame caught the pre-refit tree. No other frame
-  changed.
+  changed. `matrix-grid-1920x1080-light-linux.png` was regenerated a
+  second time inside the pinned CI image
+  (`playwright:v1.64.1-noble@sha256:7852dc5a…`): the first capture was
+  shot on the host, whose textarea line-wrap differs from the image's
+  by a few pixels, and the visual job flagged it. All 185 frames pass
+  in the image after the regen.
