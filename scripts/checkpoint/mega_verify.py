@@ -380,11 +380,31 @@ def cell_equal(a, b):
 
 
 def parse_meg_distance_input(path):
-    """A LowerLeft distance .meg: `#name` lines, then bare lower rows."""
+    """A LowerLeft distance .meg: `#name` label lines then lower rows.
+    Reads both layouts — the bare `#name`/value-line form and MEGA's
+    own `[i] #name` labels, `[ 1 … n ]` column header and `[i]`-prefixed
+    rows (round-3 K4); `!` command bodies (a `!Description` block) are
+    skipped to their `;`."""
     names, vals = [], []
+    in_cmd = False
     for ln in open(path, encoding="utf-8-sig"):
         ln = ln.strip()
-        if not ln or ln.startswith("!") or ln.lower() == "#mega":
+        if not ln or ln.lower() == "#mega":
+            continue
+        if in_cmd:
+            if ";" in ln:
+                in_cmd = False
+            continue
+        if ln.startswith("!"):
+            if ";" not in ln:
+                in_cmd = True
+            continue
+        while ln.startswith("["):
+            close = ln.find("]")
+            if close < 0:
+                break
+            ln = ln[close + 1:].strip()
+        if not ln:
             continue
         if ln.startswith("#"):
             names.append(ln[1:].split()[0])

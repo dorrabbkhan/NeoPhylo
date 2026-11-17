@@ -49,9 +49,13 @@
 //! `!Format` with `DataType=Distance` (required; `DataFormat` is
 //! `LowerLeft` — the default, with a notice — or `UpperRight`, and a
 //! declared `NTaxa` must equal the `#name` count), other `!` commands
-//! ignored as notices, `"…"` comments stripped. `#name` lines may be
-//! interleaved with data rows; the tail of a `#name` line counts as
-//! one data row. Data rows then fill the declared triangle in order —
+//! ignored as notices, `"…"` and `[…]` comments stripped — `[…]` is
+//! MEGA's own comment, so a real MEGA file's `[i] #name` labels,
+//! `[ 1 … n ]` column header and `[i]` row prefixes come through as
+//! plain `#name` lines and value rows (round-3 K5). `#name` lines may
+//! be interleaved with data rows; the tail of a `#name` line counts
+//! as one data row. Data rows then fill the declared triangle in
+//! order —
 //! LowerLeft: `n−1` rows of 1, 2, …, `n−1` values (row `r` is taxon
 //! `r+1`); UpperRight: `n−1` rows of `n−1`, …, 1 values (row `r` is
 //! taxon `r`). `?` or `n/c` is `InvalidMatrix` naming the cell.
@@ -640,29 +644,42 @@ pub fn parse_phylip_matrix(text: &str, opts: PhylipMatrixOptions) -> Result<Matr
 
 // ---- .meg ----------------------------------------------------------
 
-/// Strip `"…"` comments (they may span lines), keeping one cleaned
-/// string per input line with its 1-based number; a UTF-8 BOM is
-/// removed. An unterminated comment is an error at its opening `"`.
-/// Mirrors `meg::parse_meg`'s comment rules.
+/// Strip `"…"` and `[…]` comments (both may span lines; a comment of
+/// one kind inside the other is literal), keeping one cleaned string
+/// per input line with its 1-based number; a UTF-8 BOM is removed. An
+/// unterminated comment is an error at its opening character.
+///
+/// `[…]` is MEGA's own comment syntax, which is why the real MEGA
+/// layout parses through the same grammar: the `[i] #name` label
+/// lines, the `[ 1 … n ]` column-index header and the `[i]` matrix-row
+/// prefixes all vanish here, leaving bare `#name` lines and value
+/// rows (round-3 K5; MEGA itself treats those brackets as comments).
 fn meg_lines(text: &str) -> Result<Vec<(u32, String)>, NeoError> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut out = Vec::new();
-    let mut open: Option<(u32, u32)> = None;
+    let mut open_quote: Option<(u32, u32)> = None;
+    let mut open_bracket: Option<(u32, u32)> = None;
     for (i, raw) in text.lines().enumerate() {
         let line_no = (i + 1) as u32;
         let mut clean = String::with_capacity(raw.len());
         for (j, c) in raw.chars().enumerate() {
-            match (open, c) {
-                (Some(_), '"') => open = None,
-                (Some(_), _) => {}
-                (None, '"') => open = Some((line_no, (j + 1) as u32)),
-                (None, _) => clean.push(c),
+            match (open_quote, open_bracket, c) {
+                (Some(_), _, '"') => open_quote = None,
+                (Some(_), _, _) => {}
+                (_, Some(_), ']') => open_bracket = None,
+                (_, Some(_), _) => {}
+                (None, None, '"') => open_quote = Some((line_no, (j + 1) as u32)),
+                (None, None, '[') => open_bracket = Some((line_no, (j + 1) as u32)),
+                (None, None, _) => clean.push(c),
             }
         }
         out.push((line_no, clean));
     }
-    if let Some((line, col)) = open {
+    if let Some((line, col)) = open_quote {
         return Err(parse_err(line, col, "unterminated '\"' comment"));
+    }
+    if let Some((line, col)) = open_bracket {
+        return Err(parse_err(line, col, "unterminated '[' comment"));
     }
     Ok(out)
 }
@@ -977,20 +994,27 @@ pub fn parse_meg_matrix(text: &str) -> Result<MatrixFile, NeoError> {
 }
 
 /// Write a `DistanceInput` as a MEGA `.meg` distance file (v1.4c spec
-/// §5.4): `#mega`, `!Title`, `!Format DataType=Distance
-/// DataFormat=LowerLeft NTaxa=n`, the `#name` lines, then the strict
-/// lower triangle at full precision (`{}` round-trips an `f64`).
+/// §5.4, round-3 K4 — the layout the MEGA GUI itself writes and
+/// reads): `#MEGA`, `!Title: <title>;`, `!Format DataType=Distance
+/// DataFormat=LowerLeft NTaxa=n`, a `!Description` block ending in
+/// `;` (no `#`/`!` inside — both are mapped to `_` in the echoed
+/// title), the `[i] #name` label lines, a bracketed column-index
+/// header and the `[i]`-prefixed strict lower triangle (row 1 empty)
+/// at full precision (`{}` round-trips an `f64`).
 ///
-/// Name rules follow `write_meg`: whitespace maps to `_`, and a `"`
-/// in a label or two labels colliding after the mapping is
-/// `InvalidExercise`. The title cannot contain `"`, `;` or a line
-/// break.
+/// Name rules follow `write_meg`: whitespace maps to `_`, and a `"`,
+/// `[` or `]` in a label or two labels colliding after the mapping is
+/// `InvalidExercise`. The title cannot contain `"`, `;`, `[`, `]` or
+/// a line break.
 pub fn write_meg_matrix(m: &DistanceInput, title: &str) -> Result<String, NeoError> {
     validate_input(m)?;
-    if title.chars().any(|c| matches!(c, '"' | ';' | '\r' | '\n')) {
+    if title
+        .chars()
+        .any(|c| matches!(c, '"' | ';' | '[' | ']' | '\r' | '\n'))
+    {
         return Err(NeoError::InvalidExercise {
             field: "title".to_string(),
-            msg: "title contains '\"', ';' or a line break, which cannot be written in a .meg command"
+            msg: "title contains '\"', ';', '[', ']' or a line break, which cannot be written in a .meg command"
                 .to_string(),
         });
     }
@@ -1000,10 +1024,12 @@ pub fn write_meg_matrix(m: &DistanceInput, title: &str) -> Result<String, NeoErr
             .chars()
             .map(|c| if c.is_whitespace() { '_' } else { c })
             .collect();
-        if name.contains('"') {
+        if name.contains('"') || name.contains('[') || name.contains(']') {
             return Err(NeoError::InvalidExercise {
                 field: "names".to_string(),
-                msg: format!("label '{label}' contains '\"', which cannot appear in a .meg name"),
+                msg: format!(
+                    "label '{label}' contains a '\"', '[' or ']', which cannot appear in a .meg name"
+                ),
             });
         }
         if mapped.contains(&name) {
@@ -1016,23 +1042,30 @@ pub fn write_meg_matrix(m: &DistanceInput, title: &str) -> Result<String, NeoErr
     }
     let n = m.names.len();
     let mut out = String::new();
-    out.push_str("#mega\n!Title ");
+    out.push_str("#mega\n!Title: ");
     out.push_str(title);
     out.push_str(";\n!Format DataType=Distance DataFormat=LowerLeft NTaxa=");
     out.push_str(&n.to_string());
-    out.push_str(";\n\n");
-    for name in &mapped {
-        out.push('#');
-        out.push_str(name);
-        out.push('\n');
+    // MEGA reads a `!Description` block to the next `;` and does not
+    // allow '#' or '!' inside it — the title is echoed with both
+    // mapped to '_'.
+    out.push_str(";\n!Description\n  ");
+    for c in title.chars() {
+        out.push(if matches!(c, '#' | '!') { '_' } else { c });
     }
-    out.push('\n');
-    for i in 1..n {
+    out.push_str(", distance matrix written by NeoPhylo;\n\n");
+    for (i, name) in mapped.iter().enumerate() {
+        out.push_str(&format!("[{}] #{}\n", i + 1, name));
+    }
+    out.push('[');
+    for i in 1..=n {
+        out.push_str(&format!("{i:>6}"));
+    }
+    out.push_str(" ]\n");
+    for i in 0..n {
+        out.push_str(&format!("[{}]", i + 1));
         for j in 0..i {
-            if j > 0 {
-                out.push(' ');
-            }
-            out.push_str(&format!("{}", m.get(i, j)));
+            out.push_str(&format!(" {}", m.get(i, j)));
         }
         out.push('\n');
     }
@@ -1068,10 +1101,11 @@ pub fn detect_matrix_format(text: &str) -> Option<MatrixFormat> {
         .get(..5)
         .is_some_and(|h| h.eq_ignore_ascii_case("#mega"))
     {
-        // Scan `!…;` commands (skipping `"…"` comments) for a !Format
-        // declaring DataType=Distance.
+        // Scan `!…;` commands (skipping `"…"` and `[…]` comments) for
+        // a !Format declaring DataType=Distance.
         let mut in_cmd = false;
         let mut in_quote = false;
+        let mut in_bracket = false;
         let mut body = String::new();
         for c in text.chars() {
             if in_quote {
@@ -1080,8 +1114,18 @@ pub fn detect_matrix_format(text: &str) -> Option<MatrixFormat> {
                 }
                 continue;
             }
+            if in_bracket {
+                if c == ']' {
+                    in_bracket = false;
+                }
+                continue;
+            }
             if c == '"' {
                 in_quote = true;
+                continue;
+            }
+            if c == '[' {
+                in_bracket = true;
                 continue;
             }
             if in_cmd {

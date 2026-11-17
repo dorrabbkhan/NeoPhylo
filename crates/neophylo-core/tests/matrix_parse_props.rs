@@ -40,6 +40,47 @@ proptest! {
         prop_assert_eq!(back.matrix, m);
     }
 
+    /// Round-3 K5: a matrix serialized in MEGA's own bracketed
+    /// layout — `[i] #name` labels, a `!Description` block, the
+    /// bracketed column header and `[i]`-prefixed rows, `[1]` empty —
+    /// parses back to the same input in either declared triangle.
+    #[test]
+    fn meg_mega_layout_round_trip(
+        m in arb_distance_input(),
+        upper in proptest::bool::ANY,
+    ) {
+        let n = m.names.len();
+        let mut text = String::from("#mega\n!Title: prop;\n");
+        text.push_str(&format!(
+            "!Format DataType=Distance DataFormat={} NTaxa={n};\n\
+             !Description\n  prop;\n",
+            if upper { "UpperRight" } else { "LowerLeft" },
+        ));
+        for (i, name) in m.names.iter().enumerate() {
+            text.push_str(&format!("[{}] #{name}\n", i + 1));
+        }
+        text.push('[');
+        for i in 1..=n {
+            text.push_str(&format!("{i:>6}"));
+        }
+        text.push_str(" ]\n");
+        for i in 0..n {
+            text.push_str(&format!("[{}]", i + 1));
+            if upper {
+                for j in i + 1..n {
+                    text.push_str(&format!(" {}", m.get(i, j)));
+                }
+            } else {
+                for j in 0..i {
+                    text.push_str(&format!(" {}", m.get(i, j)));
+                }
+            }
+            text.push('\n');
+        }
+        let back = parse_meg_matrix(&text).expect("parse_meg_matrix");
+        prop_assert_eq!(back.matrix, m);
+    }
+
     /// PHYLIP writer → parser round-trips within printed precision
     /// (`write_phylip_matrix` prints 6 decimals; half an ulp is
     /// 0.5e-6).
