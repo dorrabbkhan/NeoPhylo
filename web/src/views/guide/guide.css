@@ -1,0 +1,64 @@
+/* The instructor guide (v1.4c plan Task 13, spec §7.5) on top of
+ * labs.css: links take the accent-contrast color the handout notes
+ * use, plan items are whole-row links so the tap target is the row,
+ * and under a coarse pointer every guide link — the plan rows and
+ * the inline prose links — reaches the ≥40×40 floor.
+ */
+
+.guide-md a {
+  color: var(--color-accent-contrast);
+}
+
+/* A plan item's link is the whole list row — title on the left edge,
+ * computed minutes in muted text at the end of the link. */
+.guide-md ol li {
+  margin-bottom: var(--space-4);
+}
+
+.guide-md ol li a {
+  border-radius: var(--radius-sm);
+  display: block;
+  margin-left: calc(-1 * var(--space-8));
+  padding: var(--space-4) var(--space-8);
+  text-decoration: none;
+}
+
+.guide-md ol li a:hover,
+.guide-md ol li a:focus-visible {
+  background: var(--color-accent-bg);
+  text-decoration: underline;
+}
+
+.guide-min {
+  color: var(--color-text-muted);
+}
+
+/* The computed plan total under each plan list. */
+.guide-total {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: calc(-1 * var(--space-4)) 0 var(--space-12) var(--space-24);
+}
+
+/* The ≥40×40 touch floor (§8.3). Plan rows are block links, so they
+ * reach it with flex alignment; inline prose links cannot take a
+ * block height — their hit area grows with vertical padding on the
+ * inline box instead (padding does not reflow the line, it only
+ * enlarges the clickable rect). */
+@media (pointer: coarse) {
+  .guide-md ol li a {
+    align-items: center;
+    display: flex;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .guide-md p a,
+  .guide-md ul a {
+    padding-bottom: var(--space-12);
+    padding-top: var(--space-12);
+  }
+
+  /* The header links and the Print button are covered by labs.css's
+   * own coarse-pointer block (.lab-nav-link, .lab-controls *). */
+}

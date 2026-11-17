@@ -955,4 +955,19 @@ export const SCENES: {
       await settleFrame(page);
     },
   },
+  {
+    // v1.4c Task 13 (spec §7.5): the instructor guide — the rendered
+    // markdown sections with the plan rows' registry minutes and
+    // computed totals. New scene; no existing baseline changes.
+    name: "guide",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?guide");
+      await expect(
+        page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+      ).toBeVisible();
+      await expect(page.getByText(/Total: 180 min/)).toBeVisible();
+      await settleFrame(page);
+    },
+  },
 ];

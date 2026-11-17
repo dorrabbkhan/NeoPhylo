@@ -59,11 +59,21 @@ const LibraryPage = lazy(() =>
   })),
 );
 
+// v1.4c Task 13: `?guide` is a lazy route for the same reason — the
+// raw guide markdown and the item registries it reads minutes from
+// defer until the route is visited (§8.2).
+const GuidePage = lazy(() =>
+  import("./views/guide/GuidePage").then((m) => ({
+    default: m.GuidePage,
+  })),
+);
+
 const params = new URLSearchParams(window.location.search);
 const editorRoute = params.has("editor");
 const previewRoute = params.has("preview");
 const labsRoute = params.has("labs");
 const libraryRoute = params.has("library");
+const guideRoute = params.has("guide");
 const labRoute = params.get("lab");
 const worksheetRoute = params.get("worksheet");
 const keyRoute = params.get("key");
@@ -130,6 +140,13 @@ export function Root() {
     return (
       <Suspense fallback={LOADING}>
         <LibraryPage />
+      </Suspense>
+    );
+  }
+  if (guideRoute) {
+    return (
+      <Suspense fallback={LOADING}>
+        <GuidePage />
       </Suspense>
     );
   }

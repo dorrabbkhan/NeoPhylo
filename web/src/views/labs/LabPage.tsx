@@ -12,15 +12,16 @@
 // and shows .lab-print-head).
 //
 // handout_md and phylip_note_md render through the tiny markdown
-// subset below — headings, lists, paragraphs, `code` and **bold** as
-// React elements. Raw HTML is never injected, so pack markdown cannot
-// carry markup into the page.
+// subset in Md.tsx — headings, lists, paragraphs, `code` and **bold**
+// as React elements. Raw HTML is never injected, so pack markdown
+// cannot carry markup into the page. (The renderer is shared with the
+// instructor guide since v1.4c Task 13; lab fields contain no
+// `[text](href)` links, so its output is unchanged.)
 //
 // Like the editor this is a lazy route — the registry and its ajv
 // import stay out of the initial bundle.
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 
 import { initEngine } from "../../engine/index";
 import { loadLab } from "../../labs/registry";
@@ -29,83 +30,8 @@ import { encode } from "../../state/url";
 import { Wordmark } from "../Wordmark";
 
 import { LabPrintStyles } from "./LabPrintStyles";
+import { Md } from "./Md";
 import "./labs.css";
-
-/** Inline markdown: **bold** and `code` spans only. */
-function inline(text: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0;
-  let key = 0;
-  for (const m of text.matchAll(re)) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    const t = m[0];
-    out.push(
-      t.startsWith("**") ? (
-        <strong key={key++}>{t.slice(2, -2)}</strong>
-      ) : (
-        <code key={key++}>{t.slice(1, -1)}</code>
-      ),
-    );
-    last = m.index + t.length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-function MdBlock({ block }: { block: string }) {
-  const heading = /^#{1,6}\s/.exec(block);
-  if (heading !== null) {
-    const text = block.replace(/^#+\s*/, "");
-    const level = heading[0].trim().length;
-    return level <= 2 ? <h3>{inline(text)}</h3> : <h4>{inline(text)}</h4>;
-  }
-  const lines = block.split("\n").map((l) => l.trim());
-  if (lines.every((l) => /^[-*]\s+/.test(l))) {
-    return (
-      <ul>
-        {lines.map((l, i) => (
-          <li key={i}>{inline(l.replace(/^[-*]\s+/, ""))}</li>
-        ))}
-      </ul>
-    );
-  }
-  if (lines.every((l) => /^\d+\.\s+/.test(l))) {
-    return (
-      <ol>
-        {lines.map((l, i) => (
-          <li key={i}>{inline(l.replace(/^\d+\.\s+/, ""))}</li>
-        ))}
-      </ol>
-    );
-  }
-  return (
-    <p>
-      {lines.map((l, i) => (
-        <span key={i}>
-          {i > 0 && <br />}
-          {inline(l)}
-        </span>
-      ))}
-    </p>
-  );
-}
-
-/** The markdown subset the lab fields use: blank-line-separated
- * blocks of headings, unordered/ordered lists and paragraphs. */
-function Md({ source }: { source: string }) {
-  const blocks = source
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter((b) => b !== "");
-  return (
-    <div className="lab-md">
-      {blocks.map((b, i) => (
-        <MdBlock key={i} block={b} />
-      ))}
-    </div>
-  );
-}
 
 type LabState =
   | { status: "loading" }

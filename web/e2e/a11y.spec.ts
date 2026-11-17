@@ -362,6 +362,71 @@ for (const theme of ["light", "dark"] as const) {
   });
 }
 
+// v1.4c Task 13 (spec §7.5): the instructor guide joins the axe
+// matrix in both themes, and its print emulation keeps the
+// handouts' contract — light paper, the nav and controls hidden,
+// the print masthead shown and links still readable on paper.
+for (const theme of ["light", "dark"] as const) {
+  test(`axe: the instructor guide has no serious violations (${theme})`, async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript((t) => {
+      try {
+        window.localStorage.setItem("neophylo.theme", t);
+      } catch {
+        // storage can be blocked; the app tolerates it
+      }
+    }, theme);
+    await page.goto("/?guide");
+    await expect(
+      page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+    ).toBeVisible();
+    await expectNoSeriousViolations(page, `the instructor guide (${theme})`);
+  });
+}
+
+test("the guide's print emulation hides the controls and keeps its links readable", async ({
+  page,
+}) => {
+  await page.goto("/?guide");
+  await expect(
+    page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+  ).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".lab-nav")).toBeHidden();
+  await expect(page.locator(".lab-controls")).toBeHidden();
+  await expect(page.locator(".lab-print-head")).toBeVisible();
+  // Links still readable on paper: a plan link and an inline prose
+  // link keep a dark computed color under the light-token remap
+  // (WCAG luminance < 0.5 — the same threshold style labs.spec.ts
+  // uses for the handout text).
+  const luminance = (cssColor: string): number => {
+    const m = cssColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (m === null) throw new Error(`not an rgb() color: ${cssColor}`);
+    const channel = (v: number) => {
+      const c = v / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return (
+      0.2126 * channel(Number(m[1])) +
+      0.7152 * channel(Number(m[2])) +
+      0.0722 * channel(Number(m[3]))
+    );
+  };
+  for (const sel of [".guide-md ol a", ".guide-md ul a", ".guide-md p a"]) {
+    const link = page.locator(sel).first();
+    await expect(link).toBeVisible();
+    const color = await link.evaluate(
+      (el) => getComputedStyle(el).color,
+    );
+    expect(
+      luminance(color),
+      `${sel} stays readable in print (color ${color})`,
+    ).toBeLessThan(0.5);
+  }
+});
+
 test("axe: the dataset sheet and the gap control have no serious violations", async ({
   page,
 }) => {
