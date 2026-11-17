@@ -958,10 +958,6 @@ test("§2 every answer key renders — gated, both kinds", async ({
 test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", async ({
   page,
 }, info) => {
-  test.skip(
-    () => !isChromium(),
-    "PDFs and the media-emulation gallery are Chromium-only",
-  );
   const done = watchConsole(page);
   await prime(page, "dark");
   // Pre-grant the instructor flag — §3 checks the gate itself.
@@ -999,11 +995,15 @@ test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", asy
           `${id} ${cls}: controls hidden in print`,
         )
         .toBeHidden();
-      await page.pdf({
-        path: outPath("print", `${id}-${cls}.pdf`),
-        format: "A4",
-        printBackground: true,
-      });
+      // PDFs are saved from Chromium only (the sibling lab print
+      // tests' rule); the media-emulation checks above run everywhere.
+      if (isChromium()) {
+        await page.pdf({
+          path: outPath("print", `${id}-${cls}.pdf`),
+          format: "A4",
+          printBackground: true,
+        });
+      }
       await page.emulateMedia({ media: "screen" });
     }
   }

@@ -292,12 +292,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // Sync the URL on every state change with replaceState (spec §6.4):
   // reloads and shared links land on exactly this view. The encoded
   // text is memoized so the matrix session's long-link advisory
-  // (v1.4c spec §6.4) reads the same string replaceState writes.
+  // (v1.4c spec §6.4) reads the same string replaceState writes. The
+  // write is a layout effect (v1.4c Task 14 fix round 1): the address
+  // bar is the sandbox's share link, so it must carry the new state
+  // before the new view paints — a passive effect could leave the
+  // previous link showing for a frame.
   const urlText = useMemo(
     () => (session === null ? "" : encode(sessionUrlState(session, link))),
     [session, link],
   );
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (session === null || urlText === "") return;
     history.replaceState(null, "", urlText);
   }, [session, urlText]);

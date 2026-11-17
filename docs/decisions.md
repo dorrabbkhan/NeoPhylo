@@ -7915,17 +7915,40 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `CITATION.cff`; `date-released` untouched (2026-11-14) — the owner
   confirms the name and tags.
 - **The WebKit `d=` race (main CI run 44070866339, `e2e (webkit, 2)`,
-  `matrix.spec.ts:720`):** the share URL is written by a passive
-  `useEffect` (`history.replaceState` in `web/src/views/App.tsx`)
-  after the render that paints the tree, so a matrix session can show
-  its tree while the address bar still holds the previous link. The
-  test asserted `page.url()` once in that window and failed twice on
-  WebKit; the #160 push run (44086413192) and the nightly passed —
-  timing-dependent, not a flake, and a real (if short) stale-link
-  window for a user who copies the URL at once. The tests now wait
-  for the URL (`toHaveURL`) instead of reading it once; whether the
-  window is also a product bug to close in the app is flagged as a
-  v1.5 owner decision in the checkpoint (§15).
+  `matrix.spec.ts:720`)** — fixed in fix round 1: the share URL was
+  written by a passive `useEffect` (`history.replaceState` in
+  `web/src/views/App.tsx`) after the render that painted the tree, so
+  a matrix session could show its tree while the address bar still
+  held the previous link. The sync is now a `useLayoutEffect` — the
+  URL is written during the commit, before the new view paints — with
+  no change to the deps or the guard. Nothing in the app reads
+  `window.location` in a way that relied on the old ordering:
+  `urlRestore.resolveInitial` and the tour's `#x=` check read it
+  inside the mount-time restore effect (always before any write, since
+  the sync early-returns while `session === null`), the long-link
+  notice reads the memoized `urlText` not `location`, and
+  `worksheets/load.ts` runs on the worksheet/key routes where `App`
+  never mounts. The ordering is pinned by
+  `web/src/views/App.urlSync.test.tsx`: a `<Profiler onRender>`
+  callback runs during the commit — after the subtree's layout
+  effects, before passive effects — so reading `window.location`
+  there is the jsdom stand-in for the painted frame (any `act`-flushed
+  trigger fires passive effects too early to tell the two apart;
+  verified failing on `useEffect`, passing on `useLayoutEffect`). The
+  e2e `toHaveURL` waits stay as the deterministic wait for the settled
+  link. No longer a v1.5 owner decision — see checkpoint §15.
+- **Fix round 1 follow-ups:** the checkpoint §15/runbook wording now
+  names the Chromium-only items — the §6 and §12 `.meg` downloads and
+  the §2/§14 worksheet/key PDFs (S2 also listed §6 explicitly; §12 is
+  the same describe-level `test.skip`, named too for accuracy). §2/§14
+  in `scripts/checkpoint/browser/release.spec.ts` follows the sibling
+  lab print tests: the `emulateMedia('print')`/luminance checks run on
+  every engine and only `page.pdf` is Chromium-gated. The
+  `preflight.sh` usage comment names the current release like
+  `run.sh`. §6's ticked item cites
+  `matrix_parse.rs`/`matrix_parse_props.rs` for the
+  `write_meg_matrix` round trip — `meg.rs` is the sequence-`.meg`
+  suite; every other cited test name was grep-verified.
 - **Paper-worksheet id list:** the eight ids in the checkpoint's §2
   are the `paperSheet` rule (printable matrix, ≤ 8 taxa) resolved over
   the committed exercises — verified with a scratch vitest enumeration
@@ -7935,12 +7958,25 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **Files outside the Files block:**
   - `web/e2e/matrix.spec.ts` — the mandated WebKit investigation's
     fix: every immediate `page.url()` assertion after a state change
-    now waits on `toHaveURL` (the `replaceState` effect can lag the
-    paint on WebKit).
+    now waits on `toHaveURL` (the `replaceState` effect could lag the
+    paint on WebKit before fix round 1). Fix round 1 updated the
+    comment only — the wait stays.
   - `web/e2e/share.spec.ts` — the same read-once pattern after the
     step advance; now waits for `lesson=nj-basics&s=1` in the URL.
+    Fix round 1 updated the comment only — the wait stays.
+  - `web/e2e/presenter.spec.ts` — fix round 1, comment only: the URL
+    sync is no longer a post-render effect.
+  - `web/src/views/App.tsx` — fix round 1: the mandated product fix,
+    the URL sync moved to `useLayoutEffect`.
+  - `web/src/views/App.urlSync.test.tsx` — fix round 1: the mandated
+    regression test.
+  - `scripts/checkpoint/browser/release.spec.ts` — fix round 1: §2/§14
+    print checks on every engine, `page.pdf` Chromium-only.
+  - `scripts/checkpoint/preflight.sh` — fix round 1: usage comment
+    names the current release.
   - `docs/release-checkpoint.md` — the runbook's "This release" table,
     commands, owner-pass items, release fields and the "Automation
     map" repointed at `v1.4c-release.md` (its own header invites the
-    per-release update).
+    per-release update). Fix round 1 updated the Chromium-only wording
+    and dropped the stale-link ruling row.
   - `docs/decisions.md` — this entry.

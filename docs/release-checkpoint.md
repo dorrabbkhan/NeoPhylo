@@ -326,8 +326,8 @@ Step 3 exercise each one.
 - Roadmap: mark v1.4c **released (v1.4.2, <date>)** in the next docs PR.
 - Check the `main` nightly and the tag run's `@perf` timings once.
 - The open follow-ups start the v1.5 cycle: the serde `null` gap on old
-  optional keys (§16), the stale-link window ruling (§15), and the MEGA
-  Adaptive Bootstrap sentence pending the owner's GUI check (§16).
+  optional keys (§16) and the MEGA Adaptive Bootstrap sentence pending
+  the owner's GUI check (§16).
 
 ## Rollback
 
@@ -343,8 +343,10 @@ release is broken:
 
 ## Automation map: v1.4c checklist (`docs/checkpoints/v1.4c-release.md`)
 
-"Auto" means a test in `scripts/checkpoint/browser/release.spec.ts` (all
-three engines unless noted) or `mega_verify.py` proves the item.
+"Auto" means a test in `scripts/checkpoint/browser/release.spec.ts` —
+run on all three engines except the Chromium-only parts noted below
+(the §6 and §12 `.meg` downloads, the §2/§14 worksheet/key PDFs and
+the Chromium-only screenshots) — or `mega_verify.py` proves the item.
 "Gallery" means the script measures it and you still look. "Manual" means
 only you can do it.
 
@@ -370,8 +372,8 @@ only you can do it.
 | 12 | Alignment `.meg` → MEGA-CC parity | **Auto** (`§12` + `mega_verify.py`, carried) |
 | 13 | Weak-support sample draws `*` | **Auto** (`§13`, carried) + owner look |
 | 14 | Print: light, controls hidden, no minutes on handouts | **Auto** + **PDFs**; one real paper print is **owner** |
-| 15 | WebKit pass | **Auto** (every § test runs on WebKit) + 5 min real Safari (Step 3.3) |
-| 15 | Stale-link window ruling (`d=` written after paint) | **Owner decision** — see the note in the checklist |
+| 15 | WebKit pass | **Auto** (every § test runs on WebKit except the Chromium-only parts above) + 5 min real Safari (Step 3.3) |
+| 15 | Stale-link window (`d=` written after paint) | **Fixed** — the URL sync is a `useLayoutEffect`, pinned by `App.urlSync.test.tsx`; see the note in the checklist |
 | 16 | `bootstrap: null` serde gap; MEGA Adaptive Bootstrap sentence | **Known issues, not fixed** — v1.5 owner decision |
 | 17 | Hand key-check, GUI open, printed matrix, sign-offs, tag | **Manual (owner)** |
 

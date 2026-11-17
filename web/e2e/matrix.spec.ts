@@ -717,10 +717,9 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
     .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
-  // The URL sync is a replaceState in a post-render effect — on WebKit
-  // it lands measurably after the tree first paints (presenter.spec.ts
-  // documents ~200 ms), so page.url() here can still read the pre-sync
-  // URL. toHaveURL waits for the settled `d=` write (main CI run
+  // The URL sync is a layout-effect replaceState, written before the
+  // tree paints (v1.4c Task 14 fix round 1). toHaveURL stays as the
+  // deterministic wait for the settled `d=` write (main CI run
   // 44070866339, e2e webkit/2).
   await expect(page).toHaveURL(/[?&]d=/);
 
