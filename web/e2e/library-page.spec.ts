@@ -449,3 +449,71 @@ test("under (pointer: coarse) every link and control on the library is ≥40×40
   await context.close();
 });
 
+// v1.4c Task 13 (spec §7.5): the header's guide link — shipped in
+// Task 12 pointing at a route that did not exist — now opens the
+// instructor guide.
+test("the library's Instructor guide link opens the guide", async ({
+  page,
+}) => {
+  await page.goto("/?library");
+  await page.getByRole("link", { name: "Instructor guide" }).click();
+  await expect(page).toHaveURL(/\?guide/);
+  await expect(
+    page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+  ).toBeVisible();
+});
+
+// The guide gets the same ≥40×40 coarse-pointer floor: plan items are
+// whole-row block links, inline prose links grow their hit box with
+// padding, and the nav/Print controls ride labs.css's own coarse
+// rules.
+test("under (pointer: coarse) every link and control on the guide is ≥40×40", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+  const page = await context.newPage();
+  await page.goto("/?guide");
+  await expect(
+    page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  const targets = page.locator("a, button");
+  const count = await targets.count();
+  expect(count).toBeGreaterThan(10);
+  for (let i = 0; i < count; i++) {
+    const target = targets.nth(i);
+    if (!(await target.isVisible())) continue;
+    const box = await target.boundingBox();
+    if (box === null) continue;
+    const label =
+      (await target.getAttribute("aria-label")) ??
+      (await target.innerText().catch(() => "")).slice(0, 40) ??
+      `target ${i}`;
+    expect(
+      box.width,
+      `guide: "${label}" ≥40 px wide (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box.height,
+      `guide: "${label}" ≥40 px tall (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+  await context.close();
+});
+

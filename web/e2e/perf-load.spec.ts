@@ -290,6 +290,32 @@ test.describe("lazy library chunk", () => {
   });
 });
 
+test.describe("lazy guide chunk", () => {
+  // v1.4c Task 13 (spec §7.5): `?guide` is the same kind of lazy
+  // route — the raw markdown and the item registries it reads minutes
+  // from defer until the route is visited, never the initial load.
+  test.use({ serviceWorkers: "block" });
+
+  test("initial load fetches no guide chunk", async ({ page }) => {
+    const jsChunkRequests: string[] = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/") && u.pathname.endsWith(".js")) {
+        jsChunkRequests.push(u.pathname);
+      }
+    });
+
+    await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+    await waitForApp(page);
+    for (const name of ["GuidePage", "instructor-guide"]) {
+      expect(
+        jsChunkRequests.some((u) => u.includes(name)),
+        `${name} must not be an initial chunk`,
+      ).toBe(false);
+    }
+  });
+});
+
 test("after one online load, Math renders offline with KaTeX's own fonts", async ({
   page,
   context,

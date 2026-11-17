@@ -433,6 +433,9 @@ test("a dark-theme session still prints the lab pages light", async ({
     "/?lab=mega-jc69-vs-k2p",
     "MEGA: JC69 vs K2P on primate mtDNA",
   );
+  // v1.4c Task 13 (spec §7.5): the guide renders .lab-print too, so a
+  // dark session prints it on light paper like the handouts.
+  await expectLightPrint("/?guide", "Instructor guide");
 });
 
 test("a MEGA lab groups under MEGA labs on the index and its page shows the MEGA columns and note heading", async ({

@@ -193,6 +193,31 @@ test("320×640: the library never scrolls sideways", async ({ page }) => {
   await expectNoSidewaysScroll(page, 320, "the library at 320 px");
 });
 
+// v1.4c Task 13 (spec §7.5): the instructor guide is a lab-print page —
+// the same header-controls and no-sideways checks apply at both narrow
+// widths.
+test("375×812: the instructor guide's header controls fit and the page never scrolls sideways", async ({
+  page,
+}) => {
+  await page.goto("/?guide");
+  await expect(
+    page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+  ).toBeVisible();
+  await checkHeaderControls(page, "the instructor guide");
+  await expectNoSidewaysScroll(page, NARROW.w, "the instructor guide");
+});
+
+test("320×640: the instructor guide never scrolls sideways", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/?guide");
+  await expect(
+    page.getByRole("heading", { name: "Instructor guide", level: 1 }),
+  ).toBeVisible();
+  await expectNoSidewaysScroll(page, 320, "the instructor guide at 320 px");
+});
+
 /* ---- v1.4c Task 8: the matrix UI under a coarse pointer ---- */
 
 test("375×812 coarse pointer: every matrix control is ≥40×40 and the page never scrolls sideways", async ({

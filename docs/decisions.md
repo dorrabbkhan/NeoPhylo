@@ -7791,3 +7791,120 @@ Owner-requested rendering fixes after the PR #139 review; branch
 
 - Owner request (2026-11-17, chat via conductor): lab settings tables
   collapse in the library, open on ?labs, print expanded.
+
+### Task 13 — instructor guide; MEGA Adaptive note
+
+- **Conductor's calls, as implemented:**
+  - `?guide` is a lazy route like `?library`: the raw guide markdown
+    (Vite `?raw`, `docs/instructor-guide.md`), the item registries it
+    reads minutes from and ajv all defer until the route is visited —
+    the initial bundle gains only the Root.tsx import stub. The
+    outside-`web/` import needs no config change: exercises JSON and
+    lab `?raw` globs already import from the repo root the same way.
+  - The handout renderer (`Md`/`MdBlock`/`inline`) moved verbatim out
+    of `LabPage.tsx` into `web/src/views/labs/Md.tsx` so the guide
+    renders "like handouts". LabPage output is byte-identical: the
+    unit suite plus a registry pin (no shipped `handout_md`/note field
+    contains `](`) keep it that way.
+  - The renderer learned `[text](href)` — for internal hrefs only.
+    `web/src/links.ts` whitelists exactly the app's own routes
+    (`?lesson=`/`?lab=`/`?worksheet=`/`?key=` with id and `kind`,
+    `?library` with the filter params `filtersQuery` writes, `?labs`,
+    `?editor`); every other target — `http:`, `javascript:`, `data:`,
+    `//`, bare paths, unknown params — renders as literal text. No
+    `dangerouslySetInnerHTML` anywhere.
+  - The plan lists carry no typed minutes: GuidePage detects the
+    all-link ordered list in each plan section (`planItemHrefs`),
+    reads each item's minutes through the same `buildItems()`
+    resolution the library cards use (`meta.minutes` for lessons,
+    `lab.minutes ?? meta.minutes` for labs), shows it inside the
+    item's link and appends a computed `Total: N min` line. The
+    §8.2 numbers-in-text scan was extended to the guide file; the
+    only allowed constants are the plan headings' "50-minute" and
+    "3-hour".
+  - 50-minute class plan: upgma-fails (15) + nj-by-hand (20) +
+    upgma-vs-nj-matrix (20) = 55 (within ±5). 3-hour lab plan:
+    nj-basics (20) + dnadist-neighbor (25) + seqboot-consense (40) +
+    mega-bootstrap-100 (35) + mega-interpreting-support (30) +
+    mega-nj-vs-upgma (30) = 180.
+  - Touch: plan items are whole-row block links (≥40×40 under
+    `(pointer: coarse)`). Inline prose links cannot take block height
+    in a paragraph, so their hit area grows with vertical padding on
+    the inline box instead — measured ≥40×40 in the hasTouch e2e.
+  - The guide's `##` sections become the page's h2s (the markdown's
+    `#` is the h1); handout-level h3/h4 mapping stays a lab-markdown
+    concern. Plan `ol`s are named by their section heading via
+    `aria-labelledby`.
+- **MEGA Adaptive check (conductor's check — NOT an owner sign-off):**
+  - MEGA 12.1.4 (build 12261022, Linux): the analysis-preferences
+    pick lists compiled into the GUI binary (`/usr/lib/mega/mega`)
+    give Neighbor-Joining's "Test of Phylogeny" the options "None",
+    "Bootstrap method", "Interior-branch test"
+    (`TestBootIntBranchPickList`). The Adaptive options appear only
+    in the Maximum Likelihood lists: `StdAdaptiveBootPickList`
+    ("None", "Standard Bootstrap (slow)", "Adaptive Bootstrap
+    (fast)") and `LittleBootPickList` (… "Adaptive Bootstrap
+    (medium)", "Little Bootstraps (fast)"). MEGA's bundled help
+    ("What's New") describes the adaptive bootstrap as applying "when
+    using the Maximum Likelihood approach".
+  - `mega-bootstrap-100` is an NJ lab, so the GUI offers no Adaptive
+    replicate option on its run step → no handout sentence is added;
+    `exercises/labs/mega-bootstrap-100.json` is unchanged.
+  - Pending: the owner confirms in the MEGA 12 GUI (Phylogeny →
+    Construct/Test Neighbor-Joining Tree → Test of Phylogeny list) at
+    this PR's gate. If the GUI shows Adaptive for NJ after all, the
+    one-sentence handout note is a follow-up.
+- **Files outside the Files block:**
+  - `web/src/links.ts` + `web/src/links.test.ts` — the internal-href
+    whitelist the renderer shares with the guide tests, plus the
+    `mdBlocks`/`markdownLinks`/`planItemHrefs` markdown helpers.
+  - `web/src/views/labs/Md.tsx` + `web/src/views/labs/Md.test.tsx` —
+    the extracted shared renderer and its link/keep-out tests.
+  - `web/src/views/labs/LabPage.tsx` — now imports `Md` from the
+    shared module (rendered output unchanged).
+  - `web/src/views/guide/guide.css` + `web/src/views/guide/links.test.ts`
+    — the page's stylesheet and the §7.5 link-resolution/plan-timing
+    test.
+  - `web/src/lessons/content.test.ts` — the §8.2 numbers-in-text scan
+    extended to `docs/instructor-guide.md`.
+  - `web/e2e/labs.spec.ts` — `?guide` added to the dark-session
+    light-print loop (the same print-colour checks the handouts use).
+  - `web/e2e/narrow.spec.ts` — the guide's 375/320 px header-controls
+    and no-sideways checks (the conductor note's "record if needed").
+  - `web/e2e/perf-load.spec.ts` — the "guide chunk is not in the
+    initial load" assertion (the Task 11/12 lazy-route pattern).
+  - `web/e2e/library-page.spec.ts` — the `?guide` click-through and
+    the guide's ≥40×40 coarse-pointer check.
+  - `web/e2e/visualScenes.ts` — the new `guide` scene definition;
+    `visual.spec.ts` consumes it unchanged.
+  - `web/e2e/__screenshots__/guide-*` — the 6 new snapshot baselines
+    for the new scene (3 viewports × 2 themes; no existing baseline
+    changed).
+  - `docs/decisions.md` — this entry.
+
+#### Task 13 — fix round 1 (PR #160)
+
+- R1: the 50-minute plan ran 5 over its slot — third item swapped to
+  `saturation` (15+20+15 = 50, intro rewritten to match; a conductor's
+  call pending the owner's guide review) and links.test.ts now pins
+  each plan's registry total to slot−5 ≤ total ≤ slot.
+- R2: the library bullet claimed every card carries level/minutes/
+  objectives/worksheet/key links — corrected: lesson and lab cards do,
+  dataset cards show source and license and open the dataset.
+- R3: one worked worksheet/key pair linked in "What an answer key
+  contains" (`?worksheet=nj-by-hand&kind=paper` /
+  `?key=nj-by-hand&kind=paper` — the Task 13 Interfaces forms, already
+  whitelisted in links.ts).
+- S1: GuidePage.test.tsx iterates the markdown's `## ` blocks for the
+  section-heading assertions (all six now covered, gate section
+  included) instead of a typed list.
+- S2: the editor bullet reworded — the derived thing is the matrix,
+  not the tree.
+- S3: the Round-to bullet now says what the UI does — the warning
+  shows whenever a rounding is set (MatrixData.tsx), not only when the
+  distances stop fitting.
+- S4: `.guide-md h2` set to `--size-lg` so `##` headings out-rank the
+  body text (guide.css only; the h2 moved inside `.guide-md`; lab
+  pages untouched).
+- S5: the guide header's two nav links grouped in `.guide-nav-links`
+  on the right (guide only; LabPage/LibraryPage headers unchanged).
