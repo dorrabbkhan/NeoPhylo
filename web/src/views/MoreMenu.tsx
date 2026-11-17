@@ -10,6 +10,8 @@
 // menu-button on the same pattern — one header button holding both
 // guide items, shown at ≥1024 px where the bare "Coming from PHYLIP?"
 // button used to sit. `MenuButton` is the shared implementation.
+// v1.4c Task 12 (spec §7.1): the More menu's "Library" item goes
+// through the caller's action so the unsaved-work question can run.
 
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -179,12 +181,16 @@ export interface MoreMenuProps {
   onOpenMegaHelp: () => void;
   /** Reopens the first-visit tour (spec §6.7). */
   onTakeTour: () => void;
+  /** Opens the library (v1.4c Task 12, spec §7.1) — an action like the
+   * guide items: the caller owns the unsaved-work question. */
+  onOpenLibrary?: () => void;
 }
 
 export function MoreMenu({
   onOpenPhylipHelp,
   onOpenMegaHelp,
   onTakeTour,
+  onOpenLibrary,
 }: MoreMenuProps) {
   return (
     <MenuButton
@@ -196,6 +202,12 @@ export function MoreMenu({
         // §6.5 lab-index link (the owner's "Labs" rename, 2026-11-02):
         // the <1024 px path — the header link's mirror.
         { label: "Labs", href: "?labs" },
+        // §7.1 (v1.4c Task 12): the library lives beside the lab index
+        // it absorbed; an action so the unsaved-work question can run
+        // before the page change.
+        ...(onOpenLibrary !== undefined
+          ? [{ label: "Library", action: onOpenLibrary }]
+          : []),
         // §6.7: the tour's only reopen path.
         { label: "Take the tour", action: onTakeTour },
         {

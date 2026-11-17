@@ -602,6 +602,55 @@ export const SCENES: {
     },
   },
   {
+    // v1.4c Task 12 (spec §7.1): the unfiltered library — every
+    // lesson, lab and dataset card with the filter bar on top. The
+    // async work (dataset index, provenance lines, the paperSheet
+    // pass that adds the worksheet/key links) settles before the
+    // frame so the snapshot is stable.
+    name: "library",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?library");
+      await expect(
+        page.getByRole("heading", { name: "Library", exact: true }),
+      ).toBeVisible();
+      // Every non-dataset card ends with an Answer key link once the
+      // exercise pass finishes; every dataset row's source resolves.
+      await expect(page.locator('.lib-card[data-kind="datasets"]'))
+        .toHaveCount(5);
+      const nonDatasets = await page
+        .locator('.lib-card:not([data-kind="datasets"])')
+        .count();
+      await expect(
+        page.getByRole("link", { name: "Answer key" }),
+      ).toHaveCount(nonDatasets);
+      await expect(async () => {
+        const texts = await page
+          .locator(".lib-dataset-source")
+          .allInnerTexts();
+        expect(texts.every((t) => !t.includes("—"))).toBe(true);
+      }).toPass();
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.4c Task 12 (spec §7.1): the library filtered to labs — the
+    // `?labs` view that replaced the standalone lab index.
+    name: "library-labs",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?labs");
+      await expect(
+        page.getByRole("heading", { name: "Labs", exact: true }),
+      ).toBeVisible();
+      const labCards = await page.locator(".lib-card").count();
+      await expect(
+        page.getByRole("link", { name: "Answer key" }),
+      ).toHaveCount(labCards);
+      await settleFrame(page);
+    },
+  },
+  {
     // v1.4b Task 11: the dataset-library sheet — a centered dialog at
     // 1920, full-screen below 1024 px (opened via the Settings drawer
     // there, which closes behind it).

@@ -80,6 +80,7 @@ import { Header } from "./Header";
 import { MatrixHeatmap } from "./MatrixHeatmap";
 import { PromptCard } from "./PromptCard";
 import { SettingsDrawer } from "./SettingsDrawer";
+import { Sheet } from "./Sheet";
 import {
   leafIdByLabel,
   leafLabelSets,
@@ -201,6 +202,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // the import panel — including inside the Settings drawer, which
   // closes behind it like the replicate panel's does.
   const [datasetSheet, setDatasetSheet] = useState(false);
+  // The in-app "Library" menu item's unsaved-work confirm (v1.4c Task
+  // 12, spec §7.1): the library is a page change, so leaving a dirty
+  // sandbox asks "Leave your unsaved work?" — DatasetSheet's keep/
+  // replace pattern with leave wording, since nothing is replaced.
+  const [libraryAsk, setLibraryAsk] = useState(false);
   // The last replicate detail delivered by a worker job (spec §6.5);
   // keyed by replicate index so a stale result can't paint the panel.
   const [repDetail, setRepDetail] = useState<{
@@ -459,6 +465,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
     },
     [dispatch, session],
   );
+
+  // The header's "Library" entries (v1.4c Task 12, spec §7.1): a page
+  // change, so a dirty sandbox asks before the navigation loses the
+  // work — declining keeps it exactly (same Sheet/confirm pattern as
+  // DatasetSheet); a clean sandbox goes straight through.
+  const onOpenLibrary = useCallback(() => {
+    if (session !== null && hasImportedData(session)) {
+      setLibraryAsk(true);
+      return;
+    }
+    window.location.assign("?library");
+  }, [session]);
 
   // The header's Lessons menu (checkpoint 13): pick a built-in lesson
   // and it loads straight through the `load` reducer — the lesson
@@ -1004,6 +1022,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         onPickLesson={(id) => void onPickLesson(id)}
         onOpenPhylipHelp={() => setGuide("phylip")}
         onOpenMegaHelp={() => setGuide("mega")}
+        onOpenLibrary={onOpenLibrary}
         theme={session.theme}
         presenter={session.presenter}
         dispatch={dispatch}
@@ -1326,6 +1345,36 @@ export function App({ exercise }: { exercise?: Exercise }) {
         >
           {controlsSections}
         </SettingsDrawer>
+      )}
+      {libraryAsk && (
+        <Sheet
+          className="dataset-sheet"
+          labelledBy="library-confirm-title"
+          onClose={() => setLibraryAsk(false)}
+          closeOnBackdrop
+        >
+          {/* DatasetSheet's unsaved-work pattern (v1.4c Task 12) with
+              leave wording: accepting navigates to the library — the
+              work is lost, not replaced. */}
+          <div className="lab-confirm">
+            <h3 id="library-confirm-title">Leave your unsaved work?</h3>
+            <p>
+              Opening the library leaves this page — your imported data
+              and tree will be lost.
+            </p>
+            <div className="lab-confirm-actions">
+              <button
+                type="button"
+                onClick={() => window.location.assign("?library")}
+              >
+                Leave and open the library
+              </button>
+              <button type="button" onClick={() => setLibraryAsk(false)}>
+                Keep my work
+              </button>
+            </div>
+          </div>
+        </Sheet>
       )}
       {datasetSheet && (
         <Suspense fallback={null}>

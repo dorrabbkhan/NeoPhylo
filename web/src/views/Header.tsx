@@ -39,6 +39,9 @@ export interface HeaderProps {
   onOpenPhylipHelp: () => void;
   /** Opens the "Coming from MEGA?" guide (v1.4b Task 12). */
   onOpenMegaHelp: () => void;
+  /** Navigates to the library (v1.4c Task 12, spec §7.1) — the caller
+   * owns the unsaved-work question, so this is an action, not a link. */
+  onOpenLibrary?: () => void;
   theme: ThemeName;
   /** Presenter mode flag (§6.6): scales the app 1.5× and hides the
    * controls column and the drawer button. */
@@ -60,6 +63,7 @@ export function Header({
   onPickLesson,
   onOpenPhylipHelp,
   onOpenMegaHelp,
+  onOpenLibrary,
   theme,
   presenter,
   dispatch,
@@ -118,6 +122,7 @@ export function Header({
       <LessonsMenu
         currentId={currentLessonId}
         onPick={onPickLesson}
+        onOpenLibrary={onOpenLibrary}
         onTakeTour={
           belowWide ? undefined : () => dispatch({ type: "tourStart" })
         }
@@ -160,6 +165,7 @@ export function Header({
         <MoreMenu
           onOpenPhylipHelp={onOpenPhylipHelp}
           onOpenMegaHelp={onOpenMegaHelp}
+          onOpenLibrary={onOpenLibrary}
           onTakeTour={() => dispatch({ type: "tourStart" })}
         />
       )}

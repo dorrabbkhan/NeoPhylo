@@ -7703,3 +7703,91 @@ Owner-requested rendering fixes after the PR #139 review; branch
     correct answer: the key's verdict says "tied with the join, also
     correct" and such pairs produce no mistake line; the plan's
     mistake rule only named "the closest pair" as the wrong pick.
+
+### Task 12 — library page and `?labs`
+
+- **Conductor's calls, as implemented:**
+  - The closed app header is pixel-identical: the ≥ 1280 `Labs` link is
+    untouched, and the "Library" entry is an action item inside the
+    Lessons dropdown and the More menu only — both closed in every
+    existing frame. `Header.tsx` gained only prop wiring.
+  - "Open dataset" on a card is a plain `?ds=<id>` link — the same
+    restore path as a shared link. The unsaved-work question lives
+    where work can actually be lost: the in-app Lessons/More menu
+    Library entry asks "Leave your unsaved work?" (DatasetSheet's
+    Sheet and keep/confirm pair, worded for a leave since nothing is
+    replaced) only while the sandbox holds user data; a clean
+    session navigates directly. The plan's
+    "including the unsaved-work prompt" for card opens resolves this
+    way because a `?ds=` navigation lands on a fresh page with nothing
+    to lose.
+  - The library header links to `?guide`; the route itself is Task 13,
+    so no `GuidePage` or `?guide` route exists yet — the link goes live
+    when Task 13 lands.
+  - `?labs` keeps its short URL until the visitor changes a filter;
+    the filter state then rewrites to the canonical `?library&…` via
+    `history.replaceState`. The heading reads "Labs" while the type
+    set is exactly {phylip, mega} and "Library" otherwise.
+  - Unknown filter values are ignored: a non-empty `type=` list with
+    no valid entries (`type=foo`) falls back to every type, and an
+    unknown `level=` means "all". The explicit empty `type=` the page
+    writes when all four type boxes are unticked is the exception —
+    it means "no types" and round-trips through a reload; a filter
+    state with zero matches shows "No items match these filters."
+  - Lesson `meta` reaches the page through an eager `?raw` glob inside
+    the lazy chunk (the same pattern as `labs/registry.ts`), so
+    `lessons/catalog.ts` keeps its three-string imports and the initial
+    bundle keeps its budget; "follows" is derived at runtime as the
+    reverse of `prepares_for` over lessons and labs, and both lines
+    link to the targets' `?lesson=`/`?lab=` routes.
+  - Items without a `level` (every lab and dataset today) are hidden
+    by any level filter other than "all"; items without minutes are
+    hidden by "≤ 30 min" — pinned by unit tests.
+  - `LabIndex` is a thin wrapper: `?labs` renders `LibraryPage` with
+    `{phylip, mega}` preselected; `LabPickList` is unchanged for the
+    editor, and `LabPrintStyles`/`lab-print` keep the dark-session
+    print behaviour byte-for-byte. No `labs.spec.ts` expectation was
+    weakened — the two added assertions only pin the new worksheet/key
+    actions on a lab card.
+- **Files outside the Files block:**
+  - `web/src/views/library/items.ts` — the registry→card assembly and
+    the URL filter helpers; split from `LibraryPage.tsx` under the
+    single-purpose/≈400-line rule.
+  - `web/src/views/library/library.css` — the filter bar, tag and
+    dataset-line styles; a page stylesheet like every other view.
+  - `web/src/views/App.tsx` — the conductor-note unsaved-work confirm
+    sheet and the `onOpenLibrary` callback the header wiring calls.
+  - `web/e2e/perf-load.spec.ts` — the conductor-required "library
+    chunk is not in the initial load" assertion (Task 11 pattern).
+  - `web/e2e/sheets.spec.ts` — the More-menu item list assertion
+    names every menuitem; "Library" joined it between Labs and the
+    tour (a one-line addition, no expectation weakened).
+  - `web/e2e/visualScenes.ts` — the new `library` and `library-labs`
+    scene definitions live there; `visual.spec.ts` consumes them.
+  - `web/e2e/__screenshots__/library-*` — the 12 new snapshot
+    baselines for the two new scenes (no existing baseline changed).
+  - `docs/decisions.md` — this entry.
+
+#### Task 12 — fix round 1 (PR #159)
+
+- `parseFilters` treated the explicit empty `type=` the page writes
+  for the all-boxes-unticked state as "no valid entries → every
+  type", so a reload lost the empty selection. Empty now decodes to
+  no types and any zero-match filter state shows "No items match
+  these filters."; a `type=` of only unknown values (`type=foo`)
+  still falls back to every type.
+- The in-app unsaved-work prompt was reworded for a leave, not a
+  replace: heading "Leave your unsaved work?", buttons "Leave and
+  open the library" / "Keep my work". DatasetSheet's own "Replace
+  your unsaved work?" is unchanged.
+- `web/e2e/visualScenes.ts` added to the files-outside list above
+  (the scene definitions live there; `visual.spec.ts` consumes
+  them).
+- `web/src/views/library/items.test.ts` — new unit file for the
+  parseFilters/filtersQuery round-trips; outside the Files block
+  like the other test files.
+
+#### Task 12 — fix round 2 (PR #159)
+
+- Owner request (2026-11-17, chat via conductor): lab settings tables
+  collapse in the library, open on ?labs, print expanded.

@@ -392,6 +392,9 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
     "Coming from PHYLIP?",
     "Coming from MEGA?",
     "Labs",
+    // v1.4c Task 12 (spec §7.1): the library entry joined the menu
+    // between Labs and the tour.
+    "Library",
     "Take the tour",
     "Licenses",
     "Source code",
