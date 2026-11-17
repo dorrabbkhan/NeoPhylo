@@ -340,6 +340,20 @@ for (const theme of ["light", "dark"] as const) {
     await page.goto("/?library");
     await expect(page.locator(".lib-card").first()).toBeVisible();
     await expectNoSeriousViolations(page, `the library (${theme})`);
+    // The lab settings fold (owner request 2026-11-17): the summary is
+    // keyboard-operable — Enter reveals the table — and the opened
+    // state is scanned too.
+    await page
+      .locator(".lib-settings-details > summary")
+      .first()
+      .press("Enter");
+    await expect(
+      page.locator(".lib-settings-details table.lab-settings").first(),
+    ).toBeVisible();
+    await expectNoSeriousViolations(
+      page,
+      `the library with a settings table open (${theme})`,
+    );
     await page.goto("/?labs");
     await expect(
       page.getByRole("heading", { name: "Labs", exact: true }),

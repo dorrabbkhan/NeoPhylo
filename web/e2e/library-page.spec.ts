@@ -40,6 +40,20 @@ const DATASETS = JSON.parse(readFileSync(LIBRARY_INDEX, "utf8")) as {
   title: string;
 }[];
 
+/** Each lab's title and its own settings count, read from the lab
+ * files — the summaries below are checked against these, never
+ * re-typed. */
+const LAB_SETTINGS = new Map(
+  LAB_IDS.map((id) => {
+    const lab = (
+      JSON.parse(
+        readFileSync(`${EXERCISES}/labs/${id}.json`, "utf8"),
+      ) as { lab: { title: string; settings: unknown[] } }
+    ).lab;
+    return [id, { title: lab.title, settings: lab.settings.length }];
+  }),
+);
+
 const TOTAL = LESSON_IDS.length + LAB_IDS.length + DATASETS.length;
 
 /** The cards' locator — one `li` per registry item, tagged by type. */
@@ -258,6 +272,79 @@ test("a lesson card shows the actions; a dataset card shows only Open dataset", 
   await expect(ds).toContainText(/License:/);
 });
 
+test("the library folds each lab card's settings table behind a disclosure; ?labs keeps them open", async ({
+  page,
+}) => {
+  await page.goto("/?library");
+  await allCards(page);
+
+  // Every lab card — and only lab cards — carries one fold, and the
+  // summary counts the lab's own settings rows (owner request
+  // 2026-11-17). Folded means no `open` attribute and a hidden table.
+  const folds = page.locator(".lib-card details.lib-settings-details");
+  await expect(folds).toHaveCount(LAB_IDS.length);
+  for (const [id, lab] of LAB_SETTINGS) {
+    const card = page.locator(".lib-card", {
+      has: page.getByRole("heading", { level: 3, name: lab.title }),
+    });
+    const fold = card.locator("details.lib-settings-details");
+    await expect(fold).not.toHaveAttribute("open", "");
+    await expect(fold.locator("summary")).toHaveText(
+      `Settings (${lab.settings} options)`,
+    );
+    await expect(
+      fold.locator("table.lab-settings"),
+      `${id}: the folded table is hidden`,
+    ).toBeHidden();
+    await expect(
+      fold.locator(".lab-settings-scroll"),
+    ).toHaveAttribute("aria-label", `${lab.title} settings`);
+  }
+
+  // The disclosure is keyboard-operable natively: Enter on the
+  // focused summary reveals the table, and a click does the same on
+  // the next fold. `nth` keeps each locator bound to its fold — a lazy
+  // `:not([open])` query would re-resolve to the following closed fold
+  // after the toggle.
+  const first = folds.first();
+  await first.locator("summary").press("Enter");
+  await expect(first.locator("table.lab-settings")).toBeVisible();
+  const second = folds.nth(1);
+  await expect(second).not.toHaveAttribute("open", "");
+  await second.locator("summary").click();
+  await expect(second.locator("table.lab-settings")).toBeVisible();
+
+  // ?labs keeps showing its tables, as before — no fold at all.
+  await page.goto("/?labs");
+  await expect(
+    page.getByRole("heading", { name: "Labs", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".lib-card details.lib-settings-details"),
+  ).toHaveCount(0);
+  await expect(page.locator("table.lab-settings:visible")).toHaveCount(
+    LAB_IDS.length,
+  );
+});
+
+test("print emulation shows every folded settings table on ?library, and screen restores the folds", async ({
+  page,
+}) => {
+  await page.goto("/?library");
+  await allCards(page);
+  await expect(page.locator("table.lab-settings:visible")).toHaveCount(0);
+
+  // The print media change opens every fold for paper.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("table.lab-settings:visible")).toHaveCount(
+    LAB_IDS.length,
+  );
+
+  // Back on screen the folds are restored to closed.
+  await page.emulateMedia({ media: "screen" });
+  await expect(page.locator("table.lab-settings:visible")).toHaveCount(0);
+});
+
 test("choosing Library over unsaved sandbox work asks first; declining keeps the work", async ({
   page,
 }) => {
@@ -334,7 +421,9 @@ test("under (pointer: coarse) every link and control on the library is ≥40×40
     "the emulation presents a coarse pointer",
   ).toBe(true);
 
-  const targets = page.locator("a, button, input, select");
+  // The settings disclosure's summary joins the ≥40×40 floor with the
+  // links, buttons and filter controls (owner request 2026-11-17).
+  const targets = page.locator("a, button, input, select, summary");
   const count = await targets.count();
   expect(count).toBeGreaterThan(10);
   for (let i = 0; i < count; i++) {

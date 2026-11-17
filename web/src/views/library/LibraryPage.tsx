@@ -20,7 +20,7 @@
 // (Root.tsx): the registries, ajv and the worksheet builders never
 // enter the initial bundle.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { initEngine } from "../../engine";
 import { loadLab } from "../../labs/registry";
@@ -100,15 +100,49 @@ function Card({
   item,
   paper,
   source,
+  collapseSettings,
 }: {
   item: CardItem;
   /** undefined while the paperSheet pass is still running. */
   paper: boolean | undefined;
   /** The dataset's provenance source line, when it has loaded. */
   source: string | undefined;
+  /** The library folds each lab's option table behind a
+   * "Settings (N options)" disclosure (owner request 2026-11-17);
+   * the lab index passes false and keeps the tables in the open. */
+  collapseSettings: boolean;
 }) {
   const lab = item.lab;
   const ds = item.dataset;
+  // issue #135: the same scroll-in-place region the lab pages use —
+  // the card shrinks to the column and a too-wide settings table
+  // scrolls inside it.
+  const settingsRegion =
+    lab === undefined ? null : (
+      <div
+        className="lab-settings-scroll"
+        role="region"
+        tabIndex={0}
+        aria-label={`${lab.title} settings`}
+      >
+        <table className="lab-settings">
+          <thead>
+            <tr>
+              <th scope="col">Option</th>
+              <th scope="col">NeoPhylo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lab.settings.map((s, i) => (
+              <tr key={i}>
+                <td>{s.option}</td>
+                <td>{s.neophylo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   const open =
     ds !== undefined
       ? { href: `?ds=${encodeURIComponent(item.id)}`, label: "Open dataset" }
@@ -181,34 +215,17 @@ function Card({
           ))}
         </p>
       )}
-      {lab !== undefined && (
-        // issue #135: the same scroll-in-place region the lab pages use —
-        // the card shrinks to the column and a too-wide settings table
-        // scrolls inside it.
-        <div
-          className="lab-settings-scroll"
-          role="region"
-          tabIndex={0}
-          aria-label={`${lab.title} settings`}
-        >
-          <table className="lab-settings">
-            <thead>
-              <tr>
-                <th scope="col">Option</th>
-                <th scope="col">NeoPhylo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lab.settings.map((s, i) => (
-                <tr key={i}>
-                  <td>{s.option}</td>
-                  <td>{s.neophylo}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {lab !== undefined &&
+        (collapseSettings ? (
+          <details className="lib-settings-details">
+            <summary>
+              Settings ({lab.settings.length} options)
+            </summary>
+            {settingsRegion}
+          </details>
+        ) : (
+          settingsRegion
+        ))}
       <p className="lab-card-actions">
         <a href={open.href}>{open.label}</a>
         {ds === undefined && (
@@ -231,11 +248,18 @@ function Card({
 
 export function LibraryPage({
   initialTypes,
+  collapseSettings = true,
 }: {
   /** The type set used when the URL names none — LabIndex passes the
    * two lab types so `?labs` (or a bare mount in tests) opens filtered. */
   initialTypes?: ReadonlySet<TypeKey>;
+  /** Owner request (2026-11-17): the library folds every lab card's
+   * settings table behind a collapsed-by-default disclosure so the
+   * page scans as a list; print reopens them all. LabIndex passes
+   * false — the lab index keeps showing its tables, as before. */
+  collapseSettings?: boolean;
 }) {
+  const root = useRef<HTMLElement>(null);
   const [items] = useState<CardItem[]>(() => buildItems());
   const [datasets, setDatasets] = useState<DatasetSummary[] | null>(null);
   const [datasetError, setDatasetError] = useState<string | null>(null);
@@ -244,6 +268,50 @@ export function LibraryPage({
   const [filters, setFilters] = useState<Filters>(() =>
     parseFilters(window.location.search, initialTypes),
   );
+
+  // Print shows every folded settings table: beforeprint/afterprint
+  // cover real printing in Chromium and Firefox, and the print media
+  // query's change event covers both those and the e2e's emulateMedia.
+  // Only folds the page itself closed are reopened — a table the
+  // visitor already opened stays open and is not closed afterwards.
+  useEffect(() => {
+    const el = root.current;
+    if (el === null) return;
+    const FLAG = "data-print-opened";
+    const openAll = (): void => {
+      for (const d of el.querySelectorAll<HTMLDetailsElement>(
+        "details.lib-settings-details:not([open])",
+      )) {
+        d.setAttribute(FLAG, "");
+        d.open = true;
+      }
+    };
+    const restore = (): void => {
+      for (const d of el.querySelectorAll<HTMLDetailsElement>(
+        `details.lib-settings-details[${FLAG}]`,
+      )) {
+        d.open = false;
+        d.removeAttribute(FLAG);
+      }
+    };
+    const onPrintMedia = (e: MediaQueryListEvent): void => {
+      if (e.matches) openAll();
+      else restore();
+    };
+    window.addEventListener("beforeprint", openAll);
+    window.addEventListener("afterprint", restore);
+    // jsdom has no matchMedia — the unit tests render this page.
+    const mq =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("print")
+        : null;
+    mq?.addEventListener("change", onPrintMedia);
+    return () => {
+      window.removeEventListener("beforeprint", openAll);
+      window.removeEventListener("afterprint", restore);
+      mq?.removeEventListener("change", onPrintMedia);
+    };
+  }, []);
 
   // Datasets and their provenance lines arrive over the network; the
   // lesson/lab cards are all synchronous.
@@ -323,6 +391,7 @@ export function LibraryPage({
               item={item}
               paper={paper[item.id]}
               source={sources.get(item.id)}
+              collapseSettings={collapseSettings}
             />
           ))}
         </ol>
@@ -355,7 +424,7 @@ export function LibraryPage({
   };
 
   return (
-    <main className="lab-page lab-print library-page">
+    <main ref={root} className="lab-page lab-print library-page">
       <LabPrintStyles />
       <header className="lab-page-head lab-nav">
         <a

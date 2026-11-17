@@ -37,6 +37,7 @@ import { listLabs } from "../../labs/registry";
 import type { DatasetSummary } from "../../library/registry";
 import { paperSheet } from "../../worksheets/build";
 
+import { LabIndex } from "../labs/LabIndex";
 import { LibraryPage } from "./LibraryPage";
 
 // Paths are resolved against this file, not the vitest cwd, so the
@@ -526,5 +527,67 @@ describe("library page — filters", () => {
       expect(cards()).toHaveLength(short.length);
     });
     expect(window.location.search).not.toContain("level=");
+  });
+});
+
+describe("library page — collapsed lab settings (owner request 2026-11-17)", () => {
+  it("?library folds each lab card's settings table behind a 'Settings (N options)' disclosure", async () => {
+    setUrl("?library");
+    render(<LibraryPage />);
+    await readyCards();
+    for (const lab of listLabs()) {
+      const card = cardOf(lab.title);
+      const details = card.querySelector("details");
+      expect(details, `${lab.id}: the settings table sits inside a details`).not.toBeNull();
+      // Collapsed on ?library under any filter (no `open` attribute).
+      expect(details?.open).toBe(false);
+      const summary = details?.querySelector("summary");
+      // N is the lab's own settings count from the registry.
+      expect(summary?.textContent).toBe(
+        `Settings (${lab.settings.length} options)`,
+      );
+      // The scroll-in-place region and its accessible name are
+      // unchanged inside the fold.
+      const region = details?.querySelector(".lab-settings-scroll");
+      expect(region?.getAttribute("aria-label")).toBe(
+        `${lab.title} settings`,
+      );
+      expect(region?.querySelector("table")).not.toBeNull();
+    }
+    // Lesson and dataset cards have no settings table to fold.
+    expect(
+      document.querySelectorAll(".lib-card details"),
+    ).toHaveLength(listLabs().length);
+  });
+
+  it("any ?library filter keeps the lab settings folded", async () => {
+    setUrl("?library&type=phylip,mega");
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(cards()).toHaveLength(listLabs().length);
+    });
+    for (const lab of listLabs()) {
+      const details = cardOf(lab.title).querySelector("details");
+      expect(details).not.toBeNull();
+      expect(details?.open).toBe(false);
+    }
+  });
+
+  it("?labs keeps the settings tables open, as before — no disclosure", async () => {
+    setUrl("?labs");
+    render(<LabIndex />);
+    await waitFor(() => {
+      expect(cards()).toHaveLength(listLabs().length);
+    });
+    for (const lab of listLabs()) {
+      const card = cardOf(lab.title);
+      expect(card.querySelector("details")).toBeNull();
+      // The same scroll-in-place region with its accessible name,
+      // sitting directly on the card.
+      const region = within(card).getByRole("region", {
+        name: `${lab.title} settings`,
+      });
+      expect(region.querySelector("table")).not.toBeNull();
+    }
   });
 });

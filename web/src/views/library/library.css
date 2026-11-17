@@ -101,6 +101,38 @@
   gap: var(--space-4) var(--space-16);
 }
 
+/* Owner request (2026-11-17): on the library each lab card's option
+ * table folds behind a native "Settings (N options)" disclosure so the
+ * page scans as a list — the lab index keeps its always-open tables
+ * instead, and the page's print handlers reopen the folds for paper.
+ * The summary keeps the same small text, accent colour and focus ring
+ * the other card affordances use. */
+.lib-settings-details {
+  margin-bottom: var(--space-12);
+}
+
+.lib-settings-details > summary {
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+  font-size: var(--size-sm);
+  margin-bottom: var(--space-4);
+}
+
+.lib-settings-details:not([open]) > summary {
+  margin-bottom: 0;
+}
+
+.lib-settings-details > summary:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* The details carries the card-bottom spacing now — the scroll
+ * region's own margin would double it. */
+.lib-settings-details .lab-settings-scroll {
+  margin-bottom: 0;
+}
+
 /* Touch targets ≥ 40×40 under (pointer: coarse): the filter
  * checkboxes and select, and the inline prepares/follows links, join
  * the floors labs.css already gives the nav and card actions. */
@@ -117,10 +149,23 @@
     min-height: 40px;
     min-width: 40px;
   }
+
+  /* The settings summary joins the same ≥40×40 touch floor. */
+  .lib-settings-details > summary {
+    align-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
 }
 
 @media print {
   .lib-filters {
+    display: none;
+  }
+
+  /* The disclosure label means nothing on paper — the page's print
+   * handlers have already opened every fold. */
+  .lib-settings-details > summary {
     display: none;
   }
 }

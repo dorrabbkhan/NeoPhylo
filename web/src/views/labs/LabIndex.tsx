@@ -16,9 +16,16 @@ import { LibraryPage } from "../library/LibraryPage";
 
 import "./labs.css";
 
-/** `?labs`: the library filtered to PHYLIP and MEGA labs. */
+/** `?labs`: the library filtered to PHYLIP and MEGA labs. The index
+ * keeps its always-open settings tables (owner request 2026-11-17 —
+ * the disclosure fold is the library's, not the index's). */
 export function LabIndex() {
-  return <LibraryPage initialTypes={new Set(["phylip", "mega"])} />;
+  return (
+    <LibraryPage
+      initialTypes={new Set(["phylip", "mega"])}
+      collapseSettings={false}
+    />
+  );
 }
 
 /** Compact lab rows with a "Load this lab" button each — the editor's
