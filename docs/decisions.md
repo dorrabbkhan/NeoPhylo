@@ -7908,3 +7908,39 @@ Owner-requested rendering fixes after the PR #139 review; branch
   pages untouched).
 - S5: the guide header's two nav links grouped in `.guide-nav-links`
   on the right (guide only; LabPage/LibraryPage headers unchanged).
+
+## v1.4c Task 14: release checkpoint, roadmap, CITATION
+
+- **Release tag:** `v1.4.2` proposed in the checkpoint and
+  `CITATION.cff`; `date-released` untouched (2026-11-14) — the owner
+  confirms the name and tags.
+- **The WebKit `d=` race (main CI run 44070866339, `e2e (webkit, 2)`,
+  `matrix.spec.ts:720`):** the share URL is written by a passive
+  `useEffect` (`history.replaceState` in `web/src/views/App.tsx`)
+  after the render that paints the tree, so a matrix session can show
+  its tree while the address bar still holds the previous link. The
+  test asserted `page.url()` once in that window and failed twice on
+  WebKit; the #160 push run (44086413192) and the nightly passed —
+  timing-dependent, not a flake, and a real (if short) stale-link
+  window for a user who copies the URL at once. The tests now wait
+  for the URL (`toHaveURL`) instead of reading it once; whether the
+  window is also a product bug to close in the app is flagged as a
+  v1.5 owner decision in the checkpoint (§15).
+- **Paper-worksheet id list:** the eight ids in the checkpoint's §2
+  are the `paperSheet` rule (printable matrix, ≤ 8 taxa) resolved over
+  the committed exercises — verified with a scratch vitest enumeration
+  of `buildItems`/`paperSheet` (removed afterwards); every other id's
+  `kind=paper` route asserts its own in-app-only message, so a
+  drifting set flags itself in the checker.
+- **Files outside the Files block:**
+  - `web/e2e/matrix.spec.ts` — the mandated WebKit investigation's
+    fix: every immediate `page.url()` assertion after a state change
+    now waits on `toHaveURL` (the `replaceState` effect can lag the
+    paint on WebKit).
+  - `web/e2e/share.spec.ts` — the same read-once pattern after the
+    step advance; now waits for `lesson=nj-basics&s=1` in the URL.
+  - `docs/release-checkpoint.md` — the runbook's "This release" table,
+    commands, owner-pass items, release fields and the "Automation
+    map" repointed at `v1.4c-release.md` (its own header invites the
+    per-release update).
+  - `docs/decisions.md` — this entry.

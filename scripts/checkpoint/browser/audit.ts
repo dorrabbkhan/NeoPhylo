@@ -218,14 +218,17 @@ export async function openDataset(page: Page, id: string): Promise<void> {
   });
 }
 
-/** Paste an alignment into the sandbox import box. */
+/** Paste an alignment into the sandbox import box. A matrix session
+ * selects the Distance matrix tab, so pick the sequences tab first. */
 export async function pasteImport(page: Page, text: string): Promise<void> {
   await showControls(page);
-  await page.locator(".import-panel textarea").fill(text);
-  await page
-    .locator(".import-panel")
-    .getByRole("button", { name: "Import", exact: true })
-    .click();
+  const panel = page.locator(".import-panel");
+  const seqTab = panel.getByRole("tab", { name: "Sequences or tree" });
+  if ((await seqTab.getAttribute("aria-selected")) !== "true") {
+    await seqTab.click();
+  }
+  await panel.getByLabel("Paste sequences or a tree").fill(text);
+  await panel.getByRole("button", { name: "Import", exact: true }).click();
 }
 
 /** Relative luminance (0 black … 1 white) of what is behind the page's

@@ -29,8 +29,12 @@ test("a copied URL reproduces the seed, matrix and step", async ({
   const step = await readStep(page);
   expect(step.k).toBe(1);
   const matrix = await matrixLabels(page);
+  // The URL sync is a replaceState in a post-render effect — reading
+  // page.url() right after the step can catch the pre-sync s=0 URL on
+  // WebKit (see presenter.spec.ts), and the reopened page would land
+  // on the wrong step. Wait for the settled link instead.
+  await expect(page).toHaveURL(/lesson=nj-basics&s=1/);
   const url = page.url();
-  expect(url).toContain("lesson=nj-basics");
 
   // Open the link in a fresh context (new "student").
   const ctx = await browser.newContext();

@@ -2,8 +2,8 @@
 # Release checkpoint: run every automated check in one go
 # (docs/release-checkpoint.md, "Run the automated checkpoint").
 #
-#   scripts/checkpoint/run.sh --pr 143 --tag v1.4.1 [--milestone v1.4b] \
-#       [--checklist docs/checkpoints/v1.4b-release.md] [--url <deploy>] \
+#   scripts/checkpoint/run.sh --pr <PR> --tag v1.4.2 [--milestone v1.4c] \
+#       [--checklist docs/checkpoints/v1.4c-release.md] [--url <deploy>] \
 #       [--boot] [--skip-browser] [--skip-mega] [--out <dir>]
 #
 #   1. preflight.sh   repo, GitHub and CI state          → preflight.md
