@@ -502,6 +502,36 @@ describe("KeyPage", () => {
     expect(upgmaCaps).not.toContain("Q values");
   });
 
+  it("no join prints a bare 'New distances' line (round-3 K7)", async () => {
+    // upgma-fails' last UPGMA join has no new distances — the key and
+    // the worksheet used to print an empty "New distances:" label.
+    // Every remaining mention is immediately followed by a d(u, …).
+    window.sessionStorage.setItem(INSTRUCTOR_KEY, "1");
+    setUrl("/?key=upgma-fails&kind=paper");
+    const { unmount } = render(<KeyPage id="upgma-fails" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const keyText = bodyText();
+    const keyMentions = keyText.match(/[Nn]ew distances:/g) ?? [];
+    const keyWithValues = keyText.match(/[Nn]ew distances: d\(/g) ?? [];
+    expect(keyMentions.length).toBe(keyWithValues.length);
+    expect(keyMentions.length).toBeGreaterThan(0);
+    unmount();
+
+    setUrl("/?worksheet=upgma-fails&kind=paper");
+    render(<WorksheetPage id="upgma-fails" kind="paper" />);
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "1. The distance matrix",
+    });
+    const wsText = bodyText();
+    const wsMentions = wsText.match(/[Nn]ew distances:/g) ?? [];
+    const wsWithValues = wsText.match(/[Nn]ew distances: d\(/g) ?? [];
+    expect(wsMentions.length).toBe(wsWithValues.length);
+  });
+
   it("renders no table value with a trailing .000", async () => {
     // Fix round 1, R5: the same formatter serves every table — the
     // final join's matrix showed 3.000/2.500/1.500 where the other

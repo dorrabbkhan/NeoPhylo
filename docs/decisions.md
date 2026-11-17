@@ -8001,3 +8001,57 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `CHECKPOINT_PROXY` env setting so a sandboxed run can route the
   browsers through a filtering proxy (direct stays the default).
   `docs/decisions.md` — this entry.
+
+### Fix round 3 (owner-approved, 2026-11-17)
+
+- **K4/K5 engine change — approved exception to "Task 14 is not an
+  engine task":** `write_meg_matrix` in
+  `crates/neophylo-core/src/matrix_parse.rs` now writes MEGA's own
+  layout (the owner's control file B: `!Title:` with a colon, a
+  `!Description` block, `[i] #name` labels, the bracketed column-index
+  header and `[i]`-prefixed rows) because the GUI crashed on the old
+  layout; `parse_meg_matrix` strips `[…]` comments like MEGA does, so
+  it reads both layouts. `mega_verify.py`'s matrix reader accepts
+  both. Exact-output assertions that changed only for the new layout:
+  `write_meg_matrix_round_trips` (matrix_parse.rs test, extended to
+  pin the new lines) and the `!Title wiki5_lower;` → `!Title:
+  wiki5_lower;` assertion in `web/e2e/matrix.spec.ts`.
+- **K1/K2 print fit and page margins:** `TreeView` gains a `printFit`
+  prop — while print media is active the finished tree on answer keys
+  refits inside the A4 printable width (680 px = 180 mm, the shared
+  15 mm `@page` in `LabPrintStyles`) at the same ≥12 px text floor;
+  index.css's `@media print` rule is the scale-down net behind it.
+  `LabPrintStyles` now emits `@page { size: A4; margin: 15mm; }` for
+  every print page (worksheets, keys, lab pages, lab index, library,
+  guide), and the checker's `page.pdf` calls set
+  `preferCSSPageSize: true`.
+- **Files outside the Files block (fix round 3):**
+  `crates/neophylo-core/src/matrix_parse.rs` and
+  `crates/neophylo-core/tests/matrix_parse*.rs` — the approved engine
+  exception above; `web/src/views/TreeView.tsx`, `web/src/index.css` —
+  the shared print fit; `web/src/views/labs/LabPrintStyles.tsx` — the
+  shared `@page`; `web/src/views/worksheets/KeyPage.tsx`,
+  `web/src/views/worksheets/WorksheetPage.tsx`,
+  `web/src/views/worksheets/worksheets.test.tsx` — K1 prop wiring and
+  K7; `web/src/views/matrix/MatrixGrid.tsx`,
+  `web/src/views/matrix/MatrixGrid.test.tsx` — K3;
+  `web/e2e/worksheets.spec.ts`, `web/e2e/matrix.spec.ts` — the new and
+  updated e2e assertions; `web/e2e/visualScenes.ts` — the
+  worksheet-key-print scene now waits out the print refit before the
+  frame, so the snapshot can't race it; `printFit` also reconciles
+  `matchMedia("print").matches` on a light interval because emulated
+  print media doesn't always dispatch the query's change event.
+  `scripts/checkpoint/browser/release.spec.ts` — the K1 print
+  assertion, K2 `preferCSSPageSize` and K6 `visitPage` font settle;
+  `scripts/checkpoint/mega_verify.py` — the both-layouts matrix
+  reader; `docs/decisions.md` — this entry.
+- **Snapshot frames regenerated (fix round 3):**
+  `web/e2e/__screenshots__/matrix-grid-*-{light,dark}-linux.png` at
+  all three viewports (K3 — the new hint line above the grid) and
+  `worksheet-key-print-1920x1080-light-linux.png` (K1 — the printed
+  finished tree now refits to the page). The other three
+  worksheet-key-print frames were not rewritten: their captures match
+  the committed baselines, which already showed the print-fit
+  appearance — the pre-change baseline run raced the old reflow and
+  only the 1920-light frame caught the pre-refit tree. No other frame
+  changed.

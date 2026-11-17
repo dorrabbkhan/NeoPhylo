@@ -513,6 +513,22 @@ p {
   stroke-dasharray: 3 3;
 }
 
+/* Round-3 K1: a printed tree fits its canvas. TreeView's print-fit
+ * prop refits the figure inside the A4 printable width while print
+ * media is active (keeps the ≥12 px floor); this rule is the net
+ * behind it — if a native print fires before React re-renders, the
+ * svg scales down instead of clipping off the page's right edge, and
+ * the screen-only scroll region can't clip it either. */
+@media print {
+  .tree-canvas {
+    overflow: visible;
+  }
+  .tree-canvas svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
 /* The heatmap draws at its natural width-driven size so text never
  * renders under 12 px (round 3) — the wrap scrolls when it doesn't
  * fit, including when the coarse-pointer cell floor (--matrix-min,

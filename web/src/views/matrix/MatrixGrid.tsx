@@ -308,6 +308,14 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
         Lower triangle of the distance matrix — each row holds one
         taxon's distances to the taxa above it.
       </p>
+      {/* The row-1 hint (round-3 K3): the first row holds only the
+          first taxon's name, which reads as a broken row until the
+          layout is explained — one short line, tied to the table with
+          aria-describedby. */}
+      <p className="matrix-caption" id={`${statusId}-hint`}>
+        Each row holds the distances to the taxa above it — the first
+        row is just a name.
+      </p>
       <div
         className="matrix-grid-wrap"
         role="region"
@@ -318,6 +326,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
           className="matrix-grid"
           ref={tableRef}
           aria-labelledby={`${statusId}-caption`}
+          aria-describedby={`${statusId}-hint`}
         >
           <tbody>
             {names.map((name, i) => (

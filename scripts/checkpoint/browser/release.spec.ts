@@ -465,6 +465,7 @@ for (const lab of LABS) {
         path: outPath("print", `${lab.id}.pdf`),
         format: "A4",
         printBackground: true,
+        preferCSSPageSize: true,
       });
     }
     await page.emulateMedia({ media: "screen" });
@@ -503,6 +504,7 @@ test("§14 the lab index lists every lab and prints light", async ({
       path: outPath("print", "labs-index.pdf"),
       format: "A4",
       printBackground: true,
+      preferCSSPageSize: true,
     });
   }
 });
@@ -643,8 +645,15 @@ async function matrixTab(page: Page_): Promise<Locator_> {
 
 /** A lazy route (`?worksheet`, `?key`, `?library`, `?labs`, `?guide`):
  * these mount a `.lab-page` instead of `.app`, so `visit`'s app wait
- * never fires — wait for the page root and idle network instead. */
+ * never fires — wait for the page root and idle network instead.
+ * Round-3 K6: let the page being LEFT settle its late Inter font
+ * loads first — navigating away mid-download aborts them and Firefox
+ * logs "downloadable font: download failed … status=2152398850" (the
+ * §3 flake). */
 async function visitPage(page: Page_, url: string): Promise<void> {
+  await page
+    .evaluate(() => document.fonts.ready.then(() => undefined))
+    .catch(() => undefined);
   await page.goto(url);
   await expect(page.locator(".lab-page")).toBeVisible({ timeout: 60_000 });
   await page.waitForLoadState("networkidle");
@@ -1011,6 +1020,52 @@ test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", asy
           `${id} ${cls}: controls hidden in print`,
         )
         .toBeHidden();
+      // Round-3 K1: the finished tree must fit the printed page — the
+      // A4 printable width is 210 mm − 2·15 mm = 180 mm ≈ 680 px at
+      // 96 dpi. The screen layout stays wide on purpose: print media
+      // alone must trigger the refit, exactly as page.pdf does.
+      if (cls === "paper-key") {
+        const tree = page.locator(".tree-canvas svg");
+        await expect(tree, `${id} ${cls}: finished tree svg`).toBeVisible();
+        // The width ATTRIBUTE is the figure's own geometry — a
+        // refit proves the tree shrank for print, not merely that
+        // CSS scaled it (which would shrink text below 12 px).
+        await expect
+          .poll(
+            async () =>
+              tree.evaluate((el) =>
+                parseFloat(el.getAttribute("width") ?? "0"),
+              ),
+            { timeout: 10_000 },
+          )
+          .toBeLessThanOrEqual(681);
+        const treeBox = await tree.boundingBox();
+        const labels = tree.locator(
+          "text:not(.support-label):not(.zero-len)",
+        );
+        const nLabels = await labels.count();
+        expect
+          .soft(nLabels, `${id} ${cls}: leaf labels present`)
+          .toBeGreaterThan(0);
+        for (let i = 0; i < nLabels; i += 1) {
+          const bb = await labels.nth(i).boundingBox();
+          if (bb === null || treeBox === null) continue;
+          // Emulated print keeps the viewport layout, so measure each
+          // label against the figure's own left edge, not x=0.
+          expect
+            .soft(
+              bb.x - treeBox.x,
+              `${id} ${cls}: leaf ${i} on the page (left)`,
+            )
+            .toBeGreaterThanOrEqual(-1);
+          expect
+            .soft(
+              bb.x + bb.width - treeBox.x,
+              `${id} ${cls}: leaf ${i} on the page (right edge)`,
+            )
+            .toBeLessThanOrEqual(681);
+        }
+      }
       // PDFs are saved from Chromium only (the sibling lab print
       // tests' rule); the media-emulation checks above run everywhere.
       if (isChromium()) {
@@ -1018,6 +1073,7 @@ test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", asy
           path: outPath("print", `${id}-${cls}.pdf`),
           format: "A4",
           printBackground: true,
+          preferCSSPageSize: true,
         });
       }
       await page.emulateMedia({ media: "screen" });
@@ -1213,6 +1269,7 @@ test("§5 the instructor guide renders, its links resolve, it prints light", asy
       path: outPath("print", "guide.pdf"),
       format: "A4",
       printBackground: true,
+      preferCSSPageSize: true,
     });
   }
   await page.emulateMedia({ media: "screen" });

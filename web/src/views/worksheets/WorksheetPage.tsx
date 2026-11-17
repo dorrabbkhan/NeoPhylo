@@ -378,14 +378,18 @@ function JoinBlankBlock({
             <Blank label={`Branch length to ${ctx.newName}:`} wide />
             <Blank label="and" wide />
           </p>
-          <p className="ws-fill-line">
-            New distances:{" "}
-            {join.new_distances.map((_, i) => (
-              // The remaining cluster names would reveal the pair —
-              // the blanks stay unlabeled so the student names them.
-              <Blank key={i} label={`d(${ctx.newName}, __) =`} />
-            ))}
-          </p>
+          {/* Round-3 K7: no empty "New distances:" blank for a join
+              that has none (the last UPGMA join). */}
+          {join.new_distances.length > 0 && (
+            <p className="ws-fill-line">
+              New distances:{" "}
+              {join.new_distances.map((_, i) => (
+                // The remaining cluster names would reveal the pair —
+                // the blanks stay unlabeled so the student names them.
+                <Blank key={i} label={`d(${ctx.newName}, __) =`} />
+              ))}
+            </p>
+          )}
         </>
       )}
     </section>

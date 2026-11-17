@@ -290,7 +290,9 @@ test("a .meg matrix !Title becomes the session's display name", async ({
   // The file's !Title is the session's display name — it comes back
   // out as the exported figure's title.
   const meg = await exportedItem(page, "Matrix (.meg)");
-  expect(meg).toContain("!Title wiki5_lower;");
+  // Round-3 K4: the export is MEGA's own layout — `!Title:` with a
+  // colon (the old `!Title ` line pinned here before this fix).
+  expect(meg).toContain("!Title: wiki5_lower;");
 });
 
 test("pasting each matrix form: tab-separated header, lower triangle, CSV question", async ({

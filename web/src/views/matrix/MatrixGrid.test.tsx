@@ -93,6 +93,18 @@ describe("MatrixGrid — shape", () => {
     expect(cell("d", "c")).toHaveProperty("value", "8");
     expect(cell("e", "d")).toHaveProperty("value", "3");
   });
+
+  it("shows the row-1 hint above the grid, tied with aria-describedby (round-3 K3)", () => {
+    mount();
+    const hint = screen.getByText(
+      /the first row is just a name\./,
+    );
+    expect(hint).toBeTruthy();
+    const table = document.querySelector("table.matrix-grid");
+    expect(table?.getAttribute("aria-describedby")).toBe(hint.id);
+    // The hint carries no numbers.
+    expect(hint.textContent).not.toMatch(/\d/);
+  });
 });
 
 describe("MatrixGrid — emits", () => {

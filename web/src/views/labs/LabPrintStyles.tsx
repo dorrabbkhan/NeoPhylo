@@ -19,7 +19,12 @@ const PRINT_VARS = Object.entries(cssVariables("light"))
   .map(([name, value]) => `  ${name}: ${value};`)
   .join("\n");
 
-const CSS = `@media print {\n:root:has(.lab-print) {\n${PRINT_VARS}\n  color-scheme: light;\n}\n.lab-print {\n${PRINT_VARS}\n  color-scheme: light;\n  background: var(--color-bg);\n  color: var(--color-text);\n}\n}`;
+// Round-3 K2 (owner F2): the shared @page — every page that mounts
+// this component (worksheets, keys, lab pages, the lab index, the
+// library and the guide) prints on A4 with 15 mm margins, so nothing
+// touches the paper's edge and the checker's preferCSSPageSize PDFs
+// match a real print.
+const CSS = `@page {\n  size: A4;\n  margin: 15mm;\n}\n@media print {\n:root:has(.lab-print) {\n${PRINT_VARS}\n  color-scheme: light;\n}\n.lab-print {\n${PRINT_VARS}\n  color-scheme: light;\n  background: var(--color-bg);\n  color: var(--color-text);\n}\n}`;
 
 export function LabPrintStyles() {
   return <style>{CSS}</style>;
