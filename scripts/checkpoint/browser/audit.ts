@@ -190,11 +190,20 @@ export async function shoot(
   await page.screenshot({ path: file, fullPage: true });
 }
 
-/** At narrower layouts the sandbox controls live in the Settings drawer:
- * open it when the import panel isn't on screen. */
+/** At the wide breakpoint (≥ 1280 px) the controls column — the import
+ * panel with its tab strip — is on screen; below it the same sections
+ * live in the header's Settings drawer. The panel is a lazy chunk, so
+ * wait for whichever the layout mounts rather than probing it once: at
+ * ≥ 1280 the drawer's toggle never exists, so a check that runs before
+ * the panel lands must not commit to the drawer path. */
 export async function showControls(page: Page): Promise<void> {
-  if (await page.locator(".import-panel textarea").isVisible()) return;
+  const panel = page.locator(".import-panel");
   const toggle = page.getByRole("button", { name: "Settings", exact: true });
+  await page.waitForSelector(".import-panel, .drawer-toggle", {
+    state: "visible",
+    timeout: 60_000,
+  });
+  if (await panel.isVisible()) return;
   if ((await toggle.getAttribute("aria-expanded")) !== "true") {
     await toggle.click();
   }

@@ -326,8 +326,9 @@ Step 3 exercise each one.
 - Roadmap: mark v1.4c **released (v1.4.2, <date>)** in the next docs PR.
 - Check the `main` nightly and the tag run's `@perf` timings once.
 - The open follow-ups start the v1.5 cycle: the serde `null` gap on old
-  optional keys (§16) and the MEGA Adaptive Bootstrap sentence pending
-  the owner's GUI check (§16).
+  optional keys (§16). The MEGA Adaptive Bootstrap sentence is resolved —
+  the owner confirmed in the MEGA 12 GUI on 2026-11-17 that NJ's Test of
+  Phylogeny has no Adaptive option, so the handout stays unchanged (§16).
 
 ## Rollback
 
@@ -374,7 +375,8 @@ only you can do it.
 | 14 | Print: light, controls hidden, no minutes on handouts | **Auto** + **PDFs**; one real paper print is **owner** |
 | 15 | WebKit pass | **Auto** (every § test runs on WebKit except the Chromium-only parts above) + 5 min real Safari (Step 3.3) |
 | 15 | Stale-link window (`d=` written after paint) | **Fixed** — the URL sync is a `useLayoutEffect`, pinned by `App.urlSync.test.tsx`; see the note in the checklist |
-| 16 | `bootstrap: null` serde gap; MEGA Adaptive Bootstrap sentence | **Known issues, not fixed** — v1.5 owner decision |
+| 16 | `bootstrap: null` serde gap | **Known issue, not fixed** — v1.5 owner decision |
+| 16 | MEGA Adaptive Bootstrap sentence | **Resolved** — owner confirmed in the MEGA 12 GUI on 2026-11-17 that NJ has no Adaptive option; handout unchanged |
 | 17 | Hand key-check, GUI open, printed matrix, sign-offs, tag | **Manual (owner)** |
 
 **Note on §11 (pair panel):** the pair panel opens only in protein mode.

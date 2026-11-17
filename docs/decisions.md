@@ -7980,3 +7980,24 @@ Owner-requested rendering fixes after the PR #139 review; branch
     per-release update). Fix round 1 updated the Chromium-only wording
     and dropped the stale-link ruling row.
   - `docs/decisions.md` — this entry.
+
+### Fix round 2
+
+- **A thrown worksheet/key load lands in the error state, never an
+  unhandled rejection (product fix, checkpoint §2):** Firefox's pass
+  logged `pageerror: NetworkError when attempting to fetch resource`
+  when the checker clicked the §2 gate and navigated to the next key
+  before the gated page's lesson fetch finished — the abort rejected
+  the async effect in `KeyPage`/`WorksheetPage`, which had no
+  `catch`. Both pages now land the rejection in their existing
+  "could not be loaded" error state while the page lives and drop it
+  after unmount; `web/e2e/worksheets.spec.ts` pins it by aborting the
+  wasm fetch and asserting the error UI with zero page errors.
+- **Files outside the Files block (fix round 2):**
+  `web/src/views/worksheets/KeyPage.tsx` and
+  `web/src/views/worksheets/WorksheetPage.tsx` — the product fix
+  above; `web/e2e/worksheets.spec.ts` — its test;
+  `scripts/checkpoint/browser/playwright.config.ts` — an optional
+  `CHECKPOINT_PROXY` env setting so a sandboxed run can route the
+  browsers through a filtering proxy (direct stays the default).
+  `docs/decisions.md` — this entry.

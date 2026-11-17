@@ -90,11 +90,23 @@ function KeyContent({ id, kind }: KeyPageProps) {
   useEffect(() => {
     let live = true;
     void (async () => {
-      await initEngine();
-      const r = await loadWorksheetSource(id);
-      if (!live) return;
-      if (r.ok) setState({ status: "ready", src: r.src });
-      else setState({ status: "error", msg: r.msg });
+      // A thrown load — the wasm fetch or the lesson fetch aborted by
+      // navigation, or a body read that fails mid-stream — lands in the
+      // error state for a live page and is dropped for a dead one;
+      // it must never escape as an unhandled rejection.
+      try {
+        await initEngine();
+        const r = await loadWorksheetSource(id);
+        if (!live) return;
+        if (r.ok) setState({ status: "ready", src: r.src });
+        else setState({ status: "error", msg: r.msg });
+      } catch (e) {
+        if (!live) return;
+        setState({
+          status: "error",
+          msg: e instanceof Error ? e.message : String(e),
+        });
+      }
     })();
     return () => {
       live = false;

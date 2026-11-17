@@ -351,6 +351,30 @@ test("an unknown id shows a clear message on both routes", async ({
   ).toBeVisible();
 });
 
+// Fix round 2 (release-checkpoint §2): a load that THROWS — the wasm
+// fetch or the lesson fetch aborted by navigation, a body read that
+// fails mid-stream — must land in the error state, not escape the
+// async effect as an unhandled rejection (Firefox logged
+// "NetworkError when attempting to fetch resource" on the deploy).
+test("a load that throws shows the error state with no page error", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.route(/\.wasm(\?|$)/, (r) => r.abort());
+
+  await page.goto("/?worksheet=nj-by-hand&kind=app");
+  await expect(
+    page.getByText("Worksheet not available"),
+  ).toBeVisible();
+  await page.goto("/?key=nj-by-hand&kind=app");
+  await page
+    .getByRole("button", { name: "I'm an instructor" })
+    .click();
+  await expect(page.getByText("Answer key not available")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("every built-in lesson and lab renders its in-app sheet and key without console errors", async ({
   page,
 }) => {

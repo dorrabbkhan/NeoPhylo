@@ -585,11 +585,16 @@ test("§7 .meg import: CRLF+BOM, interleaved, matrix refusal, ignored commands, 
     await expect.soft(tree, `${ok} builds a tree`).toBeVisible();
   }
   const meg = (n: string) => readFileSync(`${MEG_INPUTS}${n}`, "utf8");
-  // v1.4c: a distance-matrix .meg is detected and opens a matrix
-  // session (importText routes on detectMatrixFormat before the
-  // alignment parsers) instead of v1.4b's refusal.
-  await pasteImport(page, meg("matrix.meg"));
-  await expect.soft(tree, "matrix.meg builds a tree").toBeVisible();
+  // v1.4c: a distance-matrix .meg pasted into the sequences box is
+  // detected and opens a matrix session (importText routes on
+  // detectMatrixFormat before the alignment parsers) instead of
+  // v1.4b's refusal. meg_inputs/matrix.meg is a two-taxon parser
+  // input — a session needs ≥ 3 taxa, so this uses an oracle matrix.
+  await pasteImport(
+    page,
+    readFileSync(`${MATRIX_DIR}wiki5_lower.meg`, "utf8"),
+  );
+  await expect.soft(tree, "wiki5_lower.meg builds a tree").toBeVisible();
   await expect
     .soft(page.locator(".alphabet-badge-label"))
     .toHaveText("Distance matrix");
@@ -676,6 +681,9 @@ interface GridMatrix {
 async function readGrid(mi: Locator_): Promise<GridMatrix> {
   await mi.getByRole("button", { name: "Type a matrix…" }).click();
   const nameInputs = mi.locator('input[aria-label^="Taxon "]');
+  // The grid sheet is a lazy chunk: .all() runs on whatever is mounted
+  // NOW, so wait for the first input or every read comes back empty.
+  await expect(nameInputs.first()).toBeVisible();
   const names: string[] = [];
   for (const el of await nameInputs.all()) names.push(await el.inputValue());
   const cells: GridMatrix["cells"] = [];
@@ -694,7 +702,10 @@ async function readGrid(mi: Locator_): Promise<GridMatrix> {
 /** Type `m` into a fresh session's grid and press Build tree. */
 async function typeGrid(mi: Locator_, m: GridMatrix): Promise<void> {
   await mi.getByRole("button", { name: "Type a matrix…" }).click();
-  const have = await mi.locator('input[aria-label^="Taxon "]').count();
+  const taxonInputs = mi.locator('input[aria-label^="Taxon "]');
+  // Same lazy sheet as readGrid — wait for it before counting.
+  await expect(taxonInputs.first()).toBeVisible();
+  const have = await taxonInputs.count();
   for (let i = have; i < m.names.length; i++) {
     await mi.getByRole("button", { name: "Add taxon" }).click();
   }
@@ -929,9 +940,14 @@ test("§2 every answer key renders — gated, both kinds", async ({
   await prime(page, "light");
   await page.setViewportSize({ width: 1280, height: 900 });
   // The first key of the session meets the gate; later keys in the
-  // same session go straight in (§3 checks the gate itself).
+  // same session go straight in (§3 checks the gate itself). Wait for
+  // this key's content — not just the click — before navigating on:
+  // leaving while its lesson fetch is in flight aborts the request.
   await visitPage(page, `/?key=nj-by-hand&kind=paper`);
   await page.getByRole("button", { name: "I'm an instructor" }).click();
+  await expect(
+    page.getByRole("heading", { name: "1. The distance matrix" }),
+  ).toBeVisible({ timeout: 90_000 });
   for (const id of WS_IDS) {
     await visitPage(page, `/?key=${id}&kind=app`);
     await expect
@@ -1029,9 +1045,11 @@ test("§3 the instructor gate asks once per session; storage-blocked asks every 
     );
   await expect(page.locator("ol.ws-key-items")).toHaveCount(0);
   await page.getByRole("button", { name: "I'm an instructor" }).click();
-  await expect(page.locator("ol.ws-key-items")).toBeVisible({
-    timeout: 90_000,
-  });
+  // This key is kind=paper: the paper view is sections, so the matrix
+  // heading is the rendered marker (ol.ws-key-items is the app view's).
+  await expect(
+    page.getByRole("heading", { name: "1. The distance matrix" }),
+  ).toBeVisible({ timeout: 90_000 });
   // Same session, second key: straight in, no gate.
   await visitPage(page, "/?key=nj-basics&kind=app");
   await expect(page.locator(".ws-gate")).toHaveCount(0);
@@ -1138,8 +1156,9 @@ test("§4 ?labs opens filtered and a filter change moves the state into ?library
     .soft(page.getByRole("region", { name: "Lessons" }))
     .toHaveCount(0);
   // Unchecking a type narrows to ?library&type=… (history.replaceState
-  // may lag the click — wait for it).
-  await page.getByLabel("PHYLIP labs").uncheck();
+  // may lag the click — wait for it). The filter shares its accessible
+  // name with the group region, so ask for the checkbox by role.
+  await page.getByRole("checkbox", { name: "PHYLIP labs" }).uncheck();
   await expect(page).toHaveURL(/library.*type=mega/);
   await expect(page.locator(".lib-card")).toHaveCount(
     LABS.filter((l) => l.tool === "mega").length,

@@ -54,11 +54,23 @@ export function WorksheetPage({ id, kind }: WorksheetPageProps) {
   useEffect(() => {
     let live = true;
     void (async () => {
-      await initEngine();
-      const r = await loadWorksheetSource(id);
-      if (!live) return;
-      if (r.ok) setState({ status: "ready", src: r.src });
-      else setState({ status: "error", msg: r.msg });
+      // Same rule as KeyPage: a thrown load (aborted wasm/lesson
+      // fetch, a mid-stream body read) lands in the error state while
+      // the page lives and is dropped otherwise — never an unhandled
+      // rejection.
+      try {
+        await initEngine();
+        const r = await loadWorksheetSource(id);
+        if (!live) return;
+        if (r.ok) setState({ status: "ready", src: r.src });
+        else setState({ status: "error", msg: r.msg });
+      } catch (e) {
+        if (!live) return;
+        setState({
+          status: "error",
+          msg: e instanceof Error ? e.message : String(e),
+        });
+      }
     })();
     return () => {
       live = false;
