@@ -7881,3 +7881,30 @@ Owner-requested rendering fixes after the PR #139 review; branch
     for the new scene (3 viewports × 2 themes; no existing baseline
     changed).
   - `docs/decisions.md` — this entry.
+
+#### Task 13 — fix round 1 (PR #160)
+
+- R1: the 50-minute plan ran 5 over its slot — third item swapped to
+  `saturation` (15+20+15 = 50, intro rewritten to match; a conductor's
+  call pending the owner's guide review) and links.test.ts now pins
+  each plan's registry total to slot−5 ≤ total ≤ slot.
+- R2: the library bullet claimed every card carries level/minutes/
+  objectives/worksheet/key links — corrected: lesson and lab cards do,
+  dataset cards show source and license and open the dataset.
+- R3: one worked worksheet/key pair linked in "What an answer key
+  contains" (`?worksheet=nj-by-hand&kind=paper` /
+  `?key=nj-by-hand&kind=paper` — the Task 13 Interfaces forms, already
+  whitelisted in links.ts).
+- S1: GuidePage.test.tsx iterates the markdown's `## ` blocks for the
+  section-heading assertions (all six now covered, gate section
+  included) instead of a typed list.
+- S2: the editor bullet reworded — the derived thing is the matrix,
+  not the tree.
+- S3: the Round-to bullet now says what the UI does — the warning
+  shows whenever a rounding is set (MatrixData.tsx), not only when the
+  distances stop fitting.
+- S4: `.guide-md h2` set to `--size-lg` so `##` headings out-rank the
+  body text (guide.css only; the h2 moved inside `.guide-md`; lab
+  pages untouched).
+- S5: the guide header's two nav links grouped in `.guide-nav-links`
+  on the right (guide only; LabPage/LibraryPage headers unchanged).
