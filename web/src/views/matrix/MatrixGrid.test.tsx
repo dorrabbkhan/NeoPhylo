@@ -94,16 +94,19 @@ describe("MatrixGrid — shape", () => {
     expect(cell("e", "d")).toHaveProperty("value", "3");
   });
 
-  it("shows the row-1 hint above the grid, tied with aria-describedby (round-3 K3)", () => {
+  it("shows the one caption line above the grid, tied with aria-describedby (round-4 N2)", () => {
     mount();
-    const hint = screen.getByText(
-      /the first row is just a name\./,
-    );
-    expect(hint).toBeTruthy();
+    // The caption and the row-1 hint merged into one line (round-4
+    // N2): it is the table's label and its description.
+    const captions = screen.getAllByText(/Lower triangle of the distance matrix/);
+    expect(captions).toHaveLength(1);
+    const caption = captions[0];
+    expect(caption.textContent).toMatch(/the first row is just a name\./);
     const table = document.querySelector("table.matrix-grid");
-    expect(table?.getAttribute("aria-describedby")).toBe(hint.id);
-    // The hint carries no numbers.
-    expect(hint.textContent).not.toMatch(/\d/);
+    expect(table?.getAttribute("aria-labelledby")).toBe(caption.id);
+    expect(table?.getAttribute("aria-describedby")).toBe(caption.id);
+    // The caption carries no numbers.
+    expect(caption.textContent).not.toMatch(/\d/);
   });
 });
 

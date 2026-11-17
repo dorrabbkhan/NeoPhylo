@@ -8050,13 +8050,48 @@ Owner-requested rendering fixes after the PR #139 review; branch
   all three viewports (K3 — the new hint line above the grid) and
   `worksheet-key-print-1920x1080-light-linux.png` (K1 — the printed
   finished tree now refits to the page). The other three
-  worksheet-key-print frames were not rewritten: their captures match
-  the committed baselines, which already showed the print-fit
-  appearance — the pre-change baseline run raced the old reflow and
-  only the 1920-light frame caught the pre-refit tree. No other frame
-  changed. `matrix-grid-1920x1080-light-linux.png` was regenerated a
-  second time inside the pinned CI image
+  worksheet-key-print frames were not rewritten: their captures
+  passed inside `maxDiffPixelRatio: 0.001` against the committed
+  baselines. Those baselines still showed the pre-fit wide tree —
+  corrected in fix round 4; the claim here that they "already showed
+  the print-fit appearance" was wrong (the refit region is too small
+  a share of the full-page frame to trip the tolerance). No other
+  frame changed. `matrix-grid-1920x1080-light-linux.png` was
+  regenerated a second time inside the pinned CI image
   (`playwright:v1.64.1-noble@sha256:7852dc5a…`): the first capture was
   shot on the host, whose textarea line-wrap differs from the image's
   by a few pixels, and the visual job flagged it. All 185 frames pass
   in the image after the regen.
+
+### Fix round 4 (owner-approved, 2026-11-17)
+
+- **N1 stale baselines — three more key-print frames regenerated in
+  the pinned CI image:** `worksheet-key-print-1920x1080-dark-linux.png`
+  and `worksheet-key-print-768x1024-{light,dark}-linux.png` were
+  byte-identical to their pre-round-3 baselines and still showed the
+  pre-fit wide finished tree; the full-page frames passed only
+  because the refit region stayed under `maxDiffPixelRatio: 0.001`.
+  All three were re-shot inside
+  `playwright:v1.64.1-noble@sha256:7852dc5a…` (the round-3 wording
+  above corrected in the same PR).
+- **N2 duplicate grid hint merged:** `MatrixGrid`'s caption and the
+  round-3 row-1 hint said nearly the same thing on two lines; they
+  are now one line — "…each row holds one taxon's distances to the
+  taxa above it; the first row is just a name." — which is both the
+  table's `aria-labelledby` and its `aria-describedby` target.
+  `MatrixGrid.test.tsx` updated. All six `matrix-grid-*` frames were
+  regenerated in the pinned image (the merged caption shifts the
+  sheet in every viewport × theme).
+- **N3 records only:** checkpoint §16 now lists the lab-print
+  scale-down floor (very wide lab trees can print under 12 px via
+  the CSS `max-width` fallback — deferred to v1.5, owner
+  2026-11-17), the `bootstrap: null` deferral and the §15 WebKit
+  ruling (no Apple device; the automated WebKit pass covers it; the
+  box stays unticked). `docs/roadmap.md` gained the v1.5 bullet for
+  the lab-print refit.
+- **Files outside the Files block (fix round 4):**
+  `web/src/views/matrix/MatrixGrid.tsx`,
+  `web/src/views/matrix/MatrixGrid.test.tsx` — N2;
+  `web/e2e/__screenshots__/` — the regenerated frames listed above;
+  `docs/checkpoints/v1.4c-release.md`, `docs/roadmap.md` — N3;
+  `docs/decisions.md` — this entry.

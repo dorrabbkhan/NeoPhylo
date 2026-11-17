@@ -303,18 +303,14 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
     <div className="matrix-grid-block">
       {/* The caption wraps inside its container (the 320 px Settings
           drawer included); only the table scrolls, inside its own
-          named, focusable region (fix round 1). */}
+          named, focusable region (fix round 1). One line covers the
+          row-1 case too (round-4 N2): the first row holds only the
+          first taxon's name, which reads as a broken row until the
+          layout is explained. */}
       <p className="matrix-caption" id={`${statusId}-caption`}>
         Lower triangle of the distance matrix — each row holds one
-        taxon's distances to the taxa above it.
-      </p>
-      {/* The row-1 hint (round-3 K3): the first row holds only the
-          first taxon's name, which reads as a broken row until the
-          layout is explained — one short line, tied to the table with
-          aria-describedby. */}
-      <p className="matrix-caption" id={`${statusId}-hint`}>
-        Each row holds the distances to the taxa above it — the first
-        row is just a name.
+        taxon's distances to the taxa above it; the first row is just
+        a name.
       </p>
       <div
         className="matrix-grid-wrap"
@@ -326,7 +322,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
           className="matrix-grid"
           ref={tableRef}
           aria-labelledby={`${statusId}-caption`}
-          aria-describedby={`${statusId}-hint`}
+          aria-describedby={`${statusId}-caption`}
         >
           <tbody>
             {names.map((name, i) => (
