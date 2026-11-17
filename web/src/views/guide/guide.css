@@ -5,6 +5,23 @@
  * the inline prose links — reaches the ≥40×40 floor.
  */
 
+/* The header's space-between would spread three children across the
+ * bar — Library stranded in the middle — so the guide groups its two
+ * nav links in one right-side cluster (lab pages keep their own
+ * header layout). */
+.guide-nav-links {
+  display: flex;
+  gap: var(--space-16);
+}
+
+/* The `##` section headings land inside .guide-md; the document
+ * default sizes an h2 smaller than the body text, so the guide bumps
+ * them a token step above it. */
+.guide-md h2 {
+  font-size: var(--size-lg);
+  margin: 0 0 var(--space-8);
+}
+
 .guide-md a {
   color: var(--color-accent-contrast);
 }

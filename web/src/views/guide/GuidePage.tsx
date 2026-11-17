@@ -126,12 +126,14 @@ export function GuidePage() {
         >
           <Wordmark size="sm" />
         </a>
-        <a className="lab-nav-link" href="?library">
-          Library
-        </a>
-        <a className="lab-nav-link" href="?labs">
-          Labs
-        </a>
+        <div className="guide-nav-links">
+          <a className="lab-nav-link" href="?library">
+            Library
+          </a>
+          <a className="lab-nav-link" href="?labs">
+            Labs
+          </a>
+        </div>
       </header>
       <div className="lab-main guide-main">
         <p className="lab-print-head">NeoPhylo — instructor guide</p>
@@ -148,8 +150,8 @@ export function GuidePage() {
         )}
         {sections.map((s) => (
           <section key={s.id} aria-labelledby={`${s.id}-h`}>
-            <h2 id={`${s.id}-h`}>{s.heading}</h2>
             <div className="lab-md guide-md">
+              <h2 id={`${s.id}-h`}>{s.heading}</h2>
               {s.blocks.map((b, i) => guideBlock(b, s.id, i))}
             </div>
           </section>

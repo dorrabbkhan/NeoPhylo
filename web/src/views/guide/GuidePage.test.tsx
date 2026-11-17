@@ -6,11 +6,19 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { parseInternalHref } from "../../links";
+import guideSource from "../../../../docs/instructor-guide.md?raw";
+
+import { mdBlocks, parseInternalHref } from "../../links";
 
 import { GuidePage } from "./GuidePage";
 
 afterEach(cleanup);
+
+// Every `## ` block in the markdown is a section heading — iterating
+// the source keeps this list honest as the guide text drifts.
+const SECTION_HEADINGS = mdBlocks(guideSource)
+  .filter((b) => /^##\s/.test(b))
+  .map((b) => b.replace(/^##\s+/, "").trim());
 
 describe("GuidePage", () => {
   it("renders the title and every section heading", () => {
@@ -18,13 +26,8 @@ describe("GuidePage", () => {
     expect(
       screen.getByRole("heading", { name: "Instructor guide", level: 1 }),
     ).toBeTruthy();
-    for (const h of [
-      "How NeoPhylo is organised",
-      "A 50-minute class plan",
-      "A 3-hour lab plan",
-      "What an answer key contains",
-      "Making and sharing a matrix exercise",
-    ]) {
+    expect(SECTION_HEADINGS.length).toBe(6);
+    for (const h of SECTION_HEADINGS) {
       expect(
         screen.getByRole("heading", { name: h, level: 2 }),
         `section heading "${h}"`,
@@ -76,9 +79,9 @@ describe("GuidePage", () => {
     });
     expect(dnadist.getAttribute("href")).toBe("?lab=dnadist-neighbor");
     expect(dnadist.textContent).toContain("— 25 min");
-    // Totals are computed, not typed: 15 + 20 + 20 and
+    // Totals are computed, not typed: 15 + 20 + 15 and
     // 20 + 25 + 40 + 35 + 30 + 30.
-    expect(screen.getByText(/Total: 55 min/)).toBeTruthy();
+    expect(screen.getByText(/Total: 50 min/)).toBeTruthy();
     expect(screen.getByText(/Total: 180 min/)).toBeTruthy();
   });
 

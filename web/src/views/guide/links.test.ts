@@ -162,22 +162,28 @@ describe("guide plans", () => {
     }
   });
 
-  it("the class plan totals 50 ± 5 minutes from registry minutes", () => {
+  it("the class plan totals 50 ± 5 minutes from registry minutes and fits its slot", () => {
     const plan = plans()[0];
     const total = plan.hrefs.reduce(
       (sum, href) => sum + (minutesById.get(parseInternalHref(href)?.id ?? "") ?? 0),
       0,
     );
     expect(Math.abs(total - 50), `50-minute plan sums to ${total}`).toBeLessThanOrEqual(5);
+    // The slot is the hard ceiling — the plan must not run over.
+    expect(total, `50-minute plan sums to ${total}`).toBeLessThanOrEqual(50);
+    expect(total, `50-minute plan sums to ${total}`).toBeGreaterThanOrEqual(45);
   });
 
-  it("the lab plan totals 180 ± 5 minutes from registry minutes", () => {
+  it("the lab plan totals 180 ± 5 minutes from registry minutes and fits its slot", () => {
     const plan = plans()[1];
     const total = plan.hrefs.reduce(
       (sum, href) => sum + (minutesById.get(parseInternalHref(href)?.id ?? "") ?? 0),
       0,
     );
     expect(Math.abs(total - 180), `3-hour plan sums to ${total}`).toBeLessThanOrEqual(5);
+    // The slot is the hard ceiling — the plan must not run over.
+    expect(total, `3-hour plan sums to ${total}`).toBeLessThanOrEqual(180);
+    expect(total, `3-hour plan sums to ${total}`).toBeGreaterThanOrEqual(175);
   });
 
   it("every plan item has a registry minutes value to display", () => {
