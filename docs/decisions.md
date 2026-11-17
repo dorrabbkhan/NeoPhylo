@@ -7786,3 +7786,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - `web/src/views/library/items.test.ts` — new unit file for the
   parseFilters/filtersQuery round-trips; outside the Files block
   like the other test files.
+
+#### Task 12 — fix round 2 (PR #159)
+
+- Owner request (2026-11-17, chat via conductor): lab settings tables
+  collapse in the library, open on ?labs, print expanded.
