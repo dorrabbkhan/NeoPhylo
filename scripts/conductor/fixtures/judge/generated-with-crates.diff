@@ -1,0 +1,14 @@
+diff --git a/web/src/engine/generated/bindings.ts b/web/src/engine/generated/bindings.ts
+index 1111111..2222222 100644
+--- a/web/src/engine/generated/bindings.ts
++++ b/web/src/engine/generated/bindings.ts
+@@ -1 +1 @@
+-export interface Foo { a: number }
++export interface Foo { a: string }
+diff --git a/crates/neophylo-core/src/bindings.rs b/crates/neophylo-core/src/bindings.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/src/bindings.rs
++++ b/crates/neophylo-core/src/bindings.rs
+@@ -1 +1 @@
+-pub struct Foo { a: u32 }
++pub struct Foo { a: String }

@@ -1,0 +1,12 @@
+diff --git a/crates/neophylo-core/src/dist.rs b/crates/neophylo-core/src/dist.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/src/dist.rs
++++ b/crates/neophylo-core/src/dist.rs
+@@ -40,4 +40,7 @@
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn parses() {
++        parse("a").unwrap();
++    }
+ }

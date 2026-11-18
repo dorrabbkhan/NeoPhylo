@@ -1,0 +1,7 @@
+diff --git a/web/playwright.config.ts b/web/playwright.config.ts
+index 1111111..2222222 100644
+--- a/web/playwright.config.ts
++++ b/web/playwright.config.ts
+@@ -1 +1 @@
+-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.001 } },
++  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002 } },

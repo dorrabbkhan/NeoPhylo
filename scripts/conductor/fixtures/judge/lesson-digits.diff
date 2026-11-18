@@ -1,0 +1,8 @@
+diff --git a/exercises/bootstrap-basics.json b/exercises/bootstrap-basics.json
+index 1111111..2222222 100644
+--- a/exercises/bootstrap-basics.json
++++ b/exercises/bootstrap-basics.json
+@@ -1,2 +1,3 @@
+ {"steps": [
++    {"text": "Compare the 4 taxa in this tree"}
+ ]}

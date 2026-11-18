@@ -1,0 +1,4 @@
+{"type":"user","timestamp":"2026-11-16T13:00:00Z","message":{"role":"user","content":"work on v1.4-task0a please"}}
+{"type":"assistant","timestamp":"2026-11-16T13:00:05Z","message":{"id":"msg_A","role":"assistant","model":"claude-opus-4-1","content":[{"type":"thinking","thinking":"hmm"}],"usage":{"input_tokens":100,"output_tokens":10}}}
+{"type":"assistant","timestamp":"2026-11-16T13:00:05Z","message":{"id":"msg_A","role":"assistant","model":"claude-opus-4-1","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":100,"output_tokens":10}}}
+{"type":"assistant","timestamp":"2026-11-16T13:00:05Z","message":{"id":"msg_A","role":"assistant","model":"claude-opus-4-1","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}],"usage":{"input_tokens":100,"output_tokens":10}}}

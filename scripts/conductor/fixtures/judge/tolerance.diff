@@ -1,0 +1,8 @@
+diff --git a/crates/neophylo-core/src/dist.rs b/crates/neophylo-core/src/dist.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/src/dist.rs
++++ b/crates/neophylo-core/src/dist.rs
+@@ -1 +1 @@
+-const TOLERANCE: f64 = 1e-9;
++const TOLERANCE: f64 = 1e-8;
+ const OTHER: f64 = 0.5;

@@ -8125,3 +8125,38 @@ Owner-requested rendering fixes after the PR #139 review; branch
   it has no `!Description` block, and §12's earlier hand check
   passed, so it was left alone; flagging in case the owner wants it
   stripped too.
+
+## conductor Task 0a: judge script, waits, prompt builder, usage report
+
+- **Port, not copy:** `scripts/conductor/*` is ported from the read-only
+  Epiora reference (`.conductor-ref/epiora/scripts-conductor/`). Check ids,
+  order, patterns and paths are NeoPhylo's from the plan: `fixtures`,
+  `numbers`, `assertions`, `skips`, `files-block`, `engine-rules`,
+  `content-numbers`, `protected-paths`, `secrets`, `diff-stat`, `pr-events`,
+  `owner-gate` — exactly those 12, in that order, on stdout; the
+  parsed-file count and any diff-fetch error go in the report header.
+- **`node --test scripts/conductor/` does not run on Node 24**: Node treats
+  the directory itself as a test file — it tries to run it and reports one
+  failing test; it never scans the directory. `scripts/check.sh` runs the
+  equivalent `node --test "scripts/conductor/*.test.ts"`.
+- **`wait-ci.sh` additions over the Epiora port:** polls until checks
+  register (empty check-runs is not "green"), detects a moved head SHA or a
+  merged-PR mid-wait and exits 3 with `HEAD MOVED`, and on failure prints
+  failing job names plus the last 40 lines of each failed log.
+- **`devin.sh` keeps `DEVIN_CMD`, the `REPO` default and `app-env.sh`
+  sourcing unchanged** (per task notes). It now wraps the body in `main()`,
+  rejects an empty prompt before invoking Devin, saves prompt + full output
+  under `~/neophylo-conductor/<version>-task<N>/`, prints only the last 30
+  lines plus de-duplicated `PR_URL:`/`STOP:` lines, and restores the
+  starting checkout only when the tree has no tracked changes.
+- **Usage baseline is transcribed, not regenerated:** the numbers in
+  `docs/conductor/usage-baseline-2026-11-18.md` are copied from
+  `.conductor-ref/usage-baseline.{txt,json}` (the authoritative supplied
+  baseline). The doc notes that Task-0a attribution keys on
+  `devin.sh`/`build-prompt.sh`/`neophylo-conductor` paths (E6), so a re-run's
+  task columns can differ from the Epiora-script run.
+- **Files outside the Files block:**
+  `scripts/conductor/conductor-shell.test.ts` — the Files block names only
+  `judge.test.ts`; the shell-wrapper tests (wait-ci/build-prompt/devin
+  stubs on PATH) were split out to keep every file under the ~400-line
+  rule, same split the reference keeps between its test files.

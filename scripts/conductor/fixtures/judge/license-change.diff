@@ -1,0 +1,14 @@
+diff --git a/LICENSE-MIT b/LICENSE-MIT
+index 1111111..2222222 100644
+--- a/LICENSE-MIT
++++ b/LICENSE-MIT
+@@ -1 +1 @@
+-old copyright line
++new copyright line
+diff --git a/LICENSES/THIRD-PARTY.md b/LICENSES/THIRD-PARTY.md
+index 1111111..2222222 100644
+--- a/LICENSES/THIRD-PARTY.md
++++ b/LICENSES/THIRD-PARTY.md
+@@ -1 +1 @@
+-old notice
++new notice

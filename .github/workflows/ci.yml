@@ -306,6 +306,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: conductor script tests
+        # scripts/conductor/* (judge, wait-ci, build-prompt, usage-report);
+        # offline, stubs only. The job already runs for scripts/** changes.
+        run: node --test "scripts/conductor/*.test.ts"
       - name: lint + unit tests + build
         run: scripts/ci/web.sh
       - name: Upload web build
