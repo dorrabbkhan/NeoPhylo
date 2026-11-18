@@ -8278,4 +8278,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
     — proptest's saved-seed file for the new props target; committed per
     the file's own recommendation and the existing `*_props.*-regressions`
     convention.
+  - `web/src/explain/errors.ts` and `web/src/explain/errors.test.ts` —
+    the generated `NeoError` union gained `InvalidReading`, and the
+    explainer's exhaustive `never` check requires a case (and its test
+    entries) for every variant (fix round 1).
   - `docs/decisions.md` — this entry.
