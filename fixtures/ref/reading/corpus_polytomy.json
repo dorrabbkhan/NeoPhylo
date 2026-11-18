@@ -1,0 +1,1516 @@
+{
+  "generator": {
+    "R": "4.5.2",
+    "ape": "5.8.1",
+    "phangorn": "2.12.1"
+  },
+  "trees": [
+    {
+      "newick": "((t6,((t3,t4,t7),(t5,t8))),((t10,t9),t1,(t2,t11)));",
+      "mrca": [
+        {
+          "tips": ["t1", "t7"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t1", "t2", "t3"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t11", "t2"],
+          "clade": ["t11", "t2"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t3", "t4", "t7"],
+          "value": true
+        },
+        {
+          "tips": ["t3", "t5", "t8", "t9"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t6",
+          "sisters": ["t3", "t4", "t5", "t7", "t8"]
+        },
+        {
+          "tip": "t10",
+          "sisters": ["t9"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t3", "t4", "t7"],
+          "newick": "(t3,t4,t7);"
+        },
+        {
+          "tips": ["t2", "t6"],
+          "newick": "(t6,t2);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t11"]
+        },
+        {
+          "ancestor": ["t3", "t4", "t5", "t7", "t8"],
+          "descendant": ["t5", "t8"]
+        },
+        {
+          "ancestor": ["t3", "t4", "t5", "t7", "t8"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "(t4,(t6,t5,(t3,t1),t2));",
+      "mrca": [
+        {
+          "tips": ["t3", "t5"],
+          "clade": ["t1", "t2", "t3", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t4"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t3"],
+          "clade": ["t1", "t3"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t2", "t3", "t5", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2", "t6"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t3",
+          "sisters": ["t1"]
+        },
+        {
+          "tip": "t2",
+          "sisters": ["t1", "t3", "t5", "t6"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t3"],
+          "newick": "(t3,t1);"
+        },
+        {
+          "tips": ["t4", "t6"],
+          "newick": "(t4,t6);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "descendant": ["t1", "t3"]
+        },
+        {
+          "ancestor": ["t1", "t3"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t1", "t3"],
+          "descendant": ["t3"]
+        }
+      ],
+      "clade_count": 3
+    },
+    {
+      "newick": "((t1,t5,t2),(t8,(t6,t4,(t7,t3))));",
+      "mrca": [
+        {
+          "tips": ["t6", "t7"],
+          "clade": ["t3", "t4", "t6", "t7"]
+        },
+        {
+          "tips": ["t5", "t6", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t3", "t7"],
+          "clade": ["t3", "t7"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t2", "t5"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2", "t7"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t8",
+          "sisters": ["t3", "t4", "t6", "t7"]
+        },
+        {
+          "tip": "t2",
+          "sisters": ["t1", "t5"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t3", "t4", "t6", "t7", "t8"],
+          "newick": "(t8,(t6,t4,(t7,t3)));"
+        },
+        {
+          "tips": ["t1", "t4"],
+          "newick": "(t1,t4);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "descendant": ["t5"]
+        },
+        {
+          "ancestor": ["t3", "t4", "t6", "t7", "t8"],
+          "descendant": ["t6"]
+        },
+        {
+          "ancestor": ["t3", "t4", "t6", "t7"],
+          "descendant": ["t6"]
+        }
+      ],
+      "clade_count": 5
+    },
+    {
+      "newick": "((t3,t4,t2,t6),(t1,t5));",
+      "mrca": [
+        {
+          "tips": ["t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t5"],
+          "clade": ["t1", "t5"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t5"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2", "t3"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t3",
+          "sisters": ["t2", "t4", "t6"]
+        },
+        {
+          "tip": "t5",
+          "sisters": ["t1"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t5"],
+          "newick": "(t1,t5);"
+        },
+        {
+          "tips": ["t4", "t5", "t6"],
+          "newick": "((t4,t6),t5);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "descendant": ["t1"]
+        },
+        {
+          "ancestor": ["t2", "t3", "t4", "t6"],
+          "descendant": ["t4"]
+        },
+        {
+          "ancestor": ["t1", "t5"],
+          "descendant": ["t5"]
+        }
+      ],
+      "clade_count": 3
+    },
+    {
+      "newick": "((t2,(t7,t5)),((t8,t6),t4,(t3,t1)));",
+      "mrca": [
+        {
+          "tips": ["t2", "t7"],
+          "clade": ["t2", "t5", "t7"]
+        },
+        {
+          "tips": ["t2", "t4", "t7"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t1", "t3", "t4", "t6", "t8"],
+          "clade": ["t1", "t3", "t4", "t6", "t8"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t5", "t7"],
+          "value": true
+        },
+        {
+          "tips": ["t2", "t3", "t6", "t8"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t5",
+          "sisters": ["t7"]
+        },
+        {
+          "tip": "t2",
+          "sisters": ["t5", "t7"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t3"],
+          "newick": "(t3,t1);"
+        },
+        {
+          "tips": ["t1", "t2", "t4"],
+          "newick": "(t2,(t4,t1));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t6", "t8"],
+          "descendant": ["t8"]
+        },
+        {
+          "ancestor": ["t2", "t5", "t7"],
+          "descendant": ["t2"]
+        }
+      ],
+      "clade_count": 6
+    },
+    {
+      "newick": "((t6,(t2,(t9,t5,(t8,t4)))),(t1,(t7,t3)));",
+      "mrca": [
+        {
+          "tips": ["t3", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t1", "t6", "t9"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t3", "t7"],
+          "clade": ["t3", "t7"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t2", "t4", "t5", "t6", "t8", "t9"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2", "t8", "t9"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t2",
+          "sisters": ["t4", "t5", "t8", "t9"]
+        },
+        {
+          "tip": "t6",
+          "sisters": ["t2", "t4", "t5", "t8", "t9"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t3", "t7"],
+          "newick": "(t1,(t7,t3));"
+        },
+        {
+          "tips": ["t5", "t6"],
+          "newick": "(t6,t5);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t1", "t3", "t7"]
+        },
+        {
+          "ancestor": ["t2", "t4", "t5", "t8", "t9"],
+          "descendant": ["t4", "t5", "t8", "t9"]
+        },
+        {
+          "ancestor": ["t2", "t4", "t5", "t8", "t9"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 7
+    },
+    {
+      "newick": "((t5,t3),(t6,t1,t4,t2));",
+      "mrca": [
+        {
+          "tips": ["t4", "t6"],
+          "clade": ["t1", "t2", "t4", "t6"]
+        },
+        {
+          "tips": ["t1", "t4", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t4", "t6"],
+          "clade": ["t1", "t2", "t4", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t2", "t4", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t4", "t6"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t3",
+          "sisters": ["t5"]
+        },
+        {
+          "tip": "t4",
+          "sisters": ["t1", "t2", "t6"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t3", "t5"],
+          "newick": "(t5,t3);"
+        },
+        {
+          "tips": ["t1", "t2", "t5"],
+          "newick": "(t5,(t1,t2));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "descendant": ["t4"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t4", "t6"],
+          "descendant": ["t6"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t4", "t6"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 3
+    },
+    {
+      "newick": "(t9,(((t5,((t8,t6),(t10,t1))),(t4,t2,t3),t7),(t11,t12)));",
+      "mrca": [
+        {
+          "tips": ["t1", "t11"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t12", "t2", "t7"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "value": true
+        },
+        {
+          "tips": ["t11", "t3", "t7"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t5",
+          "sisters": ["t1", "t10", "t6", "t8"]
+        },
+        {
+          "tip": "t6",
+          "sisters": ["t8"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t10", "t5", "t6", "t8"],
+          "newick": "(t5,((t8,t6),(t10,t1)));"
+        },
+        {
+          "tips": ["t10", "t2", "t6"],
+          "newick": "((t6,t10),t2);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t4"]
+        },
+        {
+          "ancestor": ["t1", "t10", "t6", "t8"],
+          "descendant": ["t6"]
+        },
+        {
+          "ancestor": ["t1", "t10", "t5", "t6", "t8"],
+          "descendant": ["t6"]
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "((((t7,t10,t3),(t11,t9),(t1,t2)),((t6,t5),t4)),t8);",
+      "mrca": [
+        {
+          "tips": ["t2", "t3"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t7", "t9"]
+        },
+        {
+          "tips": ["t1", "t2", "t9"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t7", "t9"]
+        },
+        {
+          "tips": ["t5", "t6"],
+          "clade": ["t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t9"],
+          "value": true
+        },
+        {
+          "tips": ["t10", "t2", "t4"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t6",
+          "sisters": ["t5"]
+        },
+        {
+          "tip": "t2",
+          "sisters": ["t1"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t4", "t5", "t6"],
+          "newick": "((t6,t5),t4);"
+        },
+        {
+          "tips": ["t10", "t8", "t9"],
+          "newick": "((t10,t9),t8);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t11"]
+        },
+        {
+          "ancestor": ["t4", "t5", "t6"],
+          "descendant": ["t6"]
+        },
+        {
+          "ancestor": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t9"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "(((t5,t2),t6,((t1,t4),(t10,t3))),((t7,t9),t8));",
+      "mrca": [
+        {
+          "tips": ["t6", "t8"],
+          "clade": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t5", "t6", "t9"],
+          "clade": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t2", "t5"],
+          "clade": ["t2", "t5"]
+        },
+        {
+          "tips": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t10", "t3"],
+          "value": true
+        },
+        {
+          "tips": ["t10", "t8"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t9",
+          "sisters": ["t7"]
+        },
+        {
+          "tip": "t6",
+          "sisters": ["t1", "t10", "t2", "t3", "t4", "t5"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t10", "t2", "t3", "t4", "t5", "t6"],
+          "newick": "((t5,t2),t6,((t1,t4),(t10,t3)));"
+        },
+        {
+          "tips": ["t2", "t7"],
+          "newick": "(t2,t7);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t2", "t5"]
+        },
+        {
+          "ancestor": ["t7", "t8", "t9"],
+          "descendant": ["t7"]
+        },
+        {
+          "ancestor": ["t1", "t10", "t3", "t4"],
+          "descendant": ["t10"]
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "((t3,((t10,t4,t2),(t6,t9))),((t5,t7),t8,(t1,t11)));",
+      "mrca": [
+        {
+          "tips": ["t2", "t8"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t10", "t4", "t5"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t6", "t9"],
+          "clade": ["t6", "t9"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t11", "t5", "t7", "t8"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t8"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t2",
+          "sisters": ["t10", "t4"]
+        },
+        {
+          "tip": "t11",
+          "sisters": ["t1"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t5", "t7"],
+          "newick": "(t5,t7);"
+        },
+        {
+          "tips": ["t11", "t4", "t7", "t9"],
+          "newick": "((t4,t9),(t7,t11));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t10", "t2", "t4", "t6", "t9"]
+        },
+        {
+          "ancestor": ["t5", "t7"],
+          "descendant": ["t7"]
+        },
+        {
+          "ancestor": ["t10", "t2", "t3", "t4", "t6", "t9"],
+          "descendant": ["t6"]
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "(((t5,t6),(t7,t2)),(t8,(t1,t3),t4));",
+      "mrca": [
+        {
+          "tips": ["t1", "t8"],
+          "clade": ["t1", "t3", "t4", "t8"]
+        },
+        {
+          "tips": ["t3", "t6", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t5", "t6"],
+          "clade": ["t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t2", "t7"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t7",
+          "sisters": ["t2"]
+        },
+        {
+          "tip": "t2",
+          "sisters": ["t7"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t2", "t7"],
+          "newick": "(t7,t2);"
+        },
+        {
+          "tips": ["t2", "t4", "t6"],
+          "newick": "((t6,t2),t4);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "descendant": ["t4"]
+        },
+        {
+          "ancestor": ["t1", "t3"],
+          "descendant": ["t1"]
+        },
+        {
+          "ancestor": ["t1", "t3", "t4", "t8"],
+          "descendant": ["t1"]
+        }
+      ],
+      "clade_count": 6
+    },
+    {
+      "newick": "((t3,t5,t2),(t4,t1));",
+      "mrca": [
+        {
+          "tips": ["t2", "t3"],
+          "clade": ["t2", "t3", "t5"]
+        },
+        {
+          "tips": ["t3", "t4", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5"]
+        },
+        {
+          "tips": ["t1", "t4"],
+          "clade": ["t1", "t4"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t2", "t3", "t5"],
+          "value": true
+        },
+        {
+          "tips": ["t3", "t4", "t5"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t3",
+          "sisters": ["t2", "t5"]
+        },
+        {
+          "tip": "t5",
+          "sisters": ["t2", "t3"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t2", "t3", "t5"],
+          "newick": "(t3,t5,t2);"
+        },
+        {
+          "tips": ["t1", "t3", "t4"],
+          "newick": "(t3,(t4,t1));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5"],
+          "descendant": ["t1", "t4"]
+        },
+        {
+          "ancestor": ["t2", "t3", "t5"],
+          "descendant": ["t2"]
+        },
+        {
+          "ancestor": ["t1", "t4"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 3
+    },
+    {
+      "newick": "((((t7,t5),t8),t4),(t9,(t1,(t6,t10)),(t3,t2)));",
+      "mrca": [
+        {
+          "tips": ["t2", "t9"],
+          "clade": ["t1", "t10", "t2", "t3", "t6", "t9"]
+        },
+        {
+          "tips": ["t10", "t2", "t6"],
+          "clade": ["t1", "t10", "t2", "t3", "t6", "t9"]
+        },
+        {
+          "tips": ["t1", "t10", "t6"],
+          "clade": ["t1", "t10", "t6"]
+        },
+        {
+          "tips": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t10", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t10", "t4", "t9"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t2",
+          "sisters": ["t3"]
+        },
+        {
+          "tip": "t5",
+          "sisters": ["t7"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t10", "t6"],
+          "newick": "(t1,(t6,t10));"
+        },
+        {
+          "tips": ["t10", "t8", "t9"],
+          "newick": "(t8,(t9,t10));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t1", "t10", "t6"],
+          "descendant": ["t10"]
+        },
+        {
+          "ancestor": ["t4", "t5", "t7", "t8"],
+          "descendant": ["t7"]
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "((((t12,t5),t1),(t10,t6)),((t8,(t9,t4),t2),t11,(t7,t3)));",
+      "mrca": [
+        {
+          "tips": ["t3", "t8"],
+          "clade": ["t11", "t2", "t3", "t4", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t2", "t5", "t7"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        },
+        {
+          "tips": ["t1", "t10", "t12", "t5", "t6"],
+          "clade": ["t1", "t10", "t12", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t10", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t10", "t6", "t9"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t8",
+          "sisters": ["t2", "t4", "t9"]
+        },
+        {
+          "tip": "t12",
+          "sisters": ["t5"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t2", "t4", "t8", "t9"],
+          "newick": "(t8,(t9,t4),t2);"
+        },
+        {
+          "tips": ["t1", "t12", "t3"],
+          "newick": "((t12,t1),t3);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t12", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t12"]
+        },
+        {
+          "ancestor": ["t4", "t9"],
+          "descendant": ["t9"]
+        },
+        {
+          "ancestor": ["t3", "t7"],
+          "descendant": ["t3"]
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "(t8,((((((t3,t9),t7),t5),(t2,t6),(t4,t1)),t10),t11));",
+      "mrca": [
+        {
+          "tips": ["t2", "t6"],
+          "clade": ["t2", "t6"]
+        },
+        {
+          "tips": ["t3", "t4", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t9"]
+        },
+        {
+          "tips": ["t3", "t9"],
+          "clade": ["t3", "t9"]
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "clade": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t3", "t5", "t7", "t9"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t11", "t2", "t5"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t9",
+          "sisters": ["t3"]
+        },
+        {
+          "tip": "t11",
+          "sisters": ["t1", "t10", "t2", "t3", "t4", "t5", "t6", "t7", "t9"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t3", "t7", "t9"],
+          "newick": "((t3,t9),t7);"
+        },
+        {
+          "tips": ["t10", "t11", "t3", "t9"],
+          "newick": "(((t3,t9),t10),t11);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t10", "t11", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t3", "t7", "t9"],
+          "descendant": ["t7"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t9"],
+          "descendant": ["t9"]
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "((t5,t4),((t2,t6,t1),(t3,t7,t8)));",
+      "mrca": [
+        {
+          "tips": ["t2", "t8"],
+          "clade": ["t1", "t2", "t3", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t3", "t5", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        },
+        {
+          "tips": ["t1", "t2", "t6"],
+          "clade": ["t1", "t2", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t2", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t4", "t5", "t6"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t1",
+          "sisters": ["t2", "t6"]
+        },
+        {
+          "tip": "t8",
+          "sisters": ["t3", "t7"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t2", "t3", "t6", "t7", "t8"],
+          "newick": "((t2,t6,t1),(t3,t7,t8));"
+        },
+        {
+          "tips": ["t3", "t6", "t7", "t8"],
+          "newick": "(t6,(t3,t7,t8));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"],
+          "descendant": ["t2"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t6"],
+          "descendant": ["t1"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t6"],
+          "descendant": ["t2"]
+        }
+      ],
+      "clade_count": 5
+    },
+    {
+      "newick": "((t3,t2,t6,t1),(t4,t5));",
+      "mrca": [
+        {
+          "tips": ["t3", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t2", "t3", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t6"],
+          "clade": ["t1", "t2", "t3", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t4", "t5"],
+          "value": true
+        },
+        {
+          "tips": ["t3", "t4", "t5"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t2",
+          "sisters": ["t1", "t3", "t6"]
+        },
+        {
+          "tip": "t5",
+          "sisters": ["t4"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t2", "t3", "t6"],
+          "newick": "(t3,t2,t6,t1);"
+        },
+        {
+          "tips": ["t1", "t2", "t3"],
+          "newick": "(t3,t2,t1);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6"],
+          "descendant": ["t1"]
+        },
+        {
+          "ancestor": ["t1", "t2", "t3", "t6"],
+          "descendant": ["t2"]
+        },
+        {
+          "ancestor": ["t4", "t5"],
+          "descendant": ["t5"]
+        }
+      ],
+      "clade_count": 3
+    },
+    {
+      "newick": "((t2,t7),((t4,t6,t1),t3,t5));",
+      "mrca": [
+        {
+          "tips": ["t5", "t7"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        },
+        {
+          "tips": ["t3", "t5", "t7"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        },
+        {
+          "tips": ["t2", "t7"],
+          "clade": ["t2", "t7"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t3", "t4", "t5", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t2", "t4"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t6",
+          "sisters": ["t1", "t4"]
+        },
+        {
+          "tip": "t3",
+          "sisters": ["t1", "t4", "t5", "t6"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t4", "t6"],
+          "newick": "(t4,t6,t1);"
+        },
+        {
+          "tips": ["t2", "t3", "t6"],
+          "newick": "(t2,(t6,t3));"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "descendant": ["t2"]
+        },
+        {
+          "ancestor": ["t1", "t3", "t4", "t5", "t6"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t1", "t3", "t4", "t5", "t6"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 4
+    },
+    {
+      "newick": "((t5,t3,(t1,t6,t4)),(t7,t2));",
+      "mrca": [
+        {
+          "tips": ["t1", "t2"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        },
+        {
+          "tips": ["t2", "t4", "t5"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        },
+        {
+          "tips": ["t1", "t4", "t6"],
+          "clade": ["t1", "t4", "t6"]
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "clade": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
+        }
+      ],
+      "monophyletic": [
+        {
+          "tips": ["t1", "t3", "t4", "t5", "t6"],
+          "value": true
+        },
+        {
+          "tips": ["t1", "t3"],
+          "value": false
+        },
+        {
+          "tips": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "value": true
+        }
+      ],
+      "sister": [
+        {
+          "tip": "t4",
+          "sisters": ["t1", "t6"]
+        },
+        {
+          "tip": "t5",
+          "sisters": ["t1", "t3", "t4", "t6"]
+        }
+      ],
+      "restrict": [
+        {
+          "tips": ["t1", "t4", "t6"],
+          "newick": "(t1,t6,t4);"
+        },
+        {
+          "tips": ["t3", "t5", "t6"],
+          "newick": "(t5,t3,t6);"
+        }
+      ],
+      "ancestor_pairs": [
+        {
+          "ancestor": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+          "descendant": ["t3"]
+        },
+        {
+          "ancestor": ["t2", "t7"],
+          "descendant": ["t2"]
+        },
+        {
+          "ancestor": ["t1", "t4", "t6"],
+          "descendant": ["t4"]
+        }
+      ],
+      "clade_count": 4
+    }
+  ],
+  "same": [
+    {
+      "a": 1,
+      "b": 3,
+      "value": false
+    },
+    {
+      "a": 1,
+      "b": 6,
+      "value": false
+    },
+    {
+      "a": 1,
+      "b": 17,
+      "value": false
+    },
+    {
+      "a": 3,
+      "b": 6,
+      "value": false
+    },
+    {
+      "a": 3,
+      "b": 17,
+      "value": false
+    },
+    {
+      "a": 6,
+      "b": 17,
+      "value": false
+    },
+    {
+      "a": 18,
+      "b": 19,
+      "value": true
+    },
+    {
+      "a": 2,
+      "b": 4,
+      "value": false
+    },
+    {
+      "a": 2,
+      "b": 11,
+      "value": false
+    },
+    {
+      "a": 2,
+      "b": 16,
+      "value": false
+    },
+    {
+      "a": 4,
+      "b": 11,
+      "value": false
+    },
+    {
+      "a": 4,
+      "b": 16,
+      "value": false
+    },
+    {
+      "a": 11,
+      "b": 16,
+      "value": false
+    },
+    {
+      "a": 9,
+      "b": 13,
+      "value": false
+    },
+    {
+      "a": 0,
+      "b": 8,
+      "value": false
+    },
+    {
+      "a": 0,
+      "b": 10,
+      "value": false
+    },
+    {
+      "a": 0,
+      "b": 15,
+      "value": false
+    },
+    {
+      "a": 8,
+      "b": 10,
+      "value": false
+    },
+    {
+      "a": 8,
+      "b": 15,
+      "value": false
+    },
+    {
+      "a": 10,
+      "b": 15,
+      "value": false
+    },
+    {
+      "a": 7,
+      "b": 14,
+      "value": false
+    }
+  ]
+}

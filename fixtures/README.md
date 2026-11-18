@@ -55,6 +55,49 @@ see `AGENTS.md` for the rules.
     distance format, derived from the `.phy` files by
     `generate_phylip.sh`, never typed by hand; MEGA `#name` labels map
     1:1 to the 10-character PHYLIP names.
+- `inputs/reading/*.nwk` and `inputs/reading/queries.json` — the
+  committed tree-reading oracle corpus (v1.4d), regenerated
+  deterministically by `generate_reading.R` (the fixed seeds, including
+  the one found by search for `corpus_binary`, are recorded in
+  `queries.json`):
+  - `corpus_binary.nwk` — 40 `ape::rtree` rooted binary cladograms
+    (4–12 tips, labels `t1…tn`); the seed is the first from a
+    deterministic search whose same-tip-count pairs contain a
+    `same` = true case.
+  - `corpus_polytomy.nwk` — 20 trees (5–12 tips) each with at least
+    one polytomy (non-root internal branches zeroed then collapsed by
+    `ape::di2multi`, so roots stay binary and ape/phangorn treat the
+    trees as rooted); the last line is the previous tree written in a
+    different child order, a guaranteed `same` = true pair.
+  - `rotations.nwk` — 10 trees each written three times in different
+    child orders (30 lines; lines 3i–3i+2 are one tree and share its
+    query sets, so equal answers double as a rotation-invariance
+    check).
+  - `traits.nwk` — 10 trees whose gain/loss marks live in
+    `queries.json`: T1 gains once, T2 gains then loses inside the
+    gained clade, T3 is convergent (two disjoint gains) on trees 1–5
+    and a gain → loss → re-gain chain (3 changes) on trees 6–10.
+  - `queries.json` records the exact queries asked: per tree the tip
+    sets for `mrca`, `monophyletic`, `sister` and `restrict`, the
+    tree-index pairs for `same`, and per traits tree `marks` and
+    `root_states`.
+- `ref/reading/<name>.json` — the tree-reading oracle
+  (`{ "generator": { "R", "ape", "phangorn" }, "trees": [...],
+  "same": [...], "traits": [...] }`). Per tree: `newick` (the exact
+  `.nwk` line), `mrca` (tip set → MRCA's tip set), `monophyletic`,
+  `sister` (a tip → the other children's tips under its parent),
+  `restrict` (tip set → `ape::keep.tip` Newick, unary nodes
+  suppressed), `ancestor_pairs` (clade → proper descendant clade) and
+  `clade_count` (`phy$Nnode`, internal nodes including the root);
+  traits trees also carry their `marks`. `same` is
+  `phangorn::RF.dist(rooted = TRUE) == 0` cross-checked by
+  `ape::all.equal.phylo(use.edge.length = FALSE)` — the script stops
+  if they disagree. Trait `states` are computed by walking
+  `ape::nodepath` root→tip applying each branch's marks in order;
+  `changes` counts marks per trait. Every tip list (`clade`, `tips`,
+  `sisters`, `ancestor`, `descendant`, `on`) is sorted in Unicode
+  code-point order (the `CladeKey` order). Owned by
+  `tests/parity_reading.rs` (v1.4d Task 3).
 - `ref/matrix/<name>.json` — matrix-input oracle per input:
   `{ "input", "labels", "phylip": { "version", "precision", "nj",
   "upgma" }, "ape": { "nj", "upgma" } }`. `phylip` is neighbor's verbatim
@@ -221,6 +264,9 @@ bash fixtures/generate_phylip.sh         # dnadist/protdist + neighbor -> ref/*_
 Rscript fixtures/generate.R              # ape/phangorn fixtures -> ref/*.json; second_opinion -> ref/protein_*.json;
                                          #   tree sets + prop_clades -> consensus/*.json; ape block +
                                          #   tie checks -> ref/matrix/*.json; worked/nj_by_hand.json
+Rscript fixtures/generate_reading.R      # tree-reading oracle -> inputs/reading/*.nwk + queries.json,
+                                         #   ref/reading/*.json (independent of the PHYLIP/MEGA order;
+                                         #   rewrites inputs and refs deterministically)
 ```
 
 Order matters: `generate_phylip.sh` must run **before** `generate.R`, which
