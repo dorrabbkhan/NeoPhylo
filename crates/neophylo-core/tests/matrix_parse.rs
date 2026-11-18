@@ -513,6 +513,84 @@ fn meg_write_round_trip_every_oracle() {
     }
 }
 
+// ---- round-7 G1: no blank lines (MEGA 12 GUI crash) ------------------
+
+#[test]
+fn write_meg_matrix_wiki5_exact_bytes() {
+    // The owner isolated the MEGA 12 GUI hang/crash to the empty line
+    // the old writer emitted after the `!Description` block (the same
+    // file with only that line removed opens and builds NJ). This is
+    // the exact file the owner confirmed — byte for byte.
+    let expected = "#mega\n\
+        !Title: wiki5_lower;\n\
+        !Format DataType=Distance DataFormat=LowerLeft NTaxa=5;\n\
+        !Description\n  \
+        wiki5_lower, distance matrix written by NeoPhylo;\n\
+        [1] #a\n\
+        [2] #b\n\
+        [3] #c\n\
+        [4] #d\n\
+        [5] #e\n\
+        [     1     2     3     4     5 ]\n\
+        [1]\n\
+        [2] 5\n\
+        [3] 9 10\n\
+        [4] 9 10 8\n\
+        [5] 8 9 7 3\n";
+    let text = write_meg_matrix(&wiki5(), "wiki5_lower").expect("write");
+    assert_eq!(text, expected);
+}
+
+#[test]
+fn write_meg_matrix_emits_no_blank_lines() {
+    // No empty line anywhere in the output, for any matrix — the GUI
+    // crash was one blank line, but the rule is none at all.
+    let mut cases = vec![(wiki5(), "wiki5_lower".to_string())];
+    for name in [
+        "additive8",
+        "nj_by_hand",
+        "nonadditive6",
+        "real12",
+        "upgma_vs_nj",
+        "wiki5_lower",
+        "wiki5_square",
+    ] {
+        let file = parse_meg_matrix(&fixture(&format!("{name}.meg")))
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let title = file.title.clone().unwrap_or_else(|| name.to_string());
+        cases.push((file.matrix, title));
+    }
+    for (m, title) in &cases {
+        let written = write_meg_matrix(m, title).unwrap_or_else(|e| panic!("{title} write: {e:?}"));
+        assert!(
+            !written.contains("\n\n"),
+            "blank line in output for {title}:\n{written}"
+        );
+        assert!(
+            written.ends_with('\n') && !written.ends_with("\n\n"),
+            "trailing newline count for {title}"
+        );
+    }
+}
+
+#[test]
+fn parse_meg_matrix_reads_blank_line_variant() {
+    // Files written before round 7 (empty line after `!Description`)
+    // must still parse — only the writer changed.
+    let new_text = write_meg_matrix(&wiki5(), "wiki5_lower").expect("write");
+    let old_text = new_text.replacen(
+        "wiki5_lower, distance matrix written by NeoPhylo;\n",
+        "wiki5_lower, distance matrix written by NeoPhylo;\n\n",
+        1,
+    );
+    assert!(old_text.contains("\n\n"), "test setup: {old_text}");
+    for text in [&new_text, &old_text] {
+        let back = parse_meg_matrix(text).expect("parse");
+        assert_eq!(back.matrix, wiki5());
+        assert_eq!(back.title.as_deref(), Some("wiki5_lower"));
+    }
+}
+
 // ---- detection ------------------------------------------------------
 
 #[test]

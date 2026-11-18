@@ -8095,3 +8095,33 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `web/e2e/__screenshots__/` — the regenerated frames listed above;
   `docs/checkpoints/v1.4c-release.md`, `docs/roadmap.md` — N3;
   `docs/decisions.md` — this entry.
+
+### Fix round 7 (owner finding, 2026-11-18)
+
+- **G1 matrix `.meg` blank line crashes the MEGA 12 GUI:**
+  `write_meg_matrix` emitted one empty line after the
+  `!Description … ;` block (the round-3 K4 layout). The owner's hand
+  check isolated the GUI hang/crash to exactly that line — the file
+  with only that line removed opens and builds NJ, while re-padded
+  6-wide columns with the line kept still crash. MEGA-CC accepts the
+  line either way, so the automated matrix checks never saw it. The
+  writer now ends the description with a single `\n` and emits no
+  blank lines anywhere; the parser is unchanged and still reads
+  pre-round-7 files. New tests in
+  `crates/neophylo-core/tests/matrix_parse.rs`:
+  `write_meg_matrix_wiki5_exact_bytes` (the owner-confirmed wiki5
+  output, byte for byte), `write_meg_matrix_emits_no_blank_lines`
+  (wiki5 plus every matrix oracle) and
+  `parse_meg_matrix_reads_blank_line_variant` (old and new output
+  both round-trip).
+- **Files outside the Files block (fix round 7):**
+  `crates/neophylo-core/src/matrix_parse.rs` and
+  `crates/neophylo-core/tests/matrix_parse.rs` — the same engine
+  exception as fix round 3 (owner-approved MEGA-layout work);
+  `docs/checkpoints/v1.4c-release.md` (§16 bullet),
+  `docs/decisions.md` — this entry.
+- **Follow-up for the owner (not done):** `write_meg` (the alignment
+  `.meg`) also emits one empty line after its `!Format` command —
+  it has no `!Description` block, and §12's earlier hand check
+  passed, so it was left alone; flagging in case the owner wants it
+  stripped too.

@@ -1000,7 +1000,9 @@ pub fn parse_meg_matrix(text: &str) -> Result<MatrixFile, NeoError> {
 /// `;` (no `#`/`!` inside — both are mapped to `_` in the echoed
 /// title), the `[i] #name` label lines, a bracketed column-index
 /// header and the `[i]`-prefixed strict lower triangle (row 1 empty)
-/// at full precision (`{}` round-trips an `f64`).
+/// at full precision (`{}` round-trips an `f64`). No blank lines:
+/// the MEGA 12 GUI crashes on an empty line after the `!Description`
+/// block (owner, 2026-11-18).
 ///
 /// Name rules follow `write_meg`: whitespace maps to `_`, and a `"`,
 /// `[` or `]` in a label or two labels colliding after the mapping is
@@ -1053,7 +1055,7 @@ pub fn write_meg_matrix(m: &DistanceInput, title: &str) -> Result<String, NeoErr
     for c in title.chars() {
         out.push(if matches!(c, '#' | '!') { '_' } else { c });
     }
-    out.push_str(", distance matrix written by NeoPhylo;\n\n");
+    out.push_str(", distance matrix written by NeoPhylo;\n");
     for (i, name) in mapped.iter().enumerate() {
         out.push_str(&format!("[{}] #{}\n", i + 1, name));
     }
