@@ -70,6 +70,16 @@ export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
         title: "This exercise file has a problem",
         body: `Field "${e.field}": ${e.msg}. Fix the file and load it again.`,
       };
+    case "InvalidReading":
+      // v1.4d spec: `item` names the question (empty when the problem is
+      // file-wide); `field` and `msg` say what is wrong.
+      return {
+        title: "This tree-reading file has a problem",
+        body:
+          e.item === ""
+            ? `${e.field}: ${e.msg}`
+            : `Item ${e.item}, ${e.field}: ${e.msg}`,
+      };
     case "BootstrapFailed":
       // v1.2 spec §6.2: every replicate was skipped (saturated or no
       // comparable sites), so there is no tally to report.

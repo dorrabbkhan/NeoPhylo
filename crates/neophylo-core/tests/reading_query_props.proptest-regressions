@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c8c30bc3e7e15e9faef8bf8438769e632fb295415ce0486ee952535d46981762 # shrinks to t = Tree { nodes: [Node { parent: None, children: [NodeId(1), NodeId(2), NodeId(3), NodeId(4)], label: None }, Node { parent: Some(NodeId(0)), children: [], label: Some("t1") }, Node { parent: Some(NodeId(0)), children: [], label: Some("t2") }, Node { parent: Some(NodeId(0)), children: [], label: Some("t3") }, Node { parent: Some(NodeId(0)), children: [], label: Some("t4") }], branches: [BranchAttrs { length: None, support: None }, BranchAttrs { length: None, support: None }, BranchAttrs { length: None, support: None }, BranchAttrs { length: None, support: None }, BranchAttrs { length: None, support: None }], root: NodeId(0), rooted: true }, picks = [3557744721, 1031747278, 415654485, 2075950592, 11106875, 71763086, 235004964, 2100337627, 1767212098, 3363453729, 3813224326, 2317896446, 2569953024, 4042669433, 1778561156, 2483189293, 537917909, 358612784, 4231051823, 3924939435, 1026256017, 1749765836, 1052739435, 1194890113, 3345735249, 238617953, 325606325, 1195515630, 3424010594, 899438046, 1224921292, 3334353522]

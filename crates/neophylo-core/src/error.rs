@@ -115,6 +115,14 @@ pub enum NeoError {
     MatrixAmbiguous {
         question: PasteQuestion,
     },
+    /// A reading set or one of its items failed validation (v1.4d spec
+    /// §5.1). `item` names the offending item id, or is empty for
+    /// set-level problems; `field` names the field at fault.
+    InvalidReading {
+        item: String,
+        field: String,
+        msg: String,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -192,6 +200,13 @@ impl fmt::Display for NeoError {
             }
             Self::MatrixAmbiguous { question } => {
                 write!(f, "this distance matrix needs a choice: {question}")
+            }
+            Self::InvalidReading { item, field, msg } => {
+                if item.is_empty() {
+                    write!(f, "reading set, {field}: {msg}")
+                } else {
+                    write!(f, "reading set item {item}, {field}: {msg}")
+                }
             }
         }
     }
