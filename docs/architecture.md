@@ -107,6 +107,21 @@ neighbor), plus hand-checked step-level worked examples. Fixtures are the
 oracle — they are never edited by hand and never change in the same commit
 as engine code (CI's fixture-guard enforces this).
 
+### `reading` — tree-reading sets (v1.4d)
+
+A **reading set** (`kind: "reading"`, extension `.neophylo-reading.json`) is
+a file of trees plus tree-reading questions, parsed and validated by the
+`reading/` module in `neophylo-core` (`query`, `traits`, `set`, `answer`,
+`variant`). The engine names every node by its `CladeKey` (the sorted tip
+set; `"root"` resolves to the full tip set), computes each item's accepted
+answer and explanation, checks a `Response`, and provides seeded variant
+transforms — every refusal is `NeoError::InvalidReading` naming the item and
+field. The web side lays out the drawing styles with pure functions in
+`src/layout/readingLayout.ts`, draws them with the `ReadingTree` SVG
+component, and serves a lazy-loaded reading area at `?read=<id>` (built-in
+sets in `exercises/reading/`) and `#r=` (shared, lz-compressed like `#x=`);
+the library lists them under `TypeKey` `"reading"`.
+
 ## Determinism rules
 
 Shared links embed a seed and replay the whole pipeline, so results must be
