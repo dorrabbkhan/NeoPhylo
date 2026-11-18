@@ -1,0 +1,846 @@
+{
+  "generator": {
+    "R": "4.5.2",
+    "ape": "5.8.1",
+    "phangorn": "2.12.1"
+  },
+  "trees": [
+    {
+      "newick": "((t6,(((t3,t4),t5),(t9,t8))),(t1,(t2,t7)));",
+      "marks": [
+        {
+          "on": ["t3", "t4"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t2", "t7"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t7"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t3"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "((t9,t5),((t4,t8),((t7,(t6,t3)),((t1,t2),t10))));",
+      "marks": [
+        {
+          "on": ["t1", "t2"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t3", "t6"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t6"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t5"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t1", "t10", "t2", "t3", "t6", "t7"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "(t3,(((t5,t8),(t9,(t2,t6,t1))),(t10,(t7,t4))));",
+      "marks": [
+        {
+          "on": ["t4", "t7"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t4", "t7"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t7"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t10", "t4", "t7"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t5"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 8
+    },
+    {
+      "newick": "(t1,((t4,t3),((t5,t2),t6)));",
+      "marks": [
+        {
+          "on": ["t3", "t4"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t2", "t5"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t5"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t6"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 5
+    },
+    {
+      "newick": "(t2,(((t1,t5),t6),(t4,t3)));",
+      "marks": [
+        {
+          "on": ["t1", "t3", "t4", "t5", "t6"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t3", "t4"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t3"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 5
+    },
+    {
+      "newick": "(t6,((t2,t5),(t3,(t1,t4))));",
+      "marks": [
+        {
+          "on": ["t1", "t3", "t4"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t1", "t3", "t4"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t3"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t1", "t2", "t3", "t4", "t5"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t1", "t3", "t4"],
+          "trait": "T3",
+          "change": "loss"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 5
+    },
+    {
+      "newick": "(((t6,t3),t4),(t2,t5,t1));",
+      "marks": [
+        {
+          "on": ["t3", "t4", "t6"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t3", "t6"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t6"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t3", "t4", "t6"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t3", "t6"],
+          "trait": "T3",
+          "change": "loss"
+        },
+        {
+          "on": ["t3"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 4
+    },
+    {
+      "newick": "((t10,t4),((((t2,t9),t1),(t5,t3)),(t6,(t7,t8))));",
+      "marks": [
+        {
+          "on": ["t1", "t2", "t9"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t1", "t2", "t9"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t1"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t1", "t2", "t3", "t5", "t6", "t7", "t8", "t9"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t1", "t2", "t9"],
+          "trait": "T3",
+          "change": "loss"
+        },
+        {
+          "on": ["t2"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "((((t8,t9),t6),(t4,(t7,(t2,t5)))),((t10,t3),t1));",
+      "marks": [
+        {
+          "on": ["t1", "t10", "t3"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t2", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t8"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t2", "t4", "t5", "t6", "t7", "t8", "t9"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t8", "t9"],
+          "trait": "T3",
+          "change": "loss"
+        },
+        {
+          "on": ["t9"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 9
+    },
+    {
+      "newick": "((t7,(t6,t2)),((t1,(t5,t4)),t3));",
+      "marks": [
+        {
+          "on": ["t2", "t6"],
+          "trait": "T1",
+          "change": "gain"
+        },
+        {
+          "on": ["t2", "t6", "t7"],
+          "trait": "T2",
+          "change": "gain"
+        },
+        {
+          "on": ["t6"],
+          "trait": "T2",
+          "change": "loss"
+        },
+        {
+          "on": ["t1", "t3", "t4", "t5"],
+          "trait": "T3",
+          "change": "gain"
+        },
+        {
+          "on": ["t4", "t5"],
+          "trait": "T3",
+          "change": "loss"
+        },
+        {
+          "on": ["t4"],
+          "trait": "T3",
+          "change": "gain"
+        }
+      ],
+      "clade_count": 6
+    }
+  ],
+  "traits": [
+    {
+      "tree": 0,
+      "states": {
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t3": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t4": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t9": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t8": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": false,
+          "T2": true,
+          "T3": false
+        },
+        "t7": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 2
+      }
+    },
+    {
+      "tree": 1,
+      "states": {
+        "t9": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t4": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t8": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t7": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t1": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t2": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t10": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 2
+      }
+    },
+    {
+      "tree": 2,
+      "states": {
+        "t3": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t8": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t9": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t10": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t7": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t4": {
+          "T1": true,
+          "T2": true,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 2
+      }
+    },
+    {
+      "tree": 3,
+      "states": {
+        "t1": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t4": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": false,
+          "T2": true,
+          "T3": false
+        },
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 2
+      }
+    },
+    {
+      "tree": 4,
+      "states": {
+        "t2": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t6": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t4": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": true,
+          "T2": true,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 2
+      }
+    },
+    {
+      "tree": 5,
+      "states": {
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": true,
+          "T2": true,
+          "T3": false
+        },
+        "t4": {
+          "T1": true,
+          "T2": true,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 3
+      }
+    },
+    {
+      "tree": 6,
+      "states": {
+        "t6": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t3": {
+          "T1": true,
+          "T2": true,
+          "T3": true
+        },
+        "t4": {
+          "T1": true,
+          "T2": false,
+          "T3": true
+        },
+        "t2": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 3
+      }
+    },
+    {
+      "tree": 7,
+      "states": {
+        "t10": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t4": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": true,
+          "T2": true,
+          "T3": true
+        },
+        "t9": {
+          "T1": true,
+          "T2": true,
+          "T3": false
+        },
+        "t1": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t6": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t7": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t8": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 3
+      }
+    },
+    {
+      "tree": 8,
+      "states": {
+        "t8": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t9": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t6": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t4": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t7": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t2": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t5": {
+          "T1": false,
+          "T2": true,
+          "T3": true
+        },
+        "t10": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t3": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t1": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 3
+      }
+    },
+    {
+      "tree": 9,
+      "states": {
+        "t7": {
+          "T1": false,
+          "T2": true,
+          "T3": false
+        },
+        "t6": {
+          "T1": true,
+          "T2": false,
+          "T3": false
+        },
+        "t2": {
+          "T1": true,
+          "T2": true,
+          "T3": false
+        },
+        "t1": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t5": {
+          "T1": false,
+          "T2": false,
+          "T3": false
+        },
+        "t4": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        },
+        "t3": {
+          "T1": false,
+          "T2": false,
+          "T3": true
+        }
+      },
+      "changes": {
+        "T1": 1,
+        "T2": 2,
+        "T3": 3
+      }
+    }
+  ]
+}
