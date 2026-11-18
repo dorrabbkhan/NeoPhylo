@@ -2,8 +2,11 @@
 # Usage: devin.sh <kind: task|review|fix> <version> <task> [extra prompt file]
 # Runs a fresh, non-interactive local Devin session; saves prompt + output;
 # prints only the trimmed tail (conductor efficiency plan Task 0a, E5).
-# VERIFY the flags below with `devin --help` on your version and adjust
-# DEVIN_CMD once.
+# DEVIN_DETACH=1 starts the session detached (setsid nohup), writes <out>.md
+# then <out>.rc on exit, prints the .out.md path and returns at once — join
+# it with wait-for.sh <out.md> (bounded waits, conductor efficiency plan
+# Task 0b). VERIFY the flags below with `devin --help` on your version and
+# adjust DEVIN_CMD once.
 set -euo pipefail
 # The body lives inside main(): bash parses a function completely before it
 # runs, so a session that edits devin.sh itself can't corrupt the running
@@ -34,6 +37,18 @@ main() {
     SESSION_RC=$?
     set -e
   }
+  # Internal: --detached-worker <repo_dir> <orig> <prompt> <out> — the
+  # detached half of a DEVIN_DETACH=1 call; runs the session, restores the
+  # checkout and writes <out>.rc. Never invoke directly.
+  if [ "${1:-}" = "--detached-worker" ]; then
+    REPO_DIR="$2"; ORIG="$3"; PROMPT="$4"; OUT="$5"
+    trap restore_checkout EXIT
+    run_devin
+    restore_checkout
+    trap - EXIT
+    printf '%s\n' "$SESSION_RC" >"$OUT.rc"
+    exit "$SESSION_RC"
+  fi
   KIND="$1"; VER="$2"; N="$3"; EXTRA="${4:-}"
   DIR="$HOME/neophylo-conductor/${VER}-task${N}"; mkdir -p "$DIR"
   STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -51,6 +66,16 @@ main() {
   REPO_DIR="${REPO:-$HOME/NeoPhylo}"
   ORIG="$(git -C "$REPO_DIR" symbolic-ref --short -q HEAD || git -C "$REPO_DIR" rev-parse HEAD)"
   OUT="$DIR/${KIND}-${STAMP}.out.md"
+  if [ "${DEVIN_DETACH:-}" = "1" ]; then
+    # A foreground tool call is capped at ~10 minutes and headless `claude
+    # -p` has no t3_background_wait: the session runs detached and
+    # wait-for.sh <out.md> joins it (plan Task 0b).
+    setsid nohup bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/devin.sh" \
+      --detached-worker "$REPO_DIR" "$ORIG" "$PROMPT" "$OUT" \
+      </dev/null >/dev/null 2>&1 &
+    printf '%s\n' "$OUT"
+    exit 0
+  fi
   trap restore_checkout EXIT
   run_devin
   restore_checkout

@@ -4,6 +4,8 @@ change tolerances, fixtures, budgets or snapshot baselines on your own. For any 
 as PR comments (not committed files), update snapshot baselines when the plan says so, and list every changed
 scene in the PR description. Record any file outside the task's Files block in docs/decisions.md. No changes
 under crates/ unless the task is about the engine.
+`scripts/conductor/judge.sh` checks `git diff --stat` and Files-block deviations mechanically — keep both
+exact.
 
 Lesson notes that describe the current state ("starts broken", "matches in every clade") must stay true
 under every setting the student can change; check this in every review.

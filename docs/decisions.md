@@ -8160,3 +8160,54 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `judge.test.ts`; the shell-wrapper tests (wait-ci/build-prompt/devin
   stubs on PATH) were split out to keep every file under the ~400-line
   rule, same split the reference keeps between its test files.
+
+## conductor Task 0b: lean context, bounded waits, headless per-task runs
+
+- **Port, not copy:** `run-plan.sh`, `wait-for.sh`, `result.sh`,
+  `headless-tools.txt`, `.claude/agents/log-reader.md` and the
+  `run-plan.test.ts` suite are ported from the read-only Epiora reference
+  (`.conductor-ref/epiora/`); `~/neophylo-conductor` paths, the
+  `*neophylo-<v>-*.md` plan glob and NeoPhylo's allow list replace
+  Epiora's.
+- **`/inbox` between tasks:** the plan adds a headless `/inbox` session on
+  Sonnet before each next task (absent in the reference). A nonzero
+  inbox rc stops the run and notifies — a missed `conductor: hold` is
+  worse than a stopped loop.
+- **First-turn context, measured by the conductor on 2026-11-18** (plain
+  CLI, `claude -p "Reply with OK only." --model opus --output-format
+  json --settings <file>`, input + cache-write + cache-read of the first
+  turn, main at 3c95cd1; transcribed from the task's pending notes, not
+  re-measured — the `claude` CLI is not in the Devin sandbox):
+  - current settings: **46,351** (2 + 21,718 + 24,631)
+  - + `disableClaudeAiConnectors: true` + `enabledPlugins
+    {"superpowers@synced": false}`: **39,263** (−7.1k)
+  - + deny `Artifact`, `Workflow`, `ScheduleWakeup`, `ReportFindings`,
+    `ShareOnboardingGuide`, `ListAgents`: **21,096** (−18.2k more;
+    −54.5 % total)
+
+  `claude -p "/context"` breakdown, current → final: total 34.3k →
+  12.5k; System tools 16.9k → 0.7k; System tools (deferred) 23.1k →
+  16.3k; MCP tools 0.6k → 0; MCP server instructions 2.4k → 0; MCP
+  tools (deferred) 30.2k → 0; Skills 6.1k → 5.1k; System prompt
+  2.8k → 2.5k; Memory files 4.2k → 4.2k.
+
+  What settings cannot remove in T3 Code: T3's own system-prompt
+  sections (runtime info, PR-linking and orchestration instructions) and
+  the `t3-code` MCP server's ~80 deferred tools; user-level
+  skills/plugins (graphify, ste80-humanizer) and memory files. To be
+  confirmed in the first T3 Code session after merge (plan Target).
+- **0a follow-up (owner-approved, PR #163):** `judge` `diff-stat` unions
+  the `git diff --stat` blocks of ALL saved
+  `~/neophylo-conductor/<v>-task<N>/{task,fix}-*.out.md` for the task, not
+  only the newest, so files from earlier commits don't FLAG after a fix
+  round; `review-*.out.md` is never scanned (a running review session
+  has no stat block yet). A file in the PR claimed by no session, or
+  claimed but absent from the PR, still FLAGs; an unparseable or
+  abbreviated stat block is a FLAG naming the .out.md, never a PASS.
+- **Files outside the Files block (the 0a follow-up):**
+  `scripts/conductor/judge.ts`, `scripts/conductor/judge-checks.ts`,
+  `scripts/conductor/judge-checks-gates.ts` (the diff-stat section moved
+  here to keep judge-checks.ts under the ~400-line rule),
+  `scripts/conductor/judge.test.ts`,
+  `scripts/conductor/fixtures/judge/claimed-abbreviated.out.md`,
+  `scripts/conductor/fixtures/judge/claimed-unparseable.out.md`.

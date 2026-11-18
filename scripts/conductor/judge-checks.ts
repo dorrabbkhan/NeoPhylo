@@ -6,7 +6,7 @@
  * cannot run on part of the diff FLAGs naming the file — never a silent
  * PASS.
  *
- * Checks 6–8, 11 and 12 live in judge-checks-gates.ts, split out to keep
+ * Checks 5–8 and 10–12 live in judge-checks-gates.ts, split out to keep
  * this file under the ~400-line rule; the section numbers below keep the
  * plan's order. Ported from Epiora's judge-checks.ts with NeoPhylo's
  * fixture paths, keyword list, strict files and skip exceptions.
@@ -347,43 +347,4 @@ export function checkSecrets(files: DiffFile[]): Check {
   return reasons.length ? flag("secrets", reasons) : pass("secrets");
 }
 
-// ---------- 10. diff-stat ----------
-
-export function claimedStatFiles(text: string): string[] {
-  const out: string[] = [];
-  for (const l of text.split("\n")) {
-    const m = /^\s*(.+?)\s*\|\s+(?:\d+|Bin\b)/.exec(l);
-    if (!m) continue;
-    let p = m[1].trim().replace(/^"|"$/g, "");
-    const brace = /\{[^}]*=>\s*([^}]*)\}/.exec(p);
-    if (brace) p = p.replace(/\{[^}]*=>[^}]*\}/, brace[1].trim());
-    else if (p.includes("=>")) p = p.split("=>").pop()!.trim();
-    if (p) out.push(p);
-  }
-  return out;
-}
-
-export function checkDiffStat(files: DiffFile[], claimedText: string | null): Check {
-  if (claimedText === null)
-    return na("diff-stat", "no claimed session output (--claimed / saved .out.md not found)");
-  const claimed = [...new Set(claimedStatFiles(claimedText))];
-  if (!claimed.length)
-    return flag("diff-stat", ["no git diff --stat block found in the claimed output"]);
-  const actual = new Set(files.map((f) => f.path));
-  const hit = (set: string[], p: string) =>
-    set.some((c) => (c.startsWith("...") ? p.endsWith(c.slice(3)) : c === p));
-  const unclaimed = [...actual].filter((p) => !hit(claimed, p));
-  const absent = claimed.filter((c) => ![...actual].some((p) => hit([c], p)));
-  // One reason per path so the stdout line can cap at five whole items. A
-  // claimed file missing from the PR diff is a mismatch too — FLAG either
-  // way.
-  const reasons = [
-    ...unclaimed.map((p) => `in diff but not claimed by any session: ${p}`),
-    ...absent.map((c) => `claimed but absent from diff: ${c}`),
-  ];
-  return reasons.length
-    ? flag("diff-stat", reasons)
-    : pass("diff-stat", `${actual.size} file(s) match the claimed git diff --stat`);
-}
-
-// ---------- 11. pr-events, 12. owner-gate → judge-checks-gates.ts ----------
+// ---------- 10. diff-stat, 11. pr-events, 12. owner-gate → judge-checks-gates.ts ----------

@@ -8,7 +8,9 @@
 # HEAD UNKNOWN if the head SHA/state cannot be read before or after the
 # wait — a green table for a stale or unread head is not a result. Exits
 # 5 with NO CHECKS when no check registers within WAIT_CI_MAX_S; exit 3
-# stays reserved for HEAD MOVED/UNKNOWN.
+# stays reserved for HEAD MOVED/UNKNOWN. WAIT_CI_DEADLINE_S (conductor
+# efficiency plan Task 0b, bounded waits) kills the watch at the deadline
+# and exits 4 — a re-call resumes the wait.
 set -euo pipefail
 if [ "$#" -lt 1 ]; then
   echo "usage: wait-ci.sh <PR>" >&2
@@ -44,7 +46,27 @@ while :; do
 done
 log="$(mktemp -t wait-ci.XXXXXX)"
 rc=0
-gh pr checks "$pr" --watch --fail-fast=false >"$log" 2>&1 || rc=$?
+if [ -n "${WAIT_CI_DEADLINE_S:-}" ]; then
+  # Bounded waits (conductor efficiency plan Task 0b): a foreground tool
+  # call is capped at ~10 minutes. Watch in the background; at the
+  # deadline kill the watch and exit 4 — a re-call resumes the wait.
+  gh pr checks "$pr" --watch --fail-fast=false >"$log" 2>&1 &
+  watch_pid=$!
+  start=$SECONDS
+  while kill -0 "$watch_pid" 2>/dev/null; do
+    if [ $((SECONDS - start)) -ge "$WAIT_CI_DEADLINE_S" ]; then
+      kill "$watch_pid" 2>/dev/null || true
+      wait "$watch_pid" 2>/dev/null || true
+      rm -f "$log"
+      echo "wait-ci: deadline ${WAIT_CI_DEADLINE_S}s reached; the PR's checks are still running — re-call to resume" >&2
+      exit 4
+    fi
+    sleep "$poll_s"
+  done
+  wait "$watch_pid" || rc=$?
+else
+  gh pr checks "$pr" --watch --fail-fast=false >"$log" 2>&1 || rc=$?
+fi
 gh pr checks "$pr" || true
 read -r sha1 state1 <<<"$(head_state)"
 if [ -z "$sha1" ] || [ "$sha1" = "?" ] || [ -z "$state1" ] || [ "$state1" = "?" ]; then

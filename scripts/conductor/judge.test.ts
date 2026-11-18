@@ -215,19 +215,49 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
     );
   });
 
-  it("default claimed is the newest task-dir out.md only", () => {
+  it("diff-stat unions all session stats (owner decision, PR #163 follow-up)", () => {
     const dir = mkdtempSync(join(tmpdir(), "judge-claimed-"));
     writeFileSync(
       join(dir, "task-20261101-000000.out.md"),
-      "session output\n\n src/ghost.ts | 1 +\n 1 file changed, 1 insertion(+)\n",
+      "task output\n\n src/foo.ts | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)\n",
     );
     writeFileSync(
       join(dir, "fix-20261102-000000.out.md"),
-      readFileSync(join(FIX, "claimed-clean.out.md"), "utf8"),
+      "fix output\n\n src/foo.test.ts | 3 ++-\n docs/decisions.md | 3 ++-\n" +
+        " 2 files changed, 4 insertions(+), 2 deletions(-)\n",
+    );
+    // a review's stat block never joins the union
+    writeFileSync(
+      join(dir, "review-20261103-000000.out.md"),
+      "review output\n\n src/review-only.ts | 1 +\n 1 file changed, 1 insertion(+)\n",
     );
     const r = judge("clean.diff", { reportDir: dir });
     assert.match(line(r, "diff-stat")!, /^PASS diff-stat/);
-    assert.ok(!r.report.includes("ghost.ts"), "older out.md must not be unioned");
+    assert.ok(!r.report.includes("review-only"), r.report);
+    // repeated --claimed unions the same way
+    const r2 = judge("clean.diff", {
+      claimed: [
+        join(dir, "task-20261101-000000.out.md"),
+        join(dir, "fix-20261102-000000.out.md"),
+      ],
+    });
+    assert.match(line(r2, "diff-stat")!, /^PASS diff-stat/);
+  });
+
+  it("abbreviated stat block flags", () => {
+    const r = judge("clean.diff", { claimed: join(FIX, "claimed-abbreviated.out.md") });
+    assert.match(
+      line(r, "diff-stat")!,
+      /^FLAG diff-stat abbreviated git diff --stat path in claimed-abbreviated\.out\.md/,
+    );
+  });
+
+  it("unparseable stat block flags naming the file", () => {
+    const r = judge("clean.diff", { claimed: join(FIX, "claimed-unparseable.out.md") });
+    assert.match(
+      line(r, "diff-stat")!,
+      /^FLAG diff-stat unparseable git diff --stat block in claimed-unparseable\.out\.md/,
+    );
   });
 
   it("force push event flags", () => {

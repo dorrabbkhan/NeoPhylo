@@ -1,4 +1,8 @@
 {
+  "disableClaudeAiConnectors": true,
+  "enabledPlugins": {
+    "superpowers@synced": false
+  },
   "permissions": {
     "allow": [
       "Read", "Grep", "Glob",
@@ -18,7 +22,9 @@
       "Bash(git reset:*)", "Bash(git tag:*)",
       "Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(curl:*)", "Bash(wget:*)",
       "Edit(crates/**)", "Edit(web/**)", "Edit(fixtures/**)", "Edit(exercises/**)",
-      "Edit(docs/decisions.md)", "Edit(.github/**)", "Edit(AGENTS.md)", "Edit(.devin/**)"
+      "Edit(docs/decisions.md)", "Edit(.github/**)", "Edit(AGENTS.md)", "Edit(.devin/**)",
+      "Artifact", "Workflow", "ScheduleWakeup", "ReportFindings",
+      "ShareOnboardingGuide", "ListAgents"
     ]
   },
   "hooks": {
