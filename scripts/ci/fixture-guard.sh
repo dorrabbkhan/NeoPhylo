@@ -36,11 +36,15 @@ if [ -f fixtures/generate.R ] && [ "${FIXTURES:-0}" = "1" ]; then
   # phylip/chain/*_boot*.json.)
   bash fixtures/generate_phylip.sh
   Rscript fixtures/generate.R
+  # The tree-reading oracle (v1.4d) regenerates its committed inputs and
+  # refs; it is byte-stability checked like the other fixtures (owner
+  # decision, PR #166 follow-up).
+  Rscript fixtures/generate_reading.R
   # fixtures/phylip (f84, k2p, chain) is diffed too: everything the
   # regeneration writes must be byte-stable.
-  git diff --exit-code fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip
+  git diff --exit-code fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip fixtures/ref/reading fixtures/inputs/reading
   # also catch new/stray files under the regenerated dirs
-  if [ -n "$(git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip)" ]; then
-    echo "FAIL: fixtures changed after regeneration"; git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip; exit 1
+  if [ -n "$(git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip fixtures/ref/reading fixtures/inputs/reading)" ]; then
+    echo "FAIL: fixtures changed after regeneration"; git status --porcelain fixtures/ref fixtures/consensus fixtures/worked fixtures/phylip fixtures/ref/reading fixtures/inputs/reading; exit 1
   fi
 fi

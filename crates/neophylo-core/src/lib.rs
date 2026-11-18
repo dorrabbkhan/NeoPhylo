@@ -22,6 +22,7 @@ pub mod model;
 pub mod newick;
 pub mod phylip;
 pub mod protein_dist;
+pub mod reading;
 pub mod reroot;
 pub mod seq;
 pub mod sim;
