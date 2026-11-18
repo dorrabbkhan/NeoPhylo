@@ -3,8 +3,9 @@
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
 rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)**,
 **v1.4b (MEGA companion and data library)** and **v1.4c (matrix input, lesson library and
-worksheets)** released or releasing; **next: v1.5** (instructor-run labs, exercise authoring and
-basic grading — the "Early-adopter pilots" milestone below). Last revised 2026-11-17.
+worksheets)** released or releasing; **next: v1.4d** (tree reading, moved forward from v1.6), **then v1.5**
+(instructor-run labs, exercise authoring and basic grading — the "Early-adopter pilots" milestone below). Last revised 2026-11-18 after the
+market and viability check (`docs/market/2026-11-18-market-and-viability.md`).
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -14,9 +15,22 @@ basic grading — the "Early-adopter pilots" milestone below). Last revised 2026
 - **MEGA and IQ-TREE labs: a companion.** Students *understand* a method in NeoPhylo, then *do* it in
   the research tool, with matching numbers and handouts that bridge the two.
 
-Each version is one spec → plan → agent cycle. Size, for part-time agent-driven work: **S** ≈ 2–3 weeks,
-**M** ≈ 4–6 weeks, **L** ≈ 2–3 months. Every version ships with at least one lesson and the same
-validation discipline: an independent oracle, property tests and fuzzing.
+**Market position (2026-11-18):** no free, maintained tool combines step-by-step NJ/UPGMA, numbers that
+match PHYLIP and MEGA, and grading; the paid tools that grade (Labster, LearnSci, SimBio) teach tree
+reading only. MEGA stays central to teaching (it now ships MEGA-GPT), while no PHYLIP lab handout dated
+2024–2026 was found: the MEGA companion outranks PHYLIP completeness, and new PHYLIP parity work is
+taken only when a pilot asks for it.
+
+Each version is one spec → plan → agent cycle. Every version ships with at least one lesson and the
+same validation discipline: an independent oracle, property tests and fuzzing.
+
+**Observed pace (recalibrated 2026-11-18 from merge history):** v1.1 3 days (14 PRs), v1.2 3 days
+(16), v1.3 4 days (19), v1.4 2 days (22), v1.4b 17 days (20; external MEGA oracle work and owner
+rulings), v1.4c about 5 days including a 7-round release checkpoint (9 task PRs). The agents are not
+the bottleneck; owner reviews, owner-gated content, outside tools and hand checks are. Sizes now mean:
+**S** ≈ 2–4 days, **M** ≈ 4–8 days, **L** ≈ 1–3 weeks of calendar time at the current owner
+availability. Versions heavy in owner-reviewed content or outside oracles sit at the top of their
+range.
 
 | Milestone | After | Meaning |
 |---|---|---|
@@ -26,7 +40,7 @@ validation discipline: an independent oracle, property tests and fuzzing.
 
 ---
 
-## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.5)
+## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.5, with tree reading as v1.4d)
 
 ### v1.2 Bootstrap, consensus and reference rooting (L) · *done*
 - Bootstrap with visible resampling, support on the original tree, strict/majority/extended consensus,
@@ -101,14 +115,35 @@ validation discipline: an independent oracle, property tests and fuzzing.
 - Fetch by accession moved to v1.9 (owner, 2026-11-14): fetched sequences are unaligned, so fetch is
   only useful once alignment exists.
 
-### v1.5 Classroom delivery and basic assessment (M) · 🟡 EARLY-ADOPTER PILOT POINT
+### v1.4d Tree reading (L, ≈ 1.5–2 weeks) · *moved before v1.5 (owner, 2026-11-18)*
+- Reading trees before building them, addressing documented "tree thinking" misconceptions:
+  - rotating branches doesn't change relationships
+  - the order of tips doesn't mean "more evolved"
+  - common ancestors, clades and monophyly
+  - relatedness is read from shared ancestry, not tip proximity
+- Interactive exercises on the existing tree drawings: rotate nodes, identify the most recent common
+  ancestor, mark a group, decide whether two trees show the same relationships.
+- Pre/post questions an instructor can use to measure learning (NeoPhylo's own items).
+- Opens **intro biology**, the largest market. Research suggests introducing trees through interpretation
+  works better than starting with building.
+- Built so v1.5 can grade it: every exercise type has one engine-computed correct answer (or an
+  accepted set), so the v1.5 grader adds these tasks without new content work.
+- Why before v1.5: intro biology is the largest market, tree reading is the easiest work to
+  auto-grade, and research favours reading trees before building them; outreach after v1.5 can then
+  reach intro-biology instructors from day one.
+
+### v1.5 Classroom delivery and assessment (L, ≈ 2–3 weeks) · 🟡 EARLY-ADOPTER PILOT POINT
 - Embed mode (iframe-friendly) for LMS pages; presenter mode; an offline "lab pack" download.
 - **Basic assessment, no accounts:**
   - randomized per-student variants from one assignment link (each student a different seed)
   - auto-checked tasks (predict the pair, compute a Q-value, identify the weakest-supported group),
     including a tie-aware `predict_pair` grader that accepts any min-Q pair when the engine reports
     `tie_same_split` (deferred from v1.4c Task 10, owner ruling 2026-11-16)
-  - signed completion codes students paste into the LMS, verifiable by the instructor offline
+  - completion codes that carry the student's own answers (owner, 2026-11-18): the instructor's
+    offline checker rebuilds that student's variant and grades it, so a copied code fails and a
+    forged passing code means computing the right answers; answer keys are hidden for assignment links
+  - **bulk grading:** the instructor drops the LMS's exported submissions (CSV) into an offline grading
+    page and gets every student's score, per-question results and a gradebook CSV to import back
 - Per-lesson "copy assignment text" for the LMS.
 - Editor autosave: the unsaved draft (including a matrix draft) survives a reload (local storage,
   every access in try/catch); deferred from v1.4c Task 9.
@@ -124,25 +159,16 @@ validation discipline: an independent oracle, property tests and fuzzing.
   Title II by 2027-04-26 and review embedded/LTI tools before use, so any pilot after that date needs it.
   The independent audit stays in v3.2.
 
-> **🟡 After v1.5:** an instructor can replace a full distance-plus-bootstrap lab, author their own
-> exercises, give each student their own variant, and verify completion. Serious outreach should already
+> **🟡 After v1.5:** an instructor can replace a full distance-plus-bootstrap lab or a tree-reading
+> session, author their own exercises, give each student their own variant, and bulk-grade the class. Serious outreach should already
 > be running by now (it starts during v1.2).
 
 ---
 
-## Phase 2: Reach the whole intro course (v1.6–v2.0)
+## Phase 2: Reach the whole intro course (v1.7–v2.0)
 
-### v1.6 Tree interpretation (M) · *new*
-- Reading trees before building them, addressing documented "tree thinking" misconceptions:
-  - rotating branches doesn't change relationships
-  - the order of tips doesn't mean "more evolved"
-  - common ancestors, clades and monophyly
-  - relatedness is read from shared ancestry, not tip proximity
-- Interactive exercises on the existing tree drawings: rotate nodes, identify the most recent common
-  ancestor, mark a group, decide whether two trees show the same relationships.
-- Pre/post questions an instructor can use to measure learning (NeoPhylo's own items).
-- Opens **intro biology**, the largest market. Research suggests introducing trees through interpretation
-  works better than starting with building.
+The v1.6 slot is empty: tree interpretation moved before v1.5 as v1.4d (owner, 2026-11-18). Later
+versions keep their numbers so earlier specs and decisions that cite them stay correct.
 
 ### v1.7 Model breadth (M)
 - DNA: Tamura-Nei, LogDet (F84 and PHYLIP-style Kimura already arrive in v1.4). Protein: PAM (DCMut)
@@ -178,9 +204,9 @@ validation discipline: an independent oracle, property tests and fuzzing.
   follow-up, mapped to standard textbooks.
 
 > **🟢 POWERHOUSE: after v2.0.** NeoPhylo covers an intro phylogenetics or biochem-evolution course
-> from reading trees to parsimony. As a **standalone PHYLIP replacement** it runs about 90% of typical
-> PHYLIP teaching use (distances with PHYLIP's defaults, `neighbor`, `seqboot`/`consense`, `fitch`/`kitsch`,
-> `dnapars`/`protpars`, `retree`/`drawtree`). As a **MEGA companion** it's compatible (import, matching numbers, companion handouts),
+> from reading trees to parsimony. As a **standalone PHYLIP replacement** it covers the PHYLIP chains
+> classes still run (distances with PHYLIP's defaults, `neighbor`, `seqboot`/`consense`,
+> `dnapars`/`protpars`); further PHYLIP programs only when a pilot asks. As a **MEGA companion** it's compatible (import, matching numbers, companion handouts),
 > with assessment support, an editor, embed and presenter modes, a data library and a course pack. Every
 > step is visible and validated, and there's nothing to install. Target by then: 10+ courses using it, a
 > published CourseSource/QUBES lesson with classroom data, and a JOSS or *BAMBED* paper.
@@ -239,7 +265,7 @@ results; notebook export (Jupyter/R Markdown).
 
 | When | Track |
 |---|---|
-| Deferred (owner, 2026-11-14) | Outreach and pilots wait until the owner judges the product solid and impressive; revisit at v1.5 and v2.0. When it starts: |
+| After v1.5 (owner, 2026-11-18) | Outreach starts once v1.5 ships (instructor-ready). Two audiences from the start: MEGA and bioinformatics/molecular-evolution instructors (distance labs), and intro-biology instructors (tree reading, v1.4d). Before mass emails, run three instructor think-alouds: usability is untested. |
 | — | Outreach: lab-handout search (`protdist`, `neighbor`, `seqboot`, `consense`, and MEGA labs), personalized emails with each lab's data loaded, about 10 per week; one phylogeneticist reviewer |
 | When outreach starts | First 2–3 pilots |
 | After the first pilot | **Submit one lesson to CourseSource/QUBES** with the pilot's classroom data |
@@ -247,5 +273,13 @@ results; notebook export (Jupyter/R Markdown).
 | After v2.0 | *BAMBED* paper with classroom data; conference demos (evolution or biochem education meetings) |
 | Before v3.0 | Letters of intent from 3 departments, or don't build the paid tier |
 
-Overall horizon (from 2026-10-21): v2.0 (powerhouse) in roughly 9–13 months of steady part-time work; v3.3 in roughly
-24 months. **Re-plan after every pilot:** real classroom feedback outranks this list.
+Overall horizon (recalibrated 2026-11-18 from the observed pace; was 9–13 months to v2.0):
+- **v1.4d** about early December 2026; **v1.5** (instructor-ready, outreach starts) about late December
+  2026. First outreach emails land best in early January, while instructors finalize spring syllabi;
+  the first pilots are spring-semester courses.
+- **v1.7–v2.0** (powerhouse) about February–March 2027, if outreach and pilot support take no more
+  than a third of the owner's time.
+- **v2.1–v2.7** about mid-2027; v3.x only after letters of intent.
+- The VPAT (v1.5) lands well before the ADA Title II date of 2027-04-26.
+These assume the current owner availability; outreach, pilot support and paper writing will compete
+for the same hours. **Re-plan after every pilot:** real classroom feedback outranks this list.
