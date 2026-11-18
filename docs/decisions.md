@@ -8211,3 +8211,15 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `scripts/conductor/judge.test.ts`,
   `scripts/conductor/fixtures/judge/claimed-abbreviated.out.md`,
   `scripts/conductor/fixtures/judge/claimed-unparseable.out.md`.
+- **Files outside the Files block (fix round 1):**
+  `scripts/conductor/footer.md` and `scripts/conductor/build-prompt.sh` —
+  a bare `git diff --stat` abbreviates long paths as `.../…`, which the
+  diff-stat check FLAGs, so both now ask for
+  `git diff --stat=400 --stat-name-width=400`;
+  `scripts/conductor/conductor-shell.test.ts`
+  covers the prompt text. The files-block bare-name fix touches the 0a
+  follow-up's `scripts/conductor/judge-checks.ts`,
+  `scripts/conductor/judge.test.ts`,
+  `scripts/conductor/fixtures/judge/plan.md` (new fixture Task 4) and the
+  new `scripts/conductor/fixtures/judge/bare-root-pass.diff` /
+  `scripts/conductor/fixtures/judge/bare-root-flag.diff`.

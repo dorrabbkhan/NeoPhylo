@@ -82,9 +82,11 @@ export function filesBlockPatterns(planText: string, task: string): string[] | n
       break;
     }
     // Plans write later entries on a line by bare name, after a full path
-    // in the same directory. A bare name resolves against the nearest full
-    // path before it on the line; with none before it, it matches that
-    // file name in any directory.
+    // in the same directory. A bare name resolves to BOTH the nearest
+    // full path's directory and the repo root (a bare `CLAUDE.md` after
+    // `scripts/conductor/wait-ci.sh` can mean either; the Files block's
+    // own `CLAUDE.md` must not flag); with no full path before it, it
+    // matches that file name in any directory.
     let dir: string | null = null;
     for (const m of l.matchAll(/`([^`]+)`/g)) {
       const p = m[1];
@@ -92,7 +94,10 @@ export function filesBlockPatterns(planText: string, task: string): string[] | n
         dir = p.slice(0, p.lastIndexOf("/") + 1);
         for (const e of expandBraces(p)) pats.push(e);
       } else {
-        for (const e of expandBraces(p)) pats.push(dir !== null ? dir + e : "**/" + e);
+        for (const e of expandBraces(p)) {
+          if (dir !== null) pats.push(dir + e, e);
+          else pats.push("**/" + e);
+        }
       }
     }
   }

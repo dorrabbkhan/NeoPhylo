@@ -7,6 +7,7 @@
 | 1 | plain task | — | — | Opus |
 | 2 | gated task | 1 | OWNER REVIEW (process) | Opus |
 | 3 | human task | 2 | gate (Owner step) | Opus |
+| 4 | bare root task | — | — | Opus |
 
 ### Task 1: Plain
 **Files:**
@@ -21,3 +22,7 @@
 ### Task 3: Human step
 **Files:**
 - Create: `src/baz.ts`
+
+### Task 4: Bare root
+**Files:**
+- Modify: `scripts/conductor/devin.sh` (detach), `CLAUDE.md`, `docs/decisions.md`

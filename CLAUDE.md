@@ -29,12 +29,14 @@ a human decision is needed. The owner reviews PRs on GitHub and talks to you thr
 
 ## The loop for one task (/conduct <version> <N>)
 1. Preconditions: clean tree; main up to date; previous dependencies merged (check the plan's Task Index).
-2. Task session: `build-prompt.sh task <v> <N> | devin.sh task <v> <N>` (detach with `DEVIN_DETACH=1` +
-   `wait-for.sh` when the session would outlast one tool call). Parse `PR_URL:` or `STOP:`. STOP →
+2. Task session: `build-prompt.sh task <v> <N> | devin.sh task <v> <N>` (detach with
+   `DEVIN_DETACH=1 scripts/conductor/devin.sh …` + `scripts/conductor/wait-for.sh <out.md>` when the
+   session would outlast one tool call). Parse `PR_URL:` or `STOP:`. STOP →
    escalate (step 7) and end.
 3. Start the review session immediately (in parallel with CI): /neophylo-review skill for that PR, and
    `wait-ci.sh <PR>` in the background at the same time — one blocking wait each, never a polling loop
-   (`WAIT_CI_DEADLINE_S` + a re-call in headless runs; a `PENDING`/exit 4 is a re-call, not a failure).
+   (`WAIT_CI_DEADLINE_S=540 scripts/conductor/wait-ci.sh <PR>` + a re-call in headless runs; a
+   `PENDING`/exit 4 is a re-call, not a failure).
 4. Judge (see "Judgment rules"): run `judge.sh <PR> <v> <N>` first and read its FLAGs — it covers the
    mechanical rules; the rest stay the conductor's. If REQUIRED fixes exist (from the review or your own
    checks) → a fix session on the same branch (`build-prompt.sh fix`), listing them precisely. Max 2 fix

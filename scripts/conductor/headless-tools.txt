@@ -44,5 +44,10 @@ Bash(scripts/conductor/wait-for.sh:*)
 Bash(scripts/conductor/build-prompt.sh:*)
 Bash(scripts/conductor/usage-report.sh:*)
 Bash(scripts/conductor/result.sh:*)
+# The documented detach/deadline invocations carry a leading VAR=value,
+# which does not match Bash(scripts/conductor/*) — list them literally.
+Bash(DEVIN_DETACH=1 scripts/conductor/devin.sh:*)
+Bash(WAIT_CI_DEADLINE_S=540 scripts/conductor/wait-ci.sh:*)
 Agent(log-reader)
 Write(~/neophylo-conductor/**)
+Edit(~/neophylo-conductor/**)

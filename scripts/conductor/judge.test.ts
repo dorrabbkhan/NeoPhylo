@@ -142,6 +142,17 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
     assert.match(line(r, "files-block")!, /^PASS files-block/);
   });
 
+  it("bare root name after a full path resolves to root", () => {
+    // Task 4's Files block is `- Modify: `scripts/conductor/devin.sh`
+    // (detach), `CLAUDE.md`, `docs/decisions.md`` — the bare `CLAUDE.md`
+    // resolves to both scripts/conductor/CLAUDE.md and the repo-root
+    // CLAUDE.md (never **/CLAUDE.md).
+    const r = judge("bare-root-pass.diff", { task: "4" });
+    assert.match(line(r, "files-block")!, /^PASS files-block/);
+    const f = judge("bare-root-flag.diff", { task: "4" });
+    assert.match(line(f, "files-block")!, /^FLAG files-block .*scripts\/other\/CLAUDE\.md/);
+  });
+
   it("glob question mark matches one char, dots are literal", () => {
     assert.match(line(judge("glob-question.diff"), "files-block")!, /^PASS files-block/);
     assert.match(

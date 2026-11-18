@@ -53,6 +53,21 @@ describe("run-plan.sh (conductor efficiency plan Task 0b)", () => {
     assert.match(opus.stdout, /--model opus/);
   });
 
+  it("dry-run --allowedTools carries the env-prefixed Bash specs and Edit for the log dir", () => {
+    const r = runPlan(["v1.4d", "5", "5"], {
+      PLAN_FILE: join(FIX, "v1.4d-index-with-conductor.md"),
+      DRY_RUN: "1",
+      RUN_PLAN_DIR: tmp("rp-"),
+    });
+    assert.equal(r.status, 0, r.stderr);
+    for (const spec of [
+      "Bash(DEVIN_DETACH=1 scripts/conductor/devin.sh:*)",
+      "Bash(WAIT_CI_DEADLINE_S=540 scripts/conductor/wait-ci.sh:*)",
+      "Edit(~/neophylo-conductor/**)",
+    ])
+      assert.ok(r.stdout.includes(spec), spec);
+  });
+
   it("defaults to opus with a warning when the Task Index has no Conductor column", () => {
     const r = runPlan(["v1.4d", "5", "5"], {
       PLAN_FILE: join(FIX, "v1.4d-index-no-conductor.md"),
