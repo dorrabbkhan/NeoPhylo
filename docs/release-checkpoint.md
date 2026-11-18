@@ -47,7 +47,7 @@ below take them as flags.
    all done. Preflight lists any other open `[OWNER GATE]` /
    `[OWNER REVIEW]` PR.
 2. **CITATION date.** Set `date-released` in `CITATION.cff` to the day
-   you will tag. It is set to `2026-11-14`; if you tag on a later day,
+   you will tag. It is set to `2026-11-18`; if you tag on a later day,
    change it first. Commit it on the RC branch (or say
    `conductor: fix set CITATION date-released to <date>` on the PR).
 3. **Full CI matrix on the RC.** PR CI skips WebKit, `@perf`, R parity and
