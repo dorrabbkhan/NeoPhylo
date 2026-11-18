@@ -290,7 +290,9 @@ test("a .meg matrix !Title becomes the session's display name", async ({
   // The file's !Title is the session's display name — it comes back
   // out as the exported figure's title.
   const meg = await exportedItem(page, "Matrix (.meg)");
-  expect(meg).toContain("!Title wiki5_lower;");
+  // Round-3 K4: the export is MEGA's own layout — `!Title:` with a
+  // colon (the old `!Title ` line pinned here before this fix).
+  expect(meg).toContain("!Title: wiki5_lower;");
 });
 
 test("pasting each matrix form: tab-separated header, lower triangle, CSV question", async ({
@@ -717,7 +719,11 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
     .locator('.import-file input[type="file"]')
     .setInputFiles(`${MATRIX_DIR}wiki5_lower.phy`);
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
-  expect(page.url()).toContain("d=");
+  // The URL sync is a layout-effect replaceState, written before the
+  // tree paints (v1.4c Task 14 fix round 1). toHaveURL stays as the
+  // deterministic wait for the settled `d=` write (main CI run
+  // 44070866339, e2e webkit/2).
+  await expect(page).toHaveURL(/[?&]d=/);
 
   // Alignment paste → the panels return and the badge is the alphabet.
   const scope2 = await importScope(page);
@@ -733,7 +739,7 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   await expect(
     page.locator("text=" + REPLACEMENT),
   ).toHaveCount(0);
-  expect(page.url()).not.toContain("matrix");
+  await expect(page).not.toHaveURL(/matrix/);
 
   // The pair panel and the bootstrap panel return too (fix round 2 —
   // the original check stopped at the correction/gap controls). The
@@ -765,7 +771,7 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
     .getByRole("menuitemradio", { name: /How Neighbor-Joining works/ })
     .click();
   await expect(page.locator('svg[aria-label="Inferred tree"]')).toBeVisible();
-  expect(page.url()).toContain("lesson=");
+  await expect(page).toHaveURL(/lesson=/);
 
   // Back to a matrix session: `d=` carries only the matrix data —
   // the lesson id stays by design (the sandbox overlays that
@@ -779,8 +785,8 @@ test("Review Focus 4: leaving a matrix session restores the alignment UI", async
   await expect(page.locator(".alphabet-badge-label")).toHaveText(
     "Distance matrix",
   );
-  expect(page.url()).toContain("d=");
-  expect(page.url()).not.toContain("ds=");
+  await expect(page).toHaveURL(/[?&]d=/);
+  await expect(page).not.toHaveURL(/ds=/);
 });
 
 // Cell-digit fit (v1.4c owner ruling 2A on PR #156, sign-aware after

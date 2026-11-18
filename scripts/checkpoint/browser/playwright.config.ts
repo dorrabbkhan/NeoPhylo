@@ -39,6 +39,11 @@ export default defineConfig({
   use: {
     baseURL: baseURL.endsWith("/") ? baseURL : `${baseURL}/`,
     trace: "retain-on-failure",
+    // Sandboxed runs whose only route out is a filtering proxy set
+    // CHECKPOINT_PROXY (http://host:port); direct is the default.
+    ...(process.env.CHECKPOINT_PROXY !== undefined
+      ? { proxy: { server: process.env.CHECKPOINT_PROXY } }
+      : {}),
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

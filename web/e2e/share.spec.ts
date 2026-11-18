@@ -29,8 +29,11 @@ test("a copied URL reproduces the seed, matrix and step", async ({
   const step = await readStep(page);
   expect(step.k).toBe(1);
   const matrix = await matrixLabels(page);
+  // The URL sync is a layout-effect replaceState, written before the
+  // step paints (v1.4c Task 14 fix round 1) — toHaveURL stays as the
+  // deterministic wait for the settled s=1 link.
+  await expect(page).toHaveURL(/lesson=nj-basics&s=1/);
   const url = page.url();
-  expect(url).toContain("lesson=nj-basics");
 
   // Open the link in a fresh context (new "student").
   const ctx = await browser.newContext();

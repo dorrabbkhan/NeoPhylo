@@ -1,10 +1,10 @@
 # NeoPhylo roadmap
 
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
-rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)** and
-**v1.4b (MEGA companion and data library)** released or releasing; **next: v1.4c** (matrix input,
-lesson library and worksheets). Last revised 2026-11-14 (market check:
-`docs/market/2026-11-14-market-check.md`).
+rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)**,
+**v1.4b (MEGA companion and data library)** and **v1.4c (matrix input, lesson library and
+worksheets)** released or releasing; **next: v1.5** (instructor-run labs, exercise authoring and
+basic grading — the "Early-adopter pilots" milestone below). Last revised 2026-11-17.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -112,6 +112,12 @@ validation discipline: an independent oracle, property tests and fuzzing.
 - Per-lesson "copy assignment text" for the LMS.
 - Editor autosave: the unsaved draft (including a matrix draft) survives a reload (local storage,
   every access in try/catch); deferred from v1.4c Task 9.
+- Lab print fit: lab-page trees print via the CSS `max-width` scale-down, so a very wide lab figure
+  can print text under 12 px — extend the v1.4c printable-width refit (`printFit`, currently
+  answer-key finished trees only) to lab print figures; deferred from v1.4c (owner, 2026-11-17).
+- Checkpoint bootstrap check: replace the flat 5 pp limit in `mega_verify.py --boot` (MEGA-CC vs
+  its own 1,000-replicate fixture) with a per-split binomial bound; the owner approves the number;
+  deferred from v1.4c (owner, 2026-11-18).
 - **Accessibility conformance for adoption:** a WCAG 2.1 AA self-audit (the existing axe checks plus a
   manual keyboard and screen-reader pass over every view, including embed mode) and a published
   Accessibility Conformance Report (VPAT). US public universities must meet WCAG 2.1 AA under ADA

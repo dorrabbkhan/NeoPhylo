@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use neophylo_core::error::{NeoError, PasteQuestion};
 use neophylo_core::matrix_input::DistanceInput;
 use neophylo_core::matrix_parse::{
-    detect_matrix_format, parse_meg_matrix, parse_pasted_matrix, parse_phylip_matrix, MatrixFormat,
-    PasteOptions, PhylipMatrixOptions,
+    detect_matrix_format, parse_meg_matrix, parse_pasted_matrix, parse_phylip_matrix,
+    write_meg_matrix, MatrixFormat, PasteOptions, PhylipMatrixOptions,
 };
 use neophylo_core::phylip::NameMode;
 
@@ -370,12 +370,225 @@ fn meg_crlf_bom() {
 #[test]
 fn write_meg_matrix_round_trips() {
     let m = wiki5();
-    let text = neophylo_core::matrix_parse::write_meg_matrix(&m, "wiki5").expect("write");
-    assert!(text.starts_with("#mega\n"), "{text}");
-    assert!(text.contains("DataType=Distance"), "{text}");
+    let text = write_meg_matrix(&m, "wiki5").expect("write");
+    // Round-3 K4: the writer emits MEGA's own layout — `!Title:` with
+    // a colon, a `!Description` block, `[i] #name` labels, the
+    // bracketed column header and `[i]`-prefixed rows (row 1 empty).
+    assert!(text.starts_with("#mega\n!Title: wiki5;\n"), "{text}");
+    assert!(
+        text.contains("!Format DataType=Distance DataFormat=LowerLeft NTaxa=5;\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("!Description\n  wiki5, distance matrix written by NeoPhylo;\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("[1] #a\n[2] #b\n[3] #c\n[4] #d\n[5] #e\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("[     1     2     3     4     5 ]\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains("[1]\n[2] 5\n[3] 9 10\n[4] 9 10 8\n[5] 8 9 7 3\n"),
+        "{text}"
+    );
     let back = parse_meg_matrix(&text).expect("re-parse");
     assert_eq!(back.matrix, m);
     assert_eq!(back.title.as_deref(), Some("wiki5"));
+}
+
+// ---- MEGA's own layout (round-3 K5) ----------------------------------
+
+/// The owner's MEGA-GUI control file A, verbatim: MEGA's built-in
+/// distance example — `[i] #name` labels, a multi-line `!Description`
+/// block (containing a `[…]` span), the `[ 1 … n ]` column header
+/// and `[i]`-prefixed rows, `[1]` empty.
+const MEGA_LAYOUT_A: &str = "#mega\n\
+     !Title: Concatenated Files;\n\
+     !Format DataType=Distance DataFormat=LowerLeft NTaxa=6;\n\
+     !Description\n  \
+     No. of Taxa : 20\n  \
+     No. of Groups : 6\n  \
+     Gaps/Missing data : Pairwise Deletion\n  \
+     Codon Positions : 1st+2nd+3nd+Noncoding\n  \
+     Distance method : Nucleotide: Tamura-Nei  [Pairwise distances]\n  \
+     No. of Sites : 1369989\n  \
+     d : Estimate;\n\
+     [1] #Rodent\n\
+     [2] #Primate\n\
+     [3] #Lagomorpha\n\
+     [4] #Artiodactyla\n\
+     [5] #Carnivora\n\
+     [6] #Perissodactyla\n\
+     [       1     2     3     4     5     6 ]\n\
+     [1]        \n\
+     [2]  0.514       \n\
+     [3]  0.535 0.436       \n\
+     [4]  0.530 0.388 0.418       \n\
+     [5]  0.521 0.353 0.417 0.345       \n\
+     [6]  0.500 0.331 0.402 0.327 0.349       \n";
+
+/// The owner's control file B, verbatim: wiki5 in the same layout.
+const MEGA_LAYOUT_B: &str = "#mega\n\
+     !Title: wiki5_lower;\n\
+     !Format DataType=Distance DataFormat=LowerLeft NTaxa=5;\n\
+     !Description\n  \
+     wiki5_lower, MEGA layout control;\n\
+     [1] #a\n\
+     [2] #b\n\
+     [3] #c\n\
+     [4] #d\n\
+     [5] #e\n\
+     [     1     2     3     4     5 ]\n\
+     [1]\n\
+     [2]     5\n\
+     [3]     9    10\n\
+     [4]     9    10     8\n\
+     [5]     8     9     7     3\n";
+
+#[test]
+fn meg_mega_layout_parses() {
+    let a = parse_meg_matrix(MEGA_LAYOUT_A).expect("MEGA layout A");
+    assert_eq!(a.title.as_deref(), Some("Concatenated Files"));
+    assert_eq!(
+        a.matrix.names,
+        [
+            "Rodent",
+            "Primate",
+            "Lagomorpha",
+            "Artiodactyla",
+            "Carnivora",
+            "Perissodactyla"
+        ]
+    );
+    assert_eq!(
+        a.matrix.lower,
+        vec![
+            0.514, 0.535, 0.436, 0.530, 0.388, 0.418, 0.521, 0.353, 0.417, 0.345, 0.500, 0.331,
+            0.402, 0.327, 0.349
+        ]
+    );
+    let b = parse_meg_matrix(MEGA_LAYOUT_B).expect("MEGA layout B");
+    assert_eq!(b.title.as_deref(), Some("wiki5_lower"));
+    assert_eq!(b.matrix, wiki5());
+}
+
+#[test]
+fn meg_unterminated_bracket_comment() {
+    // `[` opens a comment that never closes — a Parse error at the
+    // bracket, not silently swallowed rows.
+    let err = parse_meg_matrix(
+        "#mega\n!Title: t;\n!Format DataType=Distance;\n[1] #a\n[2] #b\n[3] #c\n[never closed\n",
+    )
+    .unwrap_err();
+    match err {
+        NeoError::Parse { msg, .. } => assert!(msg.contains("'['"), "{msg}"),
+        other => panic!("expected Parse, got {other:?}"),
+    }
+}
+
+#[test]
+fn meg_write_round_trip_every_oracle() {
+    // Write → parse on every matrix oracle's .meg copy (round-3 K5).
+    for name in [
+        "additive8",
+        "nj_by_hand",
+        "nonadditive6",
+        "real12",
+        "upgma_vs_nj",
+        "wiki5_lower",
+        "wiki5_square",
+    ] {
+        let file = parse_meg_matrix(&fixture(&format!("{name}.meg")))
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let title = file.title.clone().unwrap_or_else(|| name.to_string());
+        let written = write_meg_matrix(&file.matrix, &title)
+            .unwrap_or_else(|e| panic!("{name} write: {e:?}"));
+        let back = parse_meg_matrix(&written)
+            .unwrap_or_else(|e| panic!("{name} re-parse: {e:?}\n{written}"));
+        assert_eq!(back.matrix, file.matrix, "{name}");
+    }
+}
+
+// ---- round-7 G1: no blank lines (MEGA 12 GUI crash) ------------------
+
+#[test]
+fn write_meg_matrix_wiki5_exact_bytes() {
+    // The owner isolated the MEGA 12 GUI hang/crash to the empty line
+    // the old writer emitted after the `!Description` block (the same
+    // file with only that line removed opens and builds NJ). This is
+    // the exact file the owner confirmed — byte for byte.
+    let expected = "#mega\n\
+        !Title: wiki5_lower;\n\
+        !Format DataType=Distance DataFormat=LowerLeft NTaxa=5;\n\
+        !Description\n  \
+        wiki5_lower, distance matrix written by NeoPhylo;\n\
+        [1] #a\n\
+        [2] #b\n\
+        [3] #c\n\
+        [4] #d\n\
+        [5] #e\n\
+        [     1     2     3     4     5 ]\n\
+        [1]\n\
+        [2] 5\n\
+        [3] 9 10\n\
+        [4] 9 10 8\n\
+        [5] 8 9 7 3\n";
+    let text = write_meg_matrix(&wiki5(), "wiki5_lower").expect("write");
+    assert_eq!(text, expected);
+}
+
+#[test]
+fn write_meg_matrix_emits_no_blank_lines() {
+    // No empty line anywhere in the output, for any matrix — the GUI
+    // crash was one blank line, but the rule is none at all.
+    let mut cases = vec![(wiki5(), "wiki5_lower".to_string())];
+    for name in [
+        "additive8",
+        "nj_by_hand",
+        "nonadditive6",
+        "real12",
+        "upgma_vs_nj",
+        "wiki5_lower",
+        "wiki5_square",
+    ] {
+        let file = parse_meg_matrix(&fixture(&format!("{name}.meg")))
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let title = file.title.clone().unwrap_or_else(|| name.to_string());
+        cases.push((file.matrix, title));
+    }
+    for (m, title) in &cases {
+        let written = write_meg_matrix(m, title).unwrap_or_else(|e| panic!("{title} write: {e:?}"));
+        assert!(
+            !written.contains("\n\n"),
+            "blank line in output for {title}:\n{written}"
+        );
+        assert!(
+            written.ends_with('\n') && !written.ends_with("\n\n"),
+            "trailing newline count for {title}"
+        );
+    }
+}
+
+#[test]
+fn parse_meg_matrix_reads_blank_line_variant() {
+    // Files written before round 7 (empty line after `!Description`)
+    // must still parse — only the writer changed.
+    let new_text = write_meg_matrix(&wiki5(), "wiki5_lower").expect("write");
+    let old_text = new_text.replacen(
+        "wiki5_lower, distance matrix written by NeoPhylo;\n",
+        "wiki5_lower, distance matrix written by NeoPhylo;\n\n",
+        1,
+    );
+    assert!(old_text.contains("\n\n"), "test setup: {old_text}");
+    for text in [&new_text, &old_text] {
+        let back = parse_meg_matrix(text).expect("parse");
+        assert_eq!(back.matrix, wiki5());
+        assert_eq!(back.title.as_deref(), Some("wiki5_lower"));
+    }
 }
 
 // ---- detection ------------------------------------------------------
@@ -407,6 +620,12 @@ fn detects_meg_matrix() {
         detect_matrix_format("#mega\n!Format DataType = distance;\n#a\n#b\n#c\n\n1\n2 3\n"),
         Some(MatrixFormat::Meg)
     );
+    // MEGA's own bracketed layout (round-3 K5): the owner's control
+    // files and our new writer output are all distance .meg.
+    assert_eq!(detect_matrix_format(MEGA_LAYOUT_A), Some(MatrixFormat::Meg));
+    assert_eq!(detect_matrix_format(MEGA_LAYOUT_B), Some(MatrixFormat::Meg));
+    let written = write_meg_matrix(&wiki5(), "wiki5").expect("write");
+    assert_eq!(detect_matrix_format(&written), Some(MatrixFormat::Meg));
 }
 
 #[test]

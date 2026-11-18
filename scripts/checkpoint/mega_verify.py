@@ -6,8 +6,9 @@ deploy preview and compare MEGA's output with the committed MEGA fixtures.
         [--report <file.md>]
 
 <dir> holds <id>.meg for the handout datasets (primate-mtdna, globins,
-16s-rrna) — scripts/checkpoint/browser.sh saves them to <out>/meg/. For
-each file:
+16s-rrna) and matrix_<name>.meg distance files exported from matrix
+sessions — scripts/checkpoint/browser.sh saves them to <out>/meg/. For
+each dataset file:
 
   1. the exported alignment equals web/public/library/<id>.fasta
      (names, order, every character);
@@ -23,6 +24,14 @@ each file:
      fixtures/mega/library/boot1000/ recover the same split set and every
      support within 5 percentage points (owner ruling on #126, option A).
      This takes several minutes.
+
+For each matrix_<name>.meg file (v1.4c):
+
+  1. the exported matrix equals fixtures/inputs/matrix/<name>.meg —
+     names in order and every lower-triangle cell;
+  2. MEGA-CC's NJ and UPGMA on it (matrix_nj.mao / matrix_upgma.mao)
+     give the trees in fixtures/mega/matrix/<name>.json (same clades,
+     branch lengths within half a unit of the printed last decimal).
 
 It also runs the same comparisons against a deliberately wrong fixture key
 (negative controls) and fails if those do not fail.
@@ -44,6 +53,8 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MAO = os.path.join(REPO, "fixtures", "mega", "mao")
 LIB_FIX = os.path.join(REPO, "fixtures", "mega", "library")
 LIB_DATA = os.path.join(REPO, "web", "public", "library")
+MATRIX_FIX = os.path.join(REPO, "fixtures", "mega", "matrix")
+MATRIX_IN = os.path.join(REPO, "fixtures", "inputs", "matrix")
 
 DATASETS = {"primate-mtdna": "dna", "globins": "protein", "16s-rrna": "dna"}
 MODEL_ID = {"p": "p", "JC69": "jc69", "K80": "k2p", "Poisson": "poisson",
@@ -368,6 +379,93 @@ def cell_equal(a, b):
     return abs(a - b) <= 0.5e-8 + 1e-12
 
 
+def parse_meg_distance_input(path):
+    """A LowerLeft distance .meg: `#name` label lines then lower rows.
+    Reads both layouts — the bare `#name`/value-line form and MEGA's
+    own `[i] #name` labels, `[ 1 … n ]` column header and `[i]`-prefixed
+    rows (round-3 K4); `!` command bodies (a `!Description` block) are
+    skipped to their `;`."""
+    names, vals = [], []
+    in_cmd = False
+    for ln in open(path, encoding="utf-8-sig"):
+        ln = ln.strip()
+        if not ln or ln.lower() == "#mega":
+            continue
+        if in_cmd:
+            if ";" in ln:
+                in_cmd = False
+            continue
+        if ln.startswith("!"):
+            if ";" not in ln:
+                in_cmd = True
+            continue
+        while ln.startswith("["):
+            close = ln.find("]")
+            if close < 0:
+                break
+            ln = ln[close + 1:].strip()
+        if not ln:
+            continue
+        if ln.startswith("#"):
+            names.append(ln[1:].split()[0])
+        else:
+            vals += [float(t) for t in ln.split()]
+    return names, vals
+
+
+def check_matrix_export(name, meg_path, tmp):
+    """One exported distance .meg: cells vs the input fixture, trees vs
+    the committed MEGA-CC output (v1.4c §6 of the checkpoint doc)."""
+    fxpath = os.path.join(MATRIX_FIX, f"{name}.json")
+    if not os.path.exists(fxpath):
+        record("FAIL", f"matrix {name}", "no committed matrix fixture")
+        return
+    fx = json.load(open(fxpath))
+    want_names, want_vals = parse_meg_distance_input(
+        os.path.join(MATRIX_IN, f"{name}.meg"))
+    got_names, got_vals = parse_meg_distance_input(meg_path)
+    if got_names != want_names:
+        record("FAIL", f"matrix {name}: exported names",
+               "differ from the input fixture")
+    elif len(got_vals) != len(want_vals) or any(
+            abs(a - b) > 1e-12 for a, b in zip(got_vals, want_vals)):
+        record("FAIL", f"matrix {name}: exported cells",
+               "a lower-triangle cell differs")
+    else:
+        record("PASS", f"matrix {name}: exported .meg equals the input",
+               f"{len(got_names)} taxa, {len(got_vals)} cells")
+
+    nwk = {}
+    for method in ("nj", "upgma"):
+        mao = os.path.join(MAO, f"matrix_{method}.mao")
+        out = os.path.join(tmp, f"matrix_{name}_{method}")
+        _, err = run_megacc(mao, meg_path, out, tmp)
+        if err or not os.path.exists(out + ".nwk"):
+            record("FAIL", f"matrix {name} {method}",
+                   err or "no tree written")
+            continue
+        nwk[method] = open(out + ".nwk").read()
+        try:
+            why = compare_trees(nwk[method], fx["trees"][method])
+        except ValueError as e:
+            why = f"unparseable newick: {e}"
+        if why is None:
+            record("PASS", f"matrix {name} {method}",
+                   "same clades and branch lengths")
+        else:
+            record("FAIL", f"matrix {name} {method}", why)
+
+    # negative control: another fixture's tree must not match
+    other = "additive8" if name != "additive8" else "nj_by_hand"
+    if "nj" in nwk:
+        otree = json.load(open(os.path.join(MATRIX_FIX, f"{other}.json")))
+        why = compare_trees(nwk["nj"], otree["trees"]["nj"])
+        record("FAIL" if why is None else "PASS",
+               f"matrix {name} negative control (vs {other} nj)",
+               "matched — the comparison is not discriminating"
+               if why is None else "differs, as it should")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--meg-dir", required=True)
@@ -391,6 +489,15 @@ def main():
                 continue
             found += 1
             check_dataset(ds, alphabet, os.path.abspath(meg), tmp, args.boot)
+        # v1.4c: distance .meg files exported from matrix sessions —
+        # named matrix_<fixture>.meg by the browser pass.
+        for f in sorted(os.listdir(args.meg_dir)):
+            if f.startswith("matrix_") and f.endswith(".meg"):
+                found += 1
+                check_matrix_export(
+                    f[len("matrix_"):-4],
+                    os.path.abspath(os.path.join(args.meg_dir, f)),
+                    tmp)
 
     fails = sum(1 for r in results if r[0] == "FAIL")
     warns = sum(1 for r in results if r[0] == "WARN")

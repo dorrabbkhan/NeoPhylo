@@ -7908,3 +7908,220 @@ Owner-requested rendering fixes after the PR #139 review; branch
   pages untouched).
 - S5: the guide header's two nav links grouped in `.guide-nav-links`
   on the right (guide only; LabPage/LibraryPage headers unchanged).
+
+## v1.4c Task 14: release checkpoint, roadmap, CITATION
+
+- **Release tag:** `v1.4.2` proposed in the checkpoint and
+  `CITATION.cff`; `date-released` untouched (2026-11-14) — the owner
+  confirms the name and tags.
+- **The WebKit `d=` race (main CI run 44070866339, `e2e (webkit, 2)`,
+  `matrix.spec.ts:720`)** — fixed in fix round 1: the share URL was
+  written by a passive `useEffect` (`history.replaceState` in
+  `web/src/views/App.tsx`) after the render that painted the tree, so
+  a matrix session could show its tree while the address bar still
+  held the previous link. The sync is now a `useLayoutEffect` — the
+  URL is written during the commit, before the new view paints — with
+  no change to the deps or the guard. Nothing in the app reads
+  `window.location` in a way that relied on the old ordering:
+  `urlRestore.resolveInitial` and the tour's `#x=` check read it
+  inside the mount-time restore effect (always before any write, since
+  the sync early-returns while `session === null`), the long-link
+  notice reads the memoized `urlText` not `location`, and
+  `worksheets/load.ts` runs on the worksheet/key routes where `App`
+  never mounts. The ordering is pinned by
+  `web/src/views/App.urlSync.test.tsx`: a `<Profiler onRender>`
+  callback runs during the commit — after the subtree's layout
+  effects, before passive effects — so reading `window.location`
+  there is the jsdom stand-in for the painted frame (any `act`-flushed
+  trigger fires passive effects too early to tell the two apart;
+  verified failing on `useEffect`, passing on `useLayoutEffect`). The
+  e2e `toHaveURL` waits stay as the deterministic wait for the settled
+  link. No longer a v1.5 owner decision — see checkpoint §15.
+- **Fix round 1 follow-ups:** the checkpoint §15/runbook wording now
+  names the Chromium-only items — the §6 and §12 `.meg` downloads and
+  the §2/§14 worksheet/key PDFs (S2 also listed §6 explicitly; §12 is
+  the same describe-level `test.skip`, named too for accuracy). §2/§14
+  in `scripts/checkpoint/browser/release.spec.ts` follows the sibling
+  lab print tests: the `emulateMedia('print')`/luminance checks run on
+  every engine and only `page.pdf` is Chromium-gated. The
+  `preflight.sh` usage comment names the current release like
+  `run.sh`. §6's ticked item cites
+  `matrix_parse.rs`/`matrix_parse_props.rs` for the
+  `write_meg_matrix` round trip — `meg.rs` is the sequence-`.meg`
+  suite; every other cited test name was grep-verified.
+- **Paper-worksheet id list:** the eight ids in the checkpoint's §2
+  are the `paperSheet` rule (printable matrix, ≤ 8 taxa) resolved over
+  the committed exercises — verified with a scratch vitest enumeration
+  of `buildItems`/`paperSheet` (removed afterwards); every other id's
+  `kind=paper` route asserts its own in-app-only message, so a
+  drifting set flags itself in the checker.
+- **Files outside the Files block:**
+  - `web/e2e/matrix.spec.ts` — the mandated WebKit investigation's
+    fix: every immediate `page.url()` assertion after a state change
+    now waits on `toHaveURL` (the `replaceState` effect could lag the
+    paint on WebKit before fix round 1). Fix round 1 updated the
+    comment only — the wait stays.
+  - `web/e2e/share.spec.ts` — the same read-once pattern after the
+    step advance; now waits for `lesson=nj-basics&s=1` in the URL.
+    Fix round 1 updated the comment only — the wait stays.
+  - `web/e2e/presenter.spec.ts` — fix round 1, comment only: the URL
+    sync is no longer a post-render effect.
+  - `web/src/views/App.tsx` — fix round 1: the mandated product fix,
+    the URL sync moved to `useLayoutEffect`.
+  - `web/src/views/App.urlSync.test.tsx` — fix round 1: the mandated
+    regression test.
+  - `scripts/checkpoint/browser/release.spec.ts` — fix round 1: §2/§14
+    print checks on every engine, `page.pdf` Chromium-only.
+  - `scripts/checkpoint/preflight.sh` — fix round 1: usage comment
+    names the current release.
+  - `docs/release-checkpoint.md` — the runbook's "This release" table,
+    commands, owner-pass items, release fields and the "Automation
+    map" repointed at `v1.4c-release.md` (its own header invites the
+    per-release update). Fix round 1 updated the Chromium-only wording
+    and dropped the stale-link ruling row.
+  - `docs/decisions.md` — this entry.
+
+### Fix round 2
+
+- **A thrown worksheet/key load lands in the error state, never an
+  unhandled rejection (product fix, checkpoint §2):** Firefox's pass
+  logged `pageerror: NetworkError when attempting to fetch resource`
+  when the checker clicked the §2 gate and navigated to the next key
+  before the gated page's lesson fetch finished — the abort rejected
+  the async effect in `KeyPage`/`WorksheetPage`, which had no
+  `catch`. Both pages now land the rejection in their existing
+  "could not be loaded" error state while the page lives and drop it
+  after unmount; `web/e2e/worksheets.spec.ts` pins it by aborting the
+  wasm fetch and asserting the error UI with zero page errors.
+- **Files outside the Files block (fix round 2):**
+  `web/src/views/worksheets/KeyPage.tsx` and
+  `web/src/views/worksheets/WorksheetPage.tsx` — the product fix
+  above; `web/e2e/worksheets.spec.ts` — its test;
+  `scripts/checkpoint/browser/playwright.config.ts` — an optional
+  `CHECKPOINT_PROXY` env setting so a sandboxed run can route the
+  browsers through a filtering proxy (direct stays the default).
+  `docs/decisions.md` — this entry.
+
+### Fix round 3 (owner-approved, 2026-11-17)
+
+- **K4/K5 engine change — approved exception to "Task 14 is not an
+  engine task":** `write_meg_matrix` in
+  `crates/neophylo-core/src/matrix_parse.rs` now writes MEGA's own
+  layout (the owner's control file B: `!Title:` with a colon, a
+  `!Description` block, `[i] #name` labels, the bracketed column-index
+  header and `[i]`-prefixed rows) because the GUI crashed on the old
+  layout; `parse_meg_matrix` strips `[…]` comments like MEGA does, so
+  it reads both layouts. `mega_verify.py`'s matrix reader accepts
+  both. Exact-output assertions that changed only for the new layout:
+  `write_meg_matrix_round_trips` (matrix_parse.rs test, extended to
+  pin the new lines) and the `!Title wiki5_lower;` → `!Title:
+  wiki5_lower;` assertion in `web/e2e/matrix.spec.ts`.
+- **K1/K2 print fit and page margins:** `TreeView` gains a `printFit`
+  prop — while print media is active the finished tree on answer keys
+  refits inside the A4 printable width (680 px = 180 mm, the shared
+  15 mm `@page` in `LabPrintStyles`) at the same ≥12 px text floor;
+  index.css's `@media print` rule is the scale-down net behind it.
+  `LabPrintStyles` now emits `@page { size: A4; margin: 15mm; }` for
+  every print page (worksheets, keys, lab pages, lab index, library,
+  guide), and the checker's `page.pdf` calls set
+  `preferCSSPageSize: true`.
+- **Files outside the Files block (fix round 3):**
+  `crates/neophylo-core/src/matrix_parse.rs` and
+  `crates/neophylo-core/tests/matrix_parse*.rs` — the approved engine
+  exception above; `web/src/views/TreeView.tsx`, `web/src/index.css` —
+  the shared print fit; `web/src/views/labs/LabPrintStyles.tsx` — the
+  shared `@page`; `web/src/views/worksheets/KeyPage.tsx`,
+  `web/src/views/worksheets/WorksheetPage.tsx`,
+  `web/src/views/worksheets/worksheets.test.tsx` — K1 prop wiring and
+  K7; `web/src/views/matrix/MatrixGrid.tsx`,
+  `web/src/views/matrix/MatrixGrid.test.tsx` — K3;
+  `web/e2e/worksheets.spec.ts`, `web/e2e/matrix.spec.ts` — the new and
+  updated e2e assertions; `web/e2e/visualScenes.ts` — the
+  worksheet-key-print scene now waits out the print refit before the
+  frame, so the snapshot can't race it; `printFit` also reconciles
+  `matchMedia("print").matches` on a light interval because emulated
+  print media doesn't always dispatch the query's change event.
+  `scripts/checkpoint/browser/release.spec.ts` — the K1 print
+  assertion, K2 `preferCSSPageSize` and K6 `visitPage` font settle;
+  `scripts/checkpoint/mega_verify.py` — the both-layouts matrix
+  reader; `docs/decisions.md` — this entry.
+- **Snapshot frames regenerated (fix round 3):**
+  `web/e2e/__screenshots__/matrix-grid-*-{light,dark}-linux.png` at
+  all three viewports (K3 — the new hint line above the grid) and
+  `worksheet-key-print-1920x1080-light-linux.png` (K1 — the printed
+  finished tree now refits to the page). The other three
+  worksheet-key-print frames were not rewritten: their captures
+  passed inside `maxDiffPixelRatio: 0.001` against the committed
+  baselines. Those baselines still showed the pre-fit wide tree —
+  corrected in fix round 4; the claim here that they "already showed
+  the print-fit appearance" was wrong (the refit region is too small
+  a share of the full-page frame to trip the tolerance). No other
+  frame changed. `matrix-grid-1920x1080-light-linux.png` was
+  regenerated a second time inside the pinned CI image
+  (`playwright:v1.64.1-noble@sha256:7852dc5a…`): the first capture was
+  shot on the host, whose textarea line-wrap differs from the image's
+  by a few pixels, and the visual job flagged it. All 185 frames pass
+  in the image after the regen.
+
+### Fix round 4 (owner-approved, 2026-11-17)
+
+- **N1 stale baselines — three more key-print frames regenerated in
+  the pinned CI image:** `worksheet-key-print-1920x1080-dark-linux.png`
+  and `worksheet-key-print-768x1024-{light,dark}-linux.png` were
+  byte-identical to their pre-round-3 baselines and still showed the
+  pre-fit wide finished tree; the full-page frames passed only
+  because the refit region stayed under `maxDiffPixelRatio: 0.001`.
+  All three were re-shot inside
+  `playwright:v1.64.1-noble@sha256:7852dc5a…` (the round-3 wording
+  above corrected in the same PR).
+- **N2 duplicate grid hint merged:** `MatrixGrid`'s caption and the
+  round-3 row-1 hint said nearly the same thing on two lines; they
+  are now one line — "…each row holds one taxon's distances to the
+  taxa above it; the first row is just a name." — which is both the
+  table's `aria-labelledby` and its `aria-describedby` target.
+  `MatrixGrid.test.tsx` updated. All six `matrix-grid-*` frames were
+  regenerated in the pinned image (the merged caption shifts the
+  sheet in every viewport × theme).
+- **N3 records only:** checkpoint §16 now lists the lab-print
+  scale-down floor (very wide lab trees can print under 12 px via
+  the CSS `max-width` fallback — deferred to v1.5, owner
+  2026-11-17), the `bootstrap: null` deferral and the §15 WebKit
+  ruling (no Apple device; the automated WebKit pass covers it; the
+  box stays unticked). `docs/roadmap.md` gained the v1.5 bullet for
+  the lab-print refit.
+- **Files outside the Files block (fix round 4):**
+  `web/src/views/matrix/MatrixGrid.tsx`,
+  `web/src/views/matrix/MatrixGrid.test.tsx` — N2;
+  `web/e2e/__screenshots__/` — the regenerated frames listed above;
+  `docs/checkpoints/v1.4c-release.md`, `docs/roadmap.md` — N3;
+  `docs/decisions.md` — this entry.
+
+### Fix round 7 (owner finding, 2026-11-18)
+
+- **G1 matrix `.meg` blank line crashes the MEGA 12 GUI:**
+  `write_meg_matrix` emitted one empty line after the
+  `!Description … ;` block (the round-3 K4 layout). The owner's hand
+  check isolated the GUI hang/crash to exactly that line — the file
+  with only that line removed opens and builds NJ, while re-padded
+  6-wide columns with the line kept still crash. MEGA-CC accepts the
+  line either way, so the automated matrix checks never saw it. The
+  writer now ends the description with a single `\n` and emits no
+  blank lines anywhere; the parser is unchanged and still reads
+  pre-round-7 files. New tests in
+  `crates/neophylo-core/tests/matrix_parse.rs`:
+  `write_meg_matrix_wiki5_exact_bytes` (the owner-confirmed wiki5
+  output, byte for byte), `write_meg_matrix_emits_no_blank_lines`
+  (wiki5 plus every matrix oracle) and
+  `parse_meg_matrix_reads_blank_line_variant` (old and new output
+  both round-trip).
+- **Files outside the Files block (fix round 7):**
+  `crates/neophylo-core/src/matrix_parse.rs` and
+  `crates/neophylo-core/tests/matrix_parse.rs` — the same engine
+  exception as fix round 3 (owner-approved MEGA-layout work);
+  `docs/checkpoints/v1.4c-release.md` (§16 bullet),
+  `docs/decisions.md` — this entry.
+- **Follow-up for the owner (not done):** `write_meg` (the alignment
+  `.meg`) also emits one empty line after its `!Format` command —
+  it has no `!Description` block, and §12's earlier hand check
+  passed, so it was left alone; flagging in case the owner wants it
+  stripped too.

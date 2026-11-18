@@ -19,7 +19,15 @@
 //   grouping key of the edge above the node (src/layout/splitKeys.ts) —
 //   so figures match the run's tally (checkpoint 15).
 
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   fontsStatus,
@@ -79,10 +87,21 @@ export interface TreeViewProps {
    * can't be the answer (v1.2 spec §7.1). Draws a hit line over each
    * terminal edge while set. */
   onPickTerminal?: () => void;
+  /** Print fit (round-3 K1): while print media is active the figure
+   * refits inside the A4 printable width — the screen drawing may be
+   * wider than a printed page, whose fixed box would clip leaf labels
+   * off the right edge. Unset on the screen-only panels. */
+  printFit?: boolean;
   /** Panel caption and the svg's accessible name. "True tree" /
    * "Inferred tree", or the classification variant (v1.1 spec §5.3). */
   title: string;
 }
+
+/** The A4 printable width in CSS px at the shared 15 mm @page margins
+ * (LabPrintStyles; 210 − 2·15 = 180 mm at 96 dpi). A print-fit figure
+ * refits inside it so every leaf label lands on the printed page
+ * (round-3 K1). */
+const PRINT_PANEL_PX = Math.round(((210 - 2 * 15) * 96) / 25.4);
 
 interface Size {
   width: number;
@@ -253,12 +272,59 @@ export function TreeView({
   onPickLeaf,
   onPickBranch,
   onPickTerminal,
+  printFit = false,
   title,
 }: TreeViewProps) {
   const [boxRef, box] = usePanelSize();
   useEffect(() => {
     onPanelSize?.(box.width);
   }, [box.width, onPanelSize]);
+
+  // Print fit (round-3 K1): the screen drawing may be wider than a
+  // printed page. While print media is active the figure refits
+  // inside PRINT_PANEL_PX — matchMedia picks up print emulation and
+  // Ctrl+P's media flip, beforeprint/afterprint back it for real
+  // printing, and the `@media print` rule in index.css scales the
+  // svg to its canvas as a last resort if a native print fired
+  // before React re-rendered.
+  const printMq = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("print")
+        : null,
+    [],
+  );
+  const mediaPrint = useSyncExternalStore(
+    useCallback(
+      (notify) => {
+        if (!printFit || printMq === null) return () => {};
+        // The query's change event is reliable for real printing,
+        // but emulated print media (Playwright's CDP path, used by
+        // the e2e tests and the release checker) doesn't always
+        // dispatch it — re-poll the query's live state on a light
+        // interval so the refit is deterministic either way.
+        const reconcile = window.setInterval(notify, 150);
+        printMq.addEventListener("change", notify);
+        window.addEventListener("beforeprint", notify);
+        window.addEventListener("afterprint", notify);
+        return () => {
+          window.clearInterval(reconcile);
+          printMq.removeEventListener("change", notify);
+          window.removeEventListener("beforeprint", notify);
+          window.removeEventListener("afterprint", notify);
+        };
+      },
+      [printFit, printMq],
+    ),
+    () => printMq?.matches ?? false,
+  );
+  const panelWidth =
+    printFit && mediaPrint
+      ? box.width > 0
+        ? Math.min(box.width, PRINT_PANEL_PX)
+        : PRINT_PANEL_PX
+      : box.width;
 
   // Fonts-ready gate (v1.3 spec §4.2): the figure isn't laid out until
   // the bundled faces resolve, up to the 3 s budget — measured metrics
@@ -306,7 +372,7 @@ export function TreeView({
     kind: layoutKind,
     clampNegative,
     leafSpacing: spacing,
-    panelWidth: box.width,
+    panelWidth,
     visibleNodes,
     highlight,
     wrong,

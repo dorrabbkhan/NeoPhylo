@@ -263,6 +263,91 @@ test("a dark-theme session still prints the worksheet pages light", async ({
   );
 });
 
+// Round-3 K1: the finished tree used to keep its screen width in
+// print and run off the page's right edge (nj-by-hand lost a, b, c;
+// upgma-fails showed almost nothing). Emulate print at the A4
+// printable width — 210 mm − 2·15 mm = 180 mm ≈ 680 px, the shared
+// @page margins — and every leaf label of every paper key's tree
+// must land inside that box.
+const PAPER_KEY_IDS = [
+  "bootstrap-basics",
+  "cytochrome-c",
+  "nj-basics",
+  "nj-by-hand",
+  "protein-models",
+  "upgma-fails",
+  "upgma-vs-nj-matrix",
+  "mega-jc69-vs-k2p",
+];
+const PRINTABLE_W = Math.round(((210 - 2 * 15) * 96) / 25.4); // 680
+
+test("every paper key's finished tree keeps its leaf labels on the printed page", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  // Instructor-grant the session once — §3's gate checks live in the
+  // release checker; openKey still clicks through if a gate appears.
+  await page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("neophylo.instructor", "1");
+    } catch {
+      // storage can be blocked; the gate is clicked through instead
+    }
+  });
+  // A wide screen layout is what makes the bug visible: the svg's
+  // width attribute keeps the screen geometry, and a printed A4 page
+  // clips it. No viewport resize — print media alone must trigger the
+  // refit, exactly as page.pdf does.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const id of PAPER_KEY_IDS) {
+    await openKey(page, `/?key=${id}&kind=paper`);
+    await expect(
+      page.getByRole("heading", { name: /The finished tree/ }),
+      `${id}: finished tree section`,
+    ).toBeVisible();
+    await page.emulateMedia({ media: "print" });
+    const svg = page.locator(".tree-canvas svg");
+    await expect(svg, `${id}: finished tree svg`).toBeVisible();
+    // The refit takes a render after the media flip — the width
+    // ATTRIBUTE is the figure's own geometry, so fitting proves the
+    // tree shrank for print rather than being CSS-scaled (which
+    // would shrink text below the 12 px floor).
+    await expect
+      .poll(
+        async () =>
+          svg.evaluate((el) =>
+            parseFloat(el.getAttribute("width") ?? "0"),
+          ),
+        { timeout: 10_000 },
+      )
+      .toBeLessThanOrEqual(PRINTABLE_W + 1);
+    const svgBox = await svg.boundingBox();
+    expect(svgBox, `${id}: svg box measurable`).not.toBeNull();
+    // Leaf labels are the unclassed <text> children — support pills
+    // and zero-length labels carry classes. Measure them against the
+    // svg's own left edge: emulated print keeps the viewport layout,
+    // so the printable box starts at the figure, not at x=0.
+    const labels = svg.locator("text:not(.support-label):not(.zero-len)");
+    const count = await labels.count();
+    expect(count, `${id}: leaf labels present`).toBeGreaterThan(0);
+    for (let i = 0; i < count; i += 1) {
+      const bb = await labels.nth(i).boundingBox();
+      expect(bb, `${id}: leaf label ${i} measurable`).not.toBeNull();
+      if (bb !== null && svgBox !== null) {
+        expect(
+          bb.x - svgBox.x,
+          `${id}: leaf ${i} on the page (left)`,
+        ).toBeGreaterThanOrEqual(-1);
+        expect(
+          bb.x + bb.width - svgBox.x,
+          `${id}: leaf ${i} on the page (right edge)`,
+        ).toBeLessThanOrEqual(PRINTABLE_W + 1);
+      }
+    }
+    await page.emulateMedia({ media: "screen" });
+  }
+});
+
 test("a custom matrix exercise from the editor gets a paper sheet through #x=", async ({
   page,
 }) => {
@@ -349,6 +434,30 @@ test("an unknown id shows a clear message on both routes", async ({
   await expect(
     page.getByText("Answer key not available"),
   ).toBeVisible();
+});
+
+// Fix round 2 (release-checkpoint §2): a load that THROWS — the wasm
+// fetch or the lesson fetch aborted by navigation, a body read that
+// fails mid-stream — must land in the error state, not escape the
+// async effect as an unhandled rejection (Firefox logged
+// "NetworkError when attempting to fetch resource" on the deploy).
+test("a load that throws shows the error state with no page error", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.route(/\.wasm(\?|$)/, (r) => r.abort());
+
+  await page.goto("/?worksheet=nj-by-hand&kind=app");
+  await expect(
+    page.getByText("Worksheet not available"),
+  ).toBeVisible();
+  await page.goto("/?key=nj-by-hand&kind=app");
+  await page
+    .getByRole("button", { name: "I'm an instructor" })
+    .click();
+  await expect(page.getByText("Answer key not available")).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 test("every built-in lesson and lab renders its in-app sheet and key without console errors", async ({

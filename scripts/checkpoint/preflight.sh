@@ -4,8 +4,8 @@
 # spends time on the release candidate. Read-only — it never pushes,
 # merges, tags or dispatches anything.
 #
-#   scripts/checkpoint/preflight.sh --pr 143 --tag v1.4.1 [--milestone v1.4b] \
-#       [--checklist docs/checkpoints/v1.4b-release.md] [--report out.md]
+#   scripts/checkpoint/preflight.sh --pr <PR> --tag v1.4.2 [--milestone v1.4c] \
+#       [--checklist docs/checkpoints/v1.4c-release.md] [--report out.md]
 #
 # Exit status: 0 no failures (warnings allowed), 1 any failure.
 set -uo pipefail

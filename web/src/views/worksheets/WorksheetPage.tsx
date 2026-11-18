@@ -54,11 +54,23 @@ export function WorksheetPage({ id, kind }: WorksheetPageProps) {
   useEffect(() => {
     let live = true;
     void (async () => {
-      await initEngine();
-      const r = await loadWorksheetSource(id);
-      if (!live) return;
-      if (r.ok) setState({ status: "ready", src: r.src });
-      else setState({ status: "error", msg: r.msg });
+      // Same rule as KeyPage: a thrown load (aborted wasm/lesson
+      // fetch, a mid-stream body read) lands in the error state while
+      // the page lives and is dropped otherwise — never an unhandled
+      // rejection.
+      try {
+        await initEngine();
+        const r = await loadWorksheetSource(id);
+        if (!live) return;
+        if (r.ok) setState({ status: "ready", src: r.src });
+        else setState({ status: "error", msg: r.msg });
+      } catch (e) {
+        if (!live) return;
+        setState({
+          status: "error",
+          msg: e instanceof Error ? e.message : String(e),
+        });
+      }
     })();
     return () => {
       live = false;
@@ -366,14 +378,18 @@ function JoinBlankBlock({
             <Blank label={`Branch length to ${ctx.newName}:`} wide />
             <Blank label="and" wide />
           </p>
-          <p className="ws-fill-line">
-            New distances:{" "}
-            {join.new_distances.map((_, i) => (
-              // The remaining cluster names would reveal the pair —
-              // the blanks stay unlabeled so the student names them.
-              <Blank key={i} label={`d(${ctx.newName}, __) =`} />
-            ))}
-          </p>
+          {/* Round-3 K7: no empty "New distances:" blank for a join
+              that has none (the last UPGMA join). */}
+          {join.new_distances.length > 0 && (
+            <p className="ws-fill-line">
+              New distances:{" "}
+              {join.new_distances.map((_, i) => (
+                // The remaining cluster names would reveal the pair —
+                // the blanks stay unlabeled so the student names them.
+                <Blank key={i} label={`d(${ctx.newName}, __) =`} />
+              ))}
+            </p>
+          )}
         </>
       )}
     </section>

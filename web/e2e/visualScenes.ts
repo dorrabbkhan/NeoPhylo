@@ -927,6 +927,18 @@ export const SCENES: {
       ).toBeVisible();
       await page.emulateMedia({ media: "print" });
       await expect(page.locator(".lab-print-head")).toBeVisible();
+      // Round-3 K1: the finished tree refits inside the A4 printable
+      // width when print media flips — wait out the re-render so the
+      // frame can't race the refit.
+      await expect
+        .poll(async () =>
+          page
+            .locator(".tree-canvas svg")
+            .evaluate((el) =>
+              parseFloat(el.getAttribute("width") ?? "0"),
+            ),
+        )
+        .toBeLessThanOrEqual(681);
       await settleFrame(page);
     },
   },

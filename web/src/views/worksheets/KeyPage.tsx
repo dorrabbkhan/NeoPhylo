@@ -90,11 +90,23 @@ function KeyContent({ id, kind }: KeyPageProps) {
   useEffect(() => {
     let live = true;
     void (async () => {
-      await initEngine();
-      const r = await loadWorksheetSource(id);
-      if (!live) return;
-      if (r.ok) setState({ status: "ready", src: r.src });
-      else setState({ status: "error", msg: r.msg });
+      // A thrown load — the wasm fetch or the lesson fetch aborted by
+      // navigation, or a body read that fails mid-stream — lands in the
+      // error state for a live page and is dropped for a dead one;
+      // it must never escape as an unhandled rejection.
+      try {
+        await initEngine();
+        const r = await loadWorksheetSource(id);
+        if (!live) return;
+        if (r.ok) setState({ status: "ready", src: r.src });
+        else setState({ status: "error", msg: r.msg });
+      } catch (e) {
+        if (!live) return;
+        setState({
+          status: "error",
+          msg: e instanceof Error ? e.message : String(e),
+        });
+      }
     })();
     return () => {
       live = false;
@@ -357,6 +369,7 @@ export function PaperKeyView({
           highlight={new Set()}
           wrong={new Set()}
           clampNegative={false}
+          printFit
           title={`${sheet.title} — finished tree`}
         />
       </section>
@@ -491,12 +504,16 @@ function JoinKeyBlock({
             {fmt(join.len_i)}, len({join.chosen[1]}) = {fmt(join.len_j)}
             {ctx.height !== null && <>; height = {fmt(ctx.height)}</>}.
           </p>
-          <p>
-            New distances:{" "}
-            {join.new_distances
-              .map(([n, v]) => `d(${ctx.newName}, ${n}) = ${fmt(v)}`)
-              .join(", ")}
-          </p>
+          {/* Round-3 K7: a join can have no new distances (the last
+              UPGMA join) — an empty "New distances:" line is omitted. */}
+          {join.new_distances.length > 0 && (
+            <p>
+              New distances:{" "}
+              {join.new_distances
+                .map(([n, v]) => `d(${ctx.newName}, ${n}) = ${fmt(v)}`)
+                .join(", ")}
+            </p>
+          )}
         </>
       )}
     </section>
@@ -525,8 +542,10 @@ function RestLine({
       join {join.step}: {pairText(join.chosen)}
       {join.tied.length > 1 && ` (tied with ${join.tied.slice(1).map(pairText).join(", ")})`}{" "}
       — len({join.chosen[0]}) = {fmt(join.len_i)}, len({join.chosen[1]}) ={" "}
-      {fmt(join.len_j)}; new distances:{" "}
-      {join.new_distances.map(([n, v]) => `d(${ctx.newName}, ${n}) = ${fmt(v)}`).join(", ")}
+      {fmt(join.len_j)}
+      {/* Round-3 K7: no "new distances:" clause when a join has none. */}
+      {join.new_distances.length > 0 &&
+        `; new distances: ${join.new_distances.map(([n, v]) => `d(${ctx.newName}, ${n}) = ${fmt(v)}`).join(", ")}`}
       .
     </li>
   );
