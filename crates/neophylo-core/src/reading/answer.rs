@@ -25,10 +25,11 @@ use crate::reading::query::{
     restrict, rooted_clades, same_relationships, sister_tips, CladeKey, Closer,
 };
 use crate::reading::set::{
-    invalid_item, item_trees, resolve, Item, PointAt, Question, ReadingSet, RelForm, ResolvedTree,
-    Statement, TraitAsk,
+    invalid_item, item_trees, resolve, Item, Point, PointAt, Question, ReadingSet, RelForm,
+    ResolvedTree, Statement, TraitAsk,
 };
 use crate::reading::traits::{change_count, origins_shared, tip_states, Change, Mark};
+use crate::tree::NodeId;
 
 // --- wire types ------------------------------------------------------------------
 
@@ -143,14 +144,11 @@ fn item_err(item: &Item, field: &str, e: NeoError) -> NeoError {
 
 /// "a and b" / "a, b and c".
 fn join_and(list: &[String]) -> String {
-    match list.len() {
-        0 => String::new(),
-        1 => list[0].clone(),
-        2 => format!("{} and {}", list[0], list[1]),
-        _ => {
-            let (last, rest) = list.split_last().unwrap();
-            format!("{} and {}", rest.join(", "), last)
-        }
+    match list {
+        [] => String::new(),
+        [x] => x.clone(),
+        [x, y] => format!("{x} and {y}"),
+        [rest @ .., last] => format!("{} and {}", rest.join(", "), last),
     }
 }
 
@@ -187,8 +185,9 @@ pub fn answer(set: &ReadingSet, item: usize) -> Result<AnswerKey, NeoError> {
         .ok_or_else(|| invalid_item("", "item", format!("no item at index {item}")))?;
     let trees = item_trees(set, item)?;
     let marks_of = |i: usize| -> Vec<Mark> {
-        set.trees
-            .get(&item.trees[i])
+        item.trees
+            .get(i)
+            .and_then(|name| set.trees.get(name))
             .map(|t| t.marks.clone())
             .unwrap_or_default()
     };
@@ -204,7 +203,11 @@ fn answer_question(
     marks_of: &dyn Fn(usize) -> Vec<Mark>,
 ) -> Result<AnswerKey, NeoError> {
     let id = item.id.as_str();
-    let t0 = &trees[0];
+    // `set` need not come from `load_reading_set`: an item with no
+    // trees is invalid, never a panic.
+    let Some(t0) = trees.first() else {
+        return Err(invalid_item(id, "trees", "an item shows at least one tree"));
+    };
     let marks0 = marks_of(0);
     let key = |accepted: Accepted, explanation: String| {
         Ok(AnswerKey {
@@ -306,15 +309,17 @@ fn answer_question(
                 return Err(invalid_item(id, "sister", "the root has no stem branch"));
             }
             let k = clade_key(&t0.tree, m);
-            let point = t0
+            let mut stem: Vec<&Point> = t0
                 .points
                 .values()
-                .find(|p| p.at == PointAt::Branch && p.on == k);
-            let Some(p) = point else {
+                .filter(|p| p.at == PointAt::Branch && sorted(&p.on) == k)
+                .collect();
+            stem.sort_by(|x, y| x.letter.cmp(&y.letter));
+            let [p] = stem.as_slice() else {
                 return Err(invalid_item(
                     id,
                     "sister",
-                    "no point sits on the stem branch",
+                    "exactly one point must sit on the stem branch",
                 ));
             };
             key(
@@ -455,16 +460,20 @@ fn answer_question(
                 "ancestry"
             };
             let expl = if rule == "ages" {
-                let mut keyed: Vec<(f64, String)> = nodes
-                    .iter()
-                    .map(|l| {
-                        let n = t0.letters[l];
-                        (
-                            t0.age_of(&clade_key(&t0.tree, n)).unwrap_or(f64::NAN),
-                            l.clone(),
-                        )
-                    })
-                    .collect();
+                let mut keyed: Vec<(f64, String)> = Vec::with_capacity(nodes.len());
+                for l in nodes {
+                    let Some(&n) = t0.letters.get(l) else {
+                        return Err(invalid_item(
+                            id,
+                            "nodes",
+                            format!("unknown node letter '{l}'"),
+                        ));
+                    };
+                    keyed.push((
+                        t0.age_of(&clade_key(&t0.tree, n)).unwrap_or(f64::NAN),
+                        l.clone(),
+                    ));
+                }
                 keyed.sort_by(|x, y| y.0.total_cmp(&x.0));
                 format!(
                     "oldest to youngest by age: {}.",
@@ -555,26 +564,51 @@ fn which_differs(
                 differs.push(i);
             }
         }
-        if differs.len() != 1 {
-            return Err(invalid_item(
-                id,
-                "trees",
-                format!(
-                    "which_differs needs exactly one tree conflicting with the reference; {} conflict",
-                    differs.len()
-                ),
-            ));
+        // Index n = "all show the same": every candidate agrees with
+        // the reference. Exactly one conflict is the unique outlier;
+        // anything else is refused (spec §4.3).
+        match differs.len() {
+            0 => {
+                return Ok((
+                    trees.len(),
+                    "every tree agrees with the reference tree.".to_string(),
+                ));
+            }
+            1 => {
+                return Ok((
+                    differs[0],
+                    format!(
+                        "tree '{}' conflicts with the reference tree.",
+                        item.trees[differs[0]]
+                    ),
+                ));
+            }
+            _ => {
+                return Err(invalid_item(
+                    id,
+                    "trees",
+                    format!(
+                        "which_differs needs at most one tree conflicting with the reference; {} conflict",
+                        differs.len()
+                    ),
+                ));
+            }
         }
-        return Ok((
-            differs[0],
-            format!(
-                "tree '{}' conflicts with the reference tree.",
-                item.trees[differs[0]]
-            ),
-        ));
     }
 
     let n = trees.len();
+    // Index n = "all show the same" holds only when every pair of
+    // trees agrees — not merely when no single outlier exists (two
+    // disjoint pairs of equal trees is refused, spec §4.3).
+    let all_same = trees.iter().enumerate().all(|(i, ti)| {
+        trees
+            .iter()
+            .enumerate()
+            .all(|(j, tj)| i == j || same_relationships(&ti.tree, &tj.tree).unwrap_or(false))
+    });
+    if all_same {
+        return Ok((n, "all the trees show the same relationships.".to_string()));
+    }
     // A tree is the outlier when it differs from every other tree and
     // all the others agree among themselves.
     let mut diff = Vec::new();
@@ -585,9 +619,6 @@ fn which_differs(
         if outlier {
             diff.push(i);
         }
-    }
-    if diff.is_empty() {
-        return Ok((n, "all the trees show the same relationships.".to_string()));
     }
     if diff.len() == 1 && others_agree(trees, diff[0]) {
         let i = diff[0];
@@ -778,8 +809,22 @@ fn eval_statement(
     marks_of: &dyn Fn(usize) -> Vec<Mark>,
     s: &Statement,
 ) -> Result<bool, NeoError> {
-    let t0 = &trees[0];
+    let id = item.id.as_str();
+    let Some(t0) = trees.first() else {
+        return Err(invalid_item(id, "trees", "an item shows at least one tree"));
+    };
     let err = |e: NeoError| item_err(item, "statements", e);
+    let tree_at = |i: usize| -> Result<&ResolvedTree, NeoError> {
+        trees
+            .get(i)
+            .ok_or_else(|| invalid_item(id, "statements", format!("no tree at index {i}")))
+    };
+    let letter_node = |l: &str| -> Result<NodeId, NeoError> {
+        t0.letters
+            .get(l)
+            .copied()
+            .ok_or_else(|| invalid_item(id, "statements", format!("unknown node letter '{l}'")))
+    };
     match s {
         Statement::CloserThan { x, y, z, .. } => {
             Ok(closer(&t0.tree, x, y, z).map_err(err)? == Closer::B)
@@ -790,16 +835,19 @@ fn eval_statement(
             tree_i,
             tree_j,
             ..
-        } => Ok(is_clade(&trees[*tree_i].tree, tips).map_err(err)?
-            && !is_clade(&trees[*tree_j].tree, tips).map_err(err)?),
+        } => Ok(is_clade(&tree_at(*tree_i)?.tree, tips).map_err(err)?
+            && !is_clade(&tree_at(*tree_j)?.tree, tips).map_err(err)?),
         Statement::SameRelationships { tree_i, tree_j, .. } => {
             // Different tip sets simply cannot show the same
             // relationships — the statement is false, not an error.
-            Ok(same_relationships(&trees[*tree_i].tree, &trees[*tree_j].tree).unwrap_or(false))
+            Ok(
+                same_relationships(&tree_at(*tree_i)?.tree, &tree_at(*tree_j)?.tree)
+                    .unwrap_or(false),
+            )
         }
         Statement::OlderThan { p, q, .. } => {
-            let np = t0.letters[p.as_str()];
-            let nq = t0.letters[q.as_str()];
+            let np = letter_node(p)?;
+            let nq = letter_node(q)?;
             let kp = clade_key(&t0.tree, np);
             let kq = clade_key(&t0.tree, nq);
             match (t0.age_of(&kp), t0.age_of(&kq)) {
@@ -808,7 +856,7 @@ fn eval_statement(
             }
         }
         Statement::OlderThanAge { p, age, .. } => {
-            let n = t0.letters[p.as_str()];
+            let n = letter_node(p)?;
             Ok(t0.age_of(&clade_key(&t0.tree, n)).unwrap_or(0.0) > *age)
         }
         Statement::LineageAtLeast { tip, age, .. } => {
@@ -845,16 +893,25 @@ fn eval_statement(
         }
         Statement::GainedWithin { inner, outer, .. } => {
             // `inner` arose on a branch strictly inside a clade that
-            // already carried `outer`'s gain.
+            // already carried `outer`'s gain. On one shared branch the
+            // listed order decides (as in `tip_states`): `outer`'s gain
+            // listed before `inner`'s means the lineage carried `outer`
+            // first; `inner` first means it did not.
             let marks = marks_of(0);
-            Ok(marks.iter().any(|mi| {
+            Ok(marks.iter().enumerate().any(|(ii, mi)| {
                 mi.trait_name == *inner
                     && mi.change == Change::Gain
-                    && marks.iter().any(|mo| {
-                        mo.trait_name == *outer
-                            && mo.change == Change::Gain
-                            && mi.on.iter().all(|t| mo.on.contains(t))
-                            && mi.on != mo.on
+                    && marks.iter().enumerate().any(|(oi, mo)| {
+                        if mo.trait_name != *outer || mo.change != Change::Gain {
+                            return false;
+                        }
+                        let same_branch =
+                            mi.on.len() == mo.on.len() && mi.on.iter().all(|t| mo.on.contains(t));
+                        if same_branch {
+                            oi < ii
+                        } else {
+                            mi.on.iter().all(|t| mo.on.contains(t))
+                        }
                     })
             }))
         }
@@ -896,19 +953,26 @@ fn matches(
     acc: &Accepted,
     r: &Response,
 ) -> Result<bool, NeoError> {
+    let Some(t0) = trees.first() else {
+        return Err(invalid_item(
+            &item.id,
+            "trees",
+            "an item shows at least one tree",
+        ));
+    };
     match (acc, r) {
         (Accepted::Choices(a), Response::Choice { index }) => Ok(a.len() == 1 && a[0] == *index),
         (Accepted::Choices(a), Response::Choices { indices }) => Ok(sorted_usize(indices) == *a),
         (Accepted::Clade(k), Response::Node { clade }) => {
-            check_tips_exist(&trees[0], clade, item)?;
+            check_tips_exist(t0, clade, item)?;
             Ok(sorted(clade) == *k)
         }
         (Accepted::Clade(k), Response::Tips { tips }) => {
-            check_tips_exist(&trees[0], tips, item)?;
+            check_tips_exist(t0, tips, item)?;
             Ok(sorted(tips) == *k)
         }
         (Accepted::Point(l), Response::Point { letter }) => {
-            if !trees[0].points.contains_key(letter) {
+            if !t0.points.contains_key(letter) {
                 return Err(invalid_item(
                     &item.id,
                     "response",
@@ -919,7 +983,7 @@ fn matches(
         }
         (Accepted::TipSet(k), Response::Tips { tips })
         | (Accepted::AnyTipOf(k), Response::Tips { tips }) => {
-            check_tips_exist(&trees[0], tips, item)?;
+            check_tips_exist(t0, tips, item)?;
             let whole = sorted(tips) == *k;
             // AnyTipOf also accepts a single tip of the set — the
             // single-answer form of closest_relative.
@@ -934,7 +998,6 @@ fn matches(
             if sorted(letters) != sorted(nodes) {
                 return Ok(false); // not a permutation of the item's nodes
             }
-            let t0 = &trees[0];
             let mut ids = Vec::new();
             for l in letters {
                 let Some(&n) = t0.letters.get(l) else {

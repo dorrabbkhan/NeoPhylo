@@ -8334,3 +8334,19 @@ Owner-requested rendering fixes after the PR #139 review; branch
     leaf labels for "the node joining x and y", so explanations are
     byte-identical under `rotate`/`shuffle_tip_order` (required by the
     §5.5 invariance property on whole `AnswerKey`s).
+- **Fix round 1 (PR #169 review):**
+  - `gained_within` on one shared branch follows the listed-order
+    semantics `tip_states` already uses: the statement is true when
+    `outer`'s gain is listed before `inner`'s on that branch, false when
+    `inner` comes first.
+  - `taxa_pool` lists must be disjoint and duplicate-free — relabelling
+    would merge taxa otherwise (`relabel_map` also refuses a
+    non-injective map defensively for sets that never went through
+    `load_reading_set`). Refusals name `taxa_pool.<pool>`.
+  - `which_fits.small` needs 2–4 entries (spec §4.3 "Given 2–4 small
+    rooted trees"); `exercises/reading.schema.json`'s `minItems` matches
+    and `sem-fits-none.json` now lists two small trees so it still tests
+    the zero-fitting-candidates refusal.
+  - `place_taxon` requires exactly one `at:"branch"` point on the answer
+    clade's stem branch (field `sister`, the same bare-field convention
+    as `mrca`'s `options` uniqueness check).

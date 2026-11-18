@@ -18,7 +18,7 @@
 //! transformed set, which is why rotation invariance and relabelling
 //! equivariance are real properties (§5.5).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rand_chacha::ChaCha8Rng;
 use rand_core::{RngCore, SeedableRng};
@@ -87,6 +87,20 @@ pub fn relabel_map(set: &ReadingSet, seed: u64) -> Result<BTreeMap<String, Strin
         shuffle(&mut perm, &mut rng);
         for (i, from) in pool.iter().enumerate() {
             map.entry(from.clone()).or_insert_with(|| perm[i].clone());
+        }
+    }
+    // Relabelling must never merge taxa: two source names mapped onto
+    // the same name would collapse two tips into one. `load_reading_set`
+    // refuses duplicated or overlapping pools; this guards sets built
+    // another way.
+    let mut seen = BTreeSet::new();
+    for to in map.values() {
+        if !seen.insert(to) {
+            return Err(NeoError::InvalidReading {
+                item: String::new(),
+                field: "taxa_pool".to_string(),
+                msg: format!("the relabel map merges two taxa into '{to}'"),
+            });
         }
     }
     Ok(map)

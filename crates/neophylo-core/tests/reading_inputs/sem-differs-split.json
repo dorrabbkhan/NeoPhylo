@@ -1,0 +1,10 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "split-differs", "title": "t", "summary": "t",
+  "trees": {
+    "t1": { "newick": "((a,b),(c,d));" },
+    "t2": { "newick": "((b,a),(d,c));" },
+    "t3": { "newick": "((a,c),(b,d));" },
+    "t4": { "newick": "((c,a),(d,b));" }
+  },
+  "items": [ { "id": "q-differs", "text": "Which tree differs?", "trees": ["t1", "t2", "t3", "t4"], "question": { "type": "which_differs" } } ]
+}

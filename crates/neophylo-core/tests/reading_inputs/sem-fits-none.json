@@ -3,7 +3,8 @@
   "trees": {
     "big1": { "newick": "((a,(b,c)),(d,(e,f)));" },
     "big2": { "newick": "(((a,b),c),(d,(e,f)));" },
-    "s1": { "newick": "(b,(a,c));" }
+    "s1": { "newick": "(b,(a,c));" },
+    "s2": { "newick": "(d,(e,f));" }
   },
-  "items": [ { "id": "q-fits", "text": "Which large tree fits?", "trees": ["big1", "big2"], "question": { "type": "which_fits", "small": ["s1"] } } ]
+  "items": [ { "id": "q-fits", "text": "Which large tree fits?", "trees": ["big1", "big2"], "question": { "type": "which_fits", "small": ["s1", "s2"] } } ]
 }

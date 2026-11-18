@@ -11,7 +11,7 @@
 //! is `NeoError::InvalidReading` naming the item id (empty for set- and
 //! tree-level problems) and the field; the engine never panics.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
@@ -995,12 +995,31 @@ pub fn load_reading_set(json: &str) -> Result<ReadingSet, NeoError> {
     if set.kind != "reading" {
         return Err(invalid("kind", "expected \"reading\""));
     }
+    // Pools must be disjoint and duplicate-free: relabelling maps each
+    // pool's names through a permutation of the pool, so a name in two
+    // pools or twice in one would merge taxa.
+    let mut pool_member: HashMap<&str, &str> = HashMap::new(); // taxon → pool
     for (name, list) in &set.taxa_pool {
         if list.is_empty() {
             return Err(invalid(
                 format!("taxa_pool.{name}"),
                 "a pool needs at least one name",
             ));
+        }
+        let mut seen = HashSet::new();
+        for taxon in list {
+            if !seen.insert(taxon) {
+                return Err(invalid(
+                    format!("taxa_pool.{name}"),
+                    format!("'{taxon}' appears twice in this pool"),
+                ));
+            }
+            if let Some(other) = pool_member.insert(taxon.as_str(), name.as_str()) {
+                return Err(invalid(
+                    format!("taxa_pool.{name}"),
+                    format!("'{taxon}' is also in pool '{other}'; pools must be disjoint"),
+                ));
+            }
         }
     }
 
@@ -1251,8 +1270,8 @@ fn validate_question(
             if item.trees.len() < 2 {
                 return Err(invalid_item(&id, "trees", "which_fits needs 2–4 trees"));
             }
-            if small.is_empty() || small.len() > MAX_ITEM_TREES {
-                return Err(invalid_item(&id, "small", "needs 1–4 small trees"));
+            if small.len() < 2 || small.len() > MAX_ITEM_TREES {
+                return Err(invalid_item(&id, "small", "needs 2–4 small trees"));
             }
             for s in small {
                 if !set.trees.contains_key(s) {

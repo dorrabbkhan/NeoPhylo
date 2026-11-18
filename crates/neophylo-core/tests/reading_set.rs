@@ -95,6 +95,50 @@ fn two_differing_trees_in_which_differs() {
 }
 
 #[test]
+fn which_differs_split_pairs_refused() {
+    // Two disjoint pairs of equal trees is not "all show the same":
+    // no answer is unique, so the item is refused.
+    assert_eq!(
+        err_of(&input("sem-differs-split.json")),
+        ("q-differs".into(), "trees".into())
+    );
+}
+
+#[test]
+fn place_taxon_two_stem_points_refused() {
+    assert_eq!(
+        err_of(&input("sem-stem-two-points.json")),
+        ("q-place".into(), "sister".into())
+    );
+}
+
+#[test]
+fn taxa_pool_duplicate_refused() {
+    assert_eq!(
+        err_of(&input("sem-pool-dup.json")),
+        ("".into(), "taxa_pool.mam".into())
+    );
+}
+
+#[test]
+fn taxa_pool_overlap_refused() {
+    assert_eq!(
+        err_of(&input("sem-pool-overlap.json")),
+        ("".into(), "taxa_pool.sub".into())
+    );
+}
+
+#[test]
+fn which_fits_one_small_refused() {
+    // Spec §4.3 gives 2–4 small trees; the JSON schema's minItems
+    // refuses the same file (shape-* files fail both checks).
+    assert_eq!(
+        err_of(&input("shape-fits-one.json")),
+        ("q-fits".into(), "small".into())
+    );
+}
+
+#[test]
 fn forty_one_tips_refused() {
     assert_eq!(
         err_of(&input("sem-tips-41.json")),

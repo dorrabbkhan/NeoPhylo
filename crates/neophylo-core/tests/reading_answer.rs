@@ -19,6 +19,8 @@ fn set(f: &str) -> ReadingSet {
         "traits" => load_reading_set(input!("valid-traits.json")).unwrap(),
         "times" => load_reading_set(input!("valid-times.json")).unwrap(),
         "pool" => load_reading_set(input!("valid-pool.json")).unwrap(),
+        "poly" => load_reading_set(input!("valid-polytomy.json")).unwrap(),
+        "gained" => load_reading_set(input!("valid-gained-order.json")).unwrap(),
         _ => unreachable!(),
     }
 }
@@ -99,6 +101,26 @@ fn which_fits_picks_agreeing_tree() {
     ));
 }
 
+#[test]
+fn which_differs_polytomy_vs_resolved() {
+    // Review Focus 1: a polytomy never equals a resolved tree — the
+    // polytomy is the unique differing tree, not "all show the same".
+    assert_eq!(
+        accepted(&set("poly"), "q-differs-poly"),
+        Accepted::Choices(vec![0])
+    );
+    assert!(verdict(
+        &set("poly"),
+        "q-differs-poly",
+        Response::Choice { index: 0 }
+    ));
+    assert!(!verdict(
+        &set("poly"),
+        "q-differs-poly",
+        Response::Choice { index: 3 }
+    ));
+}
+
 // --- mrca / place_taxon ---------------------------------------------------
 
 #[test]
@@ -121,6 +143,16 @@ fn mrca_answer_is_clade() {
             clade: key2(&["c", "d"])
         }
     ));
+}
+
+#[test]
+fn mrca_in_polytomy() {
+    // Review Focus 1: the MRCA of a and c under ((a,b,c),d) is the
+    // polytomy node itself.
+    assert_eq!(
+        accepted(&set("poly"), "q-mrca-poly"),
+        Accepted::Clade(key2(&["a", "b", "c"]))
+    );
 }
 
 #[test]
@@ -293,6 +325,28 @@ fn pairwise_closer() {
 }
 
 #[test]
+fn closest_pairwise_equal_in_polytomy() {
+    // Review Focus 1: under ((a,b,c),d), a meets b and c at the same
+    // polytomy node → "equally close".
+    assert_eq!(
+        accepted(&set("poly"), "q-pair-poly"),
+        Accepted::Pairwise(Closer::Equal)
+    );
+    assert!(verdict(
+        &set("poly"),
+        "q-pair-poly",
+        Response::Pairwise {
+            answer: Closer::Equal
+        }
+    ));
+    assert!(!verdict(
+        &set("poly"),
+        "q-pair-poly",
+        Response::Pairwise { answer: Closer::B }
+    ));
+}
+
+#[test]
 fn count_clades_counts_internal_nodes() {
     assert_eq!(accepted(&set("rel"), "q-count"), Accepted::Number(3));
     assert!(verdict(
@@ -357,6 +411,30 @@ fn order_nodes_with_ages_unique() {
     assert!(!ok(&["R", "Q", "P"]));
 }
 
+#[test]
+fn order_nodes_with_polytomy() {
+    // Review Focus 1: without times, every order consistent with
+    // ancestry is accepted — R (root) before P, never P before R.
+    assert_eq!(
+        accepted(&set("poly"), "q-order-poly"),
+        Accepted::Orders {
+            rule: "ancestry".into()
+        }
+    );
+    let s = set("poly");
+    let ok = |l: &[&str]| {
+        verdict(
+            &s,
+            "q-order-poly",
+            Response::Order {
+                letters: l.iter().map(|x| x.to_string()).collect(),
+            },
+        )
+    };
+    assert!(ok(&["R", "P"]));
+    assert!(!ok(&["P", "R"]));
+}
+
 // --- select_true ------------------------------------------------------------
 
 #[test]
@@ -394,6 +472,26 @@ fn select_true_evaluates_time_statements() {
     assert_eq!(
         accepted(&set("times"), "q-stmt-t"),
         Accepted::Statements(vec![true, false, true, false, true, false])
+    );
+}
+
+#[test]
+fn gained_within_same_branch_outer_first_true() {
+    // Both gains sit on the [a,b] branch; `outer` (hair) is listed
+    // before `inner` (nails), so the lineage carried hair first.
+    assert_eq!(
+        accepted(&set("gained"), "q-outer-first"),
+        Accepted::Statements(vec![true])
+    );
+}
+
+#[test]
+fn gained_within_same_branch_inner_first_false() {
+    // Same branch, `inner` (nails) listed first: the lineage did not
+    // yet carry hair when nails arose.
+    assert_eq!(
+        accepted(&set("gained"), "q-inner-first"),
+        Accepted::Statements(vec![false])
     );
 }
 
@@ -593,5 +691,30 @@ fn answer_out_of_range_item() {
             assert_eq!(field, "item");
         }
         other => panic!("expected InvalidReading, got {other:?}"),
+    }
+}
+
+#[test]
+fn answer_and_check_on_unloaded_set_never_panic() {
+    // `answer`/`check` are public and may see a ReadingSet that never
+    // went through load_reading_set: items with no trees or an unknown
+    // tree must come back as InvalidReading, never a panic.
+    let set: ReadingSet = serde_json::from_str(
+        r#"{
+            "schema_version": 1, "kind": "reading", "id": "raw", "title": "t", "summary": "t",
+            "trees": {},
+            "items": [
+                { "id": "q-empty", "text": "t", "trees": [], "question": { "type": "count_clades" } },
+                { "id": "q-missing", "text": "t", "trees": ["nope"], "question": { "type": "count_clades" } }
+            ]
+        }"#,
+    )
+    .unwrap();
+    for i in 0..set.items.len() {
+        match answer(&set, i) {
+            Err(NeoError::InvalidReading { field, .. }) => assert_eq!(field, "trees"),
+            other => panic!("expected InvalidReading, got {other:?}"),
+        }
+        assert!(check(&set, i, &Response::Number { value: 1 }).is_err());
     }
 }
