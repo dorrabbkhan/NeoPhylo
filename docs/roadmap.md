@@ -115,6 +115,9 @@ validation discipline: an independent oracle, property tests and fuzzing.
 - Lab print fit: lab-page trees print via the CSS `max-width` scale-down, so a very wide lab figure
   can print text under 12 px — extend the v1.4c printable-width refit (`printFit`, currently
   answer-key finished trees only) to lab print figures; deferred from v1.4c (owner, 2026-11-17).
+- Checkpoint bootstrap check: replace the flat 5 pp limit in `mega_verify.py --boot` (MEGA-CC vs
+  its own 1,000-replicate fixture) with a per-split binomial bound; the owner approves the number;
+  deferred from v1.4c (owner, 2026-11-18).
 - **Accessibility conformance for adoption:** a WCAG 2.1 AA self-audit (the existing axe checks plus a
   manual keyboard and screen-reader pass over every view, including embed mode) and a published
   Accessibility Conformance Report (VPAT). US public universities must meet WCAG 2.1 AA under ADA
