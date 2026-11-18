@@ -1,0 +1,7 @@
+diff --git a/web/src/state/__fixtures__/old-links.json b/web/src/state/__fixtures__/old-links.json
+index 1111111..2222222 100644
+--- a/web/src/state/__fixtures__/old-links.json
++++ b/web/src/state/__fixtures__/old-links.json
+@@ -1 +1 @@
+-{"links": 1}
++{"links": 2}

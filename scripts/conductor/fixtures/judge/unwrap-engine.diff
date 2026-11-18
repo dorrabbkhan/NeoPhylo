@@ -1,0 +1,9 @@
+diff --git a/crates/neophylo-core/src/dist.rs b/crates/neophylo-core/src/dist.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/src/dist.rs
++++ b/crates/neophylo-core/src/dist.rs
+@@ -1,4 +1,4 @@
+ pub fn header(line: &str) -> String {
+-    line.split(',').next().unwrap_or("").to_string()
++    line.split(',').next().unwrap().to_string()
+ }

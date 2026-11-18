@@ -1,0 +1,12 @@
+diff --git a/crates/neophylo-core/tests/dist_props.rs b/crates/neophylo-core/tests/dist_props.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/tests/dist_props.rs
++++ b/crates/neophylo-core/tests/dist_props.rs
+@@ -10,7 +10,7 @@
+ proptest! {
+     #[test]
+-    fn symmetric(m in matrix(4)) {
++    fn symmetric(m in matrix(8)) {
+         prop_assert!(close(m[0][1], m[1][0]));
+     }
+ }

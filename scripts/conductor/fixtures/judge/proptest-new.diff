@@ -1,0 +1,11 @@
+diff --git a/crates/neophylo-core/tests/dist_props.rs b/crates/neophylo-core/tests/dist_props.rs
+index 1111111..2222222 100644
+--- a/crates/neophylo-core/tests/dist_props.rs
++++ b/crates/neophylo-core/tests/dist_props.rs
+@@ -30,1 +30,6 @@
+ }
++
++fn big_matrix() -> impl Strategy<Value = Mat> {
++    (8usize..16).prop_map(Mat::square)
++}
++

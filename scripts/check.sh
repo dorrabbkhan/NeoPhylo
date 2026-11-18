@@ -21,6 +21,11 @@ case "$mode" in
   *) echo "usage: $0 [quick]" >&2; exit 2 ;;
 esac
 
+# Conductor scripts (conductor efficiency plan Task 0a). Node 24's --test
+# needs an explicit glob; `node --test scripts/conductor/` fails to resolve
+# the directory itself.
+node --test "scripts/conductor/*.test.ts"
+
 if [ "$mode" = "quick" ]; then
   scripts/ci/fixture-guard.sh
   scripts/ci/quick.sh

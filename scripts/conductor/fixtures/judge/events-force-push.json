@@ -1,0 +1,2 @@
+[{"event":"committed","commit_id":"aaa111"},
+ {"event":"head_ref_force_pushed","actor":{"login":"neophylo-conductor[bot]"},"commit_id":"bbb222"}]

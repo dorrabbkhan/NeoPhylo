@@ -1,0 +1,7 @@
+diff --git a/scripts/check-bundle-size.sh b/scripts/check-bundle-size.sh
+index 1111111..2222222 100644
+--- a/scripts/check-bundle-size.sh
++++ b/scripts/check-bundle-size.sh
+@@ -1 +1 @@
+-MAX_KB=200
++MAX_KB=250

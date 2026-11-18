@@ -1,0 +1,56 @@
+diff --git a/src/extra1.ts b/src/extra1.ts
+index 1111111..2222222 100644
+--- a/src/extra1.ts
++++ b/src/extra1.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra2.ts b/src/extra2.ts
+index 1111111..2222222 100644
+--- a/src/extra2.ts
++++ b/src/extra2.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra3.ts b/src/extra3.ts
+index 1111111..2222222 100644
+--- a/src/extra3.ts
++++ b/src/extra3.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra4.ts b/src/extra4.ts
+index 1111111..2222222 100644
+--- a/src/extra4.ts
++++ b/src/extra4.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra5.ts b/src/extra5.ts
+index 1111111..2222222 100644
+--- a/src/extra5.ts
++++ b/src/extra5.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra6.ts b/src/extra6.ts
+index 1111111..2222222 100644
+--- a/src/extra6.ts
++++ b/src/extra6.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
+diff --git a/src/extra7.ts b/src/extra7.ts
+index 1111111..2222222 100644
+--- a/src/extra7.ts
++++ b/src/extra7.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++export const b = 2;
+ const c = 3;
