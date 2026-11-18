@@ -29,13 +29,8 @@ export const CONTENT_CHECK_IDS = [
   "owner-gate",
 ] as const;
 
-/** A zero-file or unparseable diff is never a silent PASS. */
-export function checkDiff(files: DiffFile[]): Check {
-  return files.length
-    ? pass("diff", `${files.length} file(s) parsed`)
-    : flag("diff", [`empty or unparseable diff (${files.length} files)`]);
-}
-
+/** A zero-file or unparseable diff is never a silent PASS: judge.ts
+ * FLAGs every check via couldNotRun instead of running them. */
 export interface Check {
   id: string;
   status: "PASS" | "FLAG" | "N/A";
@@ -197,10 +192,30 @@ export function checkNumbers(files: DiffFile[]): Check {
         // additions (rem empty) are new code, not a changed literal.
         const o = nums(rem.map((l) => l.text).join(" "));
         const n = nums(add.map((l) => l.text).join(" "));
-        if (!sameNums(o, n))
+        if (!sameNums(o, n)) {
+          // file:line is the new-side line of the first changed numeric
+          // line: the first index whose paired numbers differ, else the
+          // first added line past the paired prefix. A pure removal is
+          // located at the next new-side line after the removed block.
+          let i = 0;
+          while (
+            i < rem.length &&
+            i < add.length &&
+            sameNums(nums(rem[i].text), nums(add[i].text))
+          )
+            i++;
+          let lineNo = add[i]?.line;
+          if (lineNo === undefined) {
+            const at = h.lines.indexOf(rem[rem.length - 1]);
+            lineNo =
+              h.lines.slice(at + 1).find((l) => l.line > 0)?.line ??
+              h.lines.find((l) => l.line > 0)?.line ??
+              0;
+          }
           reasons.push(
-            `${f.path} ${h.header}: numbers changed (${o.join(", ") || "none"} → ${n.join(", ") || "none"})`,
+            `${f.path}:${lineNo} numbers changed (${o.join(", ") || "none"} → ${n.join(", ") || "none"})`,
           );
+        }
       }
     }
   }
@@ -359,21 +374,16 @@ export function checkDiffStat(files: DiffFile[], claimedText: string | null): Ch
     set.some((c) => (c.startsWith("...") ? p.endsWith(c.slice(3)) : c === p));
   const unclaimed = [...actual].filter((p) => !hit(claimed, p));
   const absent = claimed.filter((c) => ![...actual].some((p) => hit([c], p)));
-  // One reason per path so the stdout line can cap at five whole items.
-  const absentReasons = absent.map((c) => `claimed but absent from diff: ${c}`);
-  return unclaimed.length
-    ? flag("diff-stat", [
-        ...unclaimed.map((p) => `in diff but not claimed by any session: ${p}`),
-        ...absentReasons,
-      ])
-    : {
-        id: "diff-stat",
-        status: "PASS",
-        reasons: [
-          `${actual.size} file(s) match the claimed git diff --stat`,
-          ...absentReasons,
-        ],
-      };
+  // One reason per path so the stdout line can cap at five whole items. A
+  // claimed file missing from the PR diff is a mismatch too — FLAG either
+  // way.
+  const reasons = [
+    ...unclaimed.map((p) => `in diff but not claimed by any session: ${p}`),
+    ...absent.map((c) => `claimed but absent from diff: ${c}`),
+  ];
+  return reasons.length
+    ? flag("diff-stat", reasons)
+    : pass("diff-stat", `${actual.size} file(s) match the claimed git diff --stat`);
 }
 
 // ---------- 11. pr-events, 12. owner-gate → judge-checks-gates.ts ----------

@@ -1,0 +1,10 @@
+diff --git a/src/limits.ts b/src/limits.ts
+index 1111111..2222222 100644
+--- a/src/limits.ts
++++ b/src/limits.ts
+@@ -1,4 +1,3 @@
+ const a = 1;
+-const timeout_ms = 300;
+-const limit = 5;
++const timeout_ms = 600;
+ const c = 3;

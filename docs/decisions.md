@@ -8130,13 +8130,15 @@ Owner-requested rendering fixes after the PR #139 review; branch
 
 - **Port, not copy:** `scripts/conductor/*` is ported from the read-only
   Epiora reference (`.conductor-ref/epiora/scripts-conductor/`). Check ids,
-  order, patterns and paths are NeoPhylo's from the plan: `diff`, `fixtures`,
-  `content-numbers`, `assertions`, `skips`, `files-block`, `engine-rules`,
-  `protected-paths`, `pr-events`, `secrets`, `diff-stat`, `owner-gate`.
-- **`node --test scripts/conductor/` does not run on Node 24** (the plan's
-  literal command fails with MODULE_NOT_FOUND — positional args are resolved
-  as modules, not directories). `scripts/check.sh` runs the equivalent
-  `node --test "scripts/conductor/*.test.ts"`.
+  order, patterns and paths are NeoPhylo's from the plan: `fixtures`,
+  `numbers`, `assertions`, `skips`, `files-block`, `engine-rules`,
+  `content-numbers`, `protected-paths`, `secrets`, `diff-stat`, `pr-events`,
+  `owner-gate` — exactly those 12, in that order, on stdout; the
+  parsed-file count and any diff-fetch error go in the report header.
+- **`node --test scripts/conductor/` does not run on Node 24**: Node treats
+  the directory itself as a test file — it tries to run it and reports one
+  failing test; it never scans the directory. `scripts/check.sh` runs the
+  equivalent `node --test "scripts/conductor/*.test.ts"`.
 - **`wait-ci.sh` additions over the Epiora port:** polls until checks
   register (empty check-runs is not "green"), detects a moved head SHA or a
   merged-PR mid-wait and exits 3 with `HEAD MOVED`, and on failure prints

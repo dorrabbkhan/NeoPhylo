@@ -181,10 +181,12 @@ export function checkContentNumbers(files: DiffFile[]): Check {
 
 // ---------- 8. protected-paths ----------
 
+// `LICENSE*` is the plan's glob: LICENSE, LICENSE.md, LICENSE-MIT and
+// LICENSES/… all match the root-level prefix.
 const PROTECTED_RES = [
   /^\.claude\//,
   /^\.github\//,
-  /^LICENSE(?:\.|$)/,
+  /^LICENSE/,
   /(^|\/)AGENTS\.md$/,
 ];
 

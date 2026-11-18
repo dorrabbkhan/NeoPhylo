@@ -9,11 +9,13 @@
  *       [--events <timeline.json|json>] [--report-dir <dir>]
  *
  * Stdout (≤ 60 lines): one `PASS|FLAG|N/A <check-id> <reason> [file:line]`
- * per check — at most five items per line, each whole, then "(+k more in
- * the report)" — then `JUDGE: PASS` or `JUDGE: FLAG (<n>)`. Full detail
- * goes to <report-dir>/judge-<stamp>.md (default
- * ~/neophylo-conductor/<v>-task<N>). Exit 0 = all pass, 1 = any FLAG,
- * 2 = usage error.
+ * per check — exactly the plan's 12 check ids in plan order, at most five
+ * items per line, each whole, then "(+k more in the report)" — then
+ * `JUDGE: PASS` or `JUDGE: FLAG (<n>)`. Full detail goes to
+ * <report-dir>/judge-<stamp>.md (default
+ * ~/neophylo-conductor/<v>-task<N>), whose header carries the
+ * parsed-file count and any diff-fetch error. Exit 0 = all pass,
+ * 1 = any FLAG, 2 = usage error.
  *
  * A check that cannot run on part of the diff — binary file, rename-only
  * entry, truncated hunk — FLAGs naming the file. Never a silent PASS.
@@ -33,7 +35,6 @@ import { pathToFileURL } from "node:url";
 import { parseDiff } from "./diff-parse.ts";
 import {
   checkAssertions,
-  checkDiff,
   checkDiffStat,
   checkFixtures,
   checkNumbers,
@@ -195,12 +196,9 @@ export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
 
   let checks: Check[];
   if (diffErr !== null) {
-    checks = [
-      { id: "diff", status: "FLAG", reasons: [`could not fetch PR diff: ${diffErr}`] },
-      ...couldNotRun("could not fetch PR diff"),
-    ];
+    checks = couldNotRun(`could not fetch PR diff: ${diffErr}`);
   } else if (files.length === 0) {
-    checks = [checkDiff(files), ...couldNotRun("empty or unparseable diff")];
+    checks = couldNotRun("empty or unparseable diff");
   } else {
     let title = opts.title ?? "";
     let titleErr = false;
@@ -245,7 +243,6 @@ export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
     }
 
     checks = [
-      checkDiff(files),
       checkFixtures(files),
       checkNumbers(files),
       checkAssertions(files),
@@ -277,7 +274,10 @@ export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
   const report = [
     `# judge — ${opts.pr ? `PR #${opts.pr}` : (opts.diffFile ?? "diff")} task ${opts.task} ${stamp}`,
     "",
-    `files: ${files.length} · ${files.map((f) => f.path).join(", ")}`,
+    ...(diffErr !== null ? [`diff: could not fetch PR diff: ${diffErr}`] : []),
+    files.length
+      ? `files: ${files.length} parsed · ${files.map((f) => f.path).join(", ")}`
+      : "files: 0 parsed (empty or unparseable diff)",
     "",
     ...checks.flatMap((c) => [
       `## ${c.status} ${c.id}`,

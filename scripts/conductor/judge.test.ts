@@ -31,6 +31,27 @@ const line = (r: JudgeResult, id: string) =>
   r.stdout.split("\n").find((l) => l.includes(` ${id} `) || l.endsWith(` ${id}`));
 const events = (name: string) => readFileSync(join(FIX, name), "utf8");
 
+// The plan's 12 check ids in plan order — stdout carries exactly these.
+const PLAN_ORDER = [
+  "fixtures",
+  "numbers",
+  "assertions",
+  "skips",
+  "files-block",
+  "engine-rules",
+  "content-numbers",
+  "protected-paths",
+  "secrets",
+  "diff-stat",
+  "pr-events",
+  "owner-gate",
+];
+const checkIds = (r: JudgeResult) =>
+  r.stdout
+    .split("\n")
+    .filter((l) => /^(?:PASS|FLAG|N\/A) /.test(l))
+    .map((l) => l.split(" ")[1]);
+
 describe("judge.ts (conductor efficiency plan Task 0a)", () => {
   it("fixture change flags", () => {
     const r = judge("fixture-change.diff");
@@ -61,6 +82,14 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
   it("bundle budget change flags", () => {
     const r = judge("bundle-budget.diff");
     assert.match(line(r, "numbers")!, /^FLAG numbers .*check-bundle-size\.sh.*200.*→.*250/);
+  });
+
+  it("numbers prints file:line when removed/added counts differ", () => {
+    const r = judge("numbers-unequal.diff");
+    assert.match(
+      line(r, "numbers")!,
+      /^FLAG numbers .*limits\.ts:2 numbers changed \(300, 5 → 600\)/,
+    );
   });
 
   it("removed assert flags", () => {
@@ -162,6 +191,9 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
       /^FLAG protected-paths .*\.claude\/settings\.json/,
     );
     assert.match(line(judge("devin-named.diff"), "protected-paths")!, /^PASS protected-paths/);
+    const lic = line(judge("license-change.diff"), "protected-paths")!;
+    assert.match(lic, /^FLAG protected-paths .*LICENSE-MIT/);
+    assert.ok(lic.includes("LICENSES/THIRD-PARTY.md"), lic);
   });
 
   it("api key literal flags", () => {
@@ -173,6 +205,14 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
   it("diff stat mismatch with claimed files flags", () => {
     const r = judge("clean.diff", { claimed: join(FIX, "claimed-mismatch.out.md") });
     assert.match(line(r, "diff-stat")!, /^FLAG diff-stat .*other\.ts/);
+  });
+
+  it("diff stat flags a claimed file absent from the diff", () => {
+    const r = judge("clean.diff", { claimed: join(FIX, "claimed-extra.out.md") });
+    assert.match(
+      line(r, "diff-stat")!,
+      /^FLAG diff-stat claimed but absent from diff: src\/ghost\.ts$/,
+    );
   });
 
   it("default claimed is the newest task-dir out.md only", () => {
@@ -230,6 +270,7 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
     const r = judge("clean.diff", { claimed: join(FIX, "claimed-clean.out.md") });
     assert.equal(r.exitCode, 0, r.stdout);
     assert.match(r.stdout, /JUDGE: PASS/);
+    assert.deepEqual(checkIds(r), PLAN_ORDER);
     assert.ok(r.stdout.split("\n").filter(Boolean).length <= 60);
   });
 
@@ -238,6 +279,7 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
     assert.equal(r.exitCode, 1);
     assert.match(line(r, "secrets")!, /^FLAG secrets .*could not inspect/);
     assert.match(line(r, "assertions")!, /^FLAG assertions .*could not inspect/);
+    assert.deepEqual(checkIds(r), PLAN_ORDER);
     assert.match(r.stdout, /^JUDGE: FLAG \(\d+\)$/m);
   });
 
@@ -257,7 +299,7 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
     assert.ok(!l.includes("…"), l);
   });
 
-  it("diff fetch failure flags", () => {
+  it("diff fetch failure flags every check; error goes to the report header", () => {
     const r = runJudge(
       {
         pr: "999999",
@@ -274,7 +316,11 @@ describe("judge.ts (conductor efficiency plan Task 0a)", () => {
       },
     );
     assert.equal(r.exitCode, 1);
-    assert.match(r.stdout, /FLAG diff could not fetch PR diff: HTTP 406: diff too large/);
+    assert.deepEqual(checkIds(r), PLAN_ORDER);
+    for (const l of r.stdout.split("\n").filter((l) => l.startsWith("FLAG ")))
+      assert.match(l, /could not run: could not fetch PR diff: HTTP 406: diff too large/);
+    assert.match(r.report, /^diff: could not fetch PR diff: HTTP 406: diff too large$/m);
+    assert.match(r.report, /^files: 0 parsed/m);
   });
 
   it("missing args exit 2", () => {

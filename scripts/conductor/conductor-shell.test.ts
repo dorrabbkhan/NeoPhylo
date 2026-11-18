@@ -54,6 +54,13 @@ if [[ " $1 $2 " == " run view " ]]; then seq 1 50; exit 0; fi
 exit 0
 `;
 
+// head_state's `pr view` fails outright — the script must refuse to wait.
+const GH_STUB_NOHEAD = `#!/usr/bin/env bash
+echo "$*" >> "$GH_STUB_CALLS"
+if [[ " $* " == *" headRefOid,state"* ]]; then echo "gh: not logged in" >&2; exit 1; fi
+exit 0
+`;
+
 function runWaitCi(env: Record<string, string>, stub = GH_STUB) {
   const dir = mkdtempSync(join(tmpdir(), "wait-ci-"));
   writeFileSync(join(dir, "gh"), stub, { mode: 0o755 });
@@ -84,10 +91,23 @@ describe("conductor shell scripts", () => {
     assert.match(r.stdout, /waiting on sha111/);
   });
 
-  it("wait-ci times out with no checks", () => {
+  it("wait-ci exits 5 NO CHECKS when none register", () => {
     const { r } = runWaitCi({ WAIT_CI_POLL_S: "0", WAIT_CI_MAX_S: "0", GH_STUB_ANSWERS: "0" });
-    assert.equal(r.status, 3);
-    assert.match(r.stderr, /wait-ci: no checks registered after/);
+    assert.equal(r.status, 5);
+    assert.match(r.stderr, /wait-ci: NO CHECKS/);
+  });
+
+  it("wait-ci exits 3 HEAD UNKNOWN when the head cannot be read at the start", () => {
+    const { r } = runWaitCi({ WAIT_CI_POLL_S: "0" }, GH_STUB_NOHEAD);
+    assert.equal(r.status, 3, r.stdout + r.stderr);
+    assert.match(r.stdout, /wait-ci: HEAD UNKNOWN/);
+    assert.doesNotMatch(r.stdout, /waiting on/);
+  });
+
+  it("wait-ci exits 3 HEAD UNKNOWN when the head read fails at the end", () => {
+    const { r } = runWaitCi({ WAIT_CI_POLL_S: "0", GH_STUB_VIEWS: "sha111 OPEN,?" });
+    assert.equal(r.status, 3, r.stdout + r.stderr);
+    assert.match(r.stdout, /wait-ci: HEAD UNKNOWN/);
   });
 
   it("wait-ci exits 3 HEAD MOVED when the head changes", () => {
@@ -161,6 +181,30 @@ describe("conductor shell scripts", () => {
     );
     assert.equal(r.status, 0);
     assert.match(r.stdout, /VERDICT: <APPROVE\|CHANGES REQUIRED>/);
+  });
+
+  it("build-prompt.sh fix names the plan path for an unmapped version", () => {
+    const r = spawnSync(
+      "bash",
+      ["scripts/conductor/build-prompt.sh", "fix", "conductor", "0a", "163"],
+      { encoding: "utf8", cwd: ROOT },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /docs\/superpowers\/plans\/2026-11-18-neophylo-conductor-efficiency\.md/);
+    assert.match(r.stdout, /not in the skill's plan mapping/);
+  });
+
+  it("build-prompt.sh review inspects the PR without a worktree", () => {
+    const r = spawnSync(
+      "bash",
+      ["scripts/conductor/build-prompt.sh", "review", "conductor", "0a", "1"],
+      { encoding: "utf8", cwd: ROOT },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /gh pr diff/);
+    assert.match(r.stdout, /git archive origin\//);
+    assert.match(r.stdout, /tar -x -C target\/scratch\/rev1/);
+    assert.doesNotMatch(r.stdout, /git worktree/);
   });
 
   it("devin.sh empty prompt exits 2 without calling devin", () => {

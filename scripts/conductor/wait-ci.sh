@@ -4,8 +4,11 @@
 # reprints the whole table each interval in non-TTY mode); we print the
 # final `gh pr checks` table once and, for each failing job, the last 40
 # lines of its failed log. Prints the head SHA it waited on and exits 3
-# with HEAD MOVED if the head changed or the PR merged meanwhile — a
-# green table for a stale head is not a result.
+# with HEAD MOVED if the head changed or the PR merged meanwhile, or with
+# HEAD UNKNOWN if the head SHA/state cannot be read before or after the
+# wait — a green table for a stale or unread head is not a result. Exits
+# 5 with NO CHECKS when no check registers within WAIT_CI_MAX_S; exit 3
+# stays reserved for HEAD MOVED/UNKNOWN.
 set -euo pipefail
 if [ "$#" -lt 1 ]; then
   echo "usage: wait-ci.sh <PR>" >&2
@@ -14,6 +17,10 @@ fi
 pr="$1"
 head_state() { gh pr view "$pr" --json headRefOid,state --jq '.headRefOid + " " + .state' 2>/dev/null || echo "? ?"; }
 read -r sha0 state0 <<<"$(head_state)"
+if [ -z "$sha0" ] || [ "$sha0" = "?" ] || [ -z "$state0" ] || [ "$state0" = "?" ]; then
+  echo "wait-ci: HEAD UNKNOWN — could not read PR #$pr head SHA/state; not waiting"
+  exit 3
+fi
 echo "wait-ci: PR #$pr waiting on ${sha0} (${state0})"
 # Right after a push no checks are registered yet and --watch exits at once
 # ("no checks reported"). Poll until at least one check exists, for at most
@@ -29,8 +36,8 @@ while :; do
     || echo 0)"
   [ "${n:-0}" -gt 0 ] 2>/dev/null && break
   if [ "$waited" -ge "$max_s" ]; then
-    echo "wait-ci: no checks registered after ${max_s}s" >&2
-    exit 3
+    echo "wait-ci: NO CHECKS — no checks registered after ${max_s}s" >&2
+    exit 5
   fi
   sleep "$poll_s"
   waited=$((waited + poll_s))
@@ -40,12 +47,17 @@ rc=0
 gh pr checks "$pr" --watch --fail-fast=false >"$log" 2>&1 || rc=$?
 gh pr checks "$pr" || true
 read -r sha1 state1 <<<"$(head_state)"
+if [ -z "$sha1" ] || [ "$sha1" = "?" ] || [ -z "$state1" ] || [ "$state1" = "?" ]; then
+  echo "wait-ci: HEAD UNKNOWN — could not read PR #$pr head SHA/state after the wait; the table above may be stale"
+  rm -f "$log"
+  exit 3
+fi
 if [ "$state1" = "MERGED" ]; then
   echo "wait-ci: HEAD MOVED — PR #$pr merged while waiting (was ${sha0})"
   rm -f "$log"
   exit 3
 fi
-if [ -n "$sha0" ] && [ "$sha0" != "?" ] && [ "$sha1" != "$sha0" ]; then
+if [ "$sha1" != "$sha0" ]; then
   echo "wait-ci: HEAD MOVED — PR #$pr head was ${sha0}, now ${sha1} (${state1}); the table above is stale"
   rm -f "$log"
   exit 3

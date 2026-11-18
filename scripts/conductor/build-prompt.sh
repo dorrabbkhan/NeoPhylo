@@ -64,11 +64,19 @@ case "$KIND" in
       echo "Review PR #$PR for Task $N of the plan \`docs/superpowers/plans/${PLAN##*/}\` by following \`.devin/skills/neophylo-review/SKILL.md\`."
       echo "This plan is not in the skill's plan mapping; the plan file is the path given above."
     fi
-    echo "This is a review session: do not modify files or push. Check the PR out in a separate \`git worktree\`, not in the main checkout."
+    # Worktrees need confirmation and kill sandboxed sessions; name the
+    # head branch when gh can read it (bounded — a hung or unauthenticated
+    # gh must not stall prompt building), else leave <branch>.
+    HEAD_BRANCH="$(timeout 10 gh pr view "$PR" --json headRefName --jq '.headRefName' 2>/dev/null || true)"
+    [ -n "$HEAD_BRANCH" ] || HEAD_BRANCH="<branch>"
+    echo "This is a review session: do not modify files or push. Inspect the PR without changing the checkout: \`gh pr diff\`, and for running code \`mkdir -p target/scratch/rev$PR && git fetch origin $HEAD_BRANCH && git archive origin/$HEAD_BRANCH | tar -x -C target/scratch/rev$PR\` (delete it at the end)."
     ;;
   fix)
     need_pr
-    echo "Fix round for PR #$PR (plan \`$VER\`, Task $N). Check out the PR's branch, work only on it and push to it (no new PR, no force-push)."
+    echo "Fix round for PR #$PR (plan \`docs/superpowers/plans/${PLAN##*/}\`, version label \`$VER\`, Task $N). Check out the PR's branch, work only on it and push to it (no new PR, no force-push)."
+    if [ "${PLAN##*/}" != "$MAPPED" ]; then
+      echo "This plan is not in the skill's plan mapping; the plan file is the path given above."
+    fi
     echo "Do not re-implement the task; change only what the REQUIRED items below need. Show \`git diff --stat HEAD~1\` matching your claims."
     ;;
   *) echo "usage: $0 <task|review|fix> <version> <task> [PR|-] [extra file]" >&2; exit 2 ;;
