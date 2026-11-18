@@ -49,7 +49,7 @@ const LABS = readdirSync(`${REPO}exercises/labs`)
   .map((f) => readJson<LabFile>(`exercises/labs/${f}`).lab);
 
 const LESSONS = readdirSync(`${REPO}exercises`)
-  .filter((f) => f.endsWith(".json") && f !== "schema.json")
+  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
   .map((f) => f.replace(/\.json$/, ""));
 
 const MEG_INPUTS = `${REPO}crates/neophylo-core/tests/meg_inputs/`;

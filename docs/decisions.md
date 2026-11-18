@@ -8313,6 +8313,14 @@ Owner-requested rendering fixes after the PR #139 review; branch
     excluding only `schema.json`, so the new `reading.schema.json` was
     loaded as a lesson/exercise. Changed `f !== "schema.json"` to
     `!f.endsWith("schema.json")`; no assertions changed.
+  - `web/e2e/library-page.spec.ts`, `web/e2e/worksheets.spec.ts`,
+    `web/src/views/library/LibraryPage.test.tsx`,
+    `scripts/checkpoint/browser/release.spec.ts` — the same widening
+    again in fix round 2: each still excluded only `schema.json`, so
+    `reading.schema.json` was counted as a lesson (e.g. the library
+    spec's `.lib-card` count expected 21, received 20). Changed
+    `f !== "schema.json"` / `f === "schema.json"` to
+    `endsWith("schema.json")`; no assertions changed.
   - `docs/decisions.md` — this entry.
 - **Ambiguities resolved:**
   - `rotate` flips a seeded coin per internal node and reverses its
