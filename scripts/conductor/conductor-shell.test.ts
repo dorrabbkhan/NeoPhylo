@@ -194,6 +194,20 @@ describe("conductor shell scripts", () => {
     assert.match(r.stdout, /not in the skill's plan mapping/);
   });
 
+  it("build-prompt.sh task and fix prompts ask for an unabbreviated git diff --stat", () => {
+    for (const args of [
+      ["task", "conductor", "0a"],
+      ["fix", "conductor", "0a", "1"],
+    ]) {
+      const r = spawnSync("bash", ["scripts/conductor/build-prompt.sh", ...args], {
+        encoding: "utf8",
+        cwd: ROOT,
+      });
+      assert.equal(r.status, 0, args.join(" ") + " stderr: " + r.stderr);
+      assert.match(r.stdout, /git diff --stat=400 --stat-name-width=400/);
+    }
+  });
+
   it("build-prompt.sh review inspects the PR without a worktree", () => {
     const r = spawnSync(
       "bash",

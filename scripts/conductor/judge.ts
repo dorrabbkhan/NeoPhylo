@@ -35,7 +35,6 @@ import { pathToFileURL } from "node:url";
 import { parseDiff } from "./diff-parse.ts";
 import {
   checkAssertions,
-  checkDiffStat,
   checkFixtures,
   checkNumbers,
   checkSecrets,
@@ -45,6 +44,7 @@ import {
 } from "./judge-checks.ts";
 import {
   checkContentNumbers,
+  checkDiffStat,
   checkEngineRules,
   checkFilesBlock,
   checkOwnerGate,
@@ -161,16 +161,18 @@ function parseEventsArg(raw: string): PrEvent[] {
   return parsed as PrEvent[];
 }
 
-/** Newest ~/neophylo-conductor/<v>-task<N>/*.out.md by the stamp in its
- * name (<kind>-<yyyymmdd-hhmmss>.out.md); kinds sort independently, so
- * compare the stamp, not the file name. */
-function newestClaimed(dir: string): string | null {
-  if (!existsSync(dir)) return null;
-  const stamped = readdirSync(dir)
-    .filter((f) => f.endsWith(".out.md"))
-    .map((f) => ({ f, s: /(\d{8}-\d{6})/.exec(f)?.[1] ?? "" }))
-    .sort((a, b) => b.s.localeCompare(a.s));
-  return stamped.length ? join(dir, stamped[0].f) : null;
+/** Every task-* and fix-* session output under
+ * ~/neophylo-conductor/<v>-task<N>/, oldest first (owner decision, PR
+ * #163 follow-up: a PR's diff is the task session plus its fix rounds,
+ * so the claimed file set is the union across them). Never a review's
+ * .out.md: it may belong to a session still running and has no
+ * diff-stat block yet. */
+function sessionClaimed(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /^(?:task|fix)-.+\.out\.md$/.test(f))
+    .sort()
+    .map((f) => join(dir, f));
 }
 
 export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
@@ -212,19 +214,18 @@ export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
     const planPath = opts.plan ?? (opts.version ? findPlan(opts.version, opts.task) : undefined);
     const planText = planPath && existsSync(planPath) ? readFileSync(planPath, "utf8") : null;
 
-    // The claimed stat defaults to the newest *.out.md under
-    // ~/neophylo-conductor/<v>-task<N>/. An explicit --claimed
-    // (repeatable) overrides the scan and unions the same way.
+    // The claimed stat is the union over every task-* and fix-* session
+    // output under ~/neophylo-conductor/<v>-task<N>/. An explicit
+    // --claimed (repeatable) overrides the scan and unions the same way.
     const explicit = opts.claimed
       ? Array.isArray(opts.claimed)
         ? opts.claimed
         : [opts.claimed]
       : [];
-    const claimedPaths = explicit.length ? explicit : [newestClaimed(dir)].filter(Boolean);
-    const claimedTexts = (claimedPaths as string[])
+    const claimedPaths = explicit.length ? explicit : sessionClaimed(dir);
+    const claimedSources = (claimedPaths as string[])
       .filter((p) => existsSync(p))
-      .map((p) => readFileSync(p, "utf8"));
-    const claimedText = claimedTexts.length ? claimedTexts.join("\n") : null;
+      .map((p) => ({ name: p.split("/").pop() ?? p, text: readFileSync(p, "utf8") }));
 
     let events: PrEvent[] | null = null;
     let eventsErr: string | null = null;
@@ -252,7 +253,7 @@ export function runJudge(opts: JudgeOpts, deps: JudgeDeps = {}): JudgeResult {
       checkContentNumbers(files),
       checkProtectedPaths(files, planText, opts.task),
       checkSecrets(files),
-      checkDiffStat(files, claimedText),
+      checkDiffStat(files, claimedSources.length ? claimedSources : null),
       checkPrEvents(events, eventsErr),
       checkOwnerGate(files, title, planText, opts.task),
     ];

@@ -1,9 +1,9 @@
 /**
  * judge-checks-gates.ts — the files-block, engine-rules, content-numbers,
- * protected-paths, pr-events and owner-gate checks (plan order 5, 6, 7, 8,
- * 11 and 12), split out of judge-checks.ts to keep every file under the
- * ~400-line rule. Shared Check helpers and the uninspectable-entry rule
- * live in judge-checks.ts.
+ * protected-paths, diff-stat, pr-events and owner-gate checks (plan order
+ * 5, 6, 7, 8, 10, 11 and 12), split out of judge-checks.ts to keep every
+ * file under the ~400-line rule. Shared Check helpers and the
+ * uninspectable-entry rule live in judge-checks.ts.
  */
 import { addedLines, uninspectable, type DiffFile, type DiffLine } from "./diff-parse.ts";
 import {
@@ -208,7 +208,71 @@ export function checkProtectedPaths(
   return reasons.length ? flag("protected-paths", [...new Set(reasons)]) : pass("protected-paths");
 }
 
-// ---------- 9. secrets → judge-checks.ts; 10. diff-stat → judge-checks.ts
+// ---------- 9. secrets → judge-checks.ts ----------
+
+// ---------- 10. diff-stat ----------
+
+export function claimedStatFiles(text: string): string[] {
+  const out: string[] = [];
+  for (const l of text.split("\n")) {
+    const m = /^\s*(.+?)\s*\|\s+(?:\d+|Bin\b)/.exec(l);
+    if (!m) continue;
+    let p = m[1].trim().replace(/^"|"$/g, "");
+    const brace = /\{[^}]*=>\s*([^}]*)\}/.exec(p);
+    if (brace) p = p.replace(/\{[^}]*=>[^}]*\}/, brace[1].trim());
+    else if (p.includes("=>")) p = p.split("=>").pop()!.trim();
+    if (p) out.push(p);
+  }
+  return out;
+}
+
+/** One session output whose stat block joins the claimed union. */
+export interface ClaimedSource {
+  /** Name used in FLAG reasons (the .out.md basename). */
+  name: string;
+  text: string;
+}
+
+// Owner decision (PR #163 follow-up): a stat block that is abbreviated
+// (git's "..." path shortening) or unparseable (a block marker but no
+// readable rows) is a FLAG naming the source file, never a PASS — the
+// union is only as good as its weakest session output. A file with no
+// stat-block markers at all contributes nothing: it belongs to a stopped
+// or still-running session.
+export function claimedStat(source: ClaimedSource): { files: string[]; bad: string[] } {
+  const raw = claimedStatFiles(source.text);
+  const files = raw.filter((p) => !p.startsWith("..."));
+  const bad = raw
+    .filter((p) => p.startsWith("..."))
+    .map((p) => `abbreviated git diff --stat path in ${source.name}: ${p}`);
+  if (!raw.length && /^\s*\d+ files? changed/m.test(source.text))
+    bad.push(`unparseable git diff --stat block in ${source.name}`);
+  return { files, bad };
+}
+
+export function checkDiffStat(files: DiffFile[], sources: ClaimedSource[] | null): Check {
+  if (!sources?.length)
+    return na("diff-stat", "no claimed session output (--claimed / saved .out.md not found)");
+  const stats = sources.map(claimedStat);
+  const claimed = [...new Set(stats.flatMap((s) => s.files))];
+  const bad = stats.flatMap((s) => s.bad);
+  if (!claimed.length && !bad.length)
+    return flag("diff-stat", ["no git diff --stat block found in the claimed output"]);
+  const actual = new Set(files.map((f) => f.path));
+  const unclaimed = [...actual].filter((p) => !claimed.includes(p));
+  const absent = claimed.filter((c) => !actual.has(c));
+  // One reason per path so the stdout line can cap at five whole items. A
+  // claimed file missing from the PR diff is a mismatch too — FLAG either
+  // way.
+  const reasons = [
+    ...bad,
+    ...unclaimed.map((p) => `in diff but not claimed by any session: ${p}`),
+    ...absent.map((c) => `claimed but absent from diff: ${c}`),
+  ];
+  return reasons.length
+    ? flag("diff-stat", reasons)
+    : pass("diff-stat", `${actual.size} file(s) match the claimed git diff --stat`);
+}
 
 // ---------- 11. pr-events ----------
 

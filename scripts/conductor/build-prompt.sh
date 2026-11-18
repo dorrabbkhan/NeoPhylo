@@ -77,7 +77,7 @@ case "$KIND" in
     if [ "${PLAN##*/}" != "$MAPPED" ]; then
       echo "This plan is not in the skill's plan mapping; the plan file is the path given above."
     fi
-    echo "Do not re-implement the task; change only what the REQUIRED items below need. Show \`git diff --stat HEAD~1\` matching your claims."
+    echo "Do not re-implement the task; change only what the REQUIRED items below need. Show \`git diff --stat=400 --stat-name-width=400 HEAD~1\` matching your claims."
     ;;
   *) echo "usage: $0 <task|review|fix> <version> <task> [PR|-] [extra file]" >&2; exit 2 ;;
 esac
