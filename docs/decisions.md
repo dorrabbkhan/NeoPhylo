@@ -8223,3 +8223,28 @@ Owner-requested rendering fixes after the PR #139 review; branch
   `scripts/conductor/fixtures/judge/plan.md` (new fixture Task 4) and the
   new `scripts/conductor/fixtures/judge/bare-root-pass.diff` /
   `scripts/conductor/fixtures/judge/bare-root-flag.diff`.
+
+## v1.4d Task 1: skills map, decisions, architecture
+
+- **Spec:** `docs/superpowers/specs/2026-11-18-neophylo-v1.4d-tree-reading-design.md`;
+  plan `docs/superpowers/plans/2026-11-18-neophylo-v1.4d-plan.md`; market and
+  viability check `docs/market/2026-11-18-market-and-viability.md`.
+- **Roadmap changes (owner, 2026-11-18):** tree reading moved before v1.5 as
+  **v1.4d** — intro biology is the largest market, tree reading is the
+  easiest work to auto-grade, and research favours reading trees before
+  building them; the **v1.6 slot is now empty**.
+- **Decided in this plan:** see the plan's "Decided in this plan" list —
+  `CladeKey` (a node's sorted, deduplicated tip labels as a JSON array;
+  `"root"` resolves to the full tip set); module layout
+  `reading/{mod,query,traits,set,answer,variant}.rs` with `ChaCha8Rng`;
+  `NeoError::InvalidReading` naming item and field; limits of 3–40 tips per
+  tree, 1–4 trees per item, tips-up trees ≤ 12 tips, 1–60 items per set,
+  ≤ 20 traits per tree; item text refers to taxa only through `{a}`/`{b}`/
+  `{c}`/`{set}` placeholders; explanations built in Rust from fixed English
+  templates; labels over 18 characters abbreviated by the layout; 300 ms
+  rotation animation (none under `prefers-reduced-motion`); ids `trees-…` and
+  `cov-…`, routes `?read=`, `#r=`, `?library&type=reading`, and
+  `?worksheet=`/`?key=` accepting reading ids, extension
+  `.neophylo-reading.json`; library `TypeKey` gains `"reading"`; R oracle
+  scope (`ape`/`phangorn` plus a `nodepath`-based script) — built-in content
+  is checked by engine tests, not by fixtures.
