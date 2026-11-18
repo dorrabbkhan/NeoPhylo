@@ -1,0 +1,9 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-fits", "title": "t", "summary": "t",
+  "trees": {
+    "big1": { "newick": "((a,(b,c)),(d,(e,f)));" },
+    "big2": { "newick": "(((a,b),c),(d,(e,f)));" },
+    "s1": { "newick": "(b,(a,c));" }
+  },
+  "items": [ { "id": "q-fits", "text": "Which large tree fits?", "trees": ["big1", "big2"], "question": { "type": "which_fits", "small": ["s1"] } } ]
+}

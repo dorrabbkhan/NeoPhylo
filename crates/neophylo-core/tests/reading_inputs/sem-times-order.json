@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-times", "title": "t", "summary": "t",
+  "trees": { "tx": { "newick": "((a,(b,c)),(d,e));", "times": { "unit": "Ma", "ages": [ { "on": "root", "age": 5 }, { "on": ["a", "b", "c"], "age": 8 } ] } } },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["tx"], "question": { "type": "count_clades" } } ]
+}

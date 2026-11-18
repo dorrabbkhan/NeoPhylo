@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-points", "title": "t", "summary": "t",
+  "trees": { "t": { "newick": "((a,b),(c,d));", "points": [ { "letter": "X", "on": ["a", "b"], "at": "node" }, { "letter": "X", "on": ["c", "d"], "at": "node" } ] } },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["t"], "question": { "type": "count_clades" } } ]
+}

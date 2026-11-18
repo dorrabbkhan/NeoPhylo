@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-mark", "title": "t", "summary": "t",
+  "trees": { "t": { "newick": "((a,b),(c,d));", "marks": [ { "on": ["zzz"], "trait": "x", "change": "gain" } ] } },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["t"], "question": { "type": "count_clades" } } ]
+}

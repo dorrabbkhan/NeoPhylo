@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeoPhylo reading-set file",
+  "description": "Tree-reading set format, schema_version 1 (v1.4d design spec section 4). This schema mirrors the structural checks in crates/neophylo-core/src/reading/set.rs: clade identifiers, tip counts and uniqueness, times ordering, mark/point validity, placeholder binding, per-question requirements and every engine-computed answer's well-definedness are semantic checks the engine performs; this schema only covers structure. A clade is named by the sorted list of tip labels below the node, or the string \"root\" for the full tip set.",
+  "type": "object",
+  "required": ["schema_version", "kind", "id", "title", "summary", "trees", "items"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": { "const": "reading" },
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "meta": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["objectives", "minutes", "level", "prepares_for"],
+          "properties": {
+            "objectives": { "type": "array", "items": { "type": "string" } },
+            "minutes": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+            "level": { "enum": ["intro", "intermediate", "advanced"] },
+            "prepares_for": { "type": "array", "items": { "type": "string" } },
+            "hand_steps": { "type": "integer", "minimum": 1, "maximum": 4294967295 }
+          }
+        }
+      ]
+    },
+    "mode": { "enum": ["practice", "test"], "default": "practice" },
+    "taxa_pool": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } },
+      "description": "Named lists of substitute organisms for relabelling variants."
+    },
+    "trees": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/readingTree" }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "clade": {
+      "description": "A node or branch named by the sorted tip labels below it; the string \"root\" names the root's full tip set.",
+      "anyOf": [
+        { "const": "root" },
+        { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 }
+      ]
+    },
+    "tipList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "readingTree": {
+      "type": "object",
+      "required": ["newick"],
+      "properties": {
+        "newick": {
+          "type": "string",
+          "description": "Rooted Newick; polytomies allowed, branch lengths optional, internal node labels allowed. 3-40 tips (engine check)."
+        },
+        "node_letters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["on", "letter"],
+            "properties": {
+              "on": { "$ref": "#/$defs/clade" },
+              "letter": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "times": {
+          "anyOf": [
+            { "const": "schematic" },
+            {
+              "type": "object",
+              "required": ["unit", "ages"],
+              "properties": {
+                "unit": { "type": "string", "minLength": 1 },
+                "source": { "type": "string" },
+                "ages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["on", "age"],
+                    "properties": {
+                      "on": { "$ref": "#/$defs/clade" },
+                      "age": { "type": "number", "minimum": 0 }
+                    }
+                  }
+                }
+              },
+              "description": "Node ages for a time axis; must decrease root to tips (engine check). A tip with an age is a fossil."
+            }
+          ]
+        },
+        "marks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["on", "trait", "change"],
+            "properties": {
+              "on": { "$ref": "#/$defs/clade" },
+              "trait": { "type": "string", "minLength": 1 },
+              "change": { "enum": ["gain", "loss"] }
+            }
+          },
+          "description": "Trait changes placed on the branch leading to the named clade."
+        },
+        "traits": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["name", "ancestral", "derived"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "ancestral": { "type": "string" },
+              "derived": { "type": "string" }
+            }
+          }
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["letter", "on", "at"],
+            "properties": {
+              "letter": { "type": "string", "minLength": 1 },
+              "on": { "$ref": "#/$defs/clade" },
+              "at": { "enum": ["node", "branch"] }
+            }
+          },
+          "description": "Lettered points on nodes or branches, used as answer options by mrca and place_taxon."
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "required": ["shape", "tips"],
+      "properties": {
+        "shape": { "enum": ["rectangular", "diagonal", "circular"] },
+        "tips": { "enum": ["right", "up", "left", "down"] },
+        "per_tree": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["shape", "tips"],
+            "properties": {
+              "shape": { "enum": ["rectangular", "diagonal", "circular"] },
+              "tips": { "enum": ["right", "up", "left", "down"] }
+            }
+          }
+        }
+      }
+    },
+    "statement": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["kind", "x", "y", "z", "text"],
+          "properties": { "kind": { "const": "closer_than" }, "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "tips", "text"],
+          "properties": { "kind": { "const": "is_clade" }, "tips": { "$ref": "#/$defs/tipList" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "tips", "tree_i", "tree_j", "text"],
+          "properties": { "kind": { "const": "clade_in_not_in" }, "tips": { "$ref": "#/$defs/tipList" }, "tree_i": { "type": "integer", "minimum": 0 }, "tree_j": { "type": "integer", "minimum": 0 }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "tree_i", "tree_j", "text"],
+          "properties": { "kind": { "const": "same_relationships" }, "tree_i": { "type": "integer", "minimum": 0 }, "tree_j": { "type": "integer", "minimum": 0 }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "p", "q", "text"],
+          "properties": { "kind": { "const": "older_than" }, "p": { "type": "string" }, "q": { "type": "string" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "p", "age", "text"],
+          "properties": { "kind": { "const": "older_than_age" }, "p": { "type": "string" }, "age": { "type": "number", "minimum": 0 }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "tip", "age", "text"],
+          "properties": { "kind": { "const": "lineage_at_least" }, "tip": { "type": "string" }, "age": { "type": "number", "minimum": 0 }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "tip", "trait_name", "text"],
+          "properties": { "kind": { "const": "has_trait" }, "tip": { "type": "string" }, "trait_name": { "type": "string" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "trait_name", "tips", "text"],
+          "properties": { "kind": { "const": "shared_derived" }, "trait_name": { "type": "string" }, "tips": { "$ref": "#/$defs/tipList" }, "text": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "inner", "outer", "text"],
+          "properties": { "kind": { "const": "gained_within" }, "inner": { "type": "string" }, "outer": { "type": "string" }, "text": { "type": "string" } }
+        }
+      ]
+    },
+    "question": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "const": "which_differs" }, "reference": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "small"],
+          "properties": { "type": { "const": "which_fits" }, "small": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string" } } }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "const": "mrca" }, "options": { "type": "array", "items": { "type": "string" } } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "name", "sister"],
+          "properties": { "type": { "const": "place_taxon" }, "name": { "type": "string" }, "sister": { "$ref": "#/$defs/clade" } }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "const": "is_clade" }, "by_trait": { "type": "string" } }
+        },
+        { "type": "object", "required": ["type"], "properties": { "type": { "const": "smallest_clade" } } },
+        {
+          "type": "object",
+          "required": ["type", "form"],
+          "properties": { "type": { "const": "closest_relative" }, "form": { "enum": ["closest", "most_distant", "pairwise"] } }
+        },
+        { "type": "object", "required": ["type"], "properties": { "type": { "const": "count_clades" } } },
+        {
+          "type": "object",
+          "required": ["type", "nodes"],
+          "properties": { "type": { "const": "order_nodes" }, "nodes": { "type": "array", "minItems": 2, "items": { "type": "string" } } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "statements"],
+          "properties": { "type": { "const": "select_true" }, "statements": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/statement" } } }
+        },
+        {
+          "type": "object",
+          "required": ["type", "ask"],
+          "properties": {
+            "type": { "const": "trait" },
+            "ask": {
+              "anyOf": [
+                { "type": "object", "required": ["kind", "trait_name"], "properties": { "kind": { "const": "which_have" }, "trait_name": { "type": "string" } } },
+                { "type": "object", "required": ["kind", "tips"], "properties": { "kind": { "const": "which_shared" }, "tips": { "$ref": "#/$defs/tipList" } } },
+                { "type": "object", "required": ["kind", "trait_name"], "properties": { "kind": { "const": "how_many_changes" }, "trait_name": { "type": "string" } } },
+                { "type": "object", "required": ["kind", "tip"], "properties": { "kind": { "const": "profile" }, "tip": { "type": "string" } } },
+                { "type": "object", "required": ["kind", "trait_name", "tip"], "properties": { "kind": { "const": "ancestral_or_derived" }, "trait_name": { "type": "string" }, "tip": { "type": "string" } } },
+                { "type": "object", "required": ["kind", "has", "lacks"], "properties": { "kind": { "const": "has_not" }, "has": { "type": "string" }, "lacks": { "type": "string" } } },
+                { "type": "object", "required": ["kind", "trait_name", "x", "y"], "properties": { "kind": { "const": "homologous" }, "trait_name": { "type": "string" }, "x": { "type": "string" }, "y": { "type": "string" } } }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "options", "correct"],
+          "properties": {
+            "type": { "const": "concept" },
+            "options": { "type": "array", "minItems": 2, "items": { "type": "string" } },
+            "correct": { "type": "array", "minItems": 1, "items": { "type": "integer", "minimum": 0 } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "first", "reasons", "correct_reason"],
+          "properties": {
+            "type": { "const": "two_tier" },
+            "first": { "$ref": "#/$defs/question" },
+            "reasons": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+            "correct_reason": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "required": ["id", "text", "trees", "question"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "text": {
+          "type": "string",
+          "description": "Student-facing prompt; taxa are referred to only through the placeholders {a}, {b}, {c} and {set}."
+        },
+        "note_after": { "type": "string", "description": "Shown only after the item is answered." },
+        "trees": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string" } },
+        "style": { "$ref": "#/$defs/style" },
+        "a": { "type": "string" },
+        "b": { "type": "string" },
+        "c": { "type": "string" },
+        "tips": { "$ref": "#/$defs/tipList" },
+        "question": { "$ref": "#/$defs/question" },
+        "rotate_tool": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

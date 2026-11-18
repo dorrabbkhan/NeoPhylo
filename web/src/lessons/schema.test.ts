@@ -27,7 +27,7 @@ const validate = new Ajv2020({ allErrors: true }).compile(schema);
 
 const lessonFiles = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
     .sort();
 
 describe("exercises/schema.json", () => {

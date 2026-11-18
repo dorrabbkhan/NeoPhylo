@@ -6,14 +6,26 @@
 //! `traits` walks gain/loss `Mark`s into tip states. Nodes are named
 //! across the wasm boundary by [`query::CladeKey`] — the sorted tip labels
 //! below the node — so identifiers survive rotation, restyling and
-//! variants. The reading-set file format, item validation, answers and
-//! variant transforms arrive with plan Task 4.
+//! variants. `set` is the reading-set file format and its validation,
+//! `answer` computes each item's key and explanation and checks
+//! responses, `variant` applies the seeded rotate / shuffle / relabel
+//! transforms.
 
 pub mod query;
 pub mod traits;
 
+mod answer;
+mod set;
+mod variant;
+
+pub use answer::{answer, check, Accepted, AnswerKey, Response, Verdict};
 pub use query::{
     clade_key, closer, count_clades, find_clade, is_ancestor, is_clade, mrca, order_consistent,
     outside_tips, restrict, rooted_clades, same_relationships, sister_tips, CladeKey, Closer,
 };
+pub use set::{
+    load_reading_set, Item, NodeAge, NodeLetter, Point, PointAt, Question, ReadingMode, ReadingSet,
+    ReadingTree, RelForm, Shape, Statement, Style, Times, TipSide, TraitAsk, TraitDef,
+};
 pub use traits::{change_count, origins_shared, tip_states, Change, Mark};
+pub use variant::{relabel, relabel_map, rotate, shuffle_tip_order};

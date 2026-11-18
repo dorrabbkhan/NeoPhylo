@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-clade", "title": "t", "summary": "t",
+  "trees": { "t1": { "newick": "((a,b),(c,d));", "node_letters": [ { "on": ["zzz"], "letter": "P" } ] } },
+  "items": [ { "id": "q1", "text": "Where do {set} meet?", "trees": ["t1"], "tips": ["a", "b"], "question": { "type": "mrca" } } ]
+}

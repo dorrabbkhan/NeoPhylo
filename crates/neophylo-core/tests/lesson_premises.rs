@@ -227,7 +227,11 @@ fn every_prepares_for_id_exists() {
         for entry in fs::read_dir(&dir).unwrap() {
             let path = entry.unwrap().path();
             if path.extension().and_then(|e| e.to_str()) != Some("json")
-                || path.file_name().unwrap() == "schema.json"
+                || path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .ends_with("schema.json")
             {
                 continue;
             }

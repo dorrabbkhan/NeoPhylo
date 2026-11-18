@@ -436,7 +436,7 @@ describe("Controls — exercise-prescribed v1.4 models", () => {
   it("keeps every built-in exercise's model menus unchanged", () => {
     const dir = resolve("..", "exercises");
     const files = readdirSync(dir)
-      .filter((f) => f.endsWith(".json") && f !== "schema.json")
+      .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
       .sort();
     expect(files.length).toBeGreaterThan(0);
     for (const f of files) {

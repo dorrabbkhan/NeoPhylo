@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-duptip", "title": "t", "summary": "t",
+  "trees": { "t": { "newick": "((a,a),(b,c));" } },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["t"], "question": { "type": "count_clades" } } ]
+}

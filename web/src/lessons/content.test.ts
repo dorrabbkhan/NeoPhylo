@@ -59,7 +59,7 @@ const digitsOutsideAllowlist = (text: string): string | null => {
 
 const scannedIds = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
     .map((f) => f.replace(/\.json$/, ""))
     .filter((id) => !EXEMPT.has(id))
     .sort();

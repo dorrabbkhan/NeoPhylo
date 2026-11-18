@@ -21,7 +21,7 @@ const EXERCISES = resolve("..", "exercises");
 
 const lessonFiles = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
     .sort();
 
 const load = (file: string): Exercise => {

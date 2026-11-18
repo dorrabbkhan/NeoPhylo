@@ -347,7 +347,7 @@ describe("settingsFromExercise (import)", () => {
 describe("import → save preserves uneditable fields", () => {
   const dir = resolve("..", "exercises");
   const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
     .sort();
 
   function load(json: string): Exercise {

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-differs", "title": "t", "summary": "t",
+  "trees": {
+    "t1": { "newick": "((a,b),(c,d));" },
+    "t2": { "newick": "((a,c),(b,d));" },
+    "t3": { "newick": "((a,d),(b,c));" }
+  },
+  "items": [ { "id": "q-differs", "text": "Which tree differs?", "trees": ["t1", "t2", "t3"], "question": { "type": "which_differs" } } ]
+}

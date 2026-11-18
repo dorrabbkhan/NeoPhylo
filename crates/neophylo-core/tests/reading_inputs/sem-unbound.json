@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-unbound", "title": "t", "summary": "t",
+  "trees": { "t1": { "newick": "((a,b),(c,d));" } },
+  "items": [ { "id": "q1", "text": "Is {a} closer to b or to c?", "trees": ["t1"], "question": { "type": "count_clades" } } ]
+}

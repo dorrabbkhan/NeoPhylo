@@ -63,3 +63,9 @@ name = "matrix_paste"
 path = "fuzz_targets/matrix_paste.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "reading_set"
+path = "fuzz_targets/reading_set.rs"
+test = false
+doc = false
