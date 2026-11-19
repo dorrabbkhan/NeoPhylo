@@ -316,6 +316,38 @@ test.describe("lazy guide chunk", () => {
   });
 });
 
+test.describe("lazy reading chunk", () => {
+  // v1.4d Task 8 (§8.2, initial-JS budget unchanged): `?read=`/`#r=`,
+  // the session reducer, the question controls, the test summary and
+  // the demo set JSON are lazy — the app's initial load never fetches
+  // them. Same request-log pattern as the describes above.
+  test.use({ serviceWorkers: "block" });
+
+  test("initial load fetches no reading chunk", async ({ page }) => {
+    const jsChunkRequests: string[] = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/") && u.pathname.endsWith(".js")) {
+        jsChunkRequests.push(u.pathname);
+      }
+    });
+
+    await page.goto(`${PREVIEW_URL}/?lesson=nj-basics`);
+    await waitForApp(page);
+    for (const name of [
+      "ReadingPage",
+      "QuestionControls",
+      "TestSummary",
+      "trees-demo",
+    ]) {
+      expect(
+        jsChunkRequests.some((u) => u.includes(name)),
+        `${name} must not be an initial chunk`,
+      ).toBe(false);
+    }
+  });
+});
+
 test("after one online load, Math renders offline with KaTeX's own fonts", async ({
   page,
   context,

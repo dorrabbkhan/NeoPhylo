@@ -8470,3 +8470,55 @@ Owner-requested rendering fixes after the PR #139 review; branch
     faces resolved — four first-pass `rt-*` baselines had captured the
     fallback layout and failed in CI. A Vitest regression test pins
     "no layout before the fonts gate opens".
+
+## v1.4d Task 8: reading trees area
+
+- **Files outside the Files block:**
+  - `web/e2e/visualScenes.ts` — the scene table `visual.spec.ts`
+    iterates; the block names `visual.spec.ts` but the scenes
+    themselves are declared in `visualScenes.ts`, so the new
+    `reading-*` scenes and the `readItem`/`gotoReadItem` helpers were
+    added there (same split Task 7 used).
+  - `web/src/views/reading/ItemView.tsx` — the item screen
+    (trees, controls, verdict, nav) extracted from `ReadingPage.tsx`;
+    the page file would be ~480 lines against AGENTS.md's ~400 rule.
+  - `web/src/views/reading/QuestionControlsTree.tsx` — the
+    pick-on-the-tree controls (order_nodes builder, selection list)
+    extracted from `QuestionControls.tsx` for the same line rule.
+  - `web/src/reading/errors.ts` — the reading-area NeoError text
+    (`InvalidReading` field + message, LabPage's InvalidExercise
+    convention), shared by the page and the item view.
+  - `web/src/views/reading/reading.css` — the `.read-*` page, control
+    and summary styles are appended to the reading area's existing
+    stylesheet rather than a new file; also carries the `<600px`
+    `.read-trees` `flex-wrap: nowrap` fix (a wrapping column flex let
+    the figure escape the viewport).
+  - `web/e2e/__screenshots__/reading-*.png` — 62 new baselines for the
+    15 new scenes, generated inside the pinned Playwright image; no
+    existing baseline was touched.
+  - `docs/decisions.md` — this entry.
+- **Files the block lists as Modify but unchanged:**
+  - `web/e2e/visual.spec.ts` — the scene matrix already covers the new
+    scenes (name × viewport × theme loop driven by `visualScenes.ts`).
+- **Ambiguities resolved:**
+  - "Question screen per type" is 13 `reading-q-*` scenes (one per
+    `Question` kind in the demo set) plus `reading-feedback` (practice
+    verdict + explanation + note_after), `reading-summary` (test-mode
+    results), and the owner-requested
+    `reading-tipsup-12-long-names-360` — each at 360×740 and 1024×768
+    in both themes except the owner scene, which is 360×740 only per
+    the request. All scenes navigate the real `/?read=` route, not
+    the dev harness.
+  - `?read=<id>` loads a built-in set through the registry's lazy JSON
+    import; `#r=<compressed>` decodes an lz-string payload
+    `{ v: 1, set }` — both land in the same `ReadingPage` chunk, which
+    is lazy-imported in `Root.tsx` so the initial-JS budget is
+    unchanged.
+  - Selection responses are stored as clade keys / point ids, not
+    screen positions, so `rotate` inside `ReadingTree` keeps a picked
+    biological clade selected without the page tracking orientation.
+  - Two-tier responses carry an empty inner `Response` and a `-1`
+    reason sentinel until both parts are complete; `submittable`
+    gates Check/Finish on the pair.
+  - `trees-demo.json` has `id: "trees-demo"` and is excluded from
+    `listReadingSets()` so it never appears in the library (Task 9).

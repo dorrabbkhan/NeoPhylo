@@ -333,3 +333,39 @@ test("375×812 coarse pointer: every matrix control is ≥40×40 and the page ne
   await page.setViewportSize({ width: 768, height: 1024 });
   await expectNoSidewaysScroll(page, 768, "a matrix session at 768 px");
 });
+
+/* ---- v1.4d Task 8: the reading area under a coarse pointer ---- */
+
+test("375x812: the reading area's header controls fit and the page never scrolls sideways", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-demo");
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  await checkHeaderControls(page, "the reading area");
+  await expectNoSidewaysScroll(page, NARROW.w, "the reading area");
+
+  // The three-tree item stacks vertically below 600 px (spec §6);
+  // the tips-up long-name item (index 24) is the widest figure the
+  // demo set owns — the figure scrolls inside .rt-canvas, the page
+  // never does.
+  for (let i = 0; i < 24; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(page.getByText("Question 25 of")).toBeVisible();
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+  await expectNoSidewaysScroll(
+    page,
+    NARROW.w,
+    "the reading area's long-name tips-up item",
+  );
+});
+
+test("320x640: the reading area never scrolls sideways", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/?read=trees-demo");
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+  await expectNoSidewaysScroll(page, 320, "the reading area at 320 px");
+});

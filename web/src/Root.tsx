@@ -68,6 +68,15 @@ const GuidePage = lazy(() =>
   })),
 );
 
+// v1.4d Task 8: `?read=<id>` (a shipped set) and `#r=` links (a set
+// in the fragment) mount the reading area — a lazy chunk like every
+// non-app route so its state and controls stay off the initial path.
+const ReadingPage = lazy(() =>
+  import("./views/reading/ReadingPage").then((m) => ({
+    default: m.ReadingPage,
+  })),
+);
+
 const params = new URLSearchParams(window.location.search);
 const editorRoute = params.has("editor");
 const previewRoute = params.has("preview");
@@ -75,6 +84,8 @@ const labsRoute = params.has("labs");
 const libraryRoute = params.has("library");
 const guideRoute = params.has("guide");
 const labRoute = params.get("lab");
+const readRoute = params.get("read");
+const readHash = window.location.hash;
 const worksheetRoute = params.get("worksheet");
 const keyRoute = params.get("key");
 
@@ -147,6 +158,15 @@ export function Root() {
     return (
       <Suspense fallback={LOADING}>
         <GuidePage />
+      </Suspense>
+    );
+  }
+  // `#r=` wins over `?read=`: a shared-set link always carries its
+  // own set, even when a stale query param rides along.
+  if (readHash.includes("#r=") || (readRoute !== null && readRoute !== "")) {
+    return (
+      <Suspense fallback={LOADING}>
+        <ReadingPage id={readRoute} hash={readHash} />
       </Suspense>
     );
   }

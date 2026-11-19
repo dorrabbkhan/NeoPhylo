@@ -234,3 +234,264 @@
   margin: 2px 0 2px 18px;
   padding: 0;
 }
+
+/* ---- Reading area page (v1.4d Task 8, spec §7) ----
+ * read-* classes style the question page and summary. Multi-tree
+ * items stack vertically below 600 px (spec §6); everything else
+ * uses the shared tokens. */
+
+.read-page {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--space-16);
+  color: var(--color-text);
+  font-size: var(--size-md);
+}
+
+.read-mode {
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.read-loading {
+  color: var(--color-text-muted);
+}
+
+.read-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-8);
+}
+
+.read-set-title {
+  margin: 0;
+  font-size: var(--size-lg);
+  color: var(--color-text-h);
+}
+
+.read-count {
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+.read-question {
+  font-size: var(--size-md);
+  margin: var(--space-12) 0;
+}
+
+.read-trees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
+/* A single figure wider than the column scrolls inside .rt-canvas;
+ * the figure never pushes the page sideways. */
+.read-trees > .rt-figure {
+  max-width: 100%;
+}
+
+/* Below 600 px multi-tree items stack vertically (spec §6). nowrap
+ * matters in the column direction: a wrapping column line sizes to
+ * its item's content, which would let a wide figure overflow the
+ * viewport; nowrap keeps align-items:stretch clamping to the
+ * container so .rt-canvas does the scrolling. */
+@media (max-width: 600px) {
+  .read-trees {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+}
+
+.read-control {
+  margin-top: var(--space-12);
+}
+
+.read-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.read-choice {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.read-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.read-stepper input {
+  width: 5em;
+  font-size: var(--size-md);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.read-step {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: var(--size-md);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.read-order-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.read-chip {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: var(--size-md);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.read-order-list,
+.read-sel-list {
+  margin: var(--space-8) 0;
+  padding-left: var(--space-24);
+}
+
+.read-order-row,
+.read-sel-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+.read-order-row button,
+.read-sel-list button {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: var(--size-sm);
+  color: var(--color-text);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.read-order-empty,
+.read-sel-empty {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  list-style: none;
+}
+
+.read-sel-list .read-sel-empty {
+  margin-left: calc(0px - var(--space-24));
+}
+
+.read-why {
+  margin: var(--space-12) 0 var(--space-4);
+  font-weight: 600;
+  color: var(--color-text-h);
+}
+
+.read-feedback {
+  margin-top: var(--space-12);
+  padding: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.read-verdict-good {
+  color: var(--color-ok);
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}
+
+.read-verdict-bad {
+  color: var(--color-warn);
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}
+
+.read-explain {
+  margin: 0 0 var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.read-note {
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
+.read-nav {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+}
+
+.read-nav-btn {
+  min-height: 40px;
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--size-md);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.read-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.read-check {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-contrast);
+}
+
+.read-summary h1 {
+  font-size: var(--size-xl);
+  color: var(--color-text-h);
+}
+
+.read-score {
+  font-size: var(--size-md);
+}
+
+.read-summary-list {
+  margin: var(--space-12) 0;
+  padding-left: var(--space-24);
+  list-style: none;
+}
+
+.read-summary-item {
+  margin-bottom: var(--space-12);
+}
+
+.read-summary-q {
+  margin: 0 0 var(--space-4);
+}

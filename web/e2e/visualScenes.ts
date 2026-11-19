@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
+import lzstring from "lz-string";
+
 import { stepToEnd, waitForApp } from "./helpers";
 
 /** The weak-support sample (6 taxa A–F, 120 sites): the same file the
@@ -206,6 +208,31 @@ const EDITOR_VIEWPORTS = [
   { w: 768, h: 1024 },
   { w: 1280, h: 800 },
 ];
+
+/** The reading area's frame sizes (v1.4d Task 8): 1024 wide like the
+ * standard matrix plus the area's own 360×740 phone width. */
+const READING_VIEWPORTS = [
+  { w: 1024, h: 768 },
+  { w: 360, h: 740 },
+] as const;
+
+/** Open `?read=trees-demo` on the item at `index` (Next clicks), with
+ * the first figure settled. */
+async function gotoReadItem(page: Page, index: number): Promise<void> {
+  await page.goto("/?read=trees-demo");
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(page.getByText(`Question ${index + 1} of`)).toBeVisible();
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+}
+
+/** The question-screen scene body: navigate, settle, shoot. */
+async function readItem(page: Page, index: number): Promise<void> {
+  await gotoReadItem(page, index);
+  await settleFrame(page);
+}
 
 export const SCENES: {
   name: string;
@@ -1091,6 +1118,186 @@ export const SCENES: {
         "/e2e/reading-harness.html?set=showcase&shape=rectangular&tips=up&w=360",
       );
       await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  // ---- v1.4d Task 8: the reading area (?read=trees-demo) -----------
+  // The real route, not the harness: question screens ride the lazy
+  // ReadingPage chunk and the shipped demo set. The area's narrow
+  // viewport is 360×740 (Global Constraints), paired with 1024×768.
+  {
+    // The three-tree which_differs question — multi-tree items stack
+    // vertically below 600 px (spec §6).
+    name: "reading-q-which-differs",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 0),
+  },
+  {
+    name: "reading-q-which-fits",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 2),
+  },
+  {
+    // Node-selectable mrca with the {set} tips highlighted.
+    name: "reading-q-mrca",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 3),
+  },
+  {
+    // Lettered branch points on the mammals tree.
+    name: "reading-q-place-taxon",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 5),
+  },
+  {
+    name: "reading-q-is-clade",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 6),
+  },
+  {
+    name: "reading-q-smallest-clade",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 7),
+  },
+  {
+    name: "reading-q-closest-relative",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 8),
+  },
+  {
+    name: "reading-q-count-clades",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 11),
+  },
+  {
+    // The order control: letter chips above the editable list.
+    name: "reading-q-order-nodes",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 12),
+  },
+  {
+    // select_true on the three-tree item — the statement checkboxes.
+    name: "reading-q-select-true",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 13),
+  },
+  {
+    // A trait item: the marks on the traits tree plus tap-to-select.
+    name: "reading-q-trait",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 14),
+  },
+  {
+    name: "reading-q-concept",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 22),
+  },
+  {
+    // Two-tier: the inner yes/no plus the authored reason radios.
+    name: "reading-q-two-tier",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 23),
+  },
+  {
+    // Practice feedback: a checked MRCA answer shows the verdict, the
+    // engine's explanation and the item's note_after.
+    name: "reading-feedback",
+    viewports: READING_VIEWPORTS,
+    setup: async (page) => {
+      await gotoReadItem(page, 3);
+      await page
+        .locator(
+          '.rt-hit[data-clade=\'["chimp","gibbon","gorilla","human"]\']',
+        )
+        .click();
+      await page.getByRole("button", { name: "Check" }).click();
+      await expect(
+        page.getByRole("status", { name: "Verdict" }),
+      ).toBeVisible();
+      await expect(page.locator(".read-note")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The test-mode summary via a #r= link (the shared-set envelope
+    // the editor's Share writes): one item right, one wrong, engine
+    // explanations on every row.
+    name: "reading-summary",
+    viewports: READING_VIEWPORTS,
+    setup: async (page) => {
+      const demo = JSON.parse(
+        await readFile(
+          new URL("../../exercises/reading/trees-demo.json", import.meta.url),
+          "utf8",
+        ),
+      );
+      const testSet = {
+        ...demo,
+        id: "trees-demo-test",
+        title: "Reading trees — test demo",
+        mode: "test",
+        items: [demo.items[6], demo.items[22]],
+      };
+      await page.goto(
+        "/#r=" +
+          lzstring.compressToEncodedURIComponent(
+            JSON.stringify({ v: 1, set: testSet }),
+          ),
+      );
+      await expect(page.getByText("Question 1 of 2")).toBeVisible();
+      await page.getByRole("radio", { name: "Yes — a clade" }).click();
+      await page.getByRole("button", { name: "Next" }).click();
+      await page
+        .getByRole("checkbox", { name: "A single living species" })
+        .click();
+      await page.getByRole("button", { name: "Finish" }).click();
+      await expect(
+        page.getByText("You answered 1 of 2 correctly."),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Owner-requested (Review Focus 5, 2026-11-19): the 12-tip tips-up
+    // tree with real long taxon names — a 30-char name, and spaces plus
+    // a doubled apostrophe — through the real reading area at 360×740,
+    // both themes. Every tip label must render unclipped at ≥12 px;
+    // the figure scrolls sideways inside .rt-canvas and shows the
+    // inset-shadow cue, while the page never scrolls.
+    name: "reading-tipsup-12-long-names-360",
+    viewports: [{ w: 360, h: 740 }],
+    setup: async (page) => {
+      await gotoReadItem(page, 24);
+      const fig = page.locator(".rt-figure").first();
+      await expect(fig.locator(".rt-tip-label")).toHaveCount(12);
+      const canvas = fig.locator(".rt-canvas");
+      if (
+        await canvas.evaluate((el) => el.scrollWidth > el.clientWidth)
+      ) {
+        await expect(canvas).toHaveAttribute("data-scroll", "true");
+      }
+      // Unclipped labels: every label box inside the drawn width, and
+      // the 12 px text floor held.
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const size = await el.evaluate(
+          (t) => parseFloat(getComputedStyle(t).fontSize),
+        );
+        expect(size, "tip label text is at least 12 px")
+          .toBeGreaterThanOrEqual(12);
+      }
+      const svgW = await fig
+        .locator("svg")
+        .evaluate((s) => parseFloat(s.getAttribute("width") ?? "0"));
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const box = await el.boundingBox();
+        const svgBox = await fig.locator("svg").boundingBox();
+        expect(box).not.toBeNull();
+        expect(svgBox).not.toBeNull();
+        expect(
+          box!.x + box!.width,
+          "every tip label ends inside the drawn figure",
+        ).toBeLessThanOrEqual(svgBox!.x + svgW + 0.5);
+      }
       await settleFrame(page);
     },
   },

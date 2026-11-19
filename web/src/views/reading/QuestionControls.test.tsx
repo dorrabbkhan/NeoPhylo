@@ -1,0 +1,313 @@
+// QuestionControls tests (v1.4d plan Task 8, spec §4.3/§7.3). Named
+// test: `order_nodes` controls produce `Response::Order`. Every other
+// control also must emit exactly the `Response` kind the engine's
+// check pairs with that question — controls never compute the answer.
+
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { useState } from "react";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { engine } from "../../engine/index";
+import type { Item } from "../../engine/generated/Item";
+import type { ReadingSet } from "../../engine/generated/ReadingSet";
+import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
+import type { Response } from "../../engine/generated/Response";
+
+import { QuestionControls } from "./QuestionControls";
+
+function loadDemo(): ReadingSet {
+  const r = engine.loadReadingSet(
+    readFileSync(
+      resolve("..", "exercises", "reading", "trees-demo.json"),
+      "utf8",
+    ),
+  );
+  if (!r.ok) throw new Error("demo set refused");
+  return r.value;
+}
+
+const DEMO = loadDemo();
+
+function item(id: string): Item {
+  const it = DEMO.items.find((x) => x.id === id);
+  if (it === undefined) throw new Error(`no item ${id}`);
+  return it;
+}
+
+function view(it: Item): ReadingTreeView {
+  const r = engine.readingTree(DEMO, it.trees[0]);
+  if (!r.ok) throw new Error(`view for ${it.trees[0]} refused`);
+  return r.value;
+}
+
+// The controls are controlled — multi-step interactions need the
+// harness to feed each emitted response back in, like the page does.
+function Harness({
+  it,
+  view,
+  initial,
+  spy,
+}: {
+  it: Item;
+  view: ReadingTreeView;
+  initial: Response | null;
+  spy: (r: Response | null) => void;
+}) {
+  const [r, setR] = useState<Response | null>(initial);
+  return (
+    <QuestionControls
+      item={it}
+      view={view}
+      response={r}
+      onResponse={(next) => {
+        setR(next);
+        spy(next);
+      }}
+    />
+  );
+}
+
+function setup(it: Item, response: Response | null = null) {
+  const onResponse = vi.fn();
+  const ui = render(
+    <Harness it={it} view={view(it)} initial={response} spy={onResponse} />,
+  );
+  return { onResponse, ...ui };
+}
+
+const lastResponse = (spy: ReturnType<typeof vi.fn>) =>
+  spy.mock.calls.at(-1)?.[0] as Response | null;
+
+afterEach(cleanup);
+
+describe("choice controls emit Response::Choice", () => {
+  it("which_differs lists the trees plus 'all show the same'", () => {
+    const { onResponse, getByRole } = setup(item("q-differs"));
+    fireEvent.click(getByRole("radio", { name: /tree 3/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 2 });
+    fireEvent.click(
+      getByRole("radio", { name: /all show the same/i }),
+    );
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 3 });
+  });
+
+  it("which_fits lists the candidate trees", () => {
+    const { onResponse, getByRole } = setup(item("q-fits"));
+    fireEvent.click(getByRole("radio", { name: /tree 2/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 1 });
+  });
+
+  it("is_clade offers yes/no", () => {
+    const { onResponse, getByRole } = setup(item("q-clade"));
+    fireEvent.click(getByRole("radio", { name: /yes/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 0 });
+    fireEvent.click(getByRole("radio", { name: /no/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 1 });
+  });
+
+  it("is_clade by_trait offers mono/para/poly", () => {
+    const { onResponse, getByRole } = setup(item("q-clade-trait"));
+    fireEvent.click(getByRole("radio", { name: /paraphyletic/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 1 });
+  });
+
+  it("trait which_shared offers the trait names", () => {
+    const { onResponse, getByRole } = setup(item("q-trait-shared"));
+    fireEvent.click(getByRole("radio", { name: /^fur$/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 2 });
+  });
+
+  it("trait ancestral_or_derived offers the authored state names", () => {
+    const { onResponse, getByRole } = setup(item("q-trait-ancder"));
+    fireEvent.click(getByRole("radio", { name: /bare|ancestral/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 0 });
+  });
+
+  it("trait homologous offers homologous/independent", () => {
+    const { onResponse, getByRole } = setup(item("q-trait-homo"));
+    fireEvent.click(getByRole("radio", { name: /independent/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "choice", index: 1 });
+  });
+
+  it("closest_relative pairwise emits Response::Pairwise", () => {
+    const { onResponse, getByRole } = setup(item("q-pair"));
+    fireEvent.click(getByRole("radio", { name: /gorilla/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "pairwise",
+      answer: "C",
+    });
+    fireEvent.click(getByRole("radio", { name: /equally/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "pairwise",
+      answer: "Equal",
+    });
+  });
+});
+
+describe("multi-choice controls emit Response::Choices", () => {
+  it("concept toggles option indices", () => {
+    const { onResponse, getByRole } = setup(item("q-concept"));
+    fireEvent.click(
+      getByRole("checkbox", { name: /hypothetical common ancestor/i }),
+    );
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "choices",
+      indices: [1],
+    });
+  });
+
+  it("concept untoggles an already-picked option", () => {
+    const { onResponse, getByRole } = setup(item("q-concept"), {
+      kind: "choices",
+      indices: [0, 1],
+    });
+    fireEvent.click(getByRole("checkbox", { name: /living species/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "choices",
+      indices: [1],
+    });
+  });
+
+  it("select_true toggles statement indices", () => {
+    const { onResponse, getAllByRole } = setup(item("q-select"));
+    const boxes = getAllByRole("checkbox");
+    expect(boxes).toHaveLength(5);
+    fireEvent.click(boxes[0]);
+    fireEvent.click(boxes[3]);
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "choices",
+      indices: [0, 3],
+    });
+  });
+
+  it("trait profile toggles trait indices", () => {
+    const { onResponse, getByRole } = setup(item("q-trait-profile"));
+    fireEvent.click(getByRole("checkbox", { name: /hair/i }));
+    fireEvent.click(getByRole("checkbox", { name: /nails/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "choices",
+      indices: [0, 3],
+    });
+  });
+});
+
+describe("number steppers emit Response::Number", () => {
+  it("count_clades steps up and down from a typed value", () => {
+    const { onResponse, getByRole } = setup(item("q-count"));
+    fireEvent.click(getByRole("button", { name: /increase/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "number", value: 1 });
+    const input = getByRole("spinbutton");
+    fireEvent.change(input, { target: { value: "7" } });
+    expect(lastResponse(onResponse)).toEqual({ kind: "number", value: 7 });
+    fireEvent.click(getByRole("button", { name: /decrease/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "number", value: 6 });
+  });
+
+  it("the value never goes below zero", () => {
+    const { onResponse, getByRole } = setup(item("q-count"), {
+      kind: "number",
+      value: 0,
+    });
+    fireEvent.click(getByRole("button", { name: /decrease/i }));
+    expect(lastResponse(onResponse)).toEqual({ kind: "number", value: 0 });
+  });
+});
+
+describe("order_nodes emits Response::Order", () => {
+  it("tapping letter chips builds the sequence", () => {
+    const { onResponse, getByRole } = setup(item("q-order"));
+    fireEvent.click(getByRole("button", { name: /add r|node r/i }));
+    fireEvent.click(getByRole("button", { name: /add p|node p/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "order",
+      letters: ["R", "P"],
+    });
+  });
+
+  it("move-up/down and remove edit the sequence", () => {
+    const { onResponse, getAllByRole, getByRole } = setup(item("q-order"), {
+      kind: "order",
+      letters: ["P", "Q", "R"],
+    });
+    // The harness is stateful, so each edit builds on the last:
+    // P Q R → P R Q → R P Q → R Q.
+    const ups = getAllByRole("button", { name: /move .*up/i });
+    fireEvent.click(ups[2]);
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "order",
+      letters: ["P", "R", "Q"],
+    });
+    const downs = getAllByRole("button", { name: /move .*down/i });
+    fireEvent.click(downs[0]);
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "order",
+      letters: ["R", "P", "Q"],
+    });
+    fireEvent.click(getByRole("button", { name: /remove p|p.*remove/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "order",
+      letters: ["R", "Q"],
+    });
+  });
+});
+
+describe("selection lists", () => {
+  it("a tips response lists each picked tip with a remove button", () => {
+    const { onResponse, getByRole } = setup(item("q-trait-have"), {
+      kind: "tips",
+      tips: ["bat", "cat"],
+    });
+    fireEvent.click(getByRole("button", { name: /remove bat/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "tips",
+      tips: ["cat"],
+    });
+  });
+
+  it("a node response shows the picked clade and can be cleared", () => {
+    const { onResponse, getByRole } = setup(item("q-mrca"), {
+      kind: "node",
+      clade: ["chimp", "gorilla", "gibbon", "human"],
+    });
+    fireEvent.click(getByRole("button", { name: /clear|remove/i }));
+    expect(lastResponse(onResponse)).toBeNull();
+  });
+
+  it("a point response shows the letter and can be cleared", () => {
+    const { onResponse, getByRole } = setup(item("q-mrca-points"), {
+      kind: "point",
+      letter: "W",
+    });
+    fireEvent.click(getByRole("button", { name: /clear|remove/i }));
+    expect(lastResponse(onResponse)).toBeNull();
+  });
+});
+
+describe("two_tier", () => {
+  it("nests the first question's response and a reason", () => {
+    const { onResponse, getByRole } = setup(item("q-two"));
+    fireEvent.click(getByRole("radio", { name: /yes/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "two_tier",
+      first: { kind: "choice", index: 0 },
+      reason: -1,
+    });
+  });
+
+  it("picking a reason completes the two-part answer", () => {
+    const { onResponse, getByRole } = setup(item("q-two"), {
+      kind: "two_tier",
+      first: { kind: "choice", index: 0 },
+      reason: -1,
+    });
+    fireEvent.click(getByRole("radio", { name: /no other tip/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "two_tier",
+      first: { kind: "choice", index: 0 },
+      reason: 0,
+    });
+  });
+});
