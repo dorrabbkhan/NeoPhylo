@@ -11,8 +11,11 @@ import { readingLayout, type ReadingFigure } from "./readingLayout";
 
 // Hand-built views (no engine round-trip needed — the layout input is the
 // generated ReadingTreeView type). `N` describes a node recursively; the
-// builder derives arena order, parent links and clade keys like the
-// engine's `reading_tree` does.
+// builder emits the real engine arena order — leaves 0..L in document
+// order, then internal nodes in preorder (so an internal child always has
+// a HIGHER index than its parent), like `into_tree` in
+// crates/neophylo-core/src/newick.rs — plus parent links and clade keys
+// like the engine's `reading_tree` does.
 interface N {
   label?: string;
   letter?: string;
@@ -21,7 +24,6 @@ interface N {
 }
 
 function buildView(spec: N, extra: Partial<ReadingTreeView> = {}): ReadingTreeView {
-  const nodes: ReadingViewNode[] = [];
   const tipsUnder = (n: N, out: string[]) => {
     if (!n.kids || n.kids.length === 0) {
       out.push(n.label ?? "?");
@@ -29,26 +31,38 @@ function buildView(spec: N, extra: Partial<ReadingTreeView> = {}): ReadingTreeVi
     }
     n.kids.forEach((k) => tipsUnder(k, out));
   };
-  const emit = (n: N, parent: number | null): number => {
-    const id = nodes.length;
-    nodes.push({
-      clade: [],
-      parent,
-      children: [],
-      label: n.label ?? null,
-      letter: n.letter ?? null,
-      age: n.age ?? null,
-    });
-    const tips: string[] = [];
-    tipsUnder(n, tips);
-    nodes[id].clade = tips.slice().sort();
-    nodes[id].children = (n.kids ?? []).map((k) => emit(k, id));
-    return id;
+  // Flatten in preorder (parent before children).
+  const flat: { n: N; parent: number | null; kids: number[] }[] = [];
+  const flatten = (n: N, parent: number | null): number => {
+    const me = flat.length;
+    flat.push({ n, parent, kids: [] });
+    for (const k of n.kids ?? []) flat[me].kids.push(flatten(k, me));
+    return me;
   };
-  const root = emit(spec, null);
+  flatten(spec, null);
+  const id = new Array<number>(flat.length).fill(-1);
+  let next = 0;
+  for (let i = 0; i < flat.length; i += 1)
+    if (flat[i].kids.length === 0) id[i] = next++;
+  for (let i = 0; i < flat.length; i += 1)
+    if (flat[i].kids.length > 0) id[i] = next++;
+  const nodes: ReadingViewNode[] = new Array(flat.length);
+  for (let i = 0; i < flat.length; i += 1) {
+    const tips: string[] = [];
+    tipsUnder(flat[i].n, tips);
+    const p = flat[i].parent;
+    nodes[id[i]] = {
+      clade: tips.slice().sort(),
+      parent: p === null ? null : id[p],
+      children: flat[i].kids.map((k) => id[k]),
+      label: flat[i].n.label ?? null,
+      letter: flat[i].n.letter ?? null,
+      age: flat[i].n.age ?? null,
+    };
+  }
   return {
     nodes,
-    root,
+    root: id[0],
     points: [],
     marks: [],
     traits: [],
@@ -94,6 +108,56 @@ function nodeAt(fig: ReadingFigure, clade: string[]) {
   const n = fig.nodes.find((n) => JSON.stringify(n.clade) === key);
   if (!n) throw new Error(`node ${key} not laid out`);
   return n;
+}
+
+function viewId(view: ReadingTreeView, clade: string[]): number {
+  const key = JSON.stringify([...clade].sort());
+  const i = view.nodes.findIndex((nd) => JSON.stringify(nd.clade) === key);
+  if (i < 0) throw new Error(`clade ${key} not in view`);
+  return i;
+}
+
+// The tip direction a circular drawing's 330° arc is centred on, per
+// side (mirrors readingCircular.ts).
+const TIP_DIR: Record<TipSide, number> = {
+  right: 0,
+  down: 90,
+  left: 180,
+  up: -90,
+};
+
+// Angle of figure node i around the figure centre, in degrees relative
+// to the tip direction, wrapped to (−180, 180]. Every non-root node has
+// rad > 0 so atan2 is meaningful; the root sits exactly at the centre.
+function relAngle(fig: ReadingFigure, i: number, tips: TipSide): number {
+  const nd = fig.nodes[i];
+  const deg =
+    Math.atan2(nd.y - fig.height / 2, nd.x - fig.width / 2) /
+    (Math.PI / 180);
+  return ((deg - TIP_DIR[tips] + 540) % 360) - 180;
+}
+
+// Every internal node's angle is the midpoint of the RESOLVED angles of
+// its first and last children (polytomies: still first/last). The root's
+// own angle is unobservable (rad 0 — its edges start at the centre), so
+// assert its position instead.
+function expectMidpointAngles(
+  view: ReadingTreeView,
+  fig: ReadingFigure,
+  tips: TipSide,
+): void {
+  expect(fig.nodes[view.root].x).toBeCloseTo(fig.width / 2, 6);
+  expect(fig.nodes[view.root].y).toBeCloseTo(fig.height / 2, 6);
+  for (let i = 0; i < view.nodes.length; i += 1) {
+    const kids = view.nodes[i].children;
+    if (kids.length === 0 || i === view.root) continue;
+    expect(relAngle(fig, i, tips)).toBeCloseTo(
+      (relAngle(fig, kids[0], tips) +
+        relAngle(fig, kids[kids.length - 1], tips)) /
+        2,
+      6,
+    );
+  }
 }
 
 describe("readingLayout", () => {
@@ -163,6 +227,58 @@ describe("readingLayout", () => {
       const p = ["a", "b", "c"].map(axis);
       expect(p[1] - p[0]).toBeCloseTo(p[2] - p[1], 6);
       expect(p[1]).toBeGreaterThan(p[0]);
+    },
+  );
+
+  it.each(SIDES)(
+    "circular tips-%s: internal nodes sit at the midpoint of their first/last children's resolved angles",
+    (tips) => {
+      // Arena order is leaves 0..7, internals preorder — internal
+      // children always outrank their parent, so an ascending-index
+      // pass would read unresolved angles.
+      const view = buildView(T8);
+      const fig = readingLayout(view, { shape: "circular", tips }, BOX, measure);
+      expectMidpointAngles(view, fig, tips);
+      // The nested internals are NOT at the tip-side centre: P and Q
+      // sit on the bisectors of their 4-tip arcs (leaf slots 0..3 and
+      // 4..7 of 8), ∓330×(0.5−3/14) ≈ ∓94.29°.
+      const p = viewId(view, ["a", "b", "c", "d"]);
+      const q = viewId(view, ["e", "f", "g", "h"]);
+      expect(relAngle(fig, p, tips)).toBeCloseTo(-94.2857, 3);
+      expect(relAngle(fig, q, tips)).toBeCloseTo(94.2857, 3);
+      expect(Math.abs(relAngle(fig, p, tips))).toBeGreaterThan(45);
+      expect(Math.abs(relAngle(fig, q, tips))).toBeGreaterThan(45);
+    },
+  );
+
+  it.each(SIDES)(
+    "circular tips-%s: a 3-way polytomy inside a nested clade resolves bottom-up",
+    (tips) => {
+      // ((a,(c,d,e)),(f,g)): the polytomy (c,d,e) is nested inside
+      // (a,c,d,e); its angle is the midpoint of c and e, not a mean
+      // over all three children.
+      const view = buildView({
+        kids: [
+          {
+            kids: [
+              { label: "a" },
+              { kids: [{ label: "c" }, { label: "d" }, { label: "e" }] },
+            ],
+          },
+          { kids: [{ label: "f" }, { label: "g" }] },
+        ],
+      });
+      const fig = readingLayout(view, { shape: "circular", tips }, BOX, measure);
+      expectMidpointAngles(view, fig, tips);
+      // 6 leaves, slots 0..5: c=−99°, e=+33° ⇒ (c,d,e)=−33°;
+      // (a,c,d,e) = midpoint of a (−165°) and (c,d,e) = −99° — both far
+      // from the tip-side centre.
+      const m = viewId(view, ["c", "d", "e"]);
+      const p = viewId(view, ["a", "c", "d", "e"]);
+      expect(relAngle(fig, m, tips)).toBeCloseTo(-33, 4);
+      expect(relAngle(fig, p, tips)).toBeCloseTo(-99, 4);
+      expect(Math.abs(relAngle(fig, m, tips))).toBeGreaterThan(10);
+      expect(Math.abs(relAngle(fig, p, tips))).toBeGreaterThan(10);
     },
   );
 

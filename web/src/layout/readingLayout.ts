@@ -229,6 +229,7 @@ export function readingLayout(
       tips: style.tips,
       width: box.width,
       n,
+      root: t.root,
       children: (i) => t.nodes[i].children,
       canon,
       slot,

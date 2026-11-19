@@ -38,6 +38,8 @@ export interface CircularInput {
   tips: TipSide;
   width: number;
   n: number;
+  /** Root index — the arena lists leaves first, so it is not 0. */
+  root: number;
   children: (i: number) => number[];
   /** Canonical depth coordinate per node (0 at the root). */
   canon: number[];
@@ -60,19 +62,26 @@ export function circularPlace(inp: CircularInput): CircularPlace {
 
   const ang = new Array<number>(inp.n).fill(0);
   const rad = new Array<number>(inp.n).fill(0);
-  for (let i = 0; i < inp.n; i += 1) {
-    rad[i] = inp.canon[i] * scale;
-    const kids = inp.children(i);
+  for (let i = 0; i < inp.n; i += 1) rad[i] = inp.canon[i] * scale;
+  // Angles resolve bottom-up (post-order from the root): a leaf's slot
+  // sets its angle, an internal node sits at the midpoint of its first
+  // and last child's RESOLVED angle. Arena index order is leaves then
+  // internal nodes in preorder, so an ascending pass would read angles
+  // that are still 0.
+  const placeAng = (id: number): void => {
+    const kids = inp.children(id);
     if (kids.length === 0) {
-      ang[i] =
+      ang[id] =
         inp.leafCount > 1
           ? centre +
-            (inp.slot[i] / (inp.leafCount - 1) - 0.5) * CIRCULAR_ARC_DEG
+            (inp.slot[id] / (inp.leafCount - 1) - 0.5) * CIRCULAR_ARC_DEG
           : centre;
-    } else {
-      ang[i] = (ang[kids[0]] + ang[kids[kids.length - 1]]) / 2;
+      return;
     }
-  }
+    for (const k of kids) placeAng(k);
+    ang[id] = (ang[kids[0]] + ang[kids[kids.length - 1]]) / 2;
+  };
+  placeAng(inp.root);
 
   const half = PAD + NODE_R + LABEL_GAP + inp.maxLabelW + R;
   const X = new Array<number>(inp.n).fill(0);
