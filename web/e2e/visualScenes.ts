@@ -234,6 +234,91 @@ async function readItem(page: Page, index: number): Promise<void> {
   await settleFrame(page);
 }
 
+/** PR #173 fix round: the shared-branch-marks set — the traits tree
+ * with three marks on the (bat,cat,dog) stem and a lone mark on bat,
+ * once tips-right and once tips-up, served through a #r= link so the
+ * real reading area renders it. */
+async function marksSharedBranch(page: Page, index: number): Promise<void> {
+  const item = (tips: "right" | "up") => ({
+    id: `q-${tips}`,
+    text: "Three marks sit on one branch — gains and the loss differ by shape.",
+    trees: ["t"],
+    style: { shape: "rectangular", tips },
+    question: {
+      type: "concept",
+      options: ["Trait changes", "Mutations", "Speciation events"],
+      correct: [0],
+    },
+  });
+  const set = {
+    schema_version: 1,
+    kind: "reading",
+    id: "marks-shared",
+    title: "Marks on one branch",
+    summary: "Three trait marks sharing one branch",
+    meta: {
+      objectives: ["Trait changes pile onto one branch legibly"],
+      minutes: 5,
+      level: "intro",
+      prepares_for: [],
+    },
+    mode: "practice",
+    taxa_pool: {},
+    trees: {
+      t: {
+        newick: "(((bat,cat),dog),(fish,worm));",
+        marks: [
+          { on: ["bat", "cat", "dog"], trait: "hair", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "fur", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "claws", change: "loss" },
+          { on: ["bat"], trait: "wings", change: "gain" },
+        ],
+        traits: [
+          { name: "hair", ancestral: "bare", derived: "hairy" },
+          { name: "fur", ancestral: "furless", derived: "furry" },
+          { name: "claws", ancestral: "clawed", derived: "clawless" },
+          { name: "wings", ancestral: "no wings", derived: "winged" },
+        ],
+      },
+    },
+    items: [item("right"), item("up")],
+  };
+  await page.goto(
+    "/#r=" +
+      lzstring.compressToEncodedURIComponent(
+        JSON.stringify({ v: 1, set }),
+      ),
+  );
+  await expect(page.getByText(`Question 1 of 2`)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(
+    page.getByText(`Question ${index + 1} of 2`),
+  ).toBeVisible();
+  const fig = page.locator(".rt-figure").first();
+  await expect(fig.locator("svg")).toBeVisible();
+  // The fix's visible contract: three marks share one stem, and no
+  // two mark labels overlap on screen.
+  await expect(fig.locator(".rt-mark")).toHaveCount(4);
+  const labels = await fig.locator(".rt-mark-label").all();
+  expect(labels).toHaveLength(4);
+  const boxes = await Promise.all(labels.map((el) => el.boundingBox()));
+  for (const b of boxes) expect(b).not.toBeNull();
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const [a, b] = [boxes[i]!, boxes[j]!];
+      const overlap =
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      expect(overlap, `mark labels ${i} and ${j} overlap`).toBe(false);
+    }
+  }
+  await settleFrame(page);
+}
+
 export const SCENES: {
   name: string;
   /** Drives the UI to the frame; returning a Page shoots THAT page
@@ -1256,6 +1341,22 @@ export const SCENES: {
       ).toBeVisible();
       await settleFrame(page);
     },
+  },
+  {
+    // PR #173 fix round: several trait marks on ONE branch must spread
+    // instead of piling on the midpoint — three marks share the
+    // (bat,cat,dog) stem here, with a lone mark on bat for contrast.
+    // Rectangular tips-right at the phone width, both themes.
+    name: "reading-marks-same-branch",
+    viewports: [{ w: 360, h: 740 }],
+    setup: (page) => marksSharedBranch(page, 0),
+  },
+  {
+    // Same set's second item draws the same tree tips-up — marks and
+    // labels spread along vertical stems.
+    name: "reading-marks-same-branch-up",
+    viewports: [{ w: 360, h: 740 }],
+    setup: (page) => marksSharedBranch(page, 1),
   },
   {
     // Owner-requested (Review Focus 5, 2026-11-19): the 12-tip tips-up

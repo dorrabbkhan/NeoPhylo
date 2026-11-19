@@ -8529,3 +8529,66 @@ Owner-requested rendering fixes after the PR #139 review; branch
     radio.)
   - `trees-demo.json` has `id: "trees-demo"` and is excluded from
     `listReadingSets()` so it never appears in the library (Task 9).
+
+### Fix round (owner-ordered, 2026-11-20): shared-branch trait marks
+
+- **Layout rule for marks sharing one branch** (`readingMarks.ts`,
+  called from `readingLayout.ts`): marks on the same resolved node are
+  grouped in input order. A branch with exactly one mark keeps the
+  historical midpoint placement — identical `x`/`y`/`angle` and the
+  same `MARK_HALF + 4` label offset — so lone-mark figures are
+  bit-identical. For n ≥ 2 marks on a stem, `placeMarks` spreads them
+  deterministically along the stem direction (diagonal = straight
+  parent–child segment, rectangular = the node's horizontal or
+  vertical stem per tip side, circular = the radial segment), spacing
+  them by measured adjacent label widths plus glyph clearance and
+  clamping to the usable stem extent. When the stem cannot fit the
+  same-row spacing, labels stack perpendicular to the stem instead of
+  overlapping. Every mark now carries `labelX`, `labelY` and a
+  `labelBox` (the existing `Box`/`intersects` measure used by tip
+  labels); `readingDraw.tsx` renders the text at the layout-provided
+  anchor instead of the fixed offset. If stacked labels or left-of-pad
+  labels leave the figure, `placeMarks` reports a growth/shift and
+  `readingLayout` translates all geometry (nodes, marks, circular
+  centre, axes) and grows `width`/`height` — `scroll` semantics are
+  unchanged (still natural width vs box width).
+- **Baselines regenerated (the only scenes containing ≥2 marks on one
+  branch):** `reading-q-trait-{360x740,1024x768}-{light,dark}-linux.png`
+  (4 files) — trees-demo item 14's `traits` tree puts `hair` and `fur`
+  gains on the same (bat,cat,dog) stem. A full pinned-image run of all
+  `rt-*` and `reading-*` scenes against the committed baselines before
+  regenerating showed these four as the only diffs; no `rt-*` baseline
+  changed (`rt-marks` has one mark per branch).
+- **New baselines (allowed, new scenes only):**
+  `reading-marks-same-branch{,-up}-360x740-{light,dark}-linux.png`
+  (4 files) — a new `#r=` scene set renders the traits tree through the
+  real reading area with three marks on one stem (`hair`/`fur` gains +
+  `claws` loss, plus a lone `wings` on `bat`), tips-right and tips-up
+  at 360×740 in both themes. The scene setup asserts 4 marks and
+  pairwise non-overlapping label bounding boxes on screen.
+- **Files outside the Files block:**
+  - `web/src/layout/readingLayout.ts` — the shared-branch grouping
+    call, the `labelX`/`labelY`/`labelBox` fields on figure marks, and
+    the growth/shift application (owner explicitly ordered the fix
+    here; the earlier "do not touch readingLayout" note was scoped out
+    by the owner's override).
+  - `web/src/layout/readingMarks.ts` — new file: the mark-placement
+    algorithm, extracted so `readingLayout.ts` stays near the ~400-line
+    single-purpose rule.
+  - `web/src/layout/readingGeom.ts` — `MARK_HALF`/`MARK_GLYPH`
+    moved here from `readingDraw.tsx` so the layout module can compute
+    mark extents without importing the renderer.
+  - `web/src/layout/readingLayout.test.ts` — new test functions only
+    (no existing assertion edited): 2- and 3-mark groups on one branch
+    across every shape × tip side on an 8-tip tree (pairwise distinct
+    anchors, non-intersecting `labelBox`es, input order preserved), a
+    lone-mark placement test (`x`/`y`/`angle` = `branchMid`), a
+    different-branch regression test, and the trees-demo `traits`
+    six-mark case asserting hair/fur separation, in-bounds labels and
+    no label overlap.
+  - `web/src/views/reading/readingDraw.tsx` — only the label anchor:
+    text now uses `m.labelX - m.x`, `m.labelY - m.y` (identical to the
+    old fixed offset for lone marks); constants now imported from
+    `readingGeom.ts`.
+  - `web/e2e/visualScenes.ts` — the `reading-marks-same-branch{,-up}`
+    scenes and their `marksSharedBranch` setup helper.

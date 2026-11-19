@@ -595,4 +595,132 @@ describe("readingLayout", () => {
       "right",
     );
   });
+
+  // ---- shared-branch marks (PR #173 fix: several marks on one
+  // branch must spread instead of stacking on the midpoint) ----
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: marks sharing one branch get pairwise distinct positions and non-overlapping label boxes",
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        marks: [
+          { on: ["a", "b", "c", "d"], trait: "hair", change: "gain" },
+          { on: ["a", "b", "c", "d"], trait: "fur", change: "gain" },
+          { on: ["e", "f"], trait: "claws", change: "loss" },
+          { on: ["e", "f"], trait: "teeth", change: "gain" },
+          { on: ["e", "f"], trait: "eyes", change: "loss" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      // Output keeps the input order.
+      expect(fig.marks.map((m) => m.trait)).toEqual([
+        "hair",
+        "fur",
+        "claws",
+        "teeth",
+        "eyes",
+      ]);
+      for (const [lo, hi] of [
+        [0, 2],
+        [2, 5],
+      ] as const) {
+        const grp = fig.marks.slice(lo, hi);
+        const pos = new Set(grp.map((m) => `${m.x}|${m.y}`));
+        expect(pos.size).toBe(grp.length);
+        for (let i = 0; i < grp.length; i += 1) {
+          for (let j = i + 1; j < grp.length; j += 1) {
+            expect(
+              intersects(grp[i].labelBox!, grp[j].labelBox!),
+            ).toBe(false);
+          }
+        }
+      }
+    },
+  );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: a lone mark keeps the branch-midpoint position and the label 10 px above it",
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        marks: [{ on: ["e", "f"], trait: "fur", change: "loss" }],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expect(fig.marks).toHaveLength(1);
+      expectOnStem(fig.marks[0], fig, view, ["e", "f"], shape, tips);
+      expect(fig.marks[0].labelX).toBeCloseTo(fig.marks[0].x, 6);
+      // MARK_HALF (6) + 4 — the placement readingDraw has always used.
+      expect(fig.marks[0].labelY).toBeCloseTo(fig.marks[0].y - 10, 6);
+    },
+  );
+
+  it("marks on other branches are unaffected by a shared branch's spread", () => {
+    const view = buildView(T8, {
+      marks: [
+        { on: ["a", "b"], trait: "hair", change: "gain" },
+        { on: ["a", "b"], trait: "fur", change: "gain" },
+        { on: ["e", "f"], trait: "tail", change: "loss" },
+      ],
+    });
+    const fig = readingLayout(
+      view,
+      { shape: "rectangular", tips: "right" },
+      BOX,
+      measure,
+    );
+    // The lone (e,f) mark still sits exactly on its stem's midpoint.
+    const tail = fig.marks.find((m) => m.trait === "tail")!;
+    expectOnStem(tail, fig, view, ["e", "f"], "rectangular", "right");
+    // And the two marks on (a,b) spread symmetrically about the
+    // midpoint of that branch.
+    const [hair, fur] = fig.marks;
+    const ab = nodeAt(fig, ["a", "b"]);
+    const abcd = nodeAt(fig, ["a", "b", "c", "d"]);
+    const midX = (abcd.x + ab.x) / 2;
+    expect((hair.x + fur.x) / 2).toBeCloseTo(midX, 6);
+  });
+
+  it("the trees-demo traits tree (hair+fur gains on one branch) has no overlapping mark labels", () => {
+    const view = buildView(
+      {
+        kids: [
+          {
+            kids: [
+              { kids: [{ label: "bat" }, { label: "cat" }] },
+              { label: "dog" },
+            ],
+          },
+          { kids: [{ label: "fish" }, { label: "worm" }] },
+        ],
+      },
+      {
+        marks: [
+          { on: ["bat", "cat", "dog"], trait: "hair", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "fur", change: "gain" },
+          { on: ["cat"], trait: "fur", change: "loss" },
+          { on: ["bat"], trait: "wings", change: "gain" },
+          { on: ["fish"], trait: "wings", change: "gain" },
+          { on: ["bat", "cat"], trait: "nails", change: "gain" },
+        ],
+      },
+    );
+    const fig = readingLayout(
+      view,
+      { shape: "rectangular", tips: "right" },
+      BOX,
+      measure,
+    );
+    expect(fig.marks).toHaveLength(6);
+    const [hair, fur] = fig.marks;
+    expect(`${hair.x}|${hair.y}`).not.toBe(`${fur.x}|${fur.y}`);
+    for (let i = 0; i < fig.marks.length; i += 1) {
+      const b = fig.marks[i].labelBox!;
+      expect(b.minX).toBeGreaterThanOrEqual(-0.5);
+      expect(b.minY).toBeGreaterThanOrEqual(-0.5);
+      expect(b.maxX).toBeLessThanOrEqual(fig.width + 0.5);
+      expect(b.maxY).toBeLessThanOrEqual(fig.height + 0.5);
+      for (let j = i + 1; j < fig.marks.length; j += 1) {
+        expect(intersects(b, fig.marks[j].labelBox!)).toBe(false);
+      }
+    }
+  });
 });

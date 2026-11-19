@@ -27,6 +27,7 @@ import type { Shape } from "../engine/generated/Shape";
 import type { TipSide } from "../engine/generated/TipSide";
 
 import { circularPlace, type CircularPlace } from "./readingCircular";
+import { placeMarks } from "./readingMarks";
 import {
   abbreviate,
   AXIS_ROOM,
@@ -88,6 +89,15 @@ export interface ReadingFigure {
     x: number;
     y: number;
     angle: number;
+    /** Anchor of the mark's trait text in figure coordinates — the
+     * renderer centres the label on it. For a lone mark this is the
+     * spot it has always used (10 px above the anchor); marks sharing
+     * a branch spread along the stem and stack their labels. */
+    labelX: number;
+    labelY: number;
+    /** Estimated AABB of the label text (same asc/desc estimates the
+     * tip-label boxes use). */
+    labelBox: Box;
   }[];
   axis?: ReadingAxis;
   scroll: boolean;
@@ -323,6 +333,51 @@ export function readingLayout(
     }
   }
 
+  const idByClade = new Map<string, number>();
+  for (let i = 0; i < n; i += 1) {
+    idByClade.set(cladeKey(t.nodes[i].clade), i);
+  }
+  const find = (clade: string[]): number | undefined =>
+    idByClade.get(cladeKey(clade));
+
+  // Marks resolve to the branch leading to their clade's node.
+  // Several marks on ONE branch spread along the stem (and their
+  // labels stack) instead of piling on the midpoint — readingMarks.ts.
+  // A lone mark keeps the midpoint placement it has always had.
+  const { placed: placedMark, grow } = placeMarks({
+    view: t,
+    shape: style.shape,
+    horizontal,
+    X,
+    Y,
+    circ,
+    asc,
+    desc,
+    measure,
+    find,
+    width,
+    height,
+  });
+  // A shared branch's spread or label stack may reach past the figure
+  // edge; shift the whole drawing so every mark label stays inside
+  // and grow the figure if one still escapes on the right or bottom
+  // (`scroll` keeps its width > box.width meaning). Only figures with
+  // a shared branch pay for this — all others stay byte-identical.
+  if (grow !== null) {
+    for (let i = 0; i < n; i += 1) {
+      X[i] += grow.gx;
+      Y[i] += grow.gy;
+    }
+    if (circ !== null) {
+      circ.cx0 += grow.gx;
+      circ.cy0 += grow.gy;
+    }
+    const baseAt = axisAt;
+    axisAt = (c) => baseAt(c) + (horizontal ? grow.gx : grow.gy);
+    width += grow.gx + grow.addW;
+    height += grow.gy + grow.addH;
+  }
+
   const nodes: ReadingFigureNode[] = t.nodes.map((nd, i) => ({
     clade: nd.clade,
     x: X[i],
@@ -390,13 +445,6 @@ export function readingLayout(
     };
   };
 
-  const idByClade = new Map<string, number>();
-  for (let i = 0; i < n; i += 1) {
-    idByClade.set(cladeKey(t.nodes[i].clade), i);
-  }
-  const find = (clade: string[]): number | undefined =>
-    idByClade.get(cladeKey(clade));
-
   const points = t.points.flatMap((pt) => {
     const i = find(pt.on);
     if (i === undefined) return [];
@@ -404,19 +452,10 @@ export function readingLayout(
     return [{ letter: pt.letter, x: pos.x, y: pos.y }];
   });
 
-  const marks = t.marks.flatMap((m) => {
-    const i = find(m.on);
-    if (i === undefined) return [];
-    const mid = branchMid(i);
-    return [
-      {
-        trait: m.trait,
-        change: m.change,
-        x: mid.x,
-        y: mid.y,
-        angle: mid.angle,
-      },
-    ];
+  const marks = t.marks.flatMap((m, j) => {
+    const p = placedMark[j];
+    if (p === undefined) return [];
+    return [{ trait: m.trait, change: m.change, ...p }];
   });
 
   // The axis runs along the depth axis; ticks sit at round ages.
