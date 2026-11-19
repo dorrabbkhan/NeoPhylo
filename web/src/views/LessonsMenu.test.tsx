@@ -204,3 +204,75 @@ describe("LessonsMenu — Take the tour item (§6.7, owner decision B)", () => {
     expect(document.activeElement?.textContent).toContain("Cytochrome c");
   });
 });
+
+describe("LessonsMenu — Reading trees item (v1.4d Task 9, spec §7.1)", () => {
+  it("shows the row between Library and Take the tour when onOpenReading is set", () => {
+    render(
+      <LessonsMenu
+        currentId={null}
+        onPick={() => {}}
+        onOpenLibrary={() => {}}
+        onOpenReading={() => {}}
+        onTakeTour={() => {}}
+      />,
+    );
+    fireEvent.click(menuButton());
+    const menu = screen.getByRole("menu");
+    const labels = Array.from(
+      menu.querySelectorAll('[role="menuitem"]'),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual(["Library", "Reading trees", "Take the tour"]);
+    // An action, not a lesson pick: never a "current" marker.
+    const item = screen.getByRole("menuitem", { name: "Reading trees" });
+    expect(item.getAttribute("aria-checked")).toBeNull();
+  });
+
+  it("selecting it closes the menu and calls onOpenReading — never onPick", () => {
+    const onPick = vi.fn();
+    const onOpenReading = vi.fn();
+    render(
+      <LessonsMenu
+        currentId={null}
+        onPick={onPick}
+        onOpenReading={onOpenReading}
+      />,
+    );
+    fireEvent.click(menuButton());
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Reading trees" }),
+    );
+    expect(onOpenReading).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("joins the roving keyboard order after Library", () => {
+    const onOpenReading = vi.fn();
+    render(
+      <LessonsMenu
+        currentId={null}
+        onPick={() => {}}
+        onOpenLibrary={() => {}}
+        onOpenReading={onOpenReading}
+      />,
+    );
+    fireEvent.click(menuButton());
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "End" });
+    expect(document.activeElement?.textContent).toBe("Reading trees");
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement?.textContent).toContain(
+      "Neighbor-Joining, by hand",
+    );
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(document.activeElement?.textContent).toBe("Reading trees");
+  });
+
+  it("is absent without onOpenReading", () => {
+    render(<LessonsMenu currentId={null} onPick={() => {}} />);
+    fireEvent.click(menuButton());
+    expect(
+      screen.queryByRole("menuitem", { name: "Reading trees" }),
+    ).toBeNull();
+  });
+});

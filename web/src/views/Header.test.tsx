@@ -93,6 +93,24 @@ describe("Header — Guides menu and Labs link (v1.4b Task 12, owner decision)",
   });
 });
 
+describe("Header — Reading trees link (v1.4d Task 9, spec §7.1)", () => {
+  it('shows a direct "Reading trees" link to the filtered library at ≥ 1280', () => {
+    setup("wide");
+    const link = screen.getByRole("link", { name: "Reading trees" });
+    expect(link.getAttribute("href")).toBe("?library&type=reading");
+  });
+
+  it("shows no direct link below 1280 — the menus own the entry there like the Labs chip", () => {
+    for (const bp of ["medium", "narrow", "compact"] as const) {
+      cleanup();
+      setup(bp);
+      expect(
+        screen.queryByRole("link", { name: "Reading trees" }),
+      ).toBeNull();
+    }
+  });
+});
+
 describe("Header — truncated title (v1.3 fixes)", () => {
   it("keeps the full title on the h1's title attribute for the ellipsis", () => {
     setup("wide");

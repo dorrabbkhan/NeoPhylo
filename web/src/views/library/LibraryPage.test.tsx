@@ -35,10 +35,29 @@ import type { ExerciseMeta } from "../../engine/generated/ExerciseMeta";
 import { LESSONS } from "../../lessons/catalog";
 import { listLabs } from "../../labs/registry";
 import type { DatasetSummary } from "../../library/registry";
+import type { ReadingSetSummary } from "../../reading/registry";
 import { paperSheet } from "../../worksheets/build";
 
 import { LabIndex } from "../labs/LabIndex";
 import { LibraryPage } from "./LibraryPage";
+
+// v1.4d Task 9: `listReadingSets` is stubbed so a test can give the
+// page a reading card before the real lessons land (Tasks 11–12);
+// the shipped-set count test below still reads exercises/reading/
+// off disk. The empty default matches today — only trees-demo is
+// shipped and the registry never lists it.
+const mockReading = vi.hoisted(() => ({
+  list: [] as unknown[],
+}));
+vi.mock("../../reading/registry", async (importOriginal) => {
+  const real =
+    await importOriginal<typeof import("../../reading/registry")>();
+  return {
+    ...real,
+    listReadingSets: () =>
+      Promise.resolve(mockReading.list as ReadingSetSummary[]),
+  };
+});
 
 // Paths are resolved against this file, not the vitest cwd, so the
 // suite runs the same from web/ or web/src/.
@@ -49,7 +68,17 @@ const WEB = resolve(
   "..",
 );
 const EXERCISES = resolve(WEB, "..", "exercises");
+const READING = resolve(EXERCISES, "reading");
 const LIBRARY = resolve(WEB, "public", "library");
+
+/** The reading-set ids the library lists — every shipped file except
+ * the dev-only trees-demo (registry.ts's own exclusion) and the
+ * Task-12 coverage sets (a subdirectory, filtered out by the .json
+ * test below anyway). */
+const LISTED_READING = readdirSync(READING)
+  .filter((f) => f.endsWith(".json") && f !== "trees-demo.json")
+  .map((f) => f.replace(/\.json$/, ""))
+  .sort();
 
 const DATASETS = JSON.parse(
   readFileSync(resolve(LIBRARY, "index.json"), "utf8"),
@@ -128,6 +157,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   setUrl("/");
+  mockReading.list = [];
   window.localStorage.removeItem("neophylo-e2e");
 });
 
@@ -185,11 +215,12 @@ describe("library page — cards from the registries", () => {
     }
   });
 
-  it("groups cards under Lessons, PHYLIP labs, MEGA labs and Datasets", async () => {
+  it("groups cards under Lessons, Tree reading, PHYLIP labs, MEGA labs and Datasets", async () => {
     setUrl("?library");
     render(<LibraryPage />);
     for (const name of [
       "Lessons",
+      "Tree reading",
       "PHYLIP labs",
       "MEGA labs",
       "Datasets",
@@ -455,6 +486,7 @@ describe("library page — filters", () => {
     expect(cards()).toHaveLength(0);
     for (const name of [
       "Lessons",
+      "Tree reading",
       "PHYLIP labs",
       "MEGA labs",
       "Datasets",
@@ -471,6 +503,7 @@ describe("library page — filters", () => {
     await readyCards();
     for (const name of [
       "Lessons",
+      "Tree reading",
       "PHYLIP labs",
       "MEGA labs",
       "Datasets",
@@ -589,5 +622,170 @@ describe("library page — collapsed lab settings (owner request 2026-11-17)", (
       });
       expect(region.querySelector("table")).not.toBeNull();
     }
+  });
+});
+
+// v1.4d Task 9 (spec §7.1/§8.4): reading sets list under "Tree
+// reading" — one card per shipped set the registry lists (trees-demo
+// and the Task-12 coverage sets never do). Cards carry the meta's
+// level, minutes and objectives and open ?read=<id>; the worksheet
+// and answer-key actions stay hidden until Task 13.
+describe("library page — reading sets (v1.4d Task 9)", () => {
+  const readingCards = (): HTMLElement[] =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.lib-card[data-kind="reading"]',
+      ),
+    );
+
+  const SAMPLE: ReadingSetSummary = {
+    id: "trees-sample",
+    title: "Sample reading set",
+    summary: "A test reading set",
+    meta: {
+      objectives: ["Read a tree left to right"],
+      minutes: 40,
+      level: "intro",
+      prepares_for: [],
+    },
+  };
+
+  it("every shipped listed reading set has exactly one card opening ?read=<id>", async () => {
+    // The expected list comes from exercises/reading/ itself — the
+    // registry's exclusion of trees-demo is mirrored by LISTED_READING.
+    mockReading.list = LISTED_READING.map((id) => {
+      const file = JSON.parse(
+        readFileSync(resolve(READING, `${id}.json`), "utf8"),
+      ) as { title: string; summary: string; meta?: ExerciseMeta };
+      return {
+        id,
+        title: file.title,
+        summary: file.summary,
+        meta: file.meta,
+      };
+    });
+    setUrl("?library&type=reading");
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll('.lib-card[data-kind="reading"]'),
+      ).toHaveLength(LISTED_READING.length);
+    });
+    for (const id of LISTED_READING) {
+      const file = JSON.parse(
+        readFileSync(resolve(READING, `${id}.json`), "utf8"),
+      ) as { title: string };
+      const card = cardOf(file.title);
+      expect(card.getAttribute("data-kind")).toBe("reading");
+      expect(
+        within(card)
+          .getByRole("link", { name: /open set/i })
+          .getAttribute("href"),
+      ).toBe(`?read=${id}`);
+    }
+    // The dev-only demo set never lists (registry rule, Task 8).
+    const demo = JSON.parse(
+      readFileSync(resolve(READING, "trees-demo.json"), "utf8"),
+    ) as { title: string };
+    noCard(demo.title);
+  });
+
+  it("a reading card shows the tag, level, minutes and objectives from meta, and only the Open set action", async () => {
+    mockReading.list = [SAMPLE];
+    setUrl("?library");
+    render(<LibraryPage />);
+    // The card arrives with the async registry list.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { level: 3, name: SAMPLE.title }),
+      ).toBeTruthy();
+    });
+    const card = cardOf(SAMPLE.title);
+    expect(card.getAttribute("data-kind")).toBe("reading");
+    expect(card.textContent).toContain("Tree reading");
+    expect(card.textContent).toContain("Intro");
+    expect(card.textContent).toContain("About 40 min");
+    expect(card.textContent).toContain("Read a tree left to right");
+    expect(
+      within(card)
+        .getByRole("link", { name: /open set/i })
+        .getAttribute("href"),
+    ).toBe("?read=trees-sample");
+    // The paper worksheet and answer key activate in Task 13 —
+    // nothing else renders on the card until then (plan's Produces).
+    expect(
+      within(card).queryByRole("link", { name: /worksheet/i }),
+    ).toBeNull();
+    expect(
+      within(card).queryByRole("link", { name: /answer key/i }),
+    ).toBeNull();
+  });
+
+  it("?library&type=reading shows only the Tree reading group and combines with level and short", async () => {
+    mockReading.list = [SAMPLE];
+    setUrl("?library&type=reading");
+    render(<LibraryPage />);
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1);
+    });
+    expect(
+      screen.getByRole("heading", { name: "Tree reading" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Lessons" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Datasets" }),
+    ).toBeNull();
+
+    // The level filter keeps the intro set; "≤ 30 min" hides the
+    // 40-minute one, and both states ride the URL.
+    fireEvent.change(screen.getByRole("combobox", { name: /level/i }), {
+      target: { value: "intro" },
+    });
+    expect(window.location.search).toContain("level=intro");
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1);
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /30 min/i }));
+    expect(window.location.search).toContain("short=1");
+    await waitFor(() => {
+      expect(cards()).toHaveLength(0);
+    });
+
+    // A reload remounts on the same filter state.
+    cleanup();
+    render(<LibraryPage />);
+    expect(
+      (screen.getByRole("checkbox", { name: "Tree reading" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("checkbox", { name: "Lessons" }) as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+    await waitFor(() => {
+      expect(cards()).toHaveLength(0);
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /30 min/i }));
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1);
+    });
+  });
+
+  it("the Tree reading checkbox writes type=reading through the canonical query", async () => {
+    mockReading.list = [SAMPLE];
+    setUrl("?library");
+    render(<LibraryPage />);
+    // Wait for the async registry list's card.
+    await waitFor(() => {
+      expect(readingCards()).toHaveLength(1);
+    });
+    // Untick everything but Tree reading.
+    for (const name of ["Lessons", "PHYLIP labs", "MEGA labs", "Datasets"]) {
+      fireEvent.click(screen.getByRole("checkbox", { name }));
+    }
+    expect(window.location.search).toBe("?library&type=reading");
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1);
+    });
   });
 });

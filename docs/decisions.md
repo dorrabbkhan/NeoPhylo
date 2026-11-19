@@ -8645,3 +8645,40 @@ Owner-requested rendering fixes after the PR #139 review; branch
   the branch line) — the single-mark path is byte-identical and
   `rt-marks`/`reading-q-trait` baselines confirmed it is the
   historical placement, not part of this fix.
+## v1.4d Task 9: entry points — header and library
+
+- **Header link placement** (ambiguity resolved against the plan's
+  "header link 'Reading trees' → ?library&type=reading (in MoreMenu
+  below 1024 px)"): read literally the link is direct at ≥ 1024, but
+  the measured min-content of the header row at 1024 became 1050 px
+  with the ~114 px chip (the `.app` grid column stretched to fit,
+  pushing `.prompt-card` 2 px past the viewport — the same break the
+  v1.4c Task-11 fix round found for "PHYLIP labs"). The link is
+  therefore direct only at ≥ 1280, like the Labs chip and owner
+  decision B's one-path-per-width rule: the More menu owns it below
+  1024 (the plan's stated placement), and the Lessons menu's action
+  row carries the same target at every width, both routed through
+  `onOpenReading` so the unsaved-work question runs identically —
+  the direct link is a plain `href`, like `a.labs-link`.
+- **Files outside the Files block:**
+  - `web/src/views/App.tsx` — the guarded navigation target: the
+    `libraryAsk` confirm state now stores the destination string
+    (`?library` or `?library&type=reading`) instead of a boolean, so
+    one "Leave your unsaved work?" sheet serves both entries;
+    `onOpenLibrary`/`onOpenReading` are thin wrappers over a shared
+    `openLibrary(target)` and `onOpenReading` is passed to `Header`.
+  - `web/src/index.css` — `.reading-link` shares the `.labs-link`
+    chip styles, and `a.reading-link` joins the coarse-pointer
+    ≥40×40 floor (`[role="menuitem"]` already covers the menu rows).
+  - `docs/decisions.md` — this entry.
+- **Files the block lists as Modify but unchanged:**
+  `web/e2e/visual.spec.ts` — the scene/viewport matrix needed no
+  change; only its baselines moved.
+- **Baselines** (regenerated in the pinned image, the only task that
+  changes existing frames): the app-header frames at 1920×1080 —
+  11 scenes × light/dark plus `bootstrap-basics-final-presenter`
+  (23 files) — and both library scenes at all three viewports
+  (12 files). The link is absent below 1280, so every app scene's
+  1024 and 768 frames stay byte-identical to main's (the few the
+  first pass rewrote were pixel noise; main's bytes pass — same
+  finding the v1.4c Task-11 round recorded).
