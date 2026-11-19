@@ -8382,3 +8382,35 @@ Owner-requested rendering fixes after the PR #139 review; branch
     block; the six `valid-*.json` test inputs copied byte-for-byte as
     committed seeds so `scripts/ci/fuzz.sh`'s `seeds/reading_set` arg
     resolves.
+
+## v1.4d Task 6: layout for the reading styles
+
+- **Files outside the Files block:**
+  - `web/src/layout/readingGeom.ts` — shared internals for the two
+    placement files (padding/radius constants, the rotated label-box
+    helper, name abbreviation, nice tick steps, clade keys). Split out
+    under AGENTS.md's ~400-line / one-algorithm-per-file rule:
+    `readingLayout.ts` alone would be ~460 lines.
+  - `web/src/layout/readingCircular.ts` — the rooted circular
+    placement (330° arc, radial labels), a distinct algorithm from the
+    flat rectangular/diagonal placement; called by `readingLayout`.
+  - `docs/decisions.md` — this entry.
+- **Ambiguities resolved:**
+  - Tips-up/down tip labels are drawn at ±80° off horizontal
+    (`TIP_LABEL_SLANT_DEG`), satisfying §6's slanted-label rule for
+    tips-up diagonal trees while staying upright enough to avoid
+    overlapping neighbours; the leaf spacing grows to the widest
+    rotated label box plus a gap so boxes never collide.
+  - `axis.ticks[].at` is the screen coordinate along the depth axis:
+    an x for tips-right/left, a y for tips-up/down; circular trees get
+    no axis (a linear axis has no meaning on a radial drawing).
+  - `marks[].angle` is the branch's direction in degrees (0 = toward
+    +x): the mark's bar is drawn across it; `points[].x/y` is the node
+    position for `at:"node"` and the stem midpoint for `at:"branch"`.
+  - `scroll` is `width > box.width`; tips-right/left shrink the depth
+    scale to fit like `phylogram.ts`, tips-up/down and circular keep
+    their natural size and scroll when they exceed the box (spec §6:
+    never squeeze text below 12 px).
+  - `node.label` in the figure is only a tip's (abbreviated) name;
+    internal nodes are identified by `letter`, matching the view's own
+    split.
