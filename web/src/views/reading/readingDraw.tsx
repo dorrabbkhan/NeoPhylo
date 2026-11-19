@@ -21,16 +21,14 @@ import {
   cladeKey,
   D2R,
   LABEL_GAP,
+  MARK_GLYPH,
+  MARK_HALF,
   NODE_R,
   PAD,
   TIP_LABEL_SLANT_DEG,
 } from "../../layout/readingGeom";
 
 import { anim, animD, LETTER_R, pointOffsets } from "./readingHelpers";
-
-/** Trait-mark bar half-length and the glyph size. */
-const MARK_HALF = 6;
-const MARK_GLYPH = 4.5;
 
 export interface ReadingDrawProps {
   fig: ReadingFigure;
@@ -232,7 +230,8 @@ export function ReadingDraw({
           </g>
           <text
             className="rt-mark-label"
-            y={-(MARK_HALF + 4)}
+            x={m.labelX - m.x}
+            y={m.labelY - m.y}
             fontSize={fontPx}
             textAnchor="middle"
           >

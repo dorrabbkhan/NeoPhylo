@@ -507,3 +507,30 @@ test("axe: the reading tree has no serious violations", async ({
     "the reading tree with the text description open",
   );
 });
+
+// v1.4d Task 8: the reading area itself — a question screen with the
+// interactive tree, and the practice feedback state with the verdict,
+// explanation and note_after visible.
+test("axe: the reading area has no serious violations", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-demo");
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  await expectNoSeriousViolations(page, "a question screen");
+
+  // The MRCA item (index 3) carries note_after: select node P and
+  // Check so the verdict, explanation and note are all in the scan.
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await page
+    .locator(
+      '.rt-hit[data-clade=\'["chimp","gibbon","gorilla","human"]\']',
+    )
+    .click();
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(
+    page.getByRole("status", { name: "Verdict" }),
+  ).toBeVisible();
+  await expectNoSeriousViolations(page, "the practice feedback state");
+});

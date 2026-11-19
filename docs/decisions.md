@@ -8470,3 +8470,178 @@ Owner-requested rendering fixes after the PR #139 review; branch
     faces resolved — four first-pass `rt-*` baselines had captured the
     fallback layout and failed in CI. A Vitest regression test pins
     "no layout before the fonts gate opens".
+
+## v1.4d Task 8: reading trees area
+
+- **Files outside the Files block:**
+  - `web/e2e/visualScenes.ts` — the scene table `visual.spec.ts`
+    iterates; the block names `visual.spec.ts` but the scenes
+    themselves are declared in `visualScenes.ts`, so the new
+    `reading-*` scenes and the `readItem`/`gotoReadItem` helpers were
+    added there (same split Task 7 used).
+  - `web/src/views/reading/ItemView.tsx` — the item screen
+    (trees, controls, verdict, nav) extracted from `ReadingPage.tsx`;
+    the page file would be ~480 lines against AGENTS.md's ~400 rule.
+  - `web/src/views/reading/QuestionControlsTree.tsx` — the
+    pick-on-the-tree controls (order_nodes builder, selection list)
+    extracted from `QuestionControls.tsx` for the same line rule.
+  - `web/src/reading/errors.ts` — the reading-area NeoError text
+    (`InvalidReading` field + message, LabPage's InvalidExercise
+    convention), shared by the page and the item view.
+  - `web/src/views/reading/reading.css` — the `.read-*` page, control
+    and summary styles are appended to the reading area's existing
+    stylesheet rather than a new file; also carries the `<600px`
+    `.read-trees` `flex-wrap: nowrap` fix (a wrapping column flex let
+    the figure escape the viewport).
+  - `web/e2e/__screenshots__/reading-*.png` — 62 new baselines for the
+    15 new scenes, generated inside the pinned Playwright image; no
+    existing baseline was touched.
+  - `docs/decisions.md` — this entry.
+- **Files the block lists as Modify but unchanged:**
+  - `web/e2e/visual.spec.ts` — the scene matrix already covers the new
+    scenes (name × viewport × theme loop driven by `visualScenes.ts`).
+- **Ambiguities resolved:**
+  - "Question screen per type" is 13 `reading-q-*` scenes (one per
+    `Question` kind in the demo set) plus `reading-feedback` (practice
+    verdict + explanation + note_after), `reading-summary` (test-mode
+    results), and the owner-requested
+    `reading-tipsup-12-long-names-360` — each at 360×740 and 1024×768
+    in both themes except the owner scene, which is 360×740 only per
+    the request. All scenes navigate the real `/?read=` route, not
+    the dev harness.
+  - `?read=<id>` loads a built-in set through the registry's lazy JSON
+    import; `#r=<compressed>` decodes an lz-string payload
+    `{ v: 1, set }` — both land in the same `ReadingPage` chunk, which
+    is lazy-imported in `Root.tsx` so the initial-JS budget is
+    unchanged.
+  - Selection responses are stored as clade keys / point ids, not
+    screen positions, so `rotate` inside `ReadingTree` keeps a picked
+    biological clade selected without the page tracking orientation.
+  - Two-tier responses are stored as a local `ResponseDraft` — the
+    engine's `Response` except `first` may be `null`, "inner
+    unanswered" (`Response::Pairwise` has no untouched value; "B" is
+    a real answer). `submittable` gates Check on `first !== null`,
+    and `effectiveResponse` — the only draft→`Response` path — maps
+    any draft still holding the marker to `null`, so the marker can
+    never reach `readingCheck`; the summary treats those items as
+    unanswered. (Fix round 1: the earlier `emptyResponse` inner
+    placeholder fabricated `Pairwise("B")` and pre-selected the "B"
+    radio.)
+  - `trees-demo.json` has `id: "trees-demo"` and is excluded from
+    `listReadingSets()` so it never appears in the library (Task 9).
+
+### Fix round (owner-ordered, 2026-11-20): shared-branch trait marks
+
+- **Layout rule for marks sharing one branch** (`readingMarks.ts`,
+  called from `readingLayout.ts`): marks on the same resolved node are
+  grouped in input order. A branch with exactly one mark keeps the
+  historical midpoint placement — identical `x`/`y`/`angle` and the
+  same `MARK_HALF + 4` label offset — so lone-mark figures are
+  bit-identical. For n ≥ 2 marks on a stem, `placeMarks` spreads them
+  deterministically along the stem direction (diagonal = straight
+  parent–child segment, rectangular = the node's horizontal or
+  vertical stem per tip side, circular = the radial segment), spacing
+  them by measured adjacent label widths plus glyph clearance and
+  clamping to the usable stem extent. When the stem cannot fit the
+  same-row spacing, labels stack perpendicular to the stem instead of
+  overlapping. Every mark now carries `labelX`, `labelY` and a
+  `labelBox` (the existing `Box`/`intersects` measure used by tip
+  labels); `readingDraw.tsx` renders the text at the layout-provided
+  anchor instead of the fixed offset. If stacked labels or left-of-pad
+  labels leave the figure, `placeMarks` reports a growth/shift and
+  `readingLayout` translates all geometry (nodes, marks, circular
+  centre, axes) and grows `width`/`height` — `scroll` semantics are
+  unchanged (still natural width vs box width).
+- **Baselines regenerated (the only scenes containing ≥2 marks on one
+  branch):** `reading-q-trait-{360x740,1024x768}-{light,dark}-linux.png`
+  (4 files) — trees-demo item 14's `traits` tree puts `hair` and `fur`
+  gains on the same (bat,cat,dog) stem. A full pinned-image run of all
+  `rt-*` and `reading-*` scenes against the committed baselines before
+  regenerating showed these four as the only diffs; no `rt-*` baseline
+  changed (`rt-marks` has one mark per branch).
+- **New baselines (allowed, new scenes only):**
+  `reading-marks-same-branch{,-up}-360x740-{light,dark}-linux.png`
+  (4 files) — a new `#r=` scene set renders the traits tree through the
+  real reading area with three marks on one stem (`hair`/`fur` gains +
+  `claws` loss, plus a lone `wings` on `bat`), tips-right and tips-up
+  at 360×740 in both themes. The scene setup asserts 4 marks and
+  pairwise non-overlapping label bounding boxes on screen.
+- **Files outside the Files block:**
+  - `web/src/layout/readingLayout.ts` — the shared-branch grouping
+    call, the `labelX`/`labelY`/`labelBox` fields on figure marks, and
+    the growth/shift application (owner explicitly ordered the fix
+    here; the earlier "do not touch readingLayout" note was scoped out
+    by the owner's override).
+  - `web/src/layout/readingMarks.ts` — new file: the mark-placement
+    algorithm, extracted so `readingLayout.ts` stays near the ~400-line
+    single-purpose rule.
+  - `web/src/layout/readingGeom.ts` — `MARK_HALF`/`MARK_GLYPH`
+    moved here from `readingDraw.tsx` so the layout module can compute
+    mark extents without importing the renderer.
+  - `web/src/layout/readingLayout.test.ts` — new test functions only
+    (no existing assertion edited): 2- and 3-mark groups on one branch
+    across every shape × tip side on an 8-tip tree (pairwise distinct
+    anchors, non-intersecting `labelBox`es, input order preserved), a
+    lone-mark placement test (`x`/`y`/`angle` = `branchMid`), a
+    different-branch regression test, and the trees-demo `traits`
+    six-mark case asserting hair/fur separation, in-bounds labels and
+    no label overlap.
+  - `web/src/views/reading/readingDraw.tsx` — only the label anchor:
+    text now uses `m.labelX - m.x`, `m.labelY - m.y` (identical to the
+    old fixed offset for lone marks); constants now imported from
+    `readingGeom.ts`.
+  - `web/e2e/visualScenes.ts` — the `reading-marks-same-branch{,-up}`
+    scenes and their `marksSharedBranch` setup helper.
+
+### Fix round 2 (owner-ordered): mark labels beside their own glyphs
+
+- **Placement rule replaces the stack** (`readingMarks.ts`): the prior
+  round's fallback stacked a shared branch's labels perpendicular to
+  the stem when the stem could not hold the slots — on a short
+  vertical stem the labels climbed away from their glyphs
+  (`reading-marks-same-branch-up` showed `fur` ~25 px and `claws`
+  ~60 px from their marks, `hair` drawn through `fur`'s arrowhead).
+  Now every shared mark gets its own slot along the stem and its label
+  sits BESIDE the stem level with that glyph — above a horizontal
+  stem, toward the roomier figure edge of a vertical or diagonal one —
+  offset so the label box's facing edge is exactly `LABEL_GAP` off the
+  glyph's projected extent. When the stem cannot hold n slots plus a
+  node-clear margin, `placeMarks` reports `stretch` and
+  `readingLayout` re-runs node placement with the extra depth extent
+  (flat shapes) or extra tip radius (`readingCircular.ts`'s new
+  `extraRadius`); the figure grows and `scroll` keeps its
+  width-vs-box meaning. A stem the depth scale cannot lengthen still
+  falls back to the `grow` shift/widen. Lone marks keep the midpoint +
+  `MARK_HALF + 4` label offset bit-identically.
+- **Glyph boxes are real geometry:** `markGlyphBox` (exported for the
+  tests) builds the mark's AABB from the same constants the renderer
+  draws — `MARK_HALF` bar, `MARK_GLYPH * 1.6` gain arrowhead,
+  `MARK_GLYPH` loss circle — rotated by the stem angle.
+- **Tests strengthened, no existing assertion edited**
+  (`readingLayout.test.ts`): 2- and 3-mark groups (gain/loss mixes)
+  on one branch across all 12 shape × tip-side combinations on both
+  the 8-tip tree and the trees-demo `traits` topology assert (i) no
+  label box intersects any glyph box, (ii) every label's nearest glyph
+  is its own, (iii) shared labels never overlap another mark's label,
+  (iv) every mark and label stays inside the figure; a vertical-stem
+  test pins labels level with their glyphs on one side.
+- **Baselines regenerated — only the allowed families:**
+  `reading-marks-same-branch{,-up}-360x740-{light,dark}-linux.png`
+  (4 files) and `reading-q-trait-360x740-dark-linux.png` (1 file). A
+  pinned spec run showed all other baselines unchanged: `rt-marks`
+  (all lone marks) stays pixel-identical in all six frames, and the
+  three other `reading-q-trait` frames and both
+  `reading-tipsup-12-long-names-360{,-end}` scenes diff under the 0.001
+  ratio (the traits stem's hair/fur labels shift a few px).
+- **Files outside the Files block:**
+  - `web/src/layout/readingCircular.ts` — `extraRadius` input and the
+    used tip radius `R` returned for the stretch re-layout.
+  - `web/e2e/visualScenes.ts` — `marksSharedBranch` now waits for the
+    300 ms swap transition (`document.getAnimations()` empty) before
+    the on-screen label-overlap check, so it sees settled positions
+    instead of mid-flight ones.
+- **Pre-existing, unchanged:** a lone mark on a vertical stem still
+  centres its label on the stem (`wings` in the tips-up scene sits on
+  the branch line) — the single-mark path is byte-identical and
+  `rt-marks`/`reading-q-trait` baselines confirmed it is the
+  historical placement, not part of this fix.

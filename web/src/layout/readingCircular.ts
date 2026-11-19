@@ -32,6 +32,9 @@ export interface CircularPlace {
   cy0: number;
   width: number;
   height: number;
+  /** The tip radius actually used — the depth extent shared-branch
+   * mark slots can ask to grow. */
+  R: number;
 }
 
 export interface CircularInput {
@@ -51,11 +54,16 @@ export interface CircularInput {
   maxLabelW: number;
   asc: number;
   desc: number;
+  /** Extra tip radius on top of the box fit — a shared branch's mark
+   * slots can ask for a deeper figure (readingLayout's stretch). */
+  extraRadius?: number;
 }
 
 export function circularPlace(inp: CircularInput): CircularPlace {
   const availR = inp.width / 2 - PAD - NODE_R - LABEL_GAP - inp.maxLabelW;
-  const R = availR >= MIN_RADIUS_PX ? availR : MIN_RADIUS_PX;
+  const R =
+    (availR >= MIN_RADIUS_PX ? availR : MIN_RADIUS_PX) +
+    (inp.extraRadius ?? 0);
   const canonMax = Math.max(1e-9, ...inp.canon);
   const scale = canonMax > 0 ? R / canonMax : 0;
   const centre = { right: 0, down: 90, left: 180, up: -90 }[inp.tips];
@@ -121,5 +129,6 @@ export function circularPlace(inp: CircularInput): CircularPlace {
     cy0: half,
     width: 2 * half,
     height: 2 * half,
+    R,
   };
 }

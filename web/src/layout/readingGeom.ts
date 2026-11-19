@@ -24,6 +24,10 @@ export const CIRCULAR_ARC_DEG = 330;
  * horizontal (spec §6 wants slanted labels on tips-up diagonal
  * trees). */
 export const TIP_LABEL_SLANT_DEG = 80;
+/** Trait-mark geometry shared with the renderer (readingDraw.tsx):
+ * the perpendicular bar's half-length and the glyph radius. */
+export const MARK_HALF = 6;
+export const MARK_GLYPH = 4.5;
 /** Labels longer than this abbreviate to ABBREV_KEEP chars + "…"
  * (plan decision: first 16 + "…"). */
 export const ABBREV_MAX = 18;

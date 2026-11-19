@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-demo",
+  "title": "Reading trees — question showcase",
+  "summary": "A demonstration set that covers every question type on a handful of small trees. Shipped for development and end-to-end tests; not listed in the library.",
+  "meta": {
+    "objectives": [
+      "Read clades, common ancestors and relatedness on real trees",
+      "See every question type the reading area can ask"
+    ],
+    "minutes": 20,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "practice",
+  "taxa_pool": {},
+  "trees": {
+    "mammals": {
+      "newick": "(((human,chimp),(gorilla,gibbon)),((cat,dog),(bear,seal)));",
+      "node_letters": [
+        { "on": ["chimp", "gorilla", "gibbon", "human"], "letter": "P" },
+        { "on": ["bear", "cat", "dog", "seal"], "letter": "Q" },
+        { "on": "root", "letter": "R" }
+      ],
+      "points": [
+        { "letter": "W", "on": ["chimp", "human"], "at": "node" },
+        { "letter": "X", "on": ["gibbon", "gorilla"], "at": "node" },
+        { "letter": "Y", "on": ["bear", "seal"], "at": "branch" },
+        { "letter": "Z", "on": ["cat", "dog"], "at": "branch" }
+      ]
+    },
+    "mammals-rot": {
+      "newick": "(((bear,seal),(cat,dog)),((gorilla,gibbon),(human,chimp)));"
+    },
+    "mammals-diff": {
+      "newick": "(((human,cat),(chimp,dog)),((gorilla,bear),(gibbon,seal)));"
+    },
+    "big-a": {
+      "newick": "((human,(chimp,gorilla)),(cat,(dog,seal)));"
+    },
+    "big-b": {
+      "newick": "(((human,chimp),gorilla),(cat,(dog,seal)));"
+    },
+    "small-1": {
+      "newick": "(human,(chimp,gorilla));"
+    },
+    "small-2": {
+      "newick": "(cat,(dog,seal));"
+    },
+    "traits": {
+      "newick": "(((bat,cat),dog),(fish,worm));",
+      "marks": [
+        { "on": ["bat", "cat", "dog"], "trait": "hair", "change": "gain" },
+        { "on": ["bat", "cat", "dog"], "trait": "fur", "change": "gain" },
+        { "on": ["cat"], "trait": "fur", "change": "loss" },
+        { "on": ["bat"], "trait": "wings", "change": "gain" },
+        { "on": ["fish"], "trait": "wings", "change": "gain" },
+        { "on": ["bat", "cat"], "trait": "nails", "change": "gain" }
+      ],
+      "traits": [
+        { "name": "hair", "ancestral": "bare", "derived": "hairy" },
+        { "name": "wings", "ancestral": "no wings", "derived": "winged" }
+      ]
+    },
+    "longnames": {
+      "newick": "((('Homo sapiens','Pan paniscus'),('Gorilla gorilla','Pongo abelii'),'Hylobates lar'),(('Macaca mulatta','Papio anubis'),('Chlorocebus pygerythrus','Colobus guereza'),('Symphalangus syndactylus','Pseudosuperlongname-taxonomica')),'Watson''s leaf-nosed bat');"
+    }
+  },
+  "items": [
+    {
+      "id": "q-differs",
+      "text": "One of these trees shows different relationships from the others. Which one?",
+      "trees": ["mammals", "mammals-rot", "mammals-diff"],
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-same",
+      "text": "These two trees are drawn differently. Which one shows different relationships?",
+      "trees": ["mammals", "mammals-rot"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "circular", "tips": "right" }
+        ]
+      },
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-fits",
+      "text": "Which large tree agrees with both small trees?",
+      "trees": ["big-a", "big-b"],
+      "question": { "type": "which_fits", "small": ["small-1", "small-2"] }
+    },
+    {
+      "id": "q-mrca",
+      "text": "Tap the most recent common ancestor of {set}.",
+      "trees": ["mammals"],
+      "tips": ["gorilla", "human"],
+      "note_after": "Everything that descends from that node — not only the named tips — shares that ancestor.",
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-mrca-points",
+      "text": "Which lettered point is the most recent common ancestor of {set}?",
+      "trees": ["mammals"],
+      "tips": ["chimp", "human"],
+      "question": { "type": "mrca", "options": ["W", "X"] }
+    },
+    {
+      "id": "q-place",
+      "text": "An otter is the closest relative of the {set} clade. Tap the lettered point where it attaches.",
+      "trees": ["mammals"],
+      "tips": ["bear", "seal"],
+      "question": { "type": "place_taxon", "name": "otter", "sister": ["bear", "seal"] }
+    },
+    {
+      "id": "q-clade",
+      "text": "Do {set} form a clade?",
+      "trees": ["mammals"],
+      "tips": ["gibbon", "gorilla"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-smallest",
+      "text": "Tap the smallest clade that contains {set}.",
+      "trees": ["mammals"],
+      "tips": ["gorilla", "human"],
+      "question": { "type": "smallest_clade" }
+    },
+    {
+      "id": "q-closest",
+      "text": "Tap {a}'s closest relative.",
+      "trees": ["mammals"],
+      "a": "human",
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-distant",
+      "text": "Tap the tip most distant from {a} — everything outside {a}'s lineage.",
+      "trees": ["mammals"],
+      "a": "human",
+      "question": { "type": "closest_relative", "form": "most_distant" }
+    },
+    {
+      "id": "q-pair",
+      "text": "Is {a} more closely related to {b} or to {c}?",
+      "trees": ["mammals"],
+      "a": "human", "b": "chimp", "c": "gorilla",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-count",
+      "text": "How many clades does this tree show?",
+      "trees": ["mammals"],
+      "rotate_tool": false,
+      "note_after": "Every internal node — including the root — names one clade.",
+      "question": { "type": "count_clades" }
+    },
+    {
+      "id": "q-order",
+      "text": "Tap the lettered nodes in order, oldest first, or arrange the list.",
+      "trees": ["mammals"],
+      "question": { "type": "order_nodes", "nodes": ["P", "Q", "R"] }
+    },
+    {
+      "id": "q-select",
+      "text": "Select every true statement.",
+      "trees": ["mammals", "mammals-rot", "mammals-diff"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "closer_than", "x": "human", "y": "chimp", "z": "gorilla", "text": "human and chimp share a more recent common ancestor than human and gorilla." },
+          { "kind": "is_clade", "tips": ["cat", "dog"], "text": "cat and dog form a clade in the first tree." },
+          { "kind": "is_clade", "tips": ["cat", "human"], "text": "cat and human form a clade in the first tree." },
+          { "kind": "same_relationships", "tree_i": 0, "tree_j": 1, "text": "The first and second trees show the same relationships." },
+          { "kind": "same_relationships", "tree_i": 0, "tree_j": 2, "text": "The first and third trees show the same relationships." }
+        ]
+      }
+    },
+    {
+      "id": "q-trait-have",
+      "text": "Tap every tip that has hair.",
+      "trees": ["traits"],
+      "question": { "type": "trait", "ask": { "kind": "which_have", "trait_name": "hair" } }
+    },
+    {
+      "id": "q-trait-shared",
+      "text": "Which trait is shared by exactly {set}?",
+      "trees": ["traits"],
+      "tips": ["bat", "cat", "dog"],
+      "question": { "type": "trait", "ask": { "kind": "which_shared", "tips": ["bat", "cat", "dog"] } }
+    },
+    {
+      "id": "q-trait-changes",
+      "text": "How many times did fur change on this tree?",
+      "trees": ["traits"],
+      "question": { "type": "trait", "ask": { "kind": "how_many_changes", "trait_name": "fur" } }
+    },
+    {
+      "id": "q-trait-profile",
+      "text": "Which derived states does {a} show? Select all that apply.",
+      "trees": ["traits"],
+      "a": "cat",
+      "question": { "type": "trait", "ask": { "kind": "profile", "tip": "cat" } }
+    },
+    {
+      "id": "q-trait-ancder",
+      "text": "Is hair ancestral or derived in {a}?",
+      "trees": ["traits"],
+      "a": "worm",
+      "question": { "type": "trait", "ask": { "kind": "ancestral_or_derived", "trait_name": "hair", "tip": "worm" } }
+    },
+    {
+      "id": "q-trait-hasnot",
+      "text": "Tap every tip that has hair but lacks fur.",
+      "trees": ["traits"],
+      "question": { "type": "trait", "ask": { "kind": "has_not", "has": "hair", "lacks": "fur" } }
+    },
+    {
+      "id": "q-trait-homo",
+      "text": "Are the wings of {a} and {b} homologous — inherited from one shared origin?",
+      "trees": ["traits"],
+      "a": "bat", "b": "fish",
+      "question": { "type": "trait", "ask": { "kind": "homologous", "trait_name": "wings", "x": "bat", "y": "fish" } }
+    },
+    {
+      "id": "q-clade-trait",
+      "text": "Are the taxa with fur monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["traits"],
+      "question": { "type": "is_clade", "by_trait": "fur" }
+    },
+    {
+      "id": "q-concept",
+      "text": "What does an internal node on this tree represent?",
+      "trees": ["mammals"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "A single living species",
+          "A hypothetical common ancestor",
+          "A mutation"
+        ],
+        "correct": [1]
+      }
+    },
+    {
+      "id": "q-two",
+      "text": "Do {set} form a clade — and why?",
+      "trees": ["mammals"],
+      "tips": ["gibbon", "gorilla"],
+      "question": {
+        "type": "two_tier",
+        "first": { "type": "is_clade" },
+        "reasons": [
+          "Gibbon and gorilla share a node that no other tip descends from.",
+          "They sit next to each other on the page."
+        ],
+        "correct_reason": 0
+      }
+    },
+    {
+      "id": "q-longnames",
+      "text": "Do {set} form a clade?",
+      "trees": ["longnames"],
+      "tips": ["Homo sapiens", "Pan paniscus"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "question": { "type": "is_clade" }
+    }
+  ]
+}

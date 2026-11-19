@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
+import lzstring from "lz-string";
+
 import { stepToEnd, waitForApp } from "./helpers";
 
 /** The weak-support sample (6 taxa A–F, 120 sites): the same file the
@@ -206,6 +208,122 @@ const EDITOR_VIEWPORTS = [
   { w: 768, h: 1024 },
   { w: 1280, h: 800 },
 ];
+
+/** The reading area's frame sizes (v1.4d Task 8): 1024 wide like the
+ * standard matrix plus the area's own 360×740 phone width. */
+const READING_VIEWPORTS = [
+  { w: 1024, h: 768 },
+  { w: 360, h: 740 },
+] as const;
+
+/** Open `?read=trees-demo` on the item at `index` (Next clicks), with
+ * the first figure settled. */
+async function gotoReadItem(page: Page, index: number): Promise<void> {
+  await page.goto("/?read=trees-demo");
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(page.getByText(`Question ${index + 1} of`)).toBeVisible();
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+}
+
+/** The question-screen scene body: navigate, settle, shoot. */
+async function readItem(page: Page, index: number): Promise<void> {
+  await gotoReadItem(page, index);
+  await settleFrame(page);
+}
+
+/** PR #173 fix round: the shared-branch-marks set — the traits tree
+ * with three marks on the (bat,cat,dog) stem and a lone mark on bat,
+ * once tips-right and once tips-up, served through a #r= link so the
+ * real reading area renders it. */
+async function marksSharedBranch(page: Page, index: number): Promise<void> {
+  const item = (tips: "right" | "up") => ({
+    id: `q-${tips}`,
+    text: "Three marks sit on one branch — gains and the loss differ by shape.",
+    trees: ["t"],
+    style: { shape: "rectangular", tips },
+    question: {
+      type: "concept",
+      options: ["Trait changes", "Mutations", "Speciation events"],
+      correct: [0],
+    },
+  });
+  const set = {
+    schema_version: 1,
+    kind: "reading",
+    id: "marks-shared",
+    title: "Marks on one branch",
+    summary: "Three trait marks sharing one branch",
+    meta: {
+      objectives: ["Trait changes pile onto one branch legibly"],
+      minutes: 5,
+      level: "intro",
+      prepares_for: [],
+    },
+    mode: "practice",
+    taxa_pool: {},
+    trees: {
+      t: {
+        newick: "(((bat,cat),dog),(fish,worm));",
+        marks: [
+          { on: ["bat", "cat", "dog"], trait: "hair", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "fur", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "claws", change: "loss" },
+          { on: ["bat"], trait: "wings", change: "gain" },
+        ],
+        traits: [
+          { name: "hair", ancestral: "bare", derived: "hairy" },
+          { name: "fur", ancestral: "furless", derived: "furry" },
+          { name: "claws", ancestral: "clawed", derived: "clawless" },
+          { name: "wings", ancestral: "no wings", derived: "winged" },
+        ],
+      },
+    },
+    items: [item("right"), item("up")],
+  };
+  await page.goto(
+    "/#r=" +
+      lzstring.compressToEncodedURIComponent(
+        JSON.stringify({ v: 1, set }),
+      ),
+  );
+  await expect(page.getByText(`Question 1 of 2`)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(
+    page.getByText(`Question ${index + 1} of 2`),
+  ).toBeVisible();
+  const fig = page.locator(".rt-figure").first();
+  await expect(fig.locator("svg")).toBeVisible();
+  // The 300 ms swap transition (readingHelpers' anim) is still running
+  // when the item lands; wait it out so the box check sees settled
+  // positions, not mid-flight ones.
+  await page.waitForFunction(
+    () => document.getAnimations().length === 0,
+  );
+  // The fix's visible contract: three marks share one stem, and no
+  // two mark labels overlap on screen.
+  await expect(fig.locator(".rt-mark")).toHaveCount(4);
+  const labels = await fig.locator(".rt-mark-label").all();
+  expect(labels).toHaveLength(4);
+  const boxes = await Promise.all(labels.map((el) => el.boundingBox()));
+  for (const b of boxes) expect(b).not.toBeNull();
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const [a, b] = [boxes[i]!, boxes[j]!];
+      const overlap =
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
+      expect(overlap, `mark labels ${i} and ${j} overlap`).toBe(false);
+    }
+  }
+  await settleFrame(page);
+}
 
 export const SCENES: {
   name: string;
@@ -1092,6 +1210,267 @@ export const SCENES: {
       );
       await expect(page.locator(".rt-figure svg")).toBeVisible();
       await settleFrame(page);
+    },
+  },
+  // ---- v1.4d Task 8: the reading area (?read=trees-demo) -----------
+  // The real route, not the harness: question screens ride the lazy
+  // ReadingPage chunk and the shipped demo set. The area's narrow
+  // viewport is 360×740 (Global Constraints), paired with 1024×768.
+  {
+    // The three-tree which_differs question — multi-tree items stack
+    // vertically below 600 px (spec §6).
+    name: "reading-q-which-differs",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 0),
+  },
+  {
+    name: "reading-q-which-fits",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 2),
+  },
+  {
+    // Node-selectable mrca with the {set} tips highlighted.
+    name: "reading-q-mrca",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 3),
+  },
+  {
+    // Lettered branch points on the mammals tree.
+    name: "reading-q-place-taxon",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 5),
+  },
+  {
+    name: "reading-q-is-clade",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 6),
+  },
+  {
+    name: "reading-q-smallest-clade",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 7),
+  },
+  {
+    name: "reading-q-closest-relative",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 8),
+  },
+  {
+    name: "reading-q-count-clades",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 11),
+  },
+  {
+    // The order control: letter chips above the editable list.
+    name: "reading-q-order-nodes",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 12),
+  },
+  {
+    // select_true on the three-tree item — the statement checkboxes.
+    name: "reading-q-select-true",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 13),
+  },
+  {
+    // A trait item: the marks on the traits tree plus tap-to-select.
+    name: "reading-q-trait",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 14),
+  },
+  {
+    name: "reading-q-concept",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 22),
+  },
+  {
+    // Two-tier: the inner yes/no plus the authored reason radios.
+    name: "reading-q-two-tier",
+    viewports: READING_VIEWPORTS,
+    setup: (page) => readItem(page, 23),
+  },
+  {
+    // Practice feedback: a checked MRCA answer shows the verdict, the
+    // engine's explanation and the item's note_after.
+    name: "reading-feedback",
+    viewports: READING_VIEWPORTS,
+    setup: async (page) => {
+      await gotoReadItem(page, 3);
+      await page
+        .locator(
+          '.rt-hit[data-clade=\'["chimp","gibbon","gorilla","human"]\']',
+        )
+        .click();
+      await page.getByRole("button", { name: "Check" }).click();
+      await expect(
+        page.getByRole("status", { name: "Verdict" }),
+      ).toBeVisible();
+      await expect(page.locator(".read-note")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The test-mode summary via a #r= link (the shared-set envelope
+    // the editor's Share writes): one item right, one wrong, engine
+    // explanations on every row.
+    name: "reading-summary",
+    viewports: READING_VIEWPORTS,
+    setup: async (page) => {
+      const demo = JSON.parse(
+        await readFile(
+          new URL("../../exercises/reading/trees-demo.json", import.meta.url),
+          "utf8",
+        ),
+      );
+      const testSet = {
+        ...demo,
+        id: "trees-demo-test",
+        title: "Reading trees — test demo",
+        mode: "test",
+        items: [demo.items[6], demo.items[22]],
+      };
+      await page.goto(
+        "/#r=" +
+          lzstring.compressToEncodedURIComponent(
+            JSON.stringify({ v: 1, set: testSet }),
+          ),
+      );
+      await expect(page.getByText("Question 1 of 2")).toBeVisible();
+      await page.getByRole("radio", { name: "Yes — a clade" }).click();
+      await page.getByRole("button", { name: "Next" }).click();
+      await page
+        .getByRole("checkbox", { name: "A single living species" })
+        .click();
+      await page.getByRole("button", { name: "Finish" }).click();
+      await expect(
+        page.getByText("You answered 1 of 2 correctly."),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // PR #173 fix round: several trait marks on ONE branch must spread
+    // instead of piling on the midpoint — three marks share the
+    // (bat,cat,dog) stem here, with a lone mark on bat for contrast.
+    // Rectangular tips-right at the phone width, both themes.
+    name: "reading-marks-same-branch",
+    viewports: [{ w: 360, h: 740 }],
+    setup: (page) => marksSharedBranch(page, 0),
+  },
+  {
+    // Same set's second item draws the same tree tips-up — marks and
+    // labels spread along vertical stems.
+    name: "reading-marks-same-branch-up",
+    viewports: [{ w: 360, h: 740 }],
+    setup: (page) => marksSharedBranch(page, 1),
+  },
+  {
+    // Owner-requested (Review Focus 5, 2026-11-19): the 12-tip tips-up
+    // tree with real long taxon names — a 30-char name, and spaces plus
+    // a doubled apostrophe — through the real reading area at 360×740,
+    // both themes. Every tip label must render unclipped at ≥12 px;
+    // the figure scrolls sideways inside .rt-canvas and shows the
+    // inset-shadow cue, while the page never scrolls.
+    //
+    // This scroll-0 frame shows the LEFT end: Homo sapiens,
+    // Pan paniscus, Gorilla gorilla, Pongo abelii, Hylobates lar,
+    // Macaca mulatta, Papio anubis (labels 1–7 of 12) plus the
+    // right-edge scroll cue. The -end scene below covers the right
+    // end; between the two baselines every one of the 12 labels is
+    // visible unclipped.
+    name: "reading-tipsup-12-long-names-360",
+    viewports: [{ w: 360, h: 740 }],
+    setup: async (page) => {
+      await gotoReadItem(page, 24);
+      const fig = page.locator(".rt-figure").first();
+      await expect(fig.locator(".rt-tip-label")).toHaveCount(12);
+      const canvas = fig.locator(".rt-canvas");
+      if (
+        await canvas.evaluate((el) => el.scrollWidth > el.clientWidth)
+      ) {
+        await expect(canvas).toHaveAttribute("data-scroll", "true");
+      }
+      // Unclipped labels: every label box inside the drawn width, and
+      // the 12 px text floor held.
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const size = await el.evaluate(
+          (t) => parseFloat(getComputedStyle(t).fontSize),
+        );
+        expect(size, "tip label text is at least 12 px")
+          .toBeGreaterThanOrEqual(12);
+      }
+      const svgW = await fig
+        .locator("svg")
+        .evaluate((s) => parseFloat(s.getAttribute("width") ?? "0"));
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const box = await el.boundingBox();
+        const svgBox = await fig.locator("svg").boundingBox();
+        expect(box).not.toBeNull();
+        expect(svgBox).not.toBeNull();
+        expect(
+          box!.x + box!.width,
+          "every tip label ends inside the drawn figure",
+        ).toBeLessThanOrEqual(svgBox!.x + svgW + 0.5);
+      }
+      await settleFrame(page);
+    },
+  },
+  {
+    // Fix round (PR #173): the scroll-0 frame above cuts off at
+    // Papio anubis, so the right-hand labels never appeared in any
+    // baseline. This frame scrolls .rt-canvas fully right inside the
+    // same 360×740 question screen: it shows labels 6–12 of 12 —
+    // Macaca mulatta, Papio anubis, Chlorocebus pygerythrus,
+    // Colobus guereza, Symphalangus syndactylus,
+    // Pseudosuperlongname-taxonomica and Watson's leaf-nosed bat —
+    // every one fully inside the canvas's visible box (names >18
+    // chars render as the layout's designed 16+"…" abbreviation,
+    // never clipped). With the scroll-0 frame's labels 1–7 the two
+    // baselines together cover all 12.
+    name: "reading-tipsup-12-long-names-360-end",
+    viewports: [{ w: 360, h: 740 }],
+    setup: async (page) => {
+      await gotoReadItem(page, 24);
+      const fig = page.locator(".rt-figure").first();
+      await expect(fig.locator(".rt-tip-label")).toHaveCount(12);
+      const canvas = fig.locator(".rt-canvas");
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const size = await el.evaluate(
+          (t) => parseFloat(getComputedStyle(t).fontSize),
+        );
+        expect(size, "tip label text is at least 12 px")
+          .toBeGreaterThanOrEqual(12);
+      }
+      await settleFrame(page);
+      // scrollLeft past settleFrame's reset: fully right, then a
+      // settled frame so the scroll lands before the shot.
+      await canvas.evaluate(
+        (el) => (el.scrollLeft = el.scrollWidth - el.clientWidth),
+      );
+      await page.evaluate(
+        () =>
+          new Promise((r) =>
+            requestAnimationFrame(() => requestAnimationFrame(r)),
+          ),
+      );
+      // The apostrophe label — the rightmost tip — must sit fully
+      // inside the canvas's visible box.
+      const last = fig.locator(".rt-tip-label", {
+        hasText: "Watson's leaf-nosed bat",
+      });
+      await expect(last).toHaveCount(1);
+      const box = await last.boundingBox();
+      const cbox = await canvas.boundingBox();
+      expect(box, "last tip label has a bounding box").not.toBeNull();
+      expect(cbox, "canvas has a bounding box").not.toBeNull();
+      expect(
+        box!.x,
+        "last tip label starts inside the visible canvas",
+      ).toBeGreaterThanOrEqual(cbox!.x - 0.5);
+      expect(
+        box!.x + box!.width,
+        "last tip label ends inside the visible canvas",
+      ).toBeLessThanOrEqual(cbox!.x + cbox!.width + 0.5);
     },
   },
 ];
