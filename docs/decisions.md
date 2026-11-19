@@ -8358,3 +8358,22 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `place_taxon` requires exactly one `at:"branch"` point on the answer
     clade's stem branch (field `sister`, the same bare-field convention
     as `mrca`'s `options` uniqueness check).
+- **Fix round 3 (PR #169 owner-requested refactor):**
+  - `crates/neophylo-core/src/reading/set.rs` was split into `set.rs`
+    (file types, limits, error helpers, clade-key serde),
+    `question.rs` (`Question`/`RelForm`/`Statement`/`TraitAsk`),
+    `resolve.rs` (`ResolvedTree`, `resolve`, `resolve_tips`,
+    `resolve_raw`, `normalize`, `item_trees`), `load.rs` (`scan*`/`take`/
+    `load_reading_set`), `validate.rs` (item/question validation) and
+    `validate_statement.rs` (statement/ask validation); `answer.rs` into
+    `response.rs` (wire types), `answer.rs` (`answer`/`answer_question`
+    and the small helpers), `differs.rs`, `trait_answer.rs`,
+    `statement.rs` and `check.rs`. Pure move for AGENTS.md's ~400-line
+    rule, at the owner's request; only visibility keywords
+    (`pub(crate)`) and `use` blocks changed, plus three rustfmt
+    signature re-wraps. These file names sit outside the plan's
+    `{mod,query,traits,set,answer,variant}.rs` module layout.
+  - `crates/neophylo-core/src/reading/variant.rs` — its
+    `use crate::reading::set::{Question, Statement, TraitAsk, …}` import
+    had to follow `Question`/`Statement`/`TraitAsk` into
+    `crate::reading::question` (import-only change, forced by the move).

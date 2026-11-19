@@ -4,8 +4,12 @@
 //! `answer` returns the [`AnswerKey`]: the [`Accepted`] answer plus a
 //! short explanation built from fixed English templates (one per
 //! question type; names and node letters fill the slots, "the node
-//! joining x and y" stands in when a node is unlettered). `check`
-//! compares a student [`Response`] and returns a [`Verdict`].
+//! joining x and y" stands in when a node is unlettered). `check` (in
+//! `crate::reading::check`) compares a student
+//! [`crate::reading::Response`] and returns a
+//! [`crate::reading::Verdict`]. `which_differs` lives in `differs`,
+//! `trait` asks in `trait_answer`, `select_true` statements in
+//! `statement`.
 //!
 //! Choice-index conventions (kept stable for the UI): the options of a
 //! `which_differs` item are its trees in order followed by "all show
@@ -14,128 +18,23 @@
 //! 2 = polyphyletic; `ancestral_or_derived` is 0 = ancestral,
 //! 1 = derived; `homologous` is 0 = homologous, 1 = independent.
 
-use std::collections::{BTreeMap, BTreeSet};
-
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-
 use crate::error::NeoError;
+use crate::reading::differs::which_differs;
 use crate::reading::query::{
-    clade_key, closer, count_clades, is_ancestor, is_clade, mrca, order_consistent, outside_tips,
-    restrict, rooted_clades, same_relationships, sister_tips, CladeKey, Closer,
+    clade_key, closer, count_clades, is_clade, mrca, outside_tips, restrict, same_relationships,
+    sister_tips, CladeKey, Closer,
 };
-use crate::reading::set::{
-    invalid_item, item_trees, resolve, Item, Point, PointAt, Question, ReadingSet, RelForm,
-    ResolvedTree, Statement, TraitAsk,
-};
-use crate::reading::traits::{change_count, origins_shared, tip_states, Change, Mark};
-use crate::tree::NodeId;
-
-// --- wire types ------------------------------------------------------------------
-
-/// A student's response; `kind` tags the JSON.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-#[ts(
-    tag = "kind",
-    rename_all = "snake_case",
-    export,
-    export_to = "../../../web/src/engine/generated/"
-)]
-pub enum Response {
-    Choice {
-        index: usize,
-    },
-    Choices {
-        indices: Vec<usize>,
-    },
-    Node {
-        clade: CladeKey,
-    },
-    Point {
-        letter: String,
-    },
-    Tips {
-        tips: Vec<String>,
-    },
-    Order {
-        letters: Vec<String>,
-    },
-    Number {
-        value: u32,
-    },
-    Pairwise {
-        #[ts(type = "\"B\" | \"C\" | \"Equal\"")]
-        answer: Closer,
-    },
-    TwoTier {
-        first: Box<Response>,
-        reason: usize,
-    },
-}
-
-/// The accepted answer of an item; adjacently tagged
-/// (`{"kind": "clade", "value": [...]}`) because several variants carry
-/// a bare tip set.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
-#[ts(
-    tag = "kind",
-    content = "value",
-    rename_all = "snake_case",
-    export,
-    export_to = "../../../web/src/engine/generated/"
-)]
-pub enum Accepted {
-    /// Accepted option indices (`which_differs` may name the
-    /// "all show the same" index `trees.len()`).
-    Choices(Vec<usize>),
-    /// A node named by its tip set (`mrca`, `smallest_clade`).
-    Clade(CladeKey),
-    /// A point letter (`mrca` with options, `place_taxon`).
-    Point(String),
-    /// Exactly this tip set (select-all questions).
-    TipSet(CladeKey),
-    /// Any one tip of the set, or the whole set — `closest_relative`
-    /// accepts both the single-answer and the select-all response.
-    AnyTipOf(CladeKey),
-    /// `order_nodes` acceptance rule: "ancestry" (every linear
-    /// extension) or "ages" (the unique order by age).
-    Orders {
-        rule: String,
-    },
-    Number(u32),
-    Pairwise(#[ts(type = "\"B\" | \"C\" | \"Equal\"")] Closer),
-    /// Per-statement truth values for `select_true`.
-    Statements(Vec<bool>),
-    TwoTier {
-        first: Box<Accepted>,
-        reason: usize,
-    },
-}
-
-/// The engine key for one item. `authored` marks the parts the file
-/// wrote itself (concept answers and `two_tier` reasons — labelled
-/// "authored answer" wherever shown, spec §4.3).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../web/src/engine/generated/")]
-pub struct AnswerKey {
-    pub accepted: Accepted,
-    pub explanation: String,
-    pub authored: bool,
-}
-
-/// `check`'s verdict: correctness plus the explanation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../web/src/engine/generated/")]
-pub struct Verdict {
-    pub correct: bool,
-    pub explanation: String,
-}
+use crate::reading::question::{Question, RelForm};
+use crate::reading::resolve::{item_trees, resolve, ResolvedTree};
+use crate::reading::response::{Accepted, AnswerKey};
+use crate::reading::set::{invalid_item, Item, Point, PointAt, ReadingSet};
+use crate::reading::statement::eval_statement;
+use crate::reading::trait_answer::trait_answer;
+use crate::reading::traits::{tip_states, Change, Mark};
 
 // --- small helpers ------------------------------------------------------------------
 
-fn item_err(item: &Item, field: &str, e: NeoError) -> NeoError {
+pub(crate) fn item_err(item: &Item, field: &str, e: NeoError) -> NeoError {
     match e {
         NeoError::InvalidReading { msg, .. } => invalid_item(&item.id, field, msg),
         other => other,
@@ -143,7 +42,7 @@ fn item_err(item: &Item, field: &str, e: NeoError) -> NeoError {
 }
 
 /// "a and b" / "a, b and c".
-fn join_and(list: &[String]) -> String {
+pub(crate) fn join_and(list: &[String]) -> String {
     match list {
         [] => String::new(),
         [x] => x.clone(),
@@ -152,14 +51,14 @@ fn join_and(list: &[String]) -> String {
     }
 }
 
-fn sorted(tips: &[String]) -> Vec<String> {
+pub(crate) fn sorted(tips: &[String]) -> Vec<String> {
     let mut v = tips.to_vec();
     v.sort();
     v.dedup();
     v
 }
 
-fn sorted_usize(v: &[usize]) -> Vec<usize> {
+pub(crate) fn sorted_usize(v: &[usize]) -> Vec<usize> {
     let mut v = v.to_vec();
     v.sort();
     v.dedup();
@@ -167,7 +66,11 @@ fn sorted_usize(v: &[usize]) -> Vec<usize> {
 }
 
 /// The tips whose `trait_name` state is derived (`true`).
-fn derived_of(rt: &ResolvedTree, marks: &[Mark], trait_name: &str) -> Result<CladeKey, NeoError> {
+pub(crate) fn derived_of(
+    rt: &ResolvedTree,
+    marks: &[Mark],
+    trait_name: &str,
+) -> Result<CladeKey, NeoError> {
     Ok(tip_states(&rt.tree, marks, trait_name)?
         .into_iter()
         .filter(|(_, s)| *s)
@@ -537,525 +440,4 @@ fn answer_question(
             })
         }
     }
-}
-
-/// `which_differs`: partition candidates by rooted equality; the unique
-/// outlier (or the "all show the same" index `trees.len()`) is the
-/// answer. With `reference`, candidates are compared to the reference
-/// restricted to their tips.
-fn which_differs(
-    set: &ReadingSet,
-    item: &Item,
-    trees: &[ResolvedTree],
-    reference: Option<&str>,
-) -> Result<(usize, String), NeoError> {
-    let id = item.id.as_str();
-    if let Some(ref_name) = reference {
-        let rt = set
-            .trees
-            .get(ref_name)
-            .ok_or_else(|| invalid_item(id, "reference", format!("unknown tree '{ref_name}'")))?;
-        let reft = resolve(ref_name, rt).map_err(|e| item_err(item, "reference", e))?;
-        let mut differs = Vec::new();
-        for (i, cand) in trees.iter().enumerate() {
-            let tips: Vec<String> = cand.tips.iter().cloned().collect();
-            let sub = restrict(&reft.tree, &tips).map_err(|e| item_err(item, "trees", e))?;
-            if !same_relationships(&sub, &cand.tree).unwrap_or(false) {
-                differs.push(i);
-            }
-        }
-        // Index n = "all show the same": every candidate agrees with
-        // the reference. Exactly one conflict is the unique outlier;
-        // anything else is refused (spec §4.3).
-        match differs.len() {
-            0 => {
-                return Ok((
-                    trees.len(),
-                    "every tree agrees with the reference tree.".to_string(),
-                ));
-            }
-            1 => {
-                return Ok((
-                    differs[0],
-                    format!(
-                        "tree '{}' conflicts with the reference tree.",
-                        item.trees[differs[0]]
-                    ),
-                ));
-            }
-            _ => {
-                return Err(invalid_item(
-                    id,
-                    "trees",
-                    format!(
-                        "which_differs needs at most one tree conflicting with the reference; {} conflict",
-                        differs.len()
-                    ),
-                ));
-            }
-        }
-    }
-
-    let n = trees.len();
-    // Index n = "all show the same" holds only when every pair of
-    // trees agrees — not merely when no single outlier exists (two
-    // disjoint pairs of equal trees is refused, spec §4.3).
-    let all_same = trees.iter().enumerate().all(|(i, ti)| {
-        trees
-            .iter()
-            .enumerate()
-            .all(|(j, tj)| i == j || same_relationships(&ti.tree, &tj.tree).unwrap_or(false))
-    });
-    if all_same {
-        return Ok((n, "all the trees show the same relationships.".to_string()));
-    }
-    // A tree is the outlier when it differs from every other tree and
-    // all the others agree among themselves.
-    let mut diff = Vec::new();
-    for i in 0..n {
-        let outlier = trees.iter().enumerate().all(|(j, tj)| {
-            i == j || !same_relationships(&trees[i].tree, &tj.tree).unwrap_or(false)
-        });
-        if outlier {
-            diff.push(i);
-        }
-    }
-    if diff.len() == 1 && others_agree(trees, diff[0]) {
-        let i = diff[0];
-        return Ok((
-            i,
-            format!(
-                "tree '{}' is the only one that groups {}.",
-                item.trees[i],
-                join_and(&distinguishing_clade(trees, i))
-            ),
-        ));
-    }
-    Err(invalid_item(
-        id,
-        "trees",
-        "which_differs needs a unique differing tree",
-    ))
-}
-
-/// Every tree except `outlier` is equal to every other — the outlier is
-/// the unique answer.
-fn others_agree(trees: &[ResolvedTree], outlier: usize) -> bool {
-    trees.iter().enumerate().all(|(i, ti)| {
-        trees.iter().enumerate().all(|(j, tj)| {
-            i == outlier
-                || j == outlier
-                || i == j
-                || same_relationships(&ti.tree, &tj.tree).unwrap_or(false)
-        })
-    })
-}
-
-/// A clade the differing tree has that no other candidate has — used in
-/// its explanation. Falls back to the root clade.
-fn distinguishing_clade(trees: &[ResolvedTree], i: usize) -> CladeKey {
-    let others: BTreeSet<CladeKey> = trees
-        .iter()
-        .enumerate()
-        .filter(|(j, _)| *j != i)
-        .flat_map(|(_, t)| rooted_clades(&t.tree))
-        .collect();
-    rooted_clades(&trees[i].tree)
-        .into_iter()
-        .filter(|c| !others.contains(c))
-        .min_by_key(|c| (c.len(), c.clone()))
-        .unwrap_or_else(|| trees[i].tips.iter().cloned().collect())
-}
-
-// --- trait answers ---------------------------------------------------------------------
-
-fn trait_answer(
-    t0: &ResolvedTree,
-    marks: &[Mark],
-    item: &Item,
-    ask: &TraitAsk,
-) -> Result<AnswerKey, NeoError> {
-    let id = item.id.as_str();
-    let key = |accepted: Accepted, explanation: String| {
-        Ok(AnswerKey {
-            accepted,
-            explanation,
-            authored: false,
-        })
-    };
-    let state_of = |trait_name: &str| -> Result<BTreeMap<String, bool>, NeoError> {
-        tip_states(&t0.tree, marks, trait_name).map_err(|e| item_err(item, "ask", e))
-    };
-    match ask {
-        TraitAsk::WhichHave { trait_name } => {
-            let group = derived_of(t0, marks, trait_name)?;
-            if group.is_empty() {
-                return Err(invalid_item(
-                    id,
-                    "trait_name",
-                    format!("no taxon has '{trait_name}'"),
-                ));
-            }
-            key(
-                Accepted::TipSet(group.clone()),
-                format!("{} have {trait_name}.", join_and(&group)),
-            )
-        }
-        TraitAsk::WhichShared { tips } => {
-            let want: BTreeSet<String> = tips.iter().cloned().collect();
-            let mut found = Vec::new();
-            for (i, name) in t0.trait_names.iter().enumerate() {
-                let got: BTreeSet<String> = state_of(name)?
-                    .into_iter()
-                    .filter(|(_, s)| *s)
-                    .map(|(t, _)| t)
-                    .collect();
-                if got == want {
-                    found.push((i, name.clone()));
-                }
-            }
-            if found.len() != 1 {
-                return Err(invalid_item(
-                    id,
-                    "tips",
-                    "which_shared needs exactly one matching trait",
-                ));
-            }
-            let (i, name) = &found[0];
-            key(
-                Accepted::Choices(vec![*i]),
-                format!("{name} is shared by exactly {}.", join_and(tips)),
-            )
-        }
-        TraitAsk::HowManyChanges { trait_name } => {
-            let n = change_count(marks, trait_name);
-            key(
-                Accepted::Number(n),
-                format!("{trait_name} changes {n} times."),
-            )
-        }
-        TraitAsk::Profile { tip } => {
-            let mut idxs = Vec::new();
-            let mut names = Vec::new();
-            for (i, name) in t0.trait_names.iter().enumerate() {
-                if state_of(name)?.get(tip).copied().unwrap_or(false) {
-                    idxs.push(i);
-                    names.push(name.clone());
-                }
-            }
-            let expl = if names.is_empty() {
-                format!("{tip} has no derived states.")
-            } else {
-                format!("{tip} has the derived state of {}.", join_and(&names))
-            };
-            key(Accepted::Choices(idxs), expl)
-        }
-        TraitAsk::AncestralOrDerived { trait_name, tip } => {
-            let derived = state_of(trait_name)?.get(tip).copied().unwrap_or(false);
-            key(
-                Accepted::Choices(vec![derived as usize]),
-                format!(
-                    "{trait_name} is {} in {tip}.",
-                    if derived { "derived" } else { "ancestral" }
-                ),
-            )
-        }
-        TraitAsk::HasNot { has, lacks } => {
-            let sh = state_of(has)?;
-            let sl = state_of(lacks)?;
-            let group: Vec<String> = sh
-                .iter()
-                .filter(|(t, s)| **s && !sl.get(*t).copied().unwrap_or(false))
-                .map(|(t, _)| t.clone())
-                .collect();
-            if group.is_empty() {
-                return Err(invalid_item(
-                    id,
-                    "has",
-                    format!("no taxon has '{has}' and lacks '{lacks}'"),
-                ));
-            }
-            key(
-                Accepted::TipSet(group.clone()),
-                format!("{} have {has} but lack {lacks}.", join_and(&group)),
-            )
-        }
-        TraitAsk::Homologous { trait_name, x, y } => {
-            let shared = origins_shared(&t0.tree, marks, trait_name, x, y)
-                .map_err(|e| item_err(item, "ask", e))?;
-            key(
-                Accepted::Choices(vec![!shared as usize]),
-                format!(
-                    "{trait_name} in {x} and {y} {}.",
-                    if shared {
-                        "is homologous: a single gain covers both"
-                    } else {
-                        "arose independently: separate gains"
-                    }
-                ),
-            )
-        }
-    }
-}
-
-// --- statements ---------------------------------------------------------------------------
-
-/// Evaluate one `select_true` statement against the item's trees.
-/// Indices `tree_i`/`tree_j` name `item.trees`; statements without an
-/// index run on the first tree.
-fn eval_statement(
-    item: &Item,
-    trees: &[ResolvedTree],
-    marks_of: &dyn Fn(usize) -> Vec<Mark>,
-    s: &Statement,
-) -> Result<bool, NeoError> {
-    let id = item.id.as_str();
-    let Some(t0) = trees.first() else {
-        return Err(invalid_item(id, "trees", "an item shows at least one tree"));
-    };
-    let err = |e: NeoError| item_err(item, "statements", e);
-    let tree_at = |i: usize| -> Result<&ResolvedTree, NeoError> {
-        trees
-            .get(i)
-            .ok_or_else(|| invalid_item(id, "statements", format!("no tree at index {i}")))
-    };
-    let letter_node = |l: &str| -> Result<NodeId, NeoError> {
-        t0.letters
-            .get(l)
-            .copied()
-            .ok_or_else(|| invalid_item(id, "statements", format!("unknown node letter '{l}'")))
-    };
-    match s {
-        Statement::CloserThan { x, y, z, .. } => {
-            Ok(closer(&t0.tree, x, y, z).map_err(err)? == Closer::B)
-        }
-        Statement::IsClade { tips, .. } => is_clade(&t0.tree, tips).map_err(err),
-        Statement::CladeInNotIn {
-            tips,
-            tree_i,
-            tree_j,
-            ..
-        } => Ok(is_clade(&tree_at(*tree_i)?.tree, tips).map_err(err)?
-            && !is_clade(&tree_at(*tree_j)?.tree, tips).map_err(err)?),
-        Statement::SameRelationships { tree_i, tree_j, .. } => {
-            // Different tip sets simply cannot show the same
-            // relationships — the statement is false, not an error.
-            Ok(
-                same_relationships(&tree_at(*tree_i)?.tree, &tree_at(*tree_j)?.tree)
-                    .unwrap_or(false),
-            )
-        }
-        Statement::OlderThan { p, q, .. } => {
-            let np = letter_node(p)?;
-            let nq = letter_node(q)?;
-            let kp = clade_key(&t0.tree, np);
-            let kq = clade_key(&t0.tree, nq);
-            match (t0.age_of(&kp), t0.age_of(&kq)) {
-                (Some(a), Some(b)) => Ok(a > b),
-                _ => Ok(is_ancestor(&t0.tree, np, nq)),
-            }
-        }
-        Statement::OlderThanAge { p, age, .. } => {
-            let n = letter_node(p)?;
-            Ok(t0.age_of(&clade_key(&t0.tree, n)).unwrap_or(0.0) > *age)
-        }
-        Statement::LineageAtLeast { tip, age, .. } => {
-            // A lineage is at least as old as its sister group's oldest
-            // fossil tip (spec §4.3).
-            let sisters = sister_tips(&t0.tree, tip).map_err(err)?;
-            let bound = sisters
-                .iter()
-                .map(|t| t0.tip_age(t))
-                .fold(0.0_f64, f64::max);
-            Ok(bound >= *age)
-        }
-        Statement::HasTrait {
-            tip, trait_name, ..
-        } => Ok(tip_states(&t0.tree, &marks_of(0), trait_name)
-            .map_err(err)?
-            .get(tip)
-            .copied()
-            .unwrap_or(false)),
-        Statement::SharedDerived {
-            trait_name, tips, ..
-        } => {
-            let states = tip_states(&t0.tree, &marks_of(0), trait_name).map_err(err)?;
-            if !tips.iter().all(|t| states.get(t).copied().unwrap_or(false)) {
-                return Ok(false);
-            }
-            // One gain whose clade covers all the tips = shared derived.
-            let want: BTreeSet<String> = tips.iter().cloned().collect();
-            Ok(marks_of(0).iter().any(|m| {
-                m.trait_name == *trait_name
-                    && m.change == Change::Gain
-                    && want.iter().all(|t| m.on.contains(t))
-            }))
-        }
-        Statement::GainedWithin { inner, outer, .. } => {
-            // `inner` arose on a branch strictly inside a clade that
-            // already carried `outer`'s gain. On one shared branch the
-            // listed order decides (as in `tip_states`): `outer`'s gain
-            // listed before `inner`'s means the lineage carried `outer`
-            // first; `inner` first means it did not.
-            let marks = marks_of(0);
-            Ok(marks.iter().enumerate().any(|(ii, mi)| {
-                mi.trait_name == *inner
-                    && mi.change == Change::Gain
-                    && marks.iter().enumerate().any(|(oi, mo)| {
-                        if mo.trait_name != *outer || mo.change != Change::Gain {
-                            return false;
-                        }
-                        let same_branch =
-                            mi.on.len() == mo.on.len() && mi.on.iter().all(|t| mo.on.contains(t));
-                        if same_branch {
-                            oi < ii
-                        } else {
-                            mi.on.iter().all(|t| mo.on.contains(t))
-                        }
-                    })
-            }))
-        }
-    }
-}
-
-// --- check ---------------------------------------------------------------------------------
-
-/// Compare a student [`Response`] with the engine key (spec §5.3).
-/// A response that names nothing the item knows — a bad kind, an
-/// unknown point letter, an unknown tip — is `InvalidReading` with
-/// `field` "response", never a panic.
-pub fn check(set: &ReadingSet, item: usize, r: &Response) -> Result<Verdict, NeoError> {
-    let item_ref = set
-        .items
-        .get(item)
-        .ok_or_else(|| invalid_item("", "item", format!("no item at index {item}")))?;
-    let key = answer(set, item)?;
-    let trees = item_trees(set, item_ref)?;
-    let ok = matches(item_ref, &trees, &item_ref.question, &key.accepted, r)?;
-    Ok(Verdict {
-        correct: ok,
-        explanation: key.explanation,
-    })
-}
-
-fn wrong_kind(item: &Item) -> NeoError {
-    invalid_item(
-        &item.id,
-        "response",
-        "the response kind does not fit the question",
-    )
-}
-
-fn matches(
-    item: &Item,
-    trees: &[ResolvedTree],
-    q: &Question,
-    acc: &Accepted,
-    r: &Response,
-) -> Result<bool, NeoError> {
-    let Some(t0) = trees.first() else {
-        return Err(invalid_item(
-            &item.id,
-            "trees",
-            "an item shows at least one tree",
-        ));
-    };
-    match (acc, r) {
-        (Accepted::Choices(a), Response::Choice { index }) => Ok(a.len() == 1 && a[0] == *index),
-        (Accepted::Choices(a), Response::Choices { indices }) => Ok(sorted_usize(indices) == *a),
-        (Accepted::Clade(k), Response::Node { clade }) => {
-            check_tips_exist(t0, clade, item)?;
-            Ok(sorted(clade) == *k)
-        }
-        (Accepted::Clade(k), Response::Tips { tips }) => {
-            check_tips_exist(t0, tips, item)?;
-            Ok(sorted(tips) == *k)
-        }
-        (Accepted::Point(l), Response::Point { letter }) => {
-            if !t0.points.contains_key(letter) {
-                return Err(invalid_item(
-                    &item.id,
-                    "response",
-                    format!("unknown point letter '{letter}'"),
-                ));
-            }
-            Ok(l == letter)
-        }
-        (Accepted::TipSet(k), Response::Tips { tips })
-        | (Accepted::AnyTipOf(k), Response::Tips { tips }) => {
-            check_tips_exist(t0, tips, item)?;
-            let whole = sorted(tips) == *k;
-            // AnyTipOf also accepts a single tip of the set — the
-            // single-answer form of closest_relative.
-            let single =
-                matches!(acc, Accepted::AnyTipOf(_)) && tips.len() == 1 && k.contains(&tips[0]);
-            Ok(whole || single)
-        }
-        (Accepted::Orders { .. }, Response::Order { letters }) => {
-            let Question::OrderNodes { nodes } = q else {
-                return Err(wrong_kind(item));
-            };
-            if sorted(letters) != sorted(nodes) {
-                return Ok(false); // not a permutation of the item's nodes
-            }
-            let mut ids = Vec::new();
-            for l in letters {
-                let Some(&n) = t0.letters.get(l) else {
-                    return Err(invalid_item(
-                        &item.id,
-                        "response",
-                        format!("unknown node letter '{l}'"),
-                    ));
-                };
-                ids.push(n);
-            }
-            // `ages` is `Some` exactly under `Times::Ages`, which is the
-            // "ages" rule; otherwise the ancestry order rules.
-            Ok(order_consistent(&t0.tree, &ids, t0.ages.as_ref()))
-        }
-        (Accepted::Number(n), Response::Number { value }) => Ok(n == value),
-        (Accepted::Pairwise(v), Response::Pairwise { answer }) => Ok(v == answer),
-        (Accepted::Statements(vals), Response::Choices { indices }) => {
-            if indices.iter().any(|&i| i >= vals.len()) {
-                return Err(invalid_item(
-                    &item.id,
-                    "response",
-                    "a selected statement does not exist",
-                ));
-            }
-            let selected: BTreeSet<usize> = indices.iter().copied().collect();
-            Ok(vals
-                .iter()
-                .enumerate()
-                .all(|(i, v)| *v == selected.contains(&i)))
-        }
-        (
-            Accepted::TwoTier { first, reason },
-            Response::TwoTier {
-                first: r_first,
-                reason: r_reason,
-            },
-        ) => {
-            let Question::TwoTier { first: fq, .. } = q else {
-                return Err(wrong_kind(item));
-            };
-            let inner = matches(item, trees, fq, first, r_first)?;
-            Ok(inner && reason == r_reason)
-        }
-        _ => Err(wrong_kind(item)),
-    }
-}
-
-/// Responses naming unknown tips are malformed.
-fn check_tips_exist(rt: &ResolvedTree, tips: &[String], item: &Item) -> Result<(), NeoError> {
-    for t in tips {
-        if !rt.tips.contains(t) {
-            return Err(invalid_item(
-                &item.id,
-                "response",
-                format!("unknown tip '{t}'"),
-            ));
-        }
-    }
-    Ok(())
 }

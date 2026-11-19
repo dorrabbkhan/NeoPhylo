@@ -25,7 +25,8 @@ use rand_core::{RngCore, SeedableRng};
 
 use crate::error::NeoError;
 use crate::newick::{parse_newick, write_newick};
-use crate::reading::set::{Question, ReadingSet, Statement, Times, TraitAsk};
+use crate::reading::question::{Question, Statement, TraitAsk};
+use crate::reading::set::{ReadingSet, Times};
 use crate::tree::NodeId;
 
 /// Fisher–Yates over `v` consuming `v.len()-1` draws.
