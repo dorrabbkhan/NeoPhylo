@@ -1,0 +1,236 @@
+/* ReadingTree styles (v1.4d plan Task 7, spec §6-§7.3). Tokens only —
+ * colors come from --color-* vars and text sizes from --size-*; the
+ * svg draws in currentColor like the sandbox tree. */
+
+.rt-figure {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+}
+
+.rt-caption {
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: var(--size-sm);
+  margin-bottom: 4px;
+}
+
+/* The svg renders at the layout's natural size — text never shrinks
+ * below the 12 px floor, so an over-wide drawing scrolls instead. */
+.rt-canvas {
+  overflow-x: auto;
+}
+
+.rt-canvas svg {
+  display: block;
+  color: var(--color-text);
+}
+
+/* Scroll cue (§6): an inset shadow on the scrolled-to edge, visible
+ * whenever the layout flagged the drawing as wider than the panel. */
+.rt-canvas[data-scroll] {
+  box-shadow: inset -16px 0 10px -10px var(--color-text-muted);
+}
+
+.rt-edge {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.rt-edge[data-hl] {
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+}
+
+.rt-dot {
+  fill: currentColor;
+}
+
+/* Lettered node / lettered point badges: a surface-filled disc so the
+ * letter reads over the lines it sits on. */
+.rt-badge {
+  fill: var(--color-surface);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.rt-badge-letter {
+  fill: currentColor;
+}
+
+.rt-sel-ring {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.rt-hl-ring {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+.rt-point-leader {
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* Trait marks: gains and losses differ by SHAPE — a filled arrowhead
+ * along the branch for a gain, a hollow circle for a loss (§6: never
+ * colour alone). */
+.rt-mark-bar {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.rt-mark-gain {
+  fill: currentColor;
+}
+
+.rt-mark-loss {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.rt-mark-label {
+  fill: var(--color-text);
+}
+
+.rt-axis-line,
+.rt-axis-tick {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+}
+
+.rt-axis-label {
+  fill: var(--color-text-muted);
+}
+
+.rt-arrowhead {
+  fill: var(--color-text-muted);
+}
+
+/* Hit targets: invisible, always-on small core plus a ≥40×40 pad under
+ * (pointer: coarse) only (spec §6). The pad covers a tip's label box
+ * too, so a tap on the name lands; on fine pointers the label box is
+ * its own always-on rect. */
+.rt-hit {
+  cursor: pointer;
+  outline: none;
+}
+
+.rt-hit-pad {
+  display: none;
+  fill: transparent;
+}
+
+.rt-hit-labelbox {
+  fill: transparent;
+}
+
+.rt-hit-core {
+  fill: transparent;
+}
+
+.rt-hit-ring {
+  fill: none;
+  stroke: none;
+}
+
+.rt-hit:focus-visible .rt-hit-ring {
+  stroke: var(--color-focus);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+
+.rt-branch-line {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+}
+
+.rt-hit:focus-visible .rt-branch-line {
+  stroke: var(--color-focus);
+  stroke-width: 3;
+  stroke-dasharray: 3 3;
+}
+
+@media (pointer: coarse) {
+  .rt-hit-pad {
+    display: block;
+  }
+}
+
+.rt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin-top: 4px;
+}
+
+/* The selection/rotation announcements: a real live region, clipped
+ * like the wordmark's accessible text — scoped name so it can't pick
+ * up or alter another component's styles. */
+.rt-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rt-desc-wrap {
+  font-size: var(--size-sm);
+  color: var(--color-text);
+}
+
+.rt-desc-toggle {
+  font-size: var(--size-sm);
+  color: var(--color-accent-contrast);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Visually hidden but in the accessibility tree until the toggle
+ * opens it — the same clip pattern as .rt-live. */
+.rt-desc {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rt-desc[data-open] {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 4px 0 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+
+.rt-desc ul {
+  margin: 2px 0 2px 18px;
+  padding: 0;
+}
