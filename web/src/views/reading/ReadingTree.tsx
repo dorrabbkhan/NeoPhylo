@@ -179,10 +179,8 @@ export function ReadingTree({
     size.xs * (presenter ? PRESENTER_SCALE : 1),
   );
   const measurer = useMemo(() => makeTextMeasurer(), []);
-  const measure = useCallback(
-    (s: string) => measurer(s, fontPx)?.w ?? s.length * fontPx * 0.625,
-    [measurer, fontPx],
-  );
+  const measure = (s: string) =>
+    measurer(s, fontPx)?.w ?? s.length * fontPx * 0.625;
 
   // The local copy: nodes whose children are drawn in swapped order.
   const [rotated, setRotated] = useState<Set<string>>(new Set());
@@ -203,15 +201,19 @@ export function ReadingTree({
     [nodes],
   );
 
-  const fig: ReadingFigure | null = useMemo(() => {
-    if (nodes.length === 0) return null;
-    return readingLayout(
-      derived,
-      style,
-      { width: Math.max(1, box.width), fontPx },
-      measure,
-    );
-  }, [derived, style, box.width, fontPx, measure, nodes.length]);
+  // Laid out on every render, as in TreeView: the fonts gate holds the
+  // figure until the bundled faces resolve (metrics before that would
+  // bake fallback widths in), and a late arrival re-renders through
+  // fontsTick for the single permitted re-layout (spec §4.2).
+  const fig: ReadingFigure | null =
+    nodes.length === 0 || !fontsSettled
+      ? null
+      : readingLayout(
+          derived,
+          style,
+          { width: Math.max(1, box.width), fontPx },
+          measure,
+        );
 
 
   // Roving focus across node hits, keyed by clade so it follows a

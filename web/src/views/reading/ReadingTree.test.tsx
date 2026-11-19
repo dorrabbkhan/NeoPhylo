@@ -12,12 +12,51 @@
 // - the aria-live region announces each selection;
 // - arrow keys move parent/child/sibling, Enter selects, R rotates.
 
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
 
+import { readingLayout } from "../../layout/readingLayout";
 import { ReadingTree } from "./ReadingTree";
+
+// Controllable fonts gate + a spy on readingLayout so the fonts-gate
+// regression test can hold the gate closed. The defaults reproduce the
+// real module's settled state, so the other tests are unaffected.
+const gate = vi.hoisted(() => {
+  const g = {
+    status: "loaded" as "pending" | "loaded" | "timeout",
+    pending: null as Promise<"loaded" | "timeout"> | null,
+    release: () => {},
+    pend() {
+      g.status = "pending";
+      g.pending = new Promise<"loaded" | "timeout">((r) => {
+        g.release = () => {
+          g.status = "loaded";
+          r("loaded");
+        };
+      });
+    },
+  };
+  return g;
+});
+vi.mock("../../design/fontsReady", async (importOriginal) => {
+  const mod =
+    await importOriginal<typeof import("../../design/fontsReady")>();
+  return {
+    ...mod,
+    fontsStatus: () => gate.status,
+    whenFontsReady: () =>
+      gate.pending ??
+      Promise.resolve(gate.status === "pending" ? "timeout" : gate.status),
+    onFontsLateLoad: () => () => {},
+  };
+});
+vi.mock("../../layout/readingLayout", async (importOriginal) => {
+  const mod =
+    await importOriginal<typeof import("../../layout/readingLayout")>();
+  return { ...mod, readingLayout: vi.fn(mod.readingLayout) };
+});
 
 afterEach(cleanup);
 
@@ -282,6 +321,34 @@ describe("ReadingTree rotate animation", () => {
       expect(anim!.style.transition).not.toContain("300ms");
     } finally {
       vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("ReadingTree fonts gate", () => {
+  it("lays out only after the bundled fonts settle", async () => {
+    // jsdom has no document.fonts; a stub lets the gate path run. The
+    // regression being pinned: the memoised figure must not bake
+    // fallback metrics while the gate is still pending — it is
+    // computed for the first time only after whenFontsReady resolves.
+    Object.defineProperty(document, "fonts", {
+      value: {},
+      configurable: true,
+    });
+    gate.pend();
+    vi.mocked(readingLayout).mockClear();
+    try {
+      const p = props();
+      const { container } = render(<ReadingTree {...p} />);
+      expect(readingLayout).not.toHaveBeenCalled();
+      expect(container.querySelector("svg")).toBeNull();
+
+      gate.release();
+      await act(async () => {});
+      expect(readingLayout).toHaveBeenCalled();
+      expect(container.querySelector("svg")).not.toBeNull();
+    } finally {
+      Reflect.deleteProperty(document, "fonts");
     }
   });
 });

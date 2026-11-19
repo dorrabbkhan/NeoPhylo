@@ -8464,3 +8464,9 @@ Owner-requested rendering fixes after the PR #139 review; branch
     the same coordinates and collision is not its job).
   - Hit pads are 40.05 px — WebKit quantizes layout to 1/64 px, so an
     exact 40 measures back as 39.99 (same trick as TreeView's pads).
+  - Post-CI fix: `fig` is laid out on every render (as in TreeView)
+    instead of a mount-time `useMemo`, because the memoised figure
+    could be computed with fallback font metrics before the bundled
+    faces resolved — four first-pass `rt-*` baselines had captured the
+    fallback layout and failed in CI. A Vitest regression test pins
+    "no layout before the fonts gate opens".
