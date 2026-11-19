@@ -982,4 +982,116 @@ export const SCENES: {
       await settleFrame(page);
     },
   },
+  // ---- v1.4d Task 7: ReadingTree (dev-server harness page) ---------
+  // Every scene mounts the real engine path — a reading-set JSON
+  // through loadReadingSet + readingTree — on the dev-only harness
+  // (nothing in the app imports the component until Task 8's route).
+  {
+    // The plan's "one 8-tip tree in each shape × side": all twelve
+    // combos of the showcase tree (letters, points, marks and the
+    // numeric axis are visible in every cell).
+    name: "rt-styles",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=showcase&grid=styles",
+      );
+      await expect(page.locator(".rt-figure")).toHaveCount(12);
+      await settleFrame(page);
+    },
+  },
+  {
+    // Lettered node badges (P, Q) and the de-collided point letter.
+    name: "rt-letters",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=showcase&shape=rectangular&tips=right",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The lettered points (X on a node, Y on a branch) on a tips-up
+    // diagonal tree — the de-collision offset goes sideways here.
+    name: "rt-points",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=showcase&shape=diagonal&tips=up",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Trait marks on a tips-left tree: the gain arrowhead and loss
+    // circle rotate with each branch's angle (shape, never colour).
+    name: "rt-marks",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=showcase&shape=rectangular&tips=left",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // A numeric Ma axis under a plain tree (ticks at round ages).
+    name: "rt-axis-numeric",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=times&shape=rectangular&tips=right",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The schematic axis: no ticks, just the older → younger arrow.
+    name: "rt-axis-schematic",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=schematic&shape=rectangular&tips=right",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // A three-way polytomy on the circular drawing (lettered P, R).
+    name: "rt-polytomy",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=polytomy&shape=circular&tips=right",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // A fossil tip: mammoth's lineage ends before the present, so its
+    // tip stops short of the younger end of the numeric axis.
+    name: "rt-fossil",
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=fossil&shape=rectangular&tips=right",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Phone-width tips-up: the drawing keeps its 12 px floor and
+    // scrolls sideways instead of squeezing (spec §6) — the plan asks
+    // for this scene at 360 px.
+    name: "rt-tipsup-360",
+    viewports: [{ w: 360, h: 800 }],
+    setup: async (page) => {
+      await page.goto(
+        "/e2e/reading-harness.html?set=showcase&shape=rectangular&tips=up&w=360",
+      );
+      await expect(page.locator(".rt-figure svg")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
 ];

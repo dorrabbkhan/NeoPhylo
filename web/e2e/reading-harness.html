@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Dev-server-only e2e/visual harness for ReadingTree (v1.4d plan
+     Task 7). Vite serves this file at /e2e/reading-harness.html in dev;
+     the production build's only rollup input is index.html, so neither
+     this page nor the component it mounts can enter the app bundle. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>ReadingTree harness</title>
+    <script>
+      // Same theme bootstrap as index.html: data-theme from the
+      // device-local neophylo.theme pref, light by default.
+      try {
+        document.documentElement.dataset.theme =
+          window.localStorage.getItem("neophylo.theme") === "dark"
+            ? "dark"
+            : "light";
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+      }
+      .h-grid {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .h-cell {
+        width: 680px;
+        padding: 8px;
+      }
+      /* Specs read the outputs' text; they stay off the screenshots. */
+      .rt-harness-out {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/readingHarness.tsx"></script>
+  </body>
+</html>

@@ -8414,3 +8414,59 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `node.label` in the figure is only a tip's (abbreviated) name;
     internal nodes are identified by `letter`, matching the view's own
     split.
+
+## v1.4d Task 7: tree-reading tree component
+
+- **Files outside the Files block:**
+  - `web/src/views/reading/reading.css` — the component's styles
+    (scoped `rt-*` classes; the plan's file list does not name a
+    stylesheet, but the token-discipline rule forbids inline literals).
+  - `web/src/views/reading/readingDraw.tsx` — the visible draw layer
+    (edges, node dots and letter badges, tip labels, points, trait
+    marks, axis). Split out under AGENTS.md's ~400-line /
+    single-purpose rule: `ReadingTree.tsx` alone would be ~860 lines.
+  - `web/src/views/reading/readingHelpers.ts` — shared non-component
+    helpers (hit-pad constants, `anim`/`animD` transitions,
+    `pointOffsets`, `describe`); kept out of the component files
+    because eslint's react-refresh rule only allows component exports.
+  - `web/src/views/reading/readingHits.tsx` — the point and branch hit
+    layers (same reason as readingDraw).
+  - `web/e2e/reading-harness.html`,
+    `web/src/readingHarness{,App}.tsx` — a dev-server-only harness page
+    (`/e2e/reading-harness.html`) that mounts `ReadingTree` through
+    the real engine path (`loadReadingSet` + `readingTree`). The
+    component has no route until Task 8, and Vite's only build input
+    is `index.html`, so neither the harness nor the component can
+    enter the initial bundle (§8.2 budget preserved by construction).
+  - `web/e2e/__screenshots__/rt-*.png` — 50 new baselines for the nine
+    new scenes, generated inside the pinned Playwright image as the
+    plan requires; no existing baseline was touched.
+  - `docs/decisions.md` — this entry.
+- **Files the block lists as Modify but unchanged:**
+  - `web/e2e/visual.spec.ts` — the scene matrix already covers the new
+    scenes (name × viewport × theme loop is driven by
+    `visualScenes.ts`); no change was needed.
+- **Ambiguities resolved:**
+  - "8-tip tree in each shape × side" is one `rt-styles` grid scene
+    showing all twelve shape × tip-side combos of the same 8-tip
+    showcase tree, rather than twelve separate scenes; per-feature
+    scenes (letters, points, marks, both axes, polytomy, fossil) are
+    separate.
+  - The vertical (tips-up/down) axis fits its 30 px reserved strip by
+    keeping numbers horizontal and rotating the unit/older/younger
+    captions along the strip; the horizontal axis keeps horizontal
+    captions.
+  - Rotation animates node positions and edge `d` at 300 ms
+    ease-in-out, skipped under prefers-reduced-motion; hit groups ride
+    the same transform so targets stay under the pointer mid-rotate.
+  - A point letter stacked on a lettered node is offset perpendicular
+    off the tip axis with a leader line (the layout returns both at
+    the same coordinates and collision is not its job).
+  - Hit pads are 40.05 px — WebKit quantizes layout to 1/64 px, so an
+    exact 40 measures back as 39.99 (same trick as TreeView's pads).
+  - Post-CI fix: `fig` is laid out on every render (as in TreeView)
+    instead of a mount-time `useMemo`, because the memoised figure
+    could be computed with fallback font metrics before the bundled
+    faces resolved — four first-pass `rt-*` baselines had captured the
+    fallback layout and failed in CI. A Vitest regression test pins
+    "no layout before the fonts gate opens".

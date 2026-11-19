@@ -487,3 +487,23 @@ test("axe: the matrix tab and a matrix session have no serious violations", asyn
   await stepToEnd(page);
   await expectNoSeriousViolations(page, "a matrix session at the final step");
 });
+
+// v1.4d Task 7 (spec §6.5): the reading tree on its dev-server harness
+// joins the axe matrix — the interactive tree role/treeitem structure,
+// the clipped live region and text description, and the opened
+// "Show as text" form are all scanned.
+test("axe: the reading tree has no serious violations", async ({
+  page,
+}) => {
+  await page.goto(
+    "/e2e/reading-harness.html?set=showcase&shape=rectangular&tips=right&selectable=node&rotatable=1&label=Tree%201",
+  );
+  await expect(page.locator(".rt-figure svg")).toBeVisible();
+  await expectNoSeriousViolations(page, "the reading tree");
+
+  await page.getByRole("button", { name: "Show as text" }).click();
+  await expectNoSeriousViolations(
+    page,
+    "the reading tree with the text description open",
+  );
+});
