@@ -1264,6 +1264,13 @@ export const SCENES: {
     // both themes. Every tip label must render unclipped at ≥12 px;
     // the figure scrolls sideways inside .rt-canvas and shows the
     // inset-shadow cue, while the page never scrolls.
+    //
+    // This scroll-0 frame shows the LEFT end: Homo sapiens,
+    // Pan paniscus, Gorilla gorilla, Pongo abelii, Hylobates lar,
+    // Macaca mulatta, Papio anubis (labels 1–7 of 12) plus the
+    // right-edge scroll cue. The -end scene below covers the right
+    // end; between the two baselines every one of the 12 labels is
+    // visible unclipped.
     name: "reading-tipsup-12-long-names-360",
     viewports: [{ w: 360, h: 740 }],
     setup: async (page) => {
@@ -1299,6 +1306,64 @@ export const SCENES: {
         ).toBeLessThanOrEqual(svgBox!.x + svgW + 0.5);
       }
       await settleFrame(page);
+    },
+  },
+  {
+    // Fix round (PR #173): the scroll-0 frame above cuts off at
+    // Papio anubis, so the right-hand labels never appeared in any
+    // baseline. This frame scrolls .rt-canvas fully right inside the
+    // same 360×740 question screen: it shows labels 6–12 of 12 —
+    // Macaca mulatta, Papio anubis, Chlorocebus pygerythrus,
+    // Colobus guereza, Symphalangus syndactylus,
+    // Pseudosuperlongname-taxonomica and Watson's leaf-nosed bat —
+    // every one fully inside the canvas's visible box (names >18
+    // chars render as the layout's designed 16+"…" abbreviation,
+    // never clipped). With the scroll-0 frame's labels 1–7 the two
+    // baselines together cover all 12.
+    name: "reading-tipsup-12-long-names-360-end",
+    viewports: [{ w: 360, h: 740 }],
+    setup: async (page) => {
+      await gotoReadItem(page, 24);
+      const fig = page.locator(".rt-figure").first();
+      await expect(fig.locator(".rt-tip-label")).toHaveCount(12);
+      const canvas = fig.locator(".rt-canvas");
+      for (const el of await fig.locator(".rt-tip-label").all()) {
+        const size = await el.evaluate(
+          (t) => parseFloat(getComputedStyle(t).fontSize),
+        );
+        expect(size, "tip label text is at least 12 px")
+          .toBeGreaterThanOrEqual(12);
+      }
+      await settleFrame(page);
+      // scrollLeft past settleFrame's reset: fully right, then a
+      // settled frame so the scroll lands before the shot.
+      await canvas.evaluate(
+        (el) => (el.scrollLeft = el.scrollWidth - el.clientWidth),
+      );
+      await page.evaluate(
+        () =>
+          new Promise((r) =>
+            requestAnimationFrame(() => requestAnimationFrame(r)),
+          ),
+      );
+      // The apostrophe label — the rightmost tip — must sit fully
+      // inside the canvas's visible box.
+      const last = fig.locator(".rt-tip-label", {
+        hasText: "Watson's leaf-nosed bat",
+      });
+      await expect(last).toHaveCount(1);
+      const box = await last.boundingBox();
+      const cbox = await canvas.boundingBox();
+      expect(box, "last tip label has a bounding box").not.toBeNull();
+      expect(cbox, "canvas has a bounding box").not.toBeNull();
+      expect(
+        box!.x,
+        "last tip label starts inside the visible canvas",
+      ).toBeGreaterThanOrEqual(cbox!.x - 0.5);
+      expect(
+        box!.x + box!.width,
+        "last tip label ends inside the visible canvas",
+      ).toBeLessThanOrEqual(cbox!.x + cbox!.width + 0.5);
     },
   },
 ];
