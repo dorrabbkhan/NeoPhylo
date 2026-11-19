@@ -8,6 +8,8 @@ import type { TipSide } from "../engine/generated/TipSide";
 
 import { intersects } from "./labelCollision";
 import { readingLayout, type ReadingFigure } from "./readingLayout";
+import { markGlyphBox } from "./readingMarks";
+import { LABEL_GAP, MARK_HALF, type Box } from "./readingGeom";
 
 // Hand-built views (no engine round-trip needed — the layout input is the
 // generated ReadingTreeView type). `N` describes a node recursively; the
@@ -721,6 +723,240 @@ describe("readingLayout", () => {
       for (let j = i + 1; j < fig.marks.length; j += 1) {
         expect(intersects(b, fig.marks[j].labelBox!)).toBe(false);
       }
+    }
+  });
+
+  // ---- shared-branch mark labels beside their own glyph (PR #173
+  // fix round 4): a shared mark's label must sit next to ITS glyph —
+  // nearest glyph is its own, no label box touches any glyph (bar,
+  // arrowhead or loss circle) of any mark, and no two label boxes
+  // overlap. The earlier check only covered label-vs-label, which is
+  // how a label could ride through a glyph. ----
+
+  /** Indices of the marks that share a branch with another mark. */
+  function sharedMarkIdx(view: ReadingTreeView): Set<number> {
+    const byKey = new Map<string, number[]>();
+    view.marks.forEach((m, j) => {
+      const k = JSON.stringify([...m.on].sort());
+      const g = byKey.get(k);
+      if (g === undefined) byKey.set(k, [j]);
+      else g.push(j);
+    });
+    const out = new Set<number>();
+    for (const g of byKey.values()) {
+      if (g.length > 1) for (const j of g) out.add(j);
+    }
+    return out;
+  }
+
+  /** Projection range of a box's four corners onto a unit vector. */
+  function projRange(b: Box, vx: number, vy: number): [number, number] {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const [cx, cy] of [
+      [b.minX, b.minY],
+      [b.maxX, b.minY],
+      [b.maxX, b.maxY],
+      [b.minX, b.maxY],
+    ] as const) {
+      const v = cx * vx + cy * vy;
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+    return [lo, hi];
+  }
+
+  // The shared-branch legibility contract. (i) A shared mark's label
+  // box intersects NO glyph box — not its own and no other mark's,
+  // lone marks' included. (ii) Its nearest glyph centre is its own
+  // and the centre distance stays inside the side-adjacent bound
+  // (glyph extent + LABEL_GAP + the label's own half-extent along
+  // the offset). (iii) No two label boxes overlap anywhere. (iv)
+  // Every glyph and label box sits inside the figure. Lone marks
+  // keep their pre-existing placement (the label 10 px above the
+  // anchor), so only shared labels are checked against glyphs.
+  function expectLegibleMarks(
+    fig: ReadingFigure,
+    shared: Set<number>,
+  ): void {
+    const asc = 12 * 0.75 + 2;
+    const desc = 12 * 0.6 + 2;
+    const glyphs = fig.marks.map((m) =>
+      markGlyphBox(m.change, m.x, m.y, m.angle),
+    );
+    for (let i = 0; i < fig.marks.length; i += 1) {
+      const m = fig.marks[i];
+      for (const b of [m.labelBox, glyphs[i]]) {
+        expect(b.minX, `mark ${m.trait} left of figure`).toBeGreaterThanOrEqual(
+          -0.5,
+        );
+        expect(b.minY, `mark ${m.trait} above figure`).toBeGreaterThanOrEqual(
+          -0.5,
+        );
+        expect(b.maxX, `mark ${m.trait} right of figure`).toBeLessThanOrEqual(
+          fig.width + 0.5,
+        );
+        expect(b.maxY, `mark ${m.trait} below figure`).toBeLessThanOrEqual(
+          fig.height + 0.5,
+        );
+      }
+      if (!shared.has(i)) continue;
+      for (let j = 0; j < fig.marks.length; j += 1) {
+        expect(
+          intersects(m.labelBox, glyphs[j]),
+          `${m.trait} label hits ${fig.marks[j].trait}'s glyph`,
+        ).toBe(false);
+      }
+      const dOwn = Math.hypot(m.labelX - m.x, m.labelY - m.y);
+      for (let j = 0; j < fig.marks.length; j += 1) {
+        if (j === i) continue;
+        const dj = Math.hypot(
+          m.labelX - fig.marks[j].x,
+          m.labelY - fig.marks[j].y,
+        );
+        expect(
+          dOwn,
+          `${m.trait} label is closer to ${fig.marks[j].trait}'s glyph`,
+        ).toBeLessThan(dj);
+      }
+      const w = m.labelBox.maxX - m.labelBox.minX;
+      // Bounded but construction-faithful: the label centre sits at
+      // glyph-out-extent + LABEL_GAP + label-in-extent along the
+      // offset — bounded above by the corner distances.
+      const glyphReach = Math.max(
+        Math.hypot(glyphs[i].maxX - m.x, glyphs[i].maxY - m.y),
+        Math.hypot(glyphs[i].minX - m.x, glyphs[i].minY - m.y),
+        Math.hypot(glyphs[i].maxX - m.x, glyphs[i].minY - m.y),
+        Math.hypot(glyphs[i].minX - m.x, glyphs[i].maxY - m.y),
+      );
+      const labelReach = Math.hypot(w / 2, Math.max(asc, desc));
+      expect(dOwn, `${m.trait} label floats from its glyph`).toBeLessThanOrEqual(
+        glyphReach + LABEL_GAP + labelReach + 0.5,
+      );
+      // Adjacent, not floated: the label box's facing edge is exactly
+      // LABEL_GAP off the glyph box along the offset direction.
+      const nx = (m.labelX - m.x) / dOwn;
+      const ny = (m.labelY - m.y) / dOwn;
+      const [loL] = projRange(m.labelBox, nx, ny);
+      const [, hiG] = projRange(glyphs[i], nx, ny);
+      expect(loL - hiG, `${m.trait} label-to-glyph gap`).toBeCloseTo(
+        LABEL_GAP,
+        1,
+      );
+    }
+    for (let i = 0; i < fig.marks.length; i += 1) {
+      for (let j = i + 1; j < fig.marks.length; j += 1) {
+        if (!shared.has(i) && !shared.has(j)) continue;
+        expect(
+          intersects(fig.marks[i].labelBox, fig.marks[j].labelBox),
+          `labels ${fig.marks[i].trait} / ${fig.marks[j].trait} overlap`,
+        ).toBe(false);
+      }
+    }
+  }
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: three marks on one branch (mixed gain/loss) sit beside their own glyphs",
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        marks: [
+          { on: ["a", "b", "c", "d"], trait: "hair", change: "gain" },
+          { on: ["a", "b", "c", "d"], trait: "fur", change: "gain" },
+          { on: ["a", "b", "c", "d"], trait: "claws", change: "loss" },
+          { on: ["e", "f"], trait: "teeth", change: "loss" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expectLegibleMarks(fig, sharedMarkIdx(view));
+    },
+  );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: two marks on one branch (gain + loss) sit beside their own glyphs",
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        marks: [
+          { on: ["e", "f", "g", "h"], trait: "wings", change: "gain" },
+          { on: ["e", "f", "g", "h"], trait: "beak", change: "loss" },
+          { on: ["a", "b"], trait: "tail", change: "gain" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expectLegibleMarks(fig, sharedMarkIdx(view));
+    },
+  );
+
+  // The trees-demo `traits` tree topology: (((bat,cat),dog),(fish,worm)).
+  const DEMO_TRAITS: N = {
+    kids: [
+      {
+        kids: [
+          { kids: [{ label: "bat" }, { label: "cat" }] },
+          { label: "dog" },
+        ],
+      },
+      { kids: [{ label: "fish" }, { label: "worm" }] },
+    ],
+  };
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: the trees-demo traits marks sit beside their own glyphs",
+    ({ shape, tips }) => {
+      const view = buildView(DEMO_TRAITS, {
+        marks: [
+          { on: ["bat", "cat", "dog"], trait: "hair", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "fur", change: "gain" },
+          { on: ["cat"], trait: "fur-loss", change: "loss" },
+          { on: ["bat"], trait: "wings-b", change: "gain" },
+          { on: ["fish"], trait: "wings-f", change: "gain" },
+          { on: ["bat", "cat"], trait: "nails", change: "gain" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expectLegibleMarks(fig, sharedMarkIdx(view));
+    },
+  );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    "$shape tips-$tips: three mixed marks on the demo traits stem sit beside their own glyphs",
+    ({ shape, tips }) => {
+      const view = buildView(DEMO_TRAITS, {
+        marks: [
+          { on: ["bat", "cat", "dog"], trait: "hair", change: "gain" },
+          { on: ["bat", "cat", "dog"], trait: "fur", change: "loss" },
+          { on: ["bat", "cat", "dog"], trait: "claws", change: "gain" },
+          { on: ["fish"], trait: "fins", change: "loss" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expectLegibleMarks(fig, sharedMarkIdx(view));
+    },
+  );
+
+  it("tips up/down: a shared branch's labels sit level with their own glyphs on one side of the stem", () => {
+    for (const tips of ["up", "down"] as const) {
+      const view = buildView(T8, {
+        marks: [
+          { on: ["a", "b", "c", "d"], trait: "hair", change: "gain" },
+          { on: ["a", "b", "c", "d"], trait: "fur", change: "gain" },
+          { on: ["a", "b", "c", "d"], trait: "claws", change: "loss" },
+        ],
+      });
+      const fig = readingLayout(
+        view,
+        { shape: "rectangular", tips },
+        BOX,
+        measure,
+      );
+      expect(fig.marks).toHaveLength(3);
+      const sides = new Set<number>();
+      for (const m of fig.marks) {
+        // Level with its own glyph and clear of the stem's bar.
+        expect(m.labelY).toBeCloseTo(m.y, 6);
+        expect(Math.abs(m.labelX - m.x)).toBeGreaterThan(MARK_HALF);
+        sides.add(Math.sign(m.labelX - m.x));
+      }
+      expect(sides.size, `tips-${tips} labels on both sides`).toBe(1);
     }
   });
 });

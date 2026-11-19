@@ -8592,3 +8592,56 @@ Owner-requested rendering fixes after the PR #139 review; branch
     `readingGeom.ts`.
   - `web/e2e/visualScenes.ts` — the `reading-marks-same-branch{,-up}`
     scenes and their `marksSharedBranch` setup helper.
+
+### Fix round 2 (owner-ordered): mark labels beside their own glyphs
+
+- **Placement rule replaces the stack** (`readingMarks.ts`): the prior
+  round's fallback stacked a shared branch's labels perpendicular to
+  the stem when the stem could not hold the slots — on a short
+  vertical stem the labels climbed away from their glyphs
+  (`reading-marks-same-branch-up` showed `fur` ~25 px and `claws`
+  ~60 px from their marks, `hair` drawn through `fur`'s arrowhead).
+  Now every shared mark gets its own slot along the stem and its label
+  sits BESIDE the stem level with that glyph — above a horizontal
+  stem, toward the roomier figure edge of a vertical or diagonal one —
+  offset so the label box's facing edge is exactly `LABEL_GAP` off the
+  glyph's projected extent. When the stem cannot hold n slots plus a
+  node-clear margin, `placeMarks` reports `stretch` and
+  `readingLayout` re-runs node placement with the extra depth extent
+  (flat shapes) or extra tip radius (`readingCircular.ts`'s new
+  `extraRadius`); the figure grows and `scroll` keeps its
+  width-vs-box meaning. A stem the depth scale cannot lengthen still
+  falls back to the `grow` shift/widen. Lone marks keep the midpoint +
+  `MARK_HALF + 4` label offset bit-identically.
+- **Glyph boxes are real geometry:** `markGlyphBox` (exported for the
+  tests) builds the mark's AABB from the same constants the renderer
+  draws — `MARK_HALF` bar, `MARK_GLYPH * 1.6` gain arrowhead,
+  `MARK_GLYPH` loss circle — rotated by the stem angle.
+- **Tests strengthened, no existing assertion edited**
+  (`readingLayout.test.ts`): 2- and 3-mark groups (gain/loss mixes)
+  on one branch across all 12 shape × tip-side combinations on both
+  the 8-tip tree and the trees-demo `traits` topology assert (i) no
+  label box intersects any glyph box, (ii) every label's nearest glyph
+  is its own, (iii) shared labels never overlap another mark's label,
+  (iv) every mark and label stays inside the figure; a vertical-stem
+  test pins labels level with their glyphs on one side.
+- **Baselines regenerated — only the allowed families:**
+  `reading-marks-same-branch{,-up}-360x740-{light,dark}-linux.png`
+  (4 files) and `reading-q-trait-360x740-dark-linux.png` (1 file). A
+  pinned spec run showed all other baselines unchanged: `rt-marks`
+  (all lone marks) stays pixel-identical in all six frames, and the
+  three other `reading-q-trait` frames and both
+  `reading-tipsup-12-long-names-360{,-end}` scenes diff under the 0.001
+  ratio (the traits stem's hair/fur labels shift a few px).
+- **Files outside the Files block:**
+  - `web/src/layout/readingCircular.ts` — `extraRadius` input and the
+    used tip radius `R` returned for the stretch re-layout.
+  - `web/e2e/visualScenes.ts` — `marksSharedBranch` now waits for the
+    300 ms swap transition (`document.getAnimations()` empty) before
+    the on-screen label-overlap check, so it sees settled positions
+    instead of mid-flight ones.
+- **Pre-existing, unchanged:** a lone mark on a vertical stem still
+  centres its label on the stem (`wings` in the tips-up scene sits on
+  the branch line) — the single-mark path is byte-identical and
+  `rt-marks`/`reading-q-trait` baselines confirmed it is the
+  historical placement, not part of this fix.

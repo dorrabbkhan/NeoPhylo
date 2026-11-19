@@ -92,7 +92,8 @@ export interface ReadingFigure {
     /** Anchor of the mark's trait text in figure coordinates — the
      * renderer centres the label on it. For a lone mark this is the
      * spot it has always used (10 px above the anchor); marks sharing
-     * a branch spread along the stem and stack their labels. */
+     * a branch each get a stem slot and a label beside the stem level
+     * with their own glyph. */
     labelX: number;
     labelY: number;
     /** Estimated AABB of the label text (same asc/desc estimates the
@@ -225,44 +226,58 @@ export function readingLayout(
   const hasAxis = t.times !== "none" && !circular;
   const axisRoom = hasAxis ? AXIS_ROOM : 0;
 
-  let X: number[];
-  let Y: number[];
-  let labelBox: (Box | null)[];
-  let circ: CircularPlace | null = null;
-  let width: number;
-  let height: number;
+  let X: number[] = [];
+  let Y: number[] = [];
+  let labelBox: (Box | null)[] = [];
+  let width = 0;
+  let height = 0;
   /** Coordinate of a canonical depth value on the axis (x or y). */
   let axisAt: (c: number) => number = () => 0;
+  /** The depth extent the positions were laid out with (DE for the
+   * flat shapes, the tip radius for circular). */
+  let extent = 0;
 
-  if (circular) {
-    circ = circularPlace({
-      tips: style.tips,
-      width: box.width,
-      n,
-      root: t.root,
-      children: (i) => t.nodes[i].children,
-      canon,
-      slot,
-      leafCount,
-      labelText,
-      labelW,
-      maxLabelW,
-      asc,
-      desc,
-    });
-    X = circ.X;
-    Y = circ.Y;
-    labelBox = circ.labelBox;
-    width = circ.width;
-    height = circ.height;
-  } else {
+  // Node and tip-label placement as a redoable step: a shared
+  // branch's mark slots can ask for a deeper extent (placeMarks'
+  // `stretch`) — the block re-runs with `extraDepth` added to the
+  // depth extent so the stem holds its marks and the figure grows
+  // rather than displacing a label from its glyph. It returns the
+  // circular placement it made (null for the flat shapes) so `circ`
+  // stays in the caller's flow where TypeScript can see it.
+  const placeNodes = (extraDepth: number): CircularPlace | null => {
+    if (circular) {
+      const c = circularPlace({
+        tips: style.tips,
+        width: box.width,
+        n,
+        root: t.root,
+        children: (i) => t.nodes[i].children,
+        canon,
+        slot,
+        leafCount,
+        labelText,
+        labelW,
+        maxLabelW,
+        asc,
+        desc,
+        extraRadius: extraDepth,
+      });
+      X = c.X;
+      Y = c.Y;
+      labelBox = c.labelBox;
+      width = c.width;
+      height = c.height;
+      extent = c.R;
+      axisAt = () => 0;
+      return c;
+    }
     X = new Array(n).fill(0);
     Y = new Array(n).fill(0);
     labelBox = new Array(n).fill(null);
     if (horizontal) {
       const leafH = leafCount * spacing;
       const avail = box.width - 2 * PAD - NODE_R - LABEL_GAP - maxLabelW;
-      const DE = avail >= MIN_DEPTH_PX ? avail : MIN_DEPTH_PX;
+      const DE = (avail >= MIN_DEPTH_PX ? avail : MIN_DEPTH_PX) + extraDepth;
       const scale = canonMax > 0 ? DE / canonMax : 0;
       for (let i = 0; i < n; i += 1) {
         const cxp = canon[i] * scale;
@@ -274,6 +289,7 @@ export function readingLayout(
       }
       width = 2 * PAD + NODE_R + LABEL_GAP + maxLabelW + DE;
       height = 2 * PAD + leafH + axisRoom;
+      extent = DE;
       axisAt = (c) =>
         style.tips === "right"
           ? PAD + c * scale
@@ -283,7 +299,7 @@ export function readingLayout(
       // slanted labels can overhang the leaf slots at either end;
       // both overhangs widen the figure so no box clips.
       const leafW = leafCount * spacing;
-      const DE = Math.max(MIN_DEPTH_PX, leafW);
+      const DE = Math.max(MIN_DEPTH_PX, leafW) + extraDepth;
       const scale = canonMax > 0 ? DE / canonMax : 0;
       let labelRoom = 0;
       let overL = 0;
@@ -311,6 +327,7 @@ export function readingLayout(
         style.tips === "up"
           ? 2 * PAD + NODE_R + LABEL_GAP + labelRoom + DE
           : 2 * PAD + DE + NODE_R + LABEL_GAP + labelRoom;
+      extent = DE;
       axisAt = (c) =>
         style.tips === "up"
           ? PAD + NODE_R + LABEL_GAP + labelRoom + (DE - c * scale)
@@ -331,7 +348,9 @@ export function readingLayout(
         maxY: ay + off.maxY,
       };
     }
-  }
+    return null;
+  };
+  let circ = placeNodes(0);
 
   const idByClade = new Map<string, number>();
   for (let i = 0; i < n; i += 1) {
@@ -341,10 +360,13 @@ export function readingLayout(
     idByClade.get(cladeKey(clade));
 
   // Marks resolve to the branch leading to their clade's node.
-  // Several marks on ONE branch spread along the stem (and their
-  // labels stack) instead of piling on the midpoint — readingMarks.ts.
-  // A lone mark keeps the midpoint placement it has always had.
-  const { placed: placedMark, grow } = placeMarks({
+  // Several marks on ONE branch get a slot each along the stem and a
+  // label beside the stem level with its own glyph — readingMarks.ts.
+  // A stem too short for the slots asks for `stretch` and the node
+  // layout re-runs deeper (the figure grows; `scroll` keeps its
+  // meaning). A lone mark keeps the midpoint placement it has always
+  // had.
+  let markLay = placeMarks({
     view: t,
     shape: style.shape,
     horizontal,
@@ -357,7 +379,31 @@ export function readingLayout(
     find,
     width,
     height,
+    canon,
+    canonMax,
+    extent,
   });
+  if (markLay.stretch > 1e-9) {
+    circ = placeNodes(markLay.stretch);
+    markLay = placeMarks({
+      view: t,
+      shape: style.shape,
+      horizontal,
+      X,
+      Y,
+      circ,
+      asc,
+      desc,
+      measure,
+      find,
+      width,
+      height,
+      canon,
+      canonMax,
+      extent,
+    });
+  }
+  const { placed: placedMark, grow } = markLay;
   // A shared branch's spread or label stack may reach past the figure
   // edge; shift the whole drawing so every mark label stays inside
   // and grow the figure if one still escapes on the right or bottom
@@ -367,6 +413,15 @@ export function readingLayout(
     for (let i = 0; i < n; i += 1) {
       X[i] += grow.gx;
       Y[i] += grow.gy;
+      const lb = labelBox[i];
+      if (lb !== null) {
+        labelBox[i] = {
+          minX: lb.minX + grow.gx,
+          maxX: lb.maxX + grow.gx,
+          minY: lb.minY + grow.gy,
+          maxY: lb.maxY + grow.gy,
+        };
+      }
     }
     if (circ !== null) {
       circ.cx0 += grow.gx;

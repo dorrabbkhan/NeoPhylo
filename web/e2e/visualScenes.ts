@@ -298,6 +298,12 @@ async function marksSharedBranch(page: Page, index: number): Promise<void> {
   ).toBeVisible();
   const fig = page.locator(".rt-figure").first();
   await expect(fig.locator("svg")).toBeVisible();
+  // The 300 ms swap transition (readingHelpers' anim) is still running
+  // when the item lands; wait it out so the box check sees settled
+  // positions, not mid-flight ones.
+  await page.waitForFunction(
+    () => document.getAnimations().length === 0,
+  );
   // The fix's visible contract: three marks share one stem, and no
   // two mark labels overlap on screen.
   await expect(fig.locator(".rt-mark")).toHaveCount(4);
