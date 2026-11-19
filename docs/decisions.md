@@ -8517,8 +8517,15 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - Selection responses are stored as clade keys / point ids, not
     screen positions, so `rotate` inside `ReadingTree` keeps a picked
     biological clade selected without the page tracking orientation.
-  - Two-tier responses carry an empty inner `Response` and a `-1`
-    reason sentinel until both parts are complete; `submittable`
-    gates Check/Finish on the pair.
+  - Two-tier responses are stored as a local `ResponseDraft` — the
+    engine's `Response` except `first` may be `null`, "inner
+    unanswered" (`Response::Pairwise` has no untouched value; "B" is
+    a real answer). `submittable` gates Check on `first !== null`,
+    and `effectiveResponse` — the only draft→`Response` path — maps
+    any draft still holding the marker to `null`, so the marker can
+    never reach `readingCheck`; the summary treats those items as
+    unanswered. (Fix round 1: the earlier `emptyResponse` inner
+    placeholder fabricated `Pairwise("B")` and pre-selected the "B"
+    radio.)
   - `trees-demo.json` has `id: "trees-demo"` and is excluded from
     `listReadingSets()` so it never appears in the library (Task 9).

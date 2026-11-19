@@ -10,18 +10,17 @@ import {
   OrderBuilder,
   SelectionList,
 } from "./QuestionControlsTree";
-import { emptyResponse, traitNames } from "../../reading/state";
+import { traitNames, type ResponseDraft } from "../../reading/state";
 import type { Item } from "../../engine/generated/Item";
 import type { Question } from "../../engine/generated/Question";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
-import type { Response } from "../../engine/generated/Response";
 
 export interface QuestionControlsProps {
   item: Item;
   /** The first tree's resolved view — trait names and lettered nodes. */
   view: ReadingTreeView;
-  response: Response | null;
-  onResponse: (r: Response | null) => void;
+  response: ResponseDraft | null;
+  onResponse: (r: ResponseDraft | null) => void;
 }
 
 export function QuestionControls({
@@ -334,18 +333,18 @@ function TraitControl(props: BodyProps) {
 
 /** The inner question reuses ControlBody so a two-tier first step can
  *  be any question type; the second tier is the authored reason
- *  radios. The untouched inner answer keeps `emptyResponse`'s
- *  sentinel — `isComplete` keeps Check off until both parts are real. */
+ *  radios. The untouched inner answer is the draft's `null` marker —
+ *  `isComplete` keeps Check off until both parts are real. */
 function TwoTierControl(props: BodyProps) {
   const { question: q, item, view, response, onResponse } = props;
   if (q.type !== "two_tier") return null;
   const cur = response?.kind === "two_tier" ? response : null;
-  const inner: Response | null = cur?.first ?? null;
+  const inner: ResponseDraft | null = cur?.first ?? null;
   const reason = cur?.reason ?? -1;
-  const emit = (first: Response | null, r: number) =>
+  const emit = (first: ResponseDraft | null, r: number) =>
     onResponse({
       kind: "two_tier",
-      first: first ?? emptyResponse(q.first),
+      first,
       reason: r,
     });
   return (

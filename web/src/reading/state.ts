@@ -11,16 +11,27 @@ import type { ReadingSet } from "../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../engine/generated/ReadingTreeView";
 import type { Response } from "../engine/generated/Response";
 
+/** The session's in-progress answer — the engine's `Response` except
+ *  that a two-tier's `first` may be `null`, "the inner question is
+ *  unanswered". `Response::Pairwise` has no untouched value ("B" is
+ *  a real answer), so the marker is `null` rather than a fabricated
+ *  pick. `effectiveResponse` is the only way a draft becomes a
+ *  `Response`, and it maps any draft still holding the marker to
+ *  `null` — the marker can never reach the engine. */
+export type ResponseDraft =
+  | Exclude<Response, { kind: "two_tier" }>
+  | { kind: "two_tier"; first: ResponseDraft | null; reason: number };
+
 export interface ReadingSession {
   set: ReadingSet;
   index: number;
-  responses: (Response | null)[];
+  responses: (ResponseDraft | null)[];
   checked: boolean[];
   finished: boolean;
 }
 
 export type ReadingAction =
-  | { type: "answer"; response: Response | null }
+  | { type: "answer"; response: ResponseDraft | null }
   | { type: "check" }
   | { type: "next" }
   | { type: "back" }
@@ -86,7 +97,7 @@ export function readingReducer(
  */
 export function isComplete(
   q: Question,
-  r: Response | null,
+  r: ResponseDraft | null,
 ): boolean {
   if (r === null) {
     return (
@@ -116,31 +127,57 @@ export function isComplete(
       return (
         q.type === "two_tier" &&
         r.reason >= 0 &&
+        r.first !== null &&
         isComplete(q.first, r.first)
       );
   }
 }
 
 /** Check's enabled test for the current item. */
-export function submittable(item: Item, r: Response | null): boolean {
+export function submittable(
+  item: Item,
+  r: ResponseDraft | null,
+): boolean {
   return isComplete(item.question, r);
 }
 
 /**
- * The response `check` should see for a submittable-but-null slot —
- * the empty form of the answer the question accepts (an empty
- * `Choices` list). Single-answer questions are never submittable
- * while null, so their branches here are unreachable in practice.
+ * The `Response` a check should see for a draft — the only
+ * `Response` `readingCheck` may ever receive. `null` when no honest
+ * answer exists: an untouched pairwise question or a two-tier draft
+ * whose inner is still unanswered (the `null` marker maps away
+ * rather than reaching the engine; the summary takes the answer-key
+ * path for those items). Single-answer questions are never
+ * submittable while null, so their `emptyResponse` branches are
+ * unreachable in practice.
  */
-export function effectiveResponse(item: Item, r: Response | null): Response {
-  return r ?? emptyResponse(item.question);
+export function effectiveResponse(
+  item: Item,
+  r: ResponseDraft | null,
+): Response | null {
+  const d = r ?? emptyResponse(item.question);
+  return d === null ? null : finalize(d);
 }
 
-/** The untouched form of a question's answer — the placeholder a
- *  two-tier response keeps in `first` until the student answers it
- *  (negative sentinels mark "not chosen" and never reach the engine:
- *  Check is gated on `isComplete`). */
-export function emptyResponse(q: Question): Response {
+/** Draft → engine Response: a draft still holding the marker (a
+ *  `first` that is `null`, at any depth) maps to `null` — only a
+ *  complete draft yields a `Response`. */
+function finalize(d: ResponseDraft): Response | null {
+  if (d.kind !== "two_tier") return d;
+  if (d.first === null) return null;
+  const first = finalize(d.first);
+  return first === null
+    ? null
+    : { kind: "two_tier", first, reason: d.reason };
+}
+
+/** The untouched form of a question's answer, for
+ *  `effectiveResponse`'s submittable-but-null fallback. `null` where
+ *  no untouched value exists — a pairwise `closest_relative` has none
+ *  ("B" is a real answer), and a two-tier keeps it as the `first`
+ *  marker (negative sentinels mark "not chosen" and never reach the
+ *  engine: Check is gated on `isComplete`). */
+export function emptyResponse(q: Question): ResponseDraft | null {
   switch (q.type) {
     case "mrca":
       return q.options !== undefined
@@ -159,7 +196,7 @@ export function emptyResponse(q: Question): Response {
       return { kind: "choices", indices: [] };
     case "closest_relative":
       return q.form === "pairwise"
-        ? { kind: "pairwise", answer: "B" }
+        ? null
         : { kind: "tips", tips: [] };
     case "two_tier":
       return {

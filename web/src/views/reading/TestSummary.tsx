@@ -6,13 +6,17 @@
 // the summary recomputes nothing itself.
 
 import { engine } from "../../engine/index";
-import { effectiveResponse, fillItemText, submittable } from "../../reading/state";
+import {
+  effectiveResponse,
+  fillItemText,
+  submittable,
+  type ResponseDraft,
+} from "../../reading/state";
 import type { ReadingSet } from "../../engine/generated/ReadingSet";
-import type { Response } from "../../engine/generated/Response";
 
 export interface TestSummaryProps {
   set: ReadingSet;
-  responses: (Response | null)[];
+  responses: (ResponseDraft | null)[];
   onRestart: () => void;
 }
 
@@ -25,14 +29,17 @@ interface Row {
   noteAfter?: string;
 }
 
-function rows(set: ReadingSet, responses: (Response | null)[]): Row[] {
+function rows(set: ReadingSet, responses: (ResponseDraft | null)[]): Row[] {
   return set.items.map((item, i) => {
     const r = responses[i] ?? null;
     const answered = r !== null;
-    // An unanswered item has no response to check: correctness is
-    // false by definition and the explanation is the answer key's
-    // own text (engine-computed like everything else).
-    if (!answered && !submittable(item, null)) {
+    const effective = effectiveResponse(item, r);
+    // An item with nothing honest to check has no response to send:
+    // correctness is false by definition and the explanation is the
+    // answer key's own text (engine-computed like everything else).
+    // That covers untouched items plus drafts still holding the
+    // unanswered-inner marker — the marker never reaches the engine.
+    if (effective === null || (r === null && !submittable(item, null))) {
       const key = engine.readingAnswer(set, i);
       return {
         item: item.id,
@@ -45,7 +52,7 @@ function rows(set: ReadingSet, responses: (Response | null)[]): Row[] {
         noteAfter: item.note_after,
       };
     }
-    const v = engine.readingCheck(set, i, effectiveResponse(item, r));
+    const v = engine.readingCheck(set, i, effective);
     return {
       item: item.id,
       text: fillItemText(item),

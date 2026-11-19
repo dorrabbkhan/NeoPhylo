@@ -16,12 +16,12 @@ import type { ReadingStyle } from "../../layout/readingLayout";
 import { readErrorMessage } from "../../reading/errors";
 import {
   effectiveResponse,
-  emptyResponse,
   fillItemText,
   selectableFor,
   submittable,
   type ReadingAction,
   type ReadingSession,
+  type ResponseDraft,
 } from "../../reading/state";
 import type { Item } from "../../engine/generated/Item";
 import type { Question } from "../../engine/generated/Question";
@@ -156,27 +156,32 @@ export function ItemView({
     return null;
   }
 
-  const emit = (r: Response | null) =>
+  const emit = (r: ResponseDraft | null) =>
     dispatch({ type: "answer", response: r });
 
   /** A tap on the tree becomes (or edits) the tap-question response;
-   *  in a two-tier item it lands inside `first`. */
+   *  in a two-tier item it lands inside `first` — `null` there is the
+   *  unanswered marker, kept until the student picks. */
   const onSelect = (clade: string[]) => {
     const next = selectResponse(tq, clade, innerResponse, view0);
     if (next === undefined) return;
     if (q.type === "two_tier") {
       const reason =
         response?.kind === "two_tier" ? response.reason : -1;
-      emit({ kind: "two_tier", first: next ?? emptyResponse(tq), reason });
+      emit({ kind: "two_tier", first: next, reason });
     } else {
       emit(next);
     }
   };
 
   const checkable = practice && submittable(item, response);
+  // `effective` is null only for a draft still holding the
+  // unanswered-inner marker — a checked item is always submittable,
+  // so the marker can't reach `readingCheck` from here.
+  const effective = effectiveResponse(item, response);
   const verdict =
-    practice && s.checked[s.index]
-      ? engine.readingCheck(set, s.index, effectiveResponse(item, response))
+    practice && s.checked[s.index] && effective !== null
+      ? engine.readingCheck(set, s.index, effective)
       : null;
 
   return (
@@ -303,7 +308,7 @@ export function ItemView({
 function selectResponse(
   tq: Question,
   clade: string[],
-  current: Response | null,
+  current: ResponseDraft | null,
   view: ReadingTreeView | undefined,
 ): Response | null | undefined {
   if (view === undefined) return undefined;

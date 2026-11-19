@@ -14,14 +14,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { engine } from "../engine/index";
+import type { Item } from "../engine/generated/Item";
 import type { Question } from "../engine/generated/Question";
 import type { ReadingSet } from "../engine/generated/ReadingSet";
 import type { Response } from "../engine/generated/Response";
 
 import {
+  effectiveResponse,
   emptyResponse,
   fillItemText,
   initSession,
@@ -30,6 +32,7 @@ import {
   selectableFor,
   submittable,
   traitNames,
+  type ResponseDraft,
 } from "./state";
 
 function loadDemo(): ReadingSet {
@@ -205,6 +208,163 @@ describe("isComplete / submittable", () => {
   });
 });
 
+describe("two_tier over a pairwise first", () => {
+  // The pairwise closest_relative has no untouched Response value —
+  // "B" is a real answer — so the draft's `first` is the null marker
+  // until the student picks.
+  const PAIR_TIER: Question = {
+    type: "two_tier",
+    first: { type: "closest_relative", form: "pairwise" },
+    reasons: [
+      "They share a node that nothing else descends from.",
+      "Their names sit side by side.",
+    ],
+    correct_reason: 0,
+  };
+  const pairTierItem = (): Item => ({
+    ...item("q-pair"),
+    id: "q-two-pair",
+    question: PAIR_TIER,
+  });
+
+  it("is unsubmittable until the inner pairwise is picked", () => {
+    const it = pairTierItem();
+    expect(
+      submittable(it, { kind: "two_tier", first: null, reason: -1 }),
+    ).toBe(false);
+    // Reason picked only: Check stays off.
+    expect(
+      submittable(it, { kind: "two_tier", first: null, reason: 1 }),
+    ).toBe(false);
+    // A real pairwise pick + reason completes it.
+    expect(
+      submittable(it, {
+        kind: "two_tier",
+        first: { kind: "pairwise", answer: "B" },
+        reason: 1,
+      }),
+    ).toBe(true);
+    // Picking "B" explicitly works — the old sentinel's value is a
+    // real answer once the student chooses it.
+    expect(
+      isComplete(PAIR_TIER, {
+        kind: "two_tier",
+        first: { kind: "pairwise", answer: "B" },
+        reason: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("check does not mark a reason-only pairwise two_tier", () => {
+    const set: ReadingSet = { ...DEMO, items: [pairTierItem()] };
+    let s = initSession(set);
+    s = readingReducer(s, {
+      type: "answer",
+      response: { kind: "two_tier", first: null, reason: 1 },
+    });
+    s = readingReducer(s, { type: "check" });
+    expect(s.checked[0]).toBe(false);
+  });
+
+  it("a standalone pairwise item is unchanged", () => {
+    const q: Question = { type: "closest_relative", form: "pairwise" };
+    expect(isComplete(q, null)).toBe(false);
+    expect(isComplete(q, { kind: "pairwise", answer: "B" })).toBe(true);
+    expect(
+      submittable(item("q-pair"), { kind: "pairwise", answer: "C" }),
+    ).toBe(true);
+  });
+});
+
+describe("effectiveResponse", () => {
+  const pairTierItem = (): Item => ({
+    ...item("q-pair"),
+    id: "q-two-pair",
+    question: {
+      type: "two_tier",
+      first: { type: "closest_relative", form: "pairwise" },
+      reasons: ["x", "y"],
+      correct_reason: 0,
+    },
+  });
+
+  it("maps every draft holding the untouched marker to null", () => {
+    const it = pairTierItem();
+    expect(effectiveResponse(it, null)).toBeNull();
+    expect(
+      effectiveResponse(it, {
+        kind: "two_tier",
+        first: null,
+        reason: -1,
+      }),
+    ).toBeNull();
+    expect(
+      effectiveResponse(it, {
+        kind: "two_tier",
+        first: null,
+        reason: 1,
+      }),
+    ).toBeNull();
+    // The marker can't hide one level deeper either.
+    expect(
+      effectiveResponse(it, {
+        kind: "two_tier",
+        first: { kind: "two_tier", first: null, reason: 0 },
+        reason: 1,
+      }),
+    ).toBeNull();
+  });
+
+  it("a complete draft becomes the exact engine Response", () => {
+    const r = effectiveResponse(pairTierItem(), {
+      kind: "two_tier",
+      first: { kind: "pairwise", answer: "C" },
+      reason: 1,
+    });
+    expect(r).toEqual({
+      kind: "two_tier",
+      first: { kind: "pairwise", answer: "C" },
+      reason: 1,
+    });
+  });
+
+  it("no Response handed to the engine ever carries the marker", () => {
+    const it = pairTierItem();
+    const set: ReadingSet = { ...DEMO, items: [it] };
+    const spy = vi.spyOn(engine, "readingCheck");
+    const drafts: (ResponseDraft | null)[] = [
+      null,
+      { kind: "two_tier", first: null, reason: -1 },
+      { kind: "two_tier", first: null, reason: 1 },
+      {
+        kind: "two_tier",
+        first: { kind: "pairwise", answer: "B" },
+        reason: -1,
+      },
+      {
+        kind: "two_tier",
+        first: { kind: "pairwise", answer: "B" },
+        reason: 0,
+      },
+      {
+        kind: "two_tier",
+        first: { kind: "two_tier", first: null, reason: 0 },
+        reason: 1,
+      },
+    ];
+    for (const d of drafts) {
+      const r = effectiveResponse(it, d);
+      // Only the non-null results — what the page would send.
+      if (r !== null) engine.readingCheck(set, 0, r);
+    }
+    expect(spy.mock.calls.length).toBeGreaterThan(0);
+    for (const call of spy.mock.calls) {
+      expect(JSON.stringify(call[2])).not.toContain('"first":null');
+    }
+    spy.mockRestore();
+  });
+});
+
 describe("selectableFor", () => {
   it("maps each question kind to the tree's pick mode", () => {
     expect(selectableFor({ type: "mrca" })).toBe("node");
@@ -281,6 +441,19 @@ describe("item text + helpers", () => {
       kind: "choices",
       indices: [],
     });
+    // A pairwise question has no untouched Response — "B" is a real
+    // answer — so its empty form is null, not a fabricated pick.
+    expect(
+      emptyResponse({ type: "closest_relative", form: "pairwise" }),
+    ).toBeNull();
+    expect(
+      emptyResponse({
+        type: "two_tier",
+        first: { type: "closest_relative", form: "pairwise" },
+        reasons: ["x"],
+        correct_reason: 0,
+      }),
+    ).toEqual({ kind: "two_tier", first: null, reason: -1 });
   });
 
   it("traitNames lists authored traits first, then mark-only names", () => {

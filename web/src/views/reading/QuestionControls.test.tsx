@@ -14,7 +14,11 @@ import { engine } from "../../engine/index";
 import type { Item } from "../../engine/generated/Item";
 import type { ReadingSet } from "../../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
-import type { Response } from "../../engine/generated/Response";
+import {
+  effectiveResponse,
+  submittable,
+  type ResponseDraft,
+} from "../../reading/state";
 
 import { QuestionControls } from "./QuestionControls";
 
@@ -53,10 +57,10 @@ function Harness({
 }: {
   it: Item;
   view: ReadingTreeView;
-  initial: Response | null;
-  spy: (r: Response | null) => void;
+  initial: ResponseDraft | null;
+  spy: (r: ResponseDraft | null) => void;
 }) {
-  const [r, setR] = useState<Response | null>(initial);
+  const [r, setR] = useState<ResponseDraft | null>(initial);
   return (
     <QuestionControls
       item={it}
@@ -70,7 +74,7 @@ function Harness({
   );
 }
 
-function setup(it: Item, response: Response | null = null) {
+function setup(it: Item, response: ResponseDraft | null = null) {
   const onResponse = vi.fn();
   const ui = render(
     <Harness it={it} view={view(it)} initial={response} spy={onResponse} />,
@@ -79,7 +83,7 @@ function setup(it: Item, response: Response | null = null) {
 }
 
 const lastResponse = (spy: ReturnType<typeof vi.fn>) =>
-  spy.mock.calls.at(-1)?.[0] as Response | null;
+  spy.mock.calls.at(-1)?.[0] as ResponseDraft | null;
 
 afterEach(cleanup);
 
@@ -309,5 +313,91 @@ describe("two_tier", () => {
       first: { kind: "choice", index: 0 },
       reason: 0,
     });
+  });
+});
+
+describe("two_tier over a pairwise first", () => {
+  // `Response::Pairwise` has no untouched value ("B" is a real
+  // answer), so the draft's `first` is the null marker until the
+  // student picks — the inner radios start empty and the marker is
+  // mapped away before anything reaches the engine.
+  function twoPairItem(): Item {
+    return {
+      ...item("q-pair"),
+      id: "q-two-pair",
+      text: "Is {a} more closely related to {b} or to {c} — and why?",
+      question: {
+        type: "two_tier",
+        first: { type: "closest_relative", form: "pairwise" },
+        reasons: [
+          "They share a node that nothing else descends from.",
+          "Their names sit side by side.",
+        ],
+        correct_reason: 0,
+      },
+    };
+  }
+
+  it("renders the inner pairwise with nothing selected", () => {
+    const { getAllByRole } = setup(twoPairItem());
+    for (const r of getAllByRole("radio")) {
+      expect((r as HTMLInputElement).checked).toBe(false);
+    }
+  });
+
+  it("a reason alone keeps the inner null and unsubmittable", () => {
+    const { onResponse, getByRole } = setup(twoPairItem());
+    fireEvent.click(getByRole("radio", { name: /side by side/i }));
+    const r = lastResponse(onResponse);
+    expect(r).toEqual({ kind: "two_tier", first: null, reason: 1 });
+    // Check stays disabled — this draft is not submittable.
+    expect(submittable(twoPairItem(), r)).toBe(false);
+    expect(effectiveResponse(twoPairItem(), r)).toBeNull();
+  });
+
+  it("pairwise pick plus reason submits the real two_tier response", () => {
+    const { onResponse, getByRole } = setup(twoPairItem());
+    fireEvent.click(getByRole("radio", { name: /closer to chimp/i }));
+    expect(lastResponse(onResponse)).toEqual({
+      kind: "two_tier",
+      first: { kind: "pairwise", answer: "B" },
+      reason: -1,
+    });
+    fireEvent.click(getByRole("radio", { name: /nothing else descends/i }));
+    const r = lastResponse(onResponse);
+    expect(r).toEqual({
+      kind: "two_tier",
+      first: { kind: "pairwise", answer: "B" },
+      reason: 0,
+    });
+    expect(submittable(twoPairItem(), r)).toBe(true);
+    // What the page hands `readingCheck`.
+    expect(effectiveResponse(twoPairItem(), r)).toEqual({
+      kind: "two_tier",
+      first: { kind: "pairwise", answer: "B" },
+      reason: 0,
+    });
+  });
+
+  it("picking the B option explicitly works and is submittable", () => {
+    // "B" was the old sentinel's value; a real pick of it must still
+    // count.
+    const { onResponse, getByRole } = setup(twoPairItem());
+    fireEvent.click(getByRole("radio", { name: /closer to chimp/i }));
+    fireEvent.click(getByRole("radio", { name: /side by side/i }));
+    expect(submittable(twoPairItem(), lastResponse(onResponse))).toBe(true);
+  });
+
+  it("no emitted draft carries the marker into an engine Response", () => {
+    const { onResponse, getByRole } = setup(twoPairItem());
+    fireEvent.click(getByRole("radio", { name: /side by side/i }));
+    fireEvent.click(getByRole("radio", { name: /closer to gorilla/i }));
+    fireEvent.click(getByRole("radio", { name: /closer to chimp/i }));
+    for (const call of onResponse.mock.calls) {
+      const r = effectiveResponse(twoPairItem(), call[0] as ResponseDraft | null);
+      if (r !== null) {
+        expect(JSON.stringify(r)).not.toContain('"first":null');
+      }
+    }
   });
 });

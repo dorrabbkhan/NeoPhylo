@@ -5,11 +5,10 @@
 // build `Response` values; correctness stays with `readingCheck`.
 
 import { cladeKey } from "../../layout/readingGeom";
-import { joinAnd } from "../../reading/state";
+import { joinAnd, type ResponseDraft } from "../../reading/state";
 import type { Item } from "../../engine/generated/Item";
 import type { Question } from "../../engine/generated/Question";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
-import type { Response } from "../../engine/generated/Response";
 
 /** What one tree-driven control needs — the item's question, the
  *  resolved view (lettered nodes, trait names) and the live
@@ -19,8 +18,8 @@ export interface TreeControlProps {
   question: Question;
   item: Item;
   view: ReadingTreeView;
-  response: Response | null;
-  onResponse: (r: Response | null) => void;
+  response: ResponseDraft | null;
+  onResponse: (r: ResponseDraft | null) => void;
 }
 
 // --- order_nodes ---------------------------------------------------------------
