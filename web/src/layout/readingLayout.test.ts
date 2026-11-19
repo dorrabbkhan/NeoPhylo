@@ -160,6 +160,49 @@ function expectMidpointAngles(
   }
 }
 
+// Expected position of an at:"branch" point on `clade`, per shape:
+// rectangular sits on the stem segment at the child's leaf-axis
+// coordinate, diagonal is the straight-segment midpoint, circular is
+// midway out along the child's radial. Also asserts the point is not
+// on the child node itself.
+function expectOnStem(
+  pt: { x: number; y: number },
+  fig: ReadingFigure,
+  view: ReadingTreeView,
+  clade: string[],
+  shape: Shape,
+  tips: TipSide,
+): void {
+  const ci = viewId(view, clade);
+  const pi = view.nodes[ci].parent;
+  if (pi === null) throw new Error("clade is the root");
+  const child = fig.nodes[ci];
+  const parent = fig.nodes[pi];
+  if (shape === "rectangular") {
+    if (tips === "right" || tips === "left") {
+      expect(pt.y).toBeCloseTo(child.y, 6);
+      expect(pt.x).toBeCloseTo((parent.x + child.x) / 2, 6);
+    } else {
+      expect(pt.x).toBeCloseTo(child.x, 6);
+      expect(pt.y).toBeCloseTo((parent.y + child.y) / 2, 6);
+    }
+  } else if (shape === "diagonal") {
+    expect(pt.x).toBeCloseTo((parent.x + child.x) / 2, 6);
+    expect(pt.y).toBeCloseTo((parent.y + child.y) / 2, 6);
+  } else {
+    const cx = fig.width / 2;
+    const cy = fig.height / 2;
+    const midR =
+      (Math.hypot(parent.x - cx, parent.y - cy) +
+        Math.hypot(child.x - cx, child.y - cy)) /
+      2;
+    const ang = Math.atan2(child.y - cy, child.x - cx);
+    expect(pt.x).toBeCloseTo(cx + midR * Math.cos(ang), 6);
+    expect(pt.y).toBeCloseTo(cy + midR * Math.sin(ang), 6);
+  }
+  expect(Math.hypot(pt.x - child.x, pt.y - child.y)).toBeGreaterThan(1);
+}
+
 describe("readingLayout", () => {
   it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
     "$shape tips-$tips: every tip drawn, letters on their nodes, no overlapping label boxes",
@@ -424,4 +467,132 @@ describe("readingLayout", () => {
       }
     },
   );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    '$shape tips-$tips: at:"node" points land exactly on the node their clade resolves to',
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        points: [
+          { letter: "s", on: ["a", "b", "c", "d"], at: "node" },
+          { letter: "t", on: ["a"], at: "node" },
+        ],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expect(fig.points.map((p) => p.letter)).toEqual(["s", "t"]);
+      const inner = nodeAt(fig, ["a", "b", "c", "d"]);
+      expect(fig.points[0].x).toBeCloseTo(inner.x, 6);
+      expect(fig.points[0].y).toBeCloseTo(inner.y, 6);
+      const a = tip(fig, "a");
+      expect(fig.points[1].x).toBeCloseTo(a.x, 6);
+      expect(fig.points[1].y).toBeCloseTo(a.y, 6);
+    },
+  );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    '$shape tips-$tips: at:"branch" sits at the midpoint of the edge into the clade, not on the node',
+    ({ shape, tips }) => {
+      const view = buildView(T8, {
+        points: [{ letter: "b", on: ["a", "b", "c", "d"], at: "branch" }],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expect(fig.points).toHaveLength(1);
+      expectOnStem(
+        fig.points[0],
+        fig,
+        view,
+        ["a", "b", "c", "d"],
+        shape,
+        tips,
+      );
+    },
+  );
+
+  it.each(SHAPES.flatMap((shape) => SIDES.map((tips) => ({ shape, tips }))))(
+    '$shape tips-$tips: at:"branch" on the root clade falls back to the root node',
+    ({ shape, tips }) => {
+      const rootClade = ["a", "b", "c", "d", "e", "f", "g", "h"];
+      const view = buildView(T8, {
+        points: [{ letter: "r", on: rootClade, at: "branch" }],
+      });
+      const fig = readingLayout(view, { shape, tips }, BOX, measure);
+      expect(fig.points).toHaveLength(1);
+      const root = nodeAt(fig, rootClade);
+      expect(fig.points[0].x).toBeCloseTo(root.x, 6);
+      expect(fig.points[0].y).toBeCloseTo(root.y, 6);
+    },
+  );
+
+  it("keeps point letters in input order; node and branch on the same clade give distinct positions", () => {
+    const view = buildView(T8, {
+      points: [
+        { letter: "3", on: ["e", "f"], at: "branch" },
+        { letter: "1", on: ["e", "f"], at: "node" },
+        { letter: "2", on: ["h"], at: "node" },
+      ],
+    });
+    const fig = readingLayout(
+      view,
+      { shape: "rectangular", tips: "right" },
+      BOX,
+      measure,
+    );
+    expect(fig.points.map((p) => p.letter)).toEqual(["3", "1", "2"]);
+    const [br, nd] = fig.points;
+    expect(Math.hypot(br.x - nd.x, br.y - nd.y)).toBeGreaterThan(1);
+  });
+
+  it("drops a point whose clade matches no node, without throwing", () => {
+    const view = buildView(T8, {
+      points: [
+        { letter: "x", on: ["zz"], at: "node" },
+        { letter: "k", on: ["a", "b"], at: "branch" },
+      ],
+    });
+    const fig = readingLayout(
+      view,
+      { shape: "rectangular", tips: "right" },
+      BOX,
+      measure,
+    );
+    expect(fig.points.map((p) => p.letter)).toEqual(["k"]);
+    expectOnStem(fig.points[0], fig, view, ["a", "b"], "rectangular", "right");
+  });
+
+  it('at:"branch" lands on the stem of a tip clade and of a nested polytomy clade (rectangular tips-right)', () => {
+    const view = buildView(
+      {
+        kids: [
+          {
+            kids: [
+              { label: "a" },
+              { kids: [{ label: "c" }, { label: "d" }, { label: "e" }] },
+            ],
+          },
+          { kids: [{ label: "f" }, { label: "g" }] },
+        ],
+      },
+      {
+        points: [
+          { letter: "t", on: ["c"], at: "branch" },
+          { letter: "p", on: ["c", "d", "e"], at: "branch" },
+        ],
+      },
+    );
+    const fig = readingLayout(
+      view,
+      { shape: "rectangular", tips: "right" },
+      BOX,
+      measure,
+    );
+    expect(fig.points.map((p) => p.letter)).toEqual(["t", "p"]);
+    expectOnStem(fig.points[0], fig, view, ["c"], "rectangular", "right");
+    expectOnStem(
+      fig.points[1],
+      fig,
+      view,
+      ["c", "d", "e"],
+      "rectangular",
+      "right",
+    );
+  });
 });
