@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "test-rel",
+  "title": "Relationships test set",
+  "summary": "Relationship questions for engine tests",
+  "mode": "practice",
+  "taxa_pool": {},
+  "trees": {
+    "t1": {
+      "newick": "((a,b),(c,d));",
+      "node_letters": [
+        { "on": ["a", "b"], "letter": "P" },
+        { "on": ["c", "d"], "letter": "Q" },
+        { "on": "root", "letter": "R" }
+      ]
+    },
+    "t1rot": { "newick": "((d,c),(b,a));" },
+    "t2": { "newick": "((a,c),(b,d));" },
+    "ref": { "newick": "((a,b),(c,(d,e)));" },
+    "cand1": { "newick": "((a,b),c);" },
+    "cand2": { "newick": "((a,c),b);" },
+    "big1": { "newick": "((a,(b,c)),(d,(e,f)));" },
+    "big2": { "newick": "(((a,b),c),(d,(e,f)));" },
+    "s1": { "newick": "(a,(b,c));" },
+    "s2": { "newick": "(d,(e,f));" }
+  },
+  "items": [
+    {
+      "id": "q-mrca",
+      "text": "Where do {set} meet?",
+      "trees": ["t1"],
+      "tips": ["a", "b"],
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-clade-yes",
+      "text": "Do {set} form a clade?",
+      "trees": ["t1"],
+      "tips": ["a", "b"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-clade-no",
+      "text": "Do {set} form a clade?",
+      "trees": ["t1"],
+      "tips": ["a", "c"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-smallest",
+      "text": "Tap the smallest clade containing {set}.",
+      "trees": ["t1"],
+      "tips": ["a", "b"],
+      "question": { "type": "smallest_clade" }
+    },
+    {
+      "id": "q-closest",
+      "text": "Which is {a}'s closest relative?",
+      "trees": ["t1"],
+      "a": "a",
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-distant",
+      "text": "Which is most distant from {a}?",
+      "trees": ["t1"],
+      "a": "a",
+      "question": { "type": "closest_relative", "form": "most_distant" }
+    },
+    {
+      "id": "q-pair",
+      "text": "Is {a} closer to {b} or to {c}?",
+      "trees": ["t1"],
+      "a": "a",
+      "b": "b",
+      "c": "c",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-count",
+      "text": "How many clades does this tree show?",
+      "trees": ["t1"],
+      "question": { "type": "count_clades" }
+    },
+    {
+      "id": "q-differs",
+      "text": "Which tree shows different relationships?",
+      "trees": ["t1", "t1rot", "t2"],
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-same",
+      "text": "Which tree shows different relationships?",
+      "trees": ["t1", "t1rot"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "circular", "tips": "up" }
+        ]
+      },
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-differs-ref",
+      "text": "Which small tree conflicts with the reference?",
+      "trees": ["cand1", "cand2"],
+      "question": { "type": "which_differs", "reference": "ref" }
+    },
+    {
+      "id": "q-fits",
+      "text": "Which large tree agrees with both small trees?",
+      "trees": ["big1", "big2"],
+      "question": { "type": "which_fits", "small": ["s1", "s2"] }
+    },
+    {
+      "id": "q-select",
+      "text": "Select every true statement.",
+      "trees": ["t1", "t1rot", "t2"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "is_clade", "tips": ["a", "b"], "text": "The first pair of tips forms a clade." },
+          { "kind": "closer_than", "x": "a", "y": "b", "z": "c", "text": "The first two tips share a more recent ancestor than the first and third." },
+          { "kind": "clade_in_not_in", "tips": ["a", "b"], "tree_i": 0, "tree_j": 2, "text": "The pair is a clade in the first tree but not the third." },
+          { "kind": "same_relationships", "tree_i": 0, "tree_j": 1, "text": "The first two trees show the same relationships." },
+          { "kind": "same_relationships", "tree_i": 0, "tree_j": 2, "text": "The first and third trees show the same relationships." },
+          { "kind": "is_clade", "tips": ["a", "c"], "text": "The first and third tips form a clade." }
+        ]
+      }
+    },
+    {
+      "id": "q-order",
+      "text": "Order the lettered nodes, oldest to youngest.",
+      "trees": ["t1"],
+      "question": { "type": "order_nodes", "nodes": ["P", "Q", "R"] }
+    },
+    {
+      "id": "q-concept",
+      "text": "What does an internal node represent?",
+      "trees": ["t1"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "A single living species",
+          "A hypothetical common ancestor",
+          "A mutation"
+        ],
+        "correct": [1]
+      }
+    },
+    {
+      "id": "q-two",
+      "text": "Where do {set} meet, and why?",
+      "trees": ["t1"],
+      "tips": ["a", "b"],
+      "question": {
+        "type": "two_tier",
+        "first": { "type": "mrca" },
+        "reasons": ["They share node P as their most recent common ancestor.", "The lines look the same length."],
+        "correct_reason": 0
+      }
+    }
+  ]
+}

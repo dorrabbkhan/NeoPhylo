@@ -1,0 +1,44 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "test-gained-order", "title": "Gain order test set",
+  "summary": "Two gains on one branch; the listed order decides gained_within",
+  "trees": {
+    "g1": {
+      "newick": "((a,b),c);",
+      "marks": [
+        { "on": ["a", "b"], "trait": "hair", "change": "gain" },
+        { "on": ["a", "b"], "trait": "nails", "change": "gain" }
+      ]
+    },
+    "g2": {
+      "newick": "((a,b),c);",
+      "marks": [
+        { "on": ["a", "b"], "trait": "nails", "change": "gain" },
+        { "on": ["a", "b"], "trait": "hair", "change": "gain" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-outer-first",
+      "text": "Select every true statement.",
+      "trees": ["g1"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "gained_within", "inner": "nails", "outer": "hair", "text": "Nails arose within a lineage that already had hair." }
+        ]
+      }
+    },
+    {
+      "id": "q-inner-first",
+      "text": "Select every true statement.",
+      "trees": ["g2"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "gained_within", "inner": "nails", "outer": "hair", "text": "Nails arose within a lineage that already had hair." }
+        ]
+      }
+    }
+  ]
+}

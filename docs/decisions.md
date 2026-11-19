@@ -8377,3 +8377,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
     `use crate::reading::set::{Question, Statement, TraitAsk, …}` import
     had to follow `Question`/`Statement`/`TraitAsk` into
     `crate::reading::question` (import-only change, forced by the move).
+- **Fix round 4 (PR #169 fuzz smoke):**
+  - `crates/neophylo-core/fuzz/seeds/reading_set/*` — outside the Files
+    block; the six `valid-*.json` test inputs copied byte-for-byte as
+    committed seeds so `scripts/ci/fuzz.sh`'s `seeds/reading_set` arg
+    resolves.

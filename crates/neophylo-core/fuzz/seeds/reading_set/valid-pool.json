@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "test-pool",
+  "title": "Taxa pool test set",
+  "summary": "A set whose trees draw tips from a taxa pool",
+  "taxa_pool": {
+    "mam": ["bat", "cat", "dog", "fish"]
+  },
+  "trees": {
+    "p1": { "newick": "((bat,cat),(dog,fish));" },
+    "p1rot": { "newick": "((cat,bat),(fish,dog));" },
+    "p2": { "newick": "((bat,dog),(cat,fish));" }
+  },
+  "items": [
+    {
+      "id": "pq-mrca",
+      "text": "Where do {set} meet?",
+      "trees": ["p1"],
+      "tips": ["bat", "cat"],
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "pq-clade",
+      "text": "Do {set} form a clade?",
+      "trees": ["p1"],
+      "tips": ["bat", "cat"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "pq-diff",
+      "text": "Which tree shows different relationships?",
+      "trees": ["p1", "p1rot", "p2"],
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "pq-close",
+      "text": "Which is {a}'s closest relative?",
+      "trees": ["p1"],
+      "a": "bat",
+      "question": { "type": "closest_relative", "form": "closest" }
+    }
+  ]
+}

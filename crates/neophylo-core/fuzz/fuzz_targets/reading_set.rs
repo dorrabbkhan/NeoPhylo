@@ -41,7 +41,7 @@ fuzz_target!(|data: &[u8]| {
         },
     ];
     for i in 0..set.items.len() {
-        let _ = answer(&set, i);
+        assert!(answer(&set, i).is_ok(), "answer failed on a loaded set");
         for r in &responses {
             let _ = check(&set, i, r);
         }
