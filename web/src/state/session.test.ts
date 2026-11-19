@@ -825,7 +825,7 @@ describe("lesson load resets state (checkpoint 13)", () => {
   it("every ordered pair of built-in lessons loads the file's own settings", () => {
     const dir = resolve("..", "exercises");
     const files = readdirSync(dir)
-      .filter((f) => f.endsWith(".json") && f !== "schema.json")
+      .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
       .sort();
     const loaded = (f: string) =>
       exercise(readFileSync(resolve(dir, f), "utf8"));

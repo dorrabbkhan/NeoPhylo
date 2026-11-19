@@ -62,7 +62,7 @@ function metaMap(): Map<string, ExerciseMeta> {
   const dirs = [EXERCISES, resolve(EXERCISES, "labs")];
   for (const dir of dirs) {
     for (const f of readdirSync(dir)) {
-      if (!f.endsWith(".json") || f === "schema.json") continue;
+      if (!f.endsWith(".json") || f.endsWith("schema.json")) continue;
       const meta = (JSON.parse(readFileSync(resolve(dir, f), "utf8")) as {
         meta?: ExerciseMeta;
       }).meta;

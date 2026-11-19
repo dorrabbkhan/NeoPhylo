@@ -1,0 +1,9 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-tied", "title": "t", "summary": "t",
+  "trees": { "tx": {
+    "newick": "((a,(b,c)),(d,e));",
+    "node_letters": [ { "on": ["b", "c"], "letter": "P" }, { "on": ["d", "e"], "letter": "R" } ],
+    "times": { "unit": "Ma", "ages": [ { "on": "root", "age": 10 }, { "on": ["a", "b", "c"], "age": 7 }, { "on": ["b", "c"], "age": 5 }, { "on": ["d", "e"], "age": 5 } ] }
+  } },
+  "items": [ { "id": "q-order", "text": "Order the nodes.", "trees": ["tx"], "question": { "type": "order_nodes", "nodes": ["P", "R"] } } ]
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "test-times",
+  "title": "Times test set",
+  "summary": "Time-axis questions for engine tests",
+  "trees": {
+    "tx": {
+      "newick": "((a,(b,c)),(d,e));",
+      "node_letters": [
+        { "on": ["b", "c"], "letter": "P" },
+        { "on": ["a", "b", "c"], "letter": "Q" },
+        { "on": ["d", "e"], "letter": "R" },
+        { "on": "root", "letter": "S" }
+      ],
+      "times": {
+        "unit": "Ma",
+        "source": "engine test fixture",
+        "ages": [
+          { "on": "root", "age": 10 },
+          { "on": ["a", "b", "c"], "age": 8 },
+          { "on": ["d", "e"], "age": 6 },
+          { "on": ["b", "c"], "age": 5 },
+          { "on": ["e"], "age": 3 }
+        ]
+      },
+      "points": [
+        { "letter": "X", "on": ["b", "c"], "at": "node" },
+        { "letter": "Y", "on": ["b", "c"], "at": "branch" },
+        { "letter": "W", "on": ["a", "b", "c"], "at": "node" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-mrca-opts",
+      "text": "Tap the most recent common ancestor of {set}.",
+      "trees": ["tx"],
+      "tips": ["b", "c"],
+      "question": { "type": "mrca", "options": ["X", "Y", "W"] }
+    },
+    {
+      "id": "q-place",
+      "text": "Where does newt attach?",
+      "trees": ["tx"],
+      "question": { "type": "place_taxon", "name": "newt", "sister": ["b", "c"] }
+    },
+    {
+      "id": "q-order-t",
+      "text": "Order the lettered nodes, oldest to youngest.",
+      "trees": ["tx"],
+      "question": { "type": "order_nodes", "nodes": ["P", "Q", "R"] }
+    },
+    {
+      "id": "q-stmt-t",
+      "text": "Select every true statement.",
+      "trees": ["tx"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "older_than", "p": "Q", "q": "P", "text": "Node Q is older than node P." },
+          { "kind": "older_than", "p": "P", "q": "R", "text": "Node P is older than node R." },
+          { "kind": "older_than_age", "p": "P", "age": 4, "text": "Node P is older than 4 Ma." },
+          { "kind": "older_than_age", "p": "P", "age": 6, "text": "Node P is older than 6 Ma." },
+          { "kind": "lineage_at_least", "tip": "d", "age": 3, "text": "The lineage of the fourth tip is at least 3 Ma old." },
+          { "kind": "lineage_at_least", "tip": "d", "age": 4, "text": "The lineage of the fourth tip is at least 4 Ma old." }
+        ]
+      }
+    }
+  ]
+}

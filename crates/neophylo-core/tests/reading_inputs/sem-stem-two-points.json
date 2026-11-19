@@ -1,0 +1,13 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "stem-two", "title": "t", "summary": "t",
+  "trees": {
+    "t": {
+      "newick": "((a,(b,c)),d);",
+      "points": [
+        { "letter": "X", "on": ["b", "c"], "at": "branch" },
+        { "letter": "Y", "on": ["b", "c"], "at": "branch" }
+      ]
+    }
+  },
+  "items": [ { "id": "q-place", "text": "x is sister to the pair; where does it attach?", "trees": ["t"], "question": { "type": "place_taxon", "name": "x", "sister": ["b", "c"] } } ]
+}

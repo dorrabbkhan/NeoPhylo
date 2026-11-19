@@ -1,0 +1,8 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "pool-dup", "title": "t", "summary": "t",
+  "taxa_pool": { "mam": ["bat", "cat", "bat"] },
+  "trees": {
+    "t": { "newick": "((bat,cat),dog);" }
+  },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["t"], "question": { "type": "count_clades" } } ]
+}

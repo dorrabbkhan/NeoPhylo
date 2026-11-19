@@ -28,7 +28,7 @@ const GAP_INPUT = fileURLToPath(
 );
 
 const LESSON_IDS = readdirSync(EXERCISES)
-  .filter((f) => f.endsWith(".json") && f !== "schema.json")
+  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
   .map((f) => f.slice(0, -".json".length))
   .sort();
 const LAB_IDS = readdirSync(new URL("../../exercises/labs/", import.meta.url))

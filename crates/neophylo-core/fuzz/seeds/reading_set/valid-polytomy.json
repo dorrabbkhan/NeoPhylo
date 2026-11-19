@@ -1,0 +1,43 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "test-polytomy", "title": "Polytomy test set",
+  "summary": "Polytomy questions for engine tests (Review Focus 1)",
+  "trees": {
+    "poly": {
+      "newick": "((a,b,c),d);",
+      "node_letters": [
+        { "on": ["a", "b", "c"], "letter": "P" },
+        { "on": "root", "letter": "R" }
+      ]
+    },
+    "res": { "newick": "(((a,b),c),d);" },
+    "resrot": { "newick": "(d,(c,(b,a)));" }
+  },
+  "items": [
+    {
+      "id": "q-pair-poly",
+      "text": "Is {a} closer to {b} or to {c}?",
+      "trees": ["poly"],
+      "a": "a", "b": "b", "c": "c",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-mrca-poly",
+      "text": "Where do {set} meet?",
+      "trees": ["poly"],
+      "tips": ["a", "c"],
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-differs-poly",
+      "text": "Which tree shows different relationships?",
+      "trees": ["poly", "res", "resrot"],
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-order-poly",
+      "text": "Order the lettered nodes, oldest to youngest.",
+      "trees": ["poly"],
+      "question": { "type": "order_nodes", "nodes": ["P", "R"] }
+    }
+  ]
+}

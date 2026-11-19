@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "test-traits",
+  "title": "Traits test set",
+  "summary": "Trait questions for engine tests",
+  "trees": {
+    "tt": {
+      "newick": "(((bat,cat),dog),(fish,worm));",
+      "marks": [
+        { "on": ["bat", "cat", "dog"], "trait": "hair", "change": "gain" },
+        { "on": ["bat", "cat", "dog"], "trait": "fur", "change": "gain" },
+        { "on": ["cat"], "trait": "fur", "change": "loss" },
+        { "on": ["bat"], "trait": "wings", "change": "gain" },
+        { "on": ["fish"], "trait": "wings", "change": "gain" },
+        { "on": ["bat", "cat"], "trait": "nails", "change": "gain" }
+      ],
+      "traits": [
+        { "name": "hair", "ancestral": "bare", "derived": "hairy" },
+        { "name": "wings", "ancestral": "no wings", "derived": "winged" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-who",
+      "text": "Which taxa have hair?",
+      "trees": ["tt"],
+      "question": { "type": "trait", "ask": { "kind": "which_have", "trait_name": "hair" } }
+    },
+    {
+      "id": "q-shared",
+      "text": "Which trait is shared by exactly {set}?",
+      "trees": ["tt"],
+      "tips": ["bat", "cat", "dog"],
+      "question": { "type": "trait", "ask": { "kind": "which_shared", "tips": ["bat", "cat", "dog"] } }
+    },
+    {
+      "id": "q-changes",
+      "text": "How many times did fur change?",
+      "trees": ["tt"],
+      "question": { "type": "trait", "ask": { "kind": "how_many_changes", "trait_name": "fur" } }
+    },
+    {
+      "id": "q-profile",
+      "text": "Which derived states does {a} show?",
+      "trees": ["tt"],
+      "a": "cat",
+      "question": { "type": "trait", "ask": { "kind": "profile", "tip": "cat" } }
+    },
+    {
+      "id": "q-ancder",
+      "text": "Is hair ancestral or derived in {a}?",
+      "trees": ["tt"],
+      "a": "worm",
+      "question": { "type": "trait", "ask": { "kind": "ancestral_or_derived", "trait_name": "hair", "tip": "worm" } }
+    },
+    {
+      "id": "q-ancder2",
+      "text": "Is hair ancestral or derived in {a}?",
+      "trees": ["tt"],
+      "a": "bat",
+      "question": { "type": "trait", "ask": { "kind": "ancestral_or_derived", "trait_name": "hair", "tip": "bat" } }
+    },
+    {
+      "id": "q-hasnot",
+      "text": "Which taxa have hair but lack fur?",
+      "trees": ["tt"],
+      "question": { "type": "trait", "ask": { "kind": "has_not", "has": "hair", "lacks": "fur" } }
+    },
+    {
+      "id": "q-homo",
+      "text": "Are wings in {a} and {b} homologous?",
+      "trees": ["tt"],
+      "a": "bat",
+      "b": "fish",
+      "question": { "type": "trait", "ask": { "kind": "homologous", "trait_name": "wings", "x": "bat", "y": "fish" } }
+    },
+    {
+      "id": "q-homo2",
+      "text": "Is hair in {a} and {b} homologous?",
+      "trees": ["tt"],
+      "a": "bat",
+      "b": "dog",
+      "question": { "type": "trait", "ask": { "kind": "homologous", "trait_name": "hair", "x": "bat", "y": "dog" } }
+    },
+    {
+      "id": "q-tmono",
+      "text": "Are the taxa with hair monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["tt"],
+      "question": { "type": "is_clade", "by_trait": "hair" }
+    },
+    {
+      "id": "q-tpara",
+      "text": "Are the taxa with fur monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["tt"],
+      "question": { "type": "is_clade", "by_trait": "fur" }
+    },
+    {
+      "id": "q-tpoly",
+      "text": "Are the taxa with wings monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["tt"],
+      "question": { "type": "is_clade", "by_trait": "wings" }
+    },
+    {
+      "id": "q-stmt",
+      "text": "Select every true statement.",
+      "trees": ["tt"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          { "kind": "has_trait", "tip": "bat", "trait_name": "hair", "text": "The first tip has hair." },
+          { "kind": "has_trait", "tip": "worm", "trait_name": "hair", "text": "The last tip has hair." },
+          { "kind": "shared_derived", "trait_name": "hair", "tips": ["bat", "cat", "dog"], "text": "Hair is a shared derived trait of the three mammals." },
+          { "kind": "shared_derived", "trait_name": "hair", "tips": ["bat", "fish"], "text": "Hair is a shared derived trait of the first and fourth tips." },
+          { "kind": "gained_within", "inner": "nails", "outer": "hair", "text": "Nails arose within a lineage that already had hair." },
+          { "kind": "gained_within", "inner": "hair", "outer": "nails", "text": "Hair arose within a lineage that already had nails." }
+        ]
+      }
+    }
+  ]
+}

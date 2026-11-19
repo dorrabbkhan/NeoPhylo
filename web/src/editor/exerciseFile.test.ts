@@ -33,7 +33,7 @@ const validate = new Ajv2020({ allErrors: true }).compile(schema);
 
 const exerciseFiles = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && f !== "schema.json")
+    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
     .sort();
 
 const exercisePaths = () => [

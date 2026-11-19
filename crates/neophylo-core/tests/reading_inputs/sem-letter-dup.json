@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "kind": "reading", "id": "bad-letterdup", "title": "t", "summary": "t",
+  "trees": { "t": { "newick": "((a,b),(c,d));", "node_letters": [ { "on": ["a", "b"], "letter": "P" }, { "on": ["c", "d"], "letter": "P" } ] } },
+  "items": [ { "id": "q1", "text": "How many clades?", "trees": ["t"], "question": { "type": "count_clades" } } ]
+}

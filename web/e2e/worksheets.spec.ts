@@ -25,7 +25,7 @@ import { waitForApp } from "./helpers";
 const EXERCISES = fileURLToPath(new URL("../../exercises", import.meta.url));
 
 const LESSON_IDS = readdirSync(EXERCISES)
-  .filter((f) => f.endsWith(".json") && f !== "schema.json")
+  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
   .map((f) => f.replace(/\.json$/, ""));
 const LAB_IDS = readdirSync(`${EXERCISES}/labs`)
   .filter((f) => f.endsWith(".json"))
