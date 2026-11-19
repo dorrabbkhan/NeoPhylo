@@ -745,3 +745,170 @@ fn matrix_and_worksheet_exports_parity() {
         other => panic!("expected InvalidExercise, got {other:?}"),
     }
 }
+
+// --- v1.4d reading exports (v1.4d plan Task 5, spec §5) ----------------
+
+/// Hand-written test sets shared with the engine tests.
+const READING_POLY: &str =
+    include_str!("../../neophylo-core/tests/reading_inputs/valid-polytomy.json");
+const READING_TIMES: &str =
+    include_str!("../../neophylo-core/tests/reading_inputs/valid-times.json");
+const READING_POOL: &str = include_str!("../../neophylo-core/tests/reading_inputs/valid-pool.json");
+
+/// Every Task 5 export crosses the boundary with the same JSON the
+/// native call produces; refused inputs cross as error values.
+#[wasm_bindgen_test]
+fn reading_exports_parity() {
+    use neophylo_core::reading::{self, CladeKey, ReadingSet, Response, Verdict};
+    use neophylo_wasm::{ReadingTimes, ReadingTreeView};
+
+    // load_reading_set: a valid set deserializes to the native value.
+    let set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_POLY));
+    let native = reading::load_reading_set(READING_POLY).unwrap();
+    assert_eq!(json(&set), json(&native));
+    // A refused set is an InvalidReading error value, never a throw.
+    let bad: WasmResult<ReadingSet> = unpack(neophylo_wasm::load_reading_set("{\"items\": null}"));
+    assert!(!bad.ok, "a broken set must be an error value");
+    match bad.error.unwrap() {
+        NeoError::InvalidReading { .. } => {}
+        other => panic!("expected InvalidReading, got {other:?}"),
+    }
+
+    // reading_answer: identical to the native key for every item.
+    for i in 0..set.items.len() {
+        let key: neophylo_core::reading::AnswerKey =
+            ok_value(neophylo_wasm::reading_answer(to_js(&set), i as u32));
+        assert_eq!(key, reading::answer(&native, i).unwrap(), "item {i}");
+    }
+    let oob: WasmResult<neophylo_core::reading::AnswerKey> =
+        unpack(neophylo_wasm::reading_answer(to_js(&set), 99));
+    assert!(!oob.ok, "an out-of-range item must be an error value");
+
+    // reading_check: same verdict as native; a wrong-kind response is
+    // an InvalidReading value; a malformed argument is InvalidExercise.
+    let resp = Response::Pairwise {
+        answer: reading::Closer::Equal,
+    };
+    let verdict: Verdict = ok_value(neophylo_wasm::reading_check(to_js(&set), 0, to_js(&resp)));
+    assert_eq!(verdict, reading::check(&native, 0, &resp).unwrap());
+    assert!(verdict.correct);
+    let wrong_kind: WasmResult<Verdict> = unpack(neophylo_wasm::reading_check(
+        to_js(&set),
+        0,
+        to_js(&Response::Number { value: 3 }),
+    ));
+    assert!(!wrong_kind.ok);
+    match wrong_kind.error.unwrap() {
+        NeoError::InvalidReading { .. } => {}
+        other => panic!("expected InvalidReading, got {other:?}"),
+    }
+    let malformed: WasmResult<Verdict> = unpack(neophylo_wasm::reading_check(
+        to_js(&set),
+        0,
+        JsValue::from_f64(1.0),
+    ));
+    assert!(!malformed.ok);
+    match malformed.error.unwrap() {
+        NeoError::InvalidExercise { .. } => {}
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+
+    // reading_variant: ops apply in order — rotate, shuffle, relabel
+    // equals the same sequential native calls for the same seed.
+    let pool: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_POOL));
+    let pool_native = reading::load_reading_set(READING_POOL).unwrap();
+    let mut want = reading::rotate(&pool_native, 7);
+    want = reading::shuffle_tip_order(&want, 7);
+    want = reading::relabel(&want, 7).unwrap();
+    let got: ReadingSet = ok_value(neophylo_wasm::reading_variant(
+        to_js(&pool),
+        JsValue::from_f64(7.0),
+        to_js(&vec!["rotate", "shuffle", "relabel"]),
+    ));
+    assert_eq!(json(&got), json(&want));
+    // An unknown op is a malformed argument — an error value.
+    let bad_op: WasmResult<ReadingSet> = unpack(neophylo_wasm::reading_variant(
+        to_js(&pool),
+        JsValue::from_f64(7.0),
+        to_js(&vec!["scramble"]),
+    ));
+    assert!(!bad_op.ok, "an unknown op must be an error value");
+    match bad_op.error.unwrap() {
+        NeoError::InvalidExercise { .. } => {}
+        other => panic!("expected InvalidExercise, got {other:?}"),
+    }
+
+    // reading_clade_of: the canonical key of the node exactly spanning
+    // the tips; a tip set no node spans is an InvalidReading value.
+    let key: CladeKey = ok_value(neophylo_wasm::reading_clade_of(
+        "((a,b,c),d);",
+        to_js(&vec!["c".to_string(), "a".to_string(), "b".to_string()]),
+    ));
+    let tree = neophylo_core::parse_newick("((a,b,c),d);").unwrap();
+    let node = reading::find_clade(&tree, &["a".into(), "b".into(), "c".into()]).unwrap();
+    assert_eq!(key, reading::clade_key(&tree, node));
+    let no_node: WasmResult<CladeKey> = unpack(neophylo_wasm::reading_clade_of(
+        "((a,b,c),d);",
+        to_js(&vec!["a".to_string(), "d".to_string()]),
+    ));
+    assert!(!no_node.ok, "a non-clade tip set must be an error value");
+    match no_node.error.unwrap() {
+        NeoError::InvalidReading { .. } => {}
+        other => panic!("expected InvalidReading, got {other:?}"),
+    }
+
+    // reading_tree: every node's clade equals the native clade_key;
+    // letters and ages land on the right nodes; times mode and unit
+    // carry over; points/marks/traits pass through.
+    let times_set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_TIMES));
+    let times_native = reading::load_reading_set(READING_TIMES).unwrap();
+    let view: ReadingTreeView = ok_value(neophylo_wasm::reading_tree(
+        to_js(&times_set),
+        to_js(&"tx".to_string()),
+    ));
+    let rt = &times_native.trees["tx"];
+    let tree = neophylo_core::parse_newick(&rt.newick).unwrap();
+    assert_eq!(view.root, tree.root.0);
+    assert_eq!(view.nodes.len(), tree.nodes.len());
+    for (i, n) in view.nodes.iter().enumerate() {
+        let id = neophylo_core::tree::NodeId(i as u32);
+        assert_eq!(n.clade, reading::clade_key(&tree, id), "node {i} clade");
+        assert_eq!(n.parent, tree.nodes[i].parent.map(|p| p.0));
+        let kids: Vec<u32> = tree.nodes[i].children.iter().map(|c| c.0).collect();
+        assert_eq!(n.children, kids);
+        assert_eq!(n.label, tree.nodes[i].label);
+    }
+    assert_eq!(view.times, ReadingTimes::Ages);
+    assert_eq!(view.unit.as_deref(), Some("Ma"));
+    assert_eq!(json(&view.points), json(&rt.points));
+    assert_eq!(json(&view.marks), json(&rt.marks));
+    assert_eq!(json(&view.traits), json(&rt.traits));
+    let lettered = |key: &[&str]| {
+        view.nodes
+            .iter()
+            .find(|n| n.clade == key.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .unwrap_or_else(|| panic!("no node with clade {key:?}"))
+    };
+    assert_eq!(lettered(&["b", "c"]).letter.as_deref(), Some("P"));
+    assert_eq!(lettered(&["b", "c"]).age, Some(5.0));
+    assert_eq!(lettered(&["a"]).age, None);
+
+    // A tree without times reports "none" and a null unit.
+    let poly_view: ReadingTreeView = ok_value(neophylo_wasm::reading_tree(
+        to_js(&set),
+        to_js(&"poly".to_string()),
+    ));
+    assert_eq!(poly_view.times, ReadingTimes::None);
+    assert_eq!(poly_view.unit, None);
+
+    // An unknown tree name is an InvalidReading error value.
+    let no_tree: WasmResult<ReadingTreeView> = unpack(neophylo_wasm::reading_tree(
+        to_js(&set),
+        to_js(&"nosuch".to_string()),
+    ));
+    assert!(!no_tree.ok);
+    match no_tree.error.unwrap() {
+        NeoError::InvalidReading { .. } => {}
+        other => panic!("expected InvalidReading, got {other:?}"),
+    }
+}

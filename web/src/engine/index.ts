@@ -27,6 +27,7 @@ import init, {
   jtt_pair_detail_filtered,
   labels_need_quotes,
   load_exercise,
+  load_reading_set,
   matrix_to_distances,
   merge_tallies,
   parse_fasta,
@@ -36,6 +37,11 @@ import init, {
   parse_pasted_matrix,
   parse_phylip,
   parse_phylip_matrix,
+  reading_answer,
+  reading_check,
+  reading_clade_of,
+  reading_tree,
+  reading_variant,
   reference_outgroup,
   replicate_detail,
   replicate_detail_filtered,
@@ -56,6 +62,7 @@ import init, {
 
 import type { Alignment } from "./generated/Alignment";
 import type { Alphabet } from "./generated/Alphabet";
+import type { AnswerKey } from "./generated/AnswerKey";
 import type { BootstrapTally } from "./generated/BootstrapTally";
 import type { BuildOptions } from "./generated/BuildOptions";
 import type { BuildResult } from "./generated/BuildResult";
@@ -77,13 +84,17 @@ import type { PairDetail } from "./generated/PairDetail";
 import type { PasteOptions } from "./generated/PasteOptions";
 import type { PhylipMatrixOptions } from "./generated/PhylipMatrixOptions";
 import type { PhylipParseResult } from "./generated/PhylipParseResult";
+import type { ReadingSet } from "./generated/ReadingSet";
+import type { ReadingTreeView } from "./generated/ReadingTreeView";
 import type { ReplicateDetail } from "./generated/ReplicateDetail";
+import type { Response } from "./generated/Response";
 import type { RerootResult } from "./generated/RerootResult";
 import type { RfResult } from "./generated/RfResult";
 import type { SimSpec } from "./generated/SimSpec";
 import type { SiteFilter } from "./generated/SiteFilter";
 import type { SiteMask } from "./generated/SiteMask";
 import type { Tree } from "./generated/Tree";
+import type { Verdict } from "./generated/Verdict";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: NeoError };
 
@@ -408,5 +419,42 @@ export const engine = {
     method: Method,
   ): Result<JoinFacts[]> {
     return worksheet_facts(matrix, method);
+  },
+  // --- v1.4d reading wrappers (v1.4d spec §5, plan Task 5) -----------
+  /** Parse and validate a reading-set file (`kind: "reading"`).
+   * Every refusal is an `InvalidReading` naming the item and field. */
+  loadReadingSet(json: string): Result<ReadingSet> {
+    return load_reading_set(json);
+  },
+  /** The engine answer key of the set's item `item` (spec §5.3). */
+  readingAnswer(set: ReadingSet, item: number): Result<AnswerKey> {
+    return reading_answer(set, item);
+  },
+  /** Check a student response against the engine key (spec §5.3). */
+  readingCheck(
+    set: ReadingSet,
+    item: number,
+    response: Response,
+  ): Result<Verdict> {
+    return reading_check(set, item, response);
+  },
+  /** Apply seeded variant ops in order and return the new set
+   * (spec §5.4); answers are recomputed on use, never copied. */
+  readingVariant(
+    set: ReadingSet,
+    seed: number,
+    ops: ("rotate" | "shuffle" | "relabel")[],
+  ): Result<ReadingSet> {
+    return reading_variant(set, seed, ops);
+  },
+  /** The clade key of the node with exactly these tips — resolves an
+   * editor tap to the stable identifier (spec §4.2). */
+  readingCladeOf(newick: string, tips: string[]): Result<string[]> {
+    return reading_clade_of(newick, tips);
+  },
+  /** A stored tree resolved for layout — the input of every
+   * `readingLayout` call (plan Tasks 5–6). */
+  readingTree(set: ReadingSet, name: string): Result<ReadingTreeView> {
+    return reading_tree(set, name);
   },
 };

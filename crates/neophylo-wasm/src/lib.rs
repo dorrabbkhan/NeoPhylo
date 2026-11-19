@@ -9,9 +9,9 @@
 //! A malformed `JsValue` argument is reported as
 //! `InvalidExercise { field: "<arg name>", msg }`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_wasm_bindgen as swb;
 use ts_rs::TS;
 use wasm_bindgen::prelude::*;
@@ -26,6 +26,9 @@ use neophylo_core::matrix_input::DistanceInput;
 use neophylo_core::matrix_parse::{MatrixFile, MatrixFormat, PasteOptions, PhylipMatrixOptions};
 use neophylo_core::phylip::NameMode;
 use neophylo_core::protein_dist::PairDetail;
+use neophylo_core::reading::{
+    AnswerKey, CladeKey, Mark, Point, ReadingSet, Response, Times, TraitDef, Verdict,
+};
 use neophylo_core::reroot::RerootResult;
 use neophylo_core::seq::Alignment;
 use neophylo_core::sim::SimSpec;
@@ -648,4 +651,226 @@ pub fn worksheet_facts(matrix: JsValue, method: JsValue) -> JsValue {
         arg::<Method>(method, "method")
             .and_then(|method| neophylo_core::worksheet_facts(&m, method))
     }))
+}
+
+// --- v1.4d reading exports (v1.4d spec §5, plan Task 5) ---------------
+//
+// Type conversion only — parsing, validation, answers, checks and the
+// seeded transforms all live in `neophylo_core::reading`. Nodes cross
+// the boundary as `CladeKey`s (sorted tip sets), never positions
+// (spec §4.2).
+
+/// Parse and validate a reading-set JSON file (`kind: "reading"`).
+/// Every refusal is `InvalidReading` naming the item and the field.
+#[wasm_bindgen]
+pub fn load_reading_set(json: &str) -> JsValue {
+    to_js::<ReadingSet>(neophylo_core::reading::load_reading_set(json))
+}
+
+/// The engine answer key of the set's item `item` (spec §5.3).
+#[wasm_bindgen]
+pub fn reading_answer(set: JsValue, item: u32) -> JsValue {
+    to_js::<AnswerKey>(
+        arg::<ReadingSet>(set, "set")
+            .and_then(|s| neophylo_core::reading::answer(&s, item as usize)),
+    )
+}
+
+/// Check a student `Response` against the engine key (spec §5.3).
+#[wasm_bindgen]
+pub fn reading_check(set: JsValue, item: u32, response: JsValue) -> JsValue {
+    to_js::<Verdict>(arg::<ReadingSet>(set, "set").and_then(|s| {
+        arg::<Response>(response, "response")
+            .and_then(|r| neophylo_core::reading::check(&s, item as usize, &r))
+    }))
+}
+
+/// One seeded variant op (spec §5.4); `reading_variant`'s `ops` list.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum VariantOp {
+    Rotate,
+    Shuffle,
+    Relabel,
+}
+
+/// Apply the seeded variant transforms in order and return the new
+/// set; answers are recomputed on use, never copied (spec §5.4).
+#[wasm_bindgen]
+pub fn reading_variant(set: JsValue, seed: JsValue, ops: JsValue) -> JsValue {
+    to_js::<ReadingSet>(arg::<ReadingSet>(set, "set").and_then(|s| {
+        arg::<u64>(seed, "seed").and_then(|seed| {
+            arg::<Vec<VariantOp>>(ops, "ops").and_then(|ops| {
+                let mut out = s;
+                for op in ops {
+                    out = match op {
+                        VariantOp::Rotate => neophylo_core::reading::rotate(&out, seed),
+                        VariantOp::Shuffle => neophylo_core::reading::shuffle_tip_order(&out, seed),
+                        VariantOp::Relabel => neophylo_core::reading::relabel(&out, seed)?,
+                    };
+                }
+                Ok(out)
+            })
+        })
+    }))
+}
+
+/// The clade key of the node whose tips are exactly `tips` — resolves
+/// an editor tap to the stable node identifier (spec §4.2). A tip set
+/// no node spans is `InvalidReading` with `field` "tips".
+#[wasm_bindgen]
+pub fn reading_clade_of(newick: &str, tips: JsValue) -> JsValue {
+    to_js::<CladeKey>(neophylo_core::parse_newick(newick).and_then(|t| {
+        arg::<Vec<String>>(tips, "tips").and_then(|tips| {
+            neophylo_core::reading::find_clade(&t, &tips)
+                .map(|n| neophylo_core::reading::clade_key(&t, n))
+                .ok_or_else(|| NeoError::InvalidReading {
+                    item: String::new(),
+                    field: "tips".to_string(),
+                    msg: format!("no node has exactly the tips {{{}}}", tips.join(", ")),
+                })
+        })
+    }))
+}
+
+/// The time-axis mode of a `ReadingTreeView` (spec §4.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(
+    rename_all = "snake_case",
+    export,
+    export_to = "../../../web/src/engine/generated/"
+)]
+pub enum ReadingTimes {
+    None,
+    Schematic,
+    Ages,
+}
+
+/// One node of a `ReadingTreeView`, named by its clade key.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct ReadingViewNode {
+    pub clade: CladeKey,
+    pub parent: Option<u32>,
+    pub children: Vec<u32>,
+    pub label: Option<String>,
+    pub letter: Option<String>,
+    pub age: Option<f64>,
+}
+
+/// A stored reading tree resolved for layout (plan Task 5): nodes in
+/// the `Tree` arena order, each named by its `CladeKey`, with letters
+/// and ages already resolved and the points, marks and trait defs
+/// passed through. This is the input of every `readingLayout` call
+/// (plan Task 6).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct ReadingTreeView {
+    pub nodes: Vec<ReadingViewNode>,
+    pub root: u32,
+    pub points: Vec<Point>,
+    #[ts(type = "{ on: string[]; trait: string; change: \"gain\" | \"loss\" }[]")]
+    pub marks: Vec<Mark>,
+    pub traits: Vec<TraitDef>,
+    pub times: ReadingTimes,
+    pub unit: Option<String>,
+}
+
+/// The canonical form of a stored clade key: `"root"` resolves to the
+/// full tip set; otherwise sort + dedup. Sets returned by
+/// `load_reading_set` are already canonical, so this is a no-op for
+/// them and a convenience for editor-built sets.
+fn canon_key(key: &[String], all_tips: &BTreeSet<String>) -> CladeKey {
+    if key.len() == 1 && key[0] == "root" {
+        return all_tips.iter().cloned().collect();
+    }
+    let mut out = key.to_vec();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// The named tree of a loaded set resolved for layout (plan Task 5).
+#[wasm_bindgen]
+pub fn reading_tree(set: JsValue, name: JsValue) -> JsValue {
+    to_js::<ReadingTreeView>(
+        arg::<ReadingSet>(set, "set")
+            .and_then(|s| arg::<String>(name, "name").and_then(|name| tree_view(&s, &name))),
+    )
+}
+
+/// Build the `ReadingTreeView` of `set.trees[name]`.
+fn tree_view(set: &ReadingSet, name: &str) -> Result<ReadingTreeView, NeoError> {
+    let rt = set
+        .trees
+        .get(name)
+        .ok_or_else(|| NeoError::InvalidReading {
+            item: String::new(),
+            field: "trees".to_string(),
+            msg: format!("unknown tree '{name}'"),
+        })?;
+    let tree = neophylo_core::parse_newick(&rt.newick).map_err(|e| NeoError::InvalidReading {
+        item: String::new(),
+        field: format!("trees.{name}.newick"),
+        msg: e.to_string(),
+    })?;
+    let all_tips: BTreeSet<String> = tree.leaf_labels().into_iter().collect();
+
+    let letter_by_clade: BTreeMap<CladeKey, &str> = rt
+        .node_letters
+        .iter()
+        .map(|nl| (canon_key(&nl.on, &all_tips), nl.letter.as_str()))
+        .collect();
+    let (times, unit, ages) = match &rt.times {
+        None => (ReadingTimes::None, None, BTreeMap::new()),
+        Some(Times::Schematic) => (ReadingTimes::Schematic, None, BTreeMap::new()),
+        Some(Times::Ages { unit, ages, .. }) => (
+            ReadingTimes::Ages,
+            Some(unit.clone()),
+            ages.iter()
+                .map(|na| (canon_key(&na.on, &all_tips), na.age))
+                .collect(),
+        ),
+    };
+    let nodes = tree
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| {
+            let clade = neophylo_core::reading::clade_key(&tree, NodeId(i as u32));
+            ReadingViewNode {
+                letter: letter_by_clade.get(&clade).map(|s| (*s).to_string()),
+                age: ages.get(&clade).copied(),
+                clade,
+                parent: n.parent.map(|p| p.0),
+                children: n.children.iter().map(|c| c.0).collect(),
+                label: n.label.clone(),
+            }
+        })
+        .collect();
+    let canon = |on: &CladeKey| canon_key(on, &all_tips);
+    Ok(ReadingTreeView {
+        nodes,
+        root: tree.root.0,
+        points: rt
+            .points
+            .iter()
+            .map(|p| Point {
+                on: canon(&p.on),
+                ..p.clone()
+            })
+            .collect(),
+        marks: rt
+            .marks
+            .iter()
+            .map(|m| Mark {
+                on: canon(&m.on),
+                ..m.clone()
+            })
+            .collect(),
+        traits: rt.traits.clone(),
+        times,
+        unit,
+    })
 }
