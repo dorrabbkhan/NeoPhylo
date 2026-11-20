@@ -431,6 +431,73 @@ describe("ReadingTree rotate animation", () => {
   });
 });
 
+describe("ReadingTree scroll cue", () => {
+  // The cue marks the side that still hides part of the drawing, from
+  // the canvas's real scroll metrics — never the layout's `fig.scroll`
+  // flag alone (owner-requested follow-up, 2026-11-20: the shadow must
+  // not sit over the last labels at the scroll end). jsdom does no
+  // layout, so the tests stub the element's own scrollWidth /
+  // clientWidth / scrollLeft and fire scroll.
+  const canvas = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>(".rt-canvas")!;
+  const stubScroll = (
+    el: HTMLElement,
+    m: { scrollLeft: number; clientWidth: number; scrollWidth: number },
+  ) => {
+    for (const [key, value] of Object.entries(m)) {
+      Object.defineProperty(el, key, { value, configurable: true });
+    }
+  };
+
+  it("is right when content hides on the right only", () => {
+    const { container } = render(<ReadingTree {...props()} />);
+    const el = canvas(container);
+    stubScroll(el, { scrollLeft: 0, clientWidth: 328, scrollWidth: 438 });
+    fireEvent.scroll(el);
+    expect(el.getAttribute("data-cue")).toBe("right");
+  });
+
+  it("is left at the scroll end", () => {
+    const { container } = render(<ReadingTree {...props()} />);
+    const el = canvas(container);
+    stubScroll(el, { scrollLeft: 110, clientWidth: 328, scrollWidth: 438 });
+    fireEvent.scroll(el);
+    expect(el.getAttribute("data-cue")).toBe("left");
+  });
+
+  it("is both mid-scroll", () => {
+    const { container } = render(<ReadingTree {...props()} />);
+    const el = canvas(container);
+    stubScroll(el, { scrollLeft: 50, clientWidth: 328, scrollWidth: 438 });
+    fireEvent.scroll(el);
+    expect(el.getAttribute("data-cue")).toBe("both");
+  });
+
+  it("is absent when the figure fits", () => {
+    const { container } = render(<ReadingTree {...props()} />);
+    const el = canvas(container);
+    stubScroll(el, { scrollLeft: 0, clientWidth: 328, scrollWidth: 328 });
+    fireEvent.scroll(el);
+    expect(el.getAttribute("data-cue")).toBeNull();
+  });
+
+  it("updates after a re-render even without a scroll event", () => {
+    // Rotation, style, fonts and panel resizes change scrollWidth or
+    // clientWidth behind the component's back — the post-render pass
+    // must refresh the cue, the scroll event alone can't see them.
+    const p = props();
+    const { container, rerender } = render(<ReadingTree {...p} />);
+    const el = canvas(container);
+    stubScroll(el, { scrollLeft: 0, clientWidth: 328, scrollWidth: 438 });
+    rerender(<ReadingTree {...p} highlight={["a"]} />);
+    expect(el.getAttribute("data-cue")).toBe("right");
+    // ...and back again when the figure no longer overflows.
+    stubScroll(el, { scrollLeft: 0, clientWidth: 438, scrollWidth: 438 });
+    rerender(<ReadingTree {...p} highlight={["b"]} />);
+    expect(el.getAttribute("data-cue")).toBeNull();
+  });
+});
+
 describe("ReadingTree fonts gate", () => {
   it("lays out only after the bundled fonts settle", async () => {
     // jsdom has no document.fonts; a stub lets the gate path run. The

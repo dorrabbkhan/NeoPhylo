@@ -547,8 +547,48 @@ test("no sideways page scroll at 360 px, including the long-name tips-up figure"
     (el) => el.scrollWidth > el.clientWidth,
   );
   if (scrolls) {
-    await expect(canvas).toHaveAttribute("data-scroll", "true");
+    await expect(canvas).toHaveAttribute("data-cue", "right");
   }
+});
+
+/* ---- scroll cue -------------------------------------------------------------- */
+
+// Owner-requested follow-up (2026-11-20): the inset shadow marks only
+// the side that still hides part of the drawing — at the scroll end a
+// right-edge cue would sit over the last labels pointing at nothing.
+// The cue reads the canvas's real scrollLeft/scrollWidth/clientWidth:
+// "right" at scroll 0, "left" at the end, "both" between, absent when
+// the figure fits.
+test("the scroll cue marks only the side with hidden content", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await gotoItem(page, 24); // the tips-up long-name item overflows at 360 px
+  const canvas = firstFig(page).locator(".rt-canvas");
+  const m = await canvas.evaluate((el) => ({
+    client: el.clientWidth,
+    scroll: el.scrollWidth,
+  }));
+  expect(
+    m.scroll,
+    "the long-name figure overflows the 360 px panel",
+  ).toBeGreaterThan(m.client);
+  await expect(canvas).toHaveAttribute("data-cue", "right");
+
+  await canvas.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth - el.clientWidth;
+  });
+  await expect(canvas).toHaveAttribute("data-cue", "left");
+
+  await canvas.evaluate((el) => {
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+  });
+  await expect(canvas).toHaveAttribute("data-cue", "both");
+
+  // Widening the viewport past the figure's width removes the cue —
+  // the panel's ResizeObserver drives the update without a scroll.
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(canvas).not.toHaveAttribute("data-cue", /.+/);
 });
 
 /* ---- touch ------------------------------------------------------------------- */

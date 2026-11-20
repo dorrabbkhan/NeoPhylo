@@ -27,10 +27,22 @@
   color: var(--color-text);
 }
 
-/* Scroll cue (§6): an inset shadow on the scrolled-to edge, visible
- * whenever the layout flagged the drawing as wider than the panel. */
-.rt-canvas[data-scroll] {
+/* Scroll cue (§6): an inset shadow on each edge that still hides part
+ * of the drawing — the canvas's real scroll position decides which
+ * side(s), so at the scroll end the shadow sits on the left edge
+ * rather than over the last labels. */
+.rt-canvas[data-cue="right"] {
   box-shadow: inset -16px 0 10px -10px var(--color-text-muted);
+}
+
+.rt-canvas[data-cue="left"] {
+  box-shadow: inset 16px 0 10px -10px var(--color-text-muted);
+}
+
+.rt-canvas[data-cue="both"] {
+  box-shadow:
+    inset -16px 0 10px -10px var(--color-text-muted),
+    inset 16px 0 10px -10px var(--color-text-muted);
 }
 
 .rt-edge {

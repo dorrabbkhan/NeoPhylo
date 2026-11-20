@@ -8893,3 +8893,42 @@ Four built-in reading sets (`trees-reading-a-tree`, `trees-rotation`,
   synthesis opentree16.1 on 2026-11-20 by the conductor
   (owner-approved third round, documentation only); no conflicts;
   rodents polytomy kept deliberately.
+
+## v1.4d follow-up (owner request 2026-11-20): scroll cue only on the side with hidden content
+
+The `.rt-canvas` scroll cue no longer follows the layout's `fig.scroll`
+flag alone. `ReadingTree` tracks the canvas's real scroll metrics
+(`scrollLeft > 1` ⇒ hidden content on the left;
+`scrollLeft + clientWidth < scrollWidth - 1` ⇒ on the right), updates
+on the passive `scroll` event — wheel, touch and keyboard focus
+scrolling alike — and re-reads the metrics after every render, which
+also covers panel resizes (the existing ResizeObserver drives the
+re-render). The result renders as `data-cue="left" | "right" | "both"`
+(absent when nothing hides), with the same inset-shadow look mirrored
+per edge, so at the scroll end the shadow sits on the left edge
+instead of over the last labels. `fig.scroll` stays in the layout
+(`readingLayout` tests use it); no geometry changes. Covers the Task 9
+parked follow-up "the scroll cue on `.rt-canvas` stays visible at the
+scroll end".
+
+- **Baselines:** owner approved regenerating the visual frames whose
+  scroll-cue rendering changes because of this fix (conductor note of
+  the owner's decision, 2026-11-20). A `reading-*`/`rt-*`-scoped run in
+  the pinned image (`playwright:v1.64.1-noble@sha256:7852dc5a…`)
+  showed exactly one scene differing — the scroll-end frame, where the
+  cue moved from the right edge to the left; every scroll-0 frame is
+  pixel-identical because its right-edge cue is unchanged. Regenerated
+  with `--grep "reading-tipsup-12-long-names-360-end"
+  --update-snapshots`, then the whole `visual` project passed
+  (303 frames):
+  - `web/e2e/__screenshots__/reading-tipsup-12-long-names-360-end-360x740-light-linux.png`
+  - `web/e2e/__screenshots__/reading-tipsup-12-long-names-360-end-360x740-dark-linux.png`
+- **Files outside `web/src/views/reading/`** (this follow-up has no
+  plan Files block; the touched set is listed instead):
+  - `web/e2e/reading.spec.ts` — the new cue-state e2e (right → left →
+    both → absent on viewport widen) and the existing
+    `data-scroll` assertion updated to `data-cue`.
+  - `web/e2e/visualScenes.ts` — the same `data-scroll` assertion
+    updated, plus a `data-cue="left"` pin on the scroll-end scene.
+  - `web/e2e/__screenshots__/` — the two regenerated baselines above.
+  - `docs/decisions.md` — this entry.

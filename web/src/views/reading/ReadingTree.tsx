@@ -23,6 +23,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -55,6 +56,7 @@ import {
   HIT_CORE,
   hitPad,
   type PickKind,
+  scrollCue,
 } from "./readingHelpers";
 import { TreeDescription } from "./TreeDescription";
 import "./reading.css";
@@ -145,6 +147,7 @@ export function ReadingTree({
 }: ReadingTreeProps) {
   const [boxRef, box] = usePanelWidth();
   const reduced = useReducedMotion();
+
   // Marker ids must be unique when several reading trees share a page.
   const markerId = `rt-arrow-${useId().replace(/:/g, "")}`;
 
@@ -215,6 +218,29 @@ export function ReadingTree({
           measure,
         );
 
+  // The scroll cue marks the edge(s) that still hide part of the
+  // drawing, read from the canvas's real scroll metrics — never the
+  // layout's fig.scroll flag alone, so at the scroll end the shadow
+  // sits on the left edge instead of over the last labels (owner-
+  // requested follow-up, 2026-11-20). The passive listener catches
+  // every scroll source alike: wheel, touch and keyboard focus that
+  // scrolls an off-screen node into view. The layout effect re-reads
+  // the metrics whenever fig is (re)computed — rotation, style and
+  // font changes reflow the svg, and panel resizes arrive through
+  // usePanelWidth's ResizeObserver → new fig — none of which fire a
+  // scroll event.
+  const [cue, setCue] = useState<"left" | "right" | "both" | null>(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (el === null) return;
+    const onScroll = () => setCue(scrollCue(el));
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [boxRef]);
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (el !== null) setCue(scrollCue(el));
+  }, [fig, boxRef]);
 
   // Roving focus across node hits, keyed by clade so it follows a
   // rotated node to its new position.
@@ -301,11 +327,7 @@ export function ReadingTree({
   return (
     <figure className="rt-figure">
       <figcaption className="rt-caption">{label}</figcaption>
-      <div
-        className="rt-canvas"
-        ref={boxRef}
-        data-scroll={fig?.scroll || undefined}
-      >
+      <div className="rt-canvas" ref={boxRef} data-cue={cue || undefined}>
         {fontsSettled && fig !== null && (
           <svg
             role={interactive ? "tree" : "img"}

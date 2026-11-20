@@ -1395,7 +1395,7 @@ export const SCENES: {
       if (
         await canvas.evaluate((el) => el.scrollWidth > el.clientWidth)
       ) {
-        await expect(canvas).toHaveAttribute("data-scroll", "true");
+        await expect(canvas).toHaveAttribute("data-cue", "right");
       }
       // Unclipped labels: every label box inside the drawn width, and
       // the 12 px text floor held.
@@ -1433,7 +1433,9 @@ export const SCENES: {
     // every one fully inside the canvas's visible box (names >18
     // chars render as the layout's designed 16+"…" abbreviation,
     // never clipped). With the scroll-0 frame's labels 1–7 the two
-    // baselines together cover all 12.
+    // baselines together cover all 12. The cue now sits on the LEFT
+    // edge at the scroll end (the 2026-11-20 owner-requested fix):
+    // a right-edge shadow there pointed at nothing.
     name: "reading-tipsup-12-long-names-360-end",
     viewports: [{ w: 360, h: 740 }],
     setup: async (page) => {
@@ -1460,6 +1462,8 @@ export const SCENES: {
             requestAnimationFrame(() => requestAnimationFrame(r)),
           ),
       );
+      // Fully right: only the left edge hides content now.
+      await expect(canvas).toHaveAttribute("data-cue", "left");
       // The apostrophe label — the rightmost tip — must sit fully
       // inside the canvas's visible box.
       const last = fig.locator(".rt-tip-label", {

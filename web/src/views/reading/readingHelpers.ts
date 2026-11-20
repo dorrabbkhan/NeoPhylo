@@ -72,3 +72,18 @@ export const animD = (d: string, reduced: boolean): CSSProperties =>
     d: `path("${d}")`,
     transition: reduced ? "none" : "d 300ms ease-in-out",
   }) as CSSProperties;
+
+/** Which edge(s) of a scrolled element still hide content: "left"
+ * when scrollLeft has moved past the start, "right" when content
+ * extends past the visible box, null when nothing hides. The 1 px
+ * slack absorbs sub-pixel scroll metrics. */
+export function scrollCue(
+  el: HTMLElement,
+): "left" | "right" | "both" | null {
+  const left = el.scrollLeft > 1;
+  const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+  if (left && right) return "both";
+  if (left) return "left";
+  if (right) return "right";
+  return null;
+}
