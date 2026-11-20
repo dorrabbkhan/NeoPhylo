@@ -8754,3 +8754,5 @@ Owner-requested rendering fixes after the PR #139 review; branch
   changes the editor layout (conductor note of the owner's decision).
 - `ReadingEditor.test.tsx` and `readingDraft.test.ts` are covered by
   the Files block's "and tests" (no deviation).
+- **Fix round 2:** both editors stay mounted (inactive one `hidden`)
+  so toggling the mode never discards unsaved work.

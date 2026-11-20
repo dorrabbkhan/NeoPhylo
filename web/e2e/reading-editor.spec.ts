@@ -62,6 +62,39 @@ async function addItem(page: Page, type: string, id: string) {
   return item(page, id);
 }
 
+// Fix round 2: toggling the mode hides the inactive editor instead of
+// unmounting it — typed work in BOTH editors survives a round trip.
+test("toggling the mode keeps unsaved work in both editors", async ({
+  page,
+}) => {
+  await page.goto("/?editor");
+  // exact: getByRole's name is a substring match, so bare "Title"
+  // would also hit the reading editor's "Set title".
+  const title = page.getByRole("textbox", { name: "Title", exact: true });
+  await title.fill("Kept exercise title");
+
+  await page.getByRole("radio", { name: "Tree reading set" }).click();
+  const setTitle = page.getByRole("textbox", {
+    name: "Set title",
+    exact: true,
+  });
+  await expect(setTitle).toBeVisible();
+  await expect(title).toBeHidden();
+  await setTitle.fill("Kept reading title");
+  await expectNoSeriousViolations(page, "editor reading mode");
+
+  await page.getByRole("radio", { name: "Distance exercise" }).click();
+  await expect(title).toBeVisible();
+  await expect(title).toHaveValue("Kept exercise title");
+  await expect(setTitle).toBeHidden();
+  await expectNoSeriousViolations(page, "editor exercise mode");
+
+  await page.getByRole("radio", { name: "Tree reading set" }).click();
+  await expect(setTitle).toBeVisible();
+  await expect(setTitle).toHaveValue("Kept reading title");
+  await expect(title).toBeHidden();
+});
+
 test("build a six-tip reading set by tapping, then preview, share and reopen", async ({
   page,
 }) => {

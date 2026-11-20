@@ -30,6 +30,10 @@ export function EditorPage() {
   const [model, setModel] = useState<EditorHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<EditorMode>("exercise");
+  // The reading editor mounts lazily on its first selection but then
+  // stays MOUNTED — like the exercise editor it is only `hidden` when
+  // inactive, so toggling the mode never discards unsaved work.
+  const [readingVisited, setReadingVisited] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,21 +96,32 @@ export function EditorPage() {
                 type="radio"
                 name="editor-mode"
                 checked={mode === "reading"}
-                onChange={() => setMode("reading")}
+                onChange={() => {
+                  setMode("reading");
+                  setReadingVisited(true);
+                }}
               />
               Tree reading set
             </label>
           </fieldset>
-          {mode === "exercise" ? (
+          {/* The wrappers are styleless — `hidden` falls back to the UA
+            `display: none`, so an inactive editor leaves no pixel trace
+            and drops out of the accessibility tree while staying mounted. */}
+          <div hidden={mode !== "exercise"}>
             <EditorPanel model={model} />
-          ) : (
-            <Suspense
-              fallback={
-                <p className="editor-loading">Loading the reading editor…</p>
-              }
-            >
-              <ReadingEditor model={model} />
-            </Suspense>
+          </div>
+          {readingVisited && (
+            <div hidden={mode !== "reading"}>
+              <Suspense
+                fallback={
+                  <p className="editor-loading">
+                    Loading the reading editor…
+                  </p>
+                }
+              >
+                <ReadingEditor model={model} />
+              </Suspense>
+            </div>
           )}
         </>
       )}
