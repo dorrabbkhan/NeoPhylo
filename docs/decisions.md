@@ -8670,6 +8670,10 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `web/src/index.css` — `.reading-link` shares the `.labs-link`
     chip styles, and `a.reading-link` joins the coarse-pointer
     ≥40×40 floor (`[role="menuitem"]` already covers the menu rows).
+  - `web/e2e/sheets.spec.ts` — the More-menu item-list assertion
+    gains "Reading trees" between "Library" and "Take the tour"
+    (CI caught the stale expectation; the spec is the menu's
+    canonical order oracle).
   - `docs/decisions.md` — this entry.
 - **Files the block lists as Modify but unchanged:**
   `web/e2e/visual.spec.ts` — the scene/viewport matrix needed no
@@ -8677,8 +8681,11 @@ Owner-requested rendering fixes after the PR #139 review; branch
 - **Baselines** (regenerated in the pinned image, the only task that
   changes existing frames): the app-header frames at 1920×1080 —
   11 scenes × light/dark plus `bootstrap-basics-final-presenter`
-  (23 files) — and both library scenes at all three viewports
-  (12 files). The link is absent below 1280, so every app scene's
+  (23 files) — both library scenes at all three viewports
+  (12 files), and `editor-preview`'s two wide frames × light/dark
+  (4 files; its popup shows the header, and `EDITOR_VIEWPORTS`
+  adds 1280×800 — CI caught the missed scene). The link is absent
+  below 1280, so every app scene's
   1024 and 768 frames stay byte-identical to main's (the few the
   first pass rewrote were pixel noise; main's bytes pass — same
   finding the v1.4c Task-11 round recorded).
