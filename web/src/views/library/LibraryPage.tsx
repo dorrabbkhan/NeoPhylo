@@ -29,7 +29,7 @@ import { listDatasets, loadProvenance } from "../../library/registry";
 import { loadLesson } from "../../lessons/loader";
 import { listReadingSets } from "../../reading/registry";
 import type { ReadingSetSummary } from "../../reading/registry";
-import { exerciseLink, keyHref, worksheetHref } from "../worksheets/load";
+import { exerciseLink } from "../worksheets/load";
 import { paperSheet } from "../../worksheets/build";
 import { Wordmark } from "../Wordmark";
 import { LabPrintStyles } from "../labs/LabPrintStyles";
@@ -39,6 +39,7 @@ import "./library.css";
 
 import {
   buildItems,
+  cardActions,
   datasetItem,
   filtersQuery,
   LEVEL_LABEL,
@@ -117,7 +118,6 @@ function Card({
 }) {
   const lab = item.lab;
   const ds = item.dataset;
-  const rd = item.reading;
   // issue #135: the same scroll-in-place region the lab pages use —
   // the card shrinks to the column and a too-wide settings table
   // scrolls inside it.
@@ -147,17 +147,7 @@ function Card({
         </table>
       </div>
     );
-  const open =
-    ds !== undefined
-      ? { href: `?ds=${encodeURIComponent(item.id)}`, label: "Open dataset" }
-      : rd !== undefined
-        ? { href: `?read=${encodeURIComponent(item.id)}`, label: "Open set" }
-        : lab !== undefined
-          ? { href: `?lab=${encodeURIComponent(item.id)}`, label: "Open lab" }
-          : {
-              href: `?lesson=${encodeURIComponent(item.id)}`,
-              label: "Open lesson",
-            };
+  const actions = cardActions(item, paper);
   return (
     <li
       className={lab !== undefined ? "lab-card lib-card" : "lib-card"}
@@ -233,22 +223,11 @@ function Card({
           settingsRegion
         ))}
       <p className="lab-card-actions">
-        <a href={open.href}>{open.label}</a>
-        {/* Reading sets get their paper worksheet and answer key in
-            Task 13 — only the Open set action shows until then. */}
-        {ds === undefined && rd === undefined && (
-          <>
-            <a href={worksheetHref(item.id, "app")}>In-app worksheet</a>
-            {paper === true && (
-              <a href={worksheetHref(item.id, "paper")}>Paper worksheet</a>
-            )}
-            {paper !== undefined && (
-              <a href={keyHref(item.id, paper ? "paper" : "app")}>
-                Answer key
-              </a>
-            )}
-          </>
-        )}
+        {actions.map((a) => (
+          <a key={a.label} href={a.href}>
+            {a.label}
+          </a>
+        ))}
       </p>
     </li>
   );

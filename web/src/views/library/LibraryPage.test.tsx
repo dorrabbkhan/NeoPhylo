@@ -682,6 +682,19 @@ describe("library page — reading sets (v1.4d Task 9)", () => {
           .getByRole("link", { name: /open set/i })
           .getAttribute("href"),
       ).toBe(`?read=${id}`);
+      // Task 13: every shipped reading card carries its paper
+      // worksheet and answer key — asserted per listed file so the
+      // count is read from disk, not a literal.
+      expect(
+        within(card)
+          .getByRole("link", { name: /paper worksheet/i })
+          .getAttribute("href"),
+      ).toBe(`?worksheet=${id}&kind=paper`);
+      expect(
+        within(card)
+          .getByRole("link", { name: /answer key/i })
+          .getAttribute("href"),
+      ).toBe(`?key=${id}&kind=paper`);
     }
     // The dev-only demo set never lists (registry rule, Task 8).
     const demo = JSON.parse(
@@ -690,7 +703,7 @@ describe("library page — reading sets (v1.4d Task 9)", () => {
     noCard(demo.title);
   });
 
-  it("a reading card shows the tag, level, minutes and objectives from meta, and only the Open set action", async () => {
+  it("a reading card shows the tag, level, minutes, objectives, and the worksheet and key actions", async () => {
     mockReading.list = [SAMPLE];
     setUrl("?library");
     render(<LibraryPage />);
@@ -711,13 +724,21 @@ describe("library page — reading sets (v1.4d Task 9)", () => {
         .getByRole("link", { name: /open set/i })
         .getAttribute("href"),
     ).toBe("?read=trees-sample");
-    // The paper worksheet and answer key activate in Task 13 —
-    // nothing else renders on the card until then (plan's Produces).
+    // Task 13: the paper worksheet and gated answer key are the
+    // reading card's own ?worksheet=/?key= routes — paper kind only;
+    // the in-app worksheet is an exercise-only action.
     expect(
-      within(card).queryByRole("link", { name: /worksheet/i }),
-    ).toBeNull();
+      within(card)
+        .getByRole("link", { name: /paper worksheet/i })
+        .getAttribute("href"),
+    ).toBe("?worksheet=trees-sample&kind=paper");
     expect(
-      within(card).queryByRole("link", { name: /answer key/i }),
+      within(card)
+        .getByRole("link", { name: /answer key/i })
+        .getAttribute("href"),
+    ).toBe("?key=trees-sample&kind=paper");
+    expect(
+      within(card).queryByRole("link", { name: /in-app worksheet/i }),
     ).toBeNull();
   });
 

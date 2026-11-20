@@ -8993,3 +8993,54 @@ Task-10 editor.
   names the unfamiliar-taxa items in each form.
 - **Fix round 2 (owner-approved):** Hassanin et al. 2012 table
   reference corrected to Table 1.
+
+## v1.4d Task 13: reading worksheets and keys
+
+`?worksheet=<id>&kind=paper` and `?key=<id>&kind=paper` now resolve
+built-in and `#r=` custom reading sets: the sheet draws every shown
+tree in its authored style through the real `ReadingTree` and gives
+each question type its paper answer space (options to circle or tick,
+order slots, number and write-in blanks); the key renders every
+item's `readingAnswer` — explanation verbatim, accepted answer as
+text, the `order_nodes` order rule and the "authored answer" label —
+behind the existing instructor gate. The library's Tree reading
+cards now link both.
+
+- Baselines: owner approved regenerating the `library` scene (6
+  files) because reading cards gain worksheet and key links; the
+  reading worksheet/key frames are new
+  - `web/e2e/__screenshots__/library-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/library-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/library-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/library-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/library-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/library-768x1024-dark-linux.png`
+  - new: `worksheet-reading*`-`*` frames (sheet, sheet-print, key,
+    key-print, form sheet, form-print × viewports × themes)
+- **Files outside the task's Files block:**
+  - `web/src/views/worksheets/ReadingSheetView.tsx` (new): the sheet
+    view — kept out of WorksheetPage.tsx, which is already at the
+    ~400-line rule.
+  - `web/src/views/worksheets/ReadingKeyView.tsx` (new): the key view,
+    same reason.
+  - `web/src/views/worksheets/worksheets.css`: the answer-space,
+    option/order and key styles plus the print rules that stack the
+    figures and refit them inside the A4 printable width.
+  - `web/src/views/worksheets/worksheets.test.tsx`: the unknown-id
+    message now names "no lesson, lab or reading set".
+  - `web/src/views/library/LibraryPage.tsx`: the card actions render
+    `items.ts`'s `cardActions` (the plan's "activate the reading card
+    actions" lives there).
+  - `web/src/views/library/LibraryPage.test.tsx` (owner-approved):
+    the "activate in Task 13" assertions now expect the Paper
+    worksheet and Answer key links on every shipped card, counted
+    from disk.
+  - `web/e2e/visualScenes.ts` (owner-approved): the `library` scene's
+    Answer-key count drops the reading exclusion — every non-dataset
+    card has one — plus the six new worksheet-reading scenes.
+  - `web/e2e/__screenshots__/worksheet-reading*-linux.png`: the new
+    baselines named above.
+  - `docs/decisions.md`: this entry.
+- **Not done here:** `?worksheet=<reading-id>&kind=app` and
+  `?key=<reading-id>&kind=app` point at the paper kind — a reading
+  set's in-app work is the reading area itself.

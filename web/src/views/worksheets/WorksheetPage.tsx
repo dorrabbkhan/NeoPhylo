@@ -25,6 +25,8 @@ import type { CompanionSheet, PaperSheet } from "../../worksheets/types";
 import type { JoinFacts } from "../../engine/generated/JoinFacts";
 import { LabPrintStyles } from "../labs/LabPrintStyles";
 
+import { readingSheet } from "../../worksheets/reading";
+
 import { Blank, LinkBlock, PrintMatrix, RuledLines, SketchBox } from "./blocks";
 import {
   exerciseLink,
@@ -32,6 +34,7 @@ import {
   worksheetHref,
 } from "./load";
 import type { WorksheetSource } from "./load";
+import { ReadingSheetView } from "./ReadingSheetView";
 import { joinContext } from "./steps";
 import type { JoinContext } from "./steps";
 import "../labs/labs.css";
@@ -125,6 +128,43 @@ function WorksheetContent({
   id: string;
   kind: string;
 }) {
+  // A reading set has its own sheet (v1.4d Task 13) — no join matrix,
+  // no companion kind: the in-app work is the reading area itself.
+  if (src.kind === "reading") {
+    if (kind === "app") {
+      return (
+        <>
+          <h1>{src.set.title}</h1>
+          <p>
+            A tree-reading set has no in-app worksheet — open it in
+            NeoPhylo, or print the paper worksheet.
+          </p>
+          <p>
+            <a href={exerciseLink(src, id)}>Open the set in NeoPhylo</a>
+            {" · "}
+            <a href={worksheetHref(id, "paper")}>Paper worksheet</a>
+          </p>
+        </>
+      );
+    }
+    if (kind !== "paper") {
+      return (
+        <>
+          <h1>Unknown worksheet kind</h1>
+          <p role="alert" className="error">
+            <code>kind</code> must be <code>paper</code> or{" "}
+            <code>app</code>.
+          </p>
+        </>
+      );
+    }
+    return (
+      <ReadingSheetView
+        set={src.set}
+        sheet={readingSheet(src.set, exerciseLink(src, id))}
+      />
+    );
+  }
   const model = src.kind === "lab" ? src.lab : src.exercise;
   if (kind === "app") {
     return <CompanionSheetView sheet={companionSheet(model)} />;

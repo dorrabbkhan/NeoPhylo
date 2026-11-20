@@ -13,12 +13,13 @@
 //   with no console errors
 // - axe-clean on the sheet and the gated key
 
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
+import lzstring from "lz-string";
 
 import { waitForApp } from "./helpers";
 
@@ -31,6 +32,17 @@ const LAB_IDS = readdirSync(`${EXERCISES}/labs`)
   .filter((f) => f.endsWith(".json"))
   .map((f) => f.replace(/\.json$/, ""));
 const ALL_IDS = [...LESSON_IDS, ...LAB_IDS];
+// Every built-in reading set (v1.4d Task 13): the shipped files —
+// trees-demo included, since it loads like any set — plus the Task-12
+// coverage sets.
+const READING_IDS = [
+  ...readdirSync(`${EXERCISES}/reading`)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(/\.json$/, "")),
+  ...readdirSync(`${EXERCISES}/reading/coverage`)
+    .filter((f) => f.endsWith(".json") && f !== "manifest.json")
+    .map((f) => f.replace(/\.json$/, "")),
+];
 
 // No worksheet test needs the PWA service worker; blocking it also
 // keeps the dev server's sw.js 404 out of the console-error loop below.
@@ -259,6 +271,17 @@ test("a dark-theme session still prints the worksheet pages light", async ({
   await expectLightPrint(
     "/?key=nj-by-hand&kind=paper",
     "Neighbor-Joining, by hand — answer key",
+    true,
+  );
+  // Task 13: the reading sheet and key print light too — dark
+  // tokens on the drawn trees would be unreadable on paper.
+  await expectLightPrint(
+    "/?worksheet=trees-clades-traits&kind=paper",
+    "Clades and shared traits",
+  );
+  await expectLightPrint(
+    "/?key=trees-clades-traits&kind=paper",
+    "Clades and shared traits — answer key",
     true,
   );
 });
@@ -493,6 +516,167 @@ test("every built-in lesson and lab renders its in-app sheet and key without con
   }
 });
 
+// ---- Reading worksheets and keys (v1.4d Task 13, spec §8.4) --------
+// The paper sheet draws every tree in its authored style and carries
+// only answer space — never an answer. The key sits behind the same
+// instructor gate, every line an engine value: the accepted answer,
+// the explanation, and the "authored answer" label where the set
+// authored its own.
+
+/** A reading set's item count, read from its file (not a literal). */
+function readingItemCount(id: string): number {
+  const dir = id.startsWith("cov-")
+    ? `${EXERCISES}/reading/coverage`
+    : `${EXERCISES}/reading`;
+  return (
+    JSON.parse(readFileSync(`${dir}/${id}.json`, "utf8")) as {
+      items: unknown[];
+    }
+  ).items.length;
+}
+
+test("a reading set's paper sheet draws the trees and carries no key text", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-clades-traits&kind=paper");
+  await expect(
+    page.getByRole("heading", {
+      name: "Clades and shared traits",
+      level: 1,
+    }),
+  ).toBeVisible();
+  // One block per shipped item — drawn trees plus answer space.
+  const n = readingItemCount("trees-clades-traits");
+  await expect(page.locator(".ws-items .ws-item")).toHaveCount(n);
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+  await expect(page.locator(".ws-options li").first()).toBeVisible();
+  // The set's own ?read= link and the QR for it.
+  await expect(page.locator("svg.ws-qr")).toBeVisible();
+  await expect(page.locator(".ws-link-text a")).toHaveAttribute(
+    "href",
+    /read=trees-clades-traits/,
+  );
+  // The sheet carries no key text — no answers, explanations, notes
+  // or authored labels anywhere in the DOM.
+  await expect(
+    page.locator(".ws-answer, .ws-explain, .ws-note"),
+  ).toHaveCount(0);
+  await expect(page.getByText("authored answer")).toHaveCount(0);
+});
+
+test("a reading set's gated key shows every engine answer with the authored label", async ({
+  page,
+}) => {
+  const n = readingItemCount("trees-clades-traits");
+  await openKey(page, "/?key=trees-clades-traits&kind=paper");
+  await expect(
+    page.getByRole("heading", {
+      name: "Clades and shared traits — answer key",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "student sheet" }),
+  ).toHaveAttribute("href", "?worksheet=trees-clades-traits&kind=paper");
+  await expect(page.locator(".ws-key-items .ws-item")).toHaveCount(n);
+  await expect(page.locator(".ws-answer")).toHaveCount(n);
+  await expect(page.locator(".ws-explain")).toHaveCount(n);
+  // trees-clades-traits' two-tier item has an authored reason —
+  // labelled, per the spec.
+  await expect(page.getByText("authored answer").first()).toBeVisible();
+});
+
+test("a custom reading set gets a paper sheet and key through #r=", async ({
+  page,
+}) => {
+  const set = {
+    schema_version: 1,
+    kind: "reading",
+    id: "e2e-shared",
+    title: "Shared reading set",
+    summary: "A set carried by its link",
+    mode: "practice",
+    taxa_pool: {},
+    trees: {
+      t: {
+        newick: "((a,b),(c,d));",
+        node_letters: [],
+        marks: [],
+        traits: [],
+        points: [],
+      },
+    },
+    items: [
+      {
+        id: "q-clade",
+        text: "Are {set} a clade in this tree?",
+        trees: ["t"],
+        tips: ["a", "b"],
+        rotate_tool: false,
+        question: { type: "is_clade" },
+      },
+    ],
+  };
+  const hash = `#r=${lzstring.compressToEncodedURIComponent(
+    JSON.stringify({ v: 1, set }),
+  )}`;
+
+  await page.goto(`/?worksheet=custom&kind=paper${hash}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared reading set", level: 1 }),
+  ).toBeVisible();
+  await expect(page.locator(".rt-figure svg")).toBeVisible();
+  // The link block carries the #r= payload itself.
+  await expect(page.locator(".ws-link-text a")).toHaveAttribute(
+    "href",
+    /#r=/,
+  );
+
+  await openKey(page, `/?key=custom&kind=paper${hash}`);
+  await expect(
+    page.getByRole("heading", { name: /— answer key/ }),
+  ).toBeVisible();
+  await expect(page.locator(".ws-answer")).toHaveCount(1);
+});
+
+test("every built-in reading set renders its paper sheet and key without console errors", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(m.text());
+  });
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  let gateDone = false;
+  for (const id of READING_IDS) {
+    errors.length = 0;
+    await page.goto(`/?worksheet=${id}&kind=paper`);
+    // A rendered sheet has items and at least one drawn tree; the
+    // error state has neither, so the figure check pins a real render.
+    await expect(
+      page.locator(".ws-items, .error"),
+      `${id} sheet rendered`,
+    ).toBeVisible();
+    await expect(
+      page.locator(".rt-figure svg").first(),
+      `${id} drew a tree`,
+    ).toBeVisible();
+    expect(errors, `${id} sheet console`).toEqual([]);
+
+    await page.goto(`/?key=${id}&kind=paper`);
+    if (!gateDone) {
+      await passGate(page);
+      gateDone = true;
+    }
+    await expect(
+      page.locator(".ws-key-items, .error"),
+      `${id} key rendered`,
+    ).toBeVisible();
+    expect(errors, `${id} key console`).toEqual([]);
+  }
+});
+
 // Fix round 1 (review 4): under a coarse pointer every interactive
 // element on the worksheet pages — plain links included — meets the
 // 40×40 px target the app promises elsewhere.
@@ -538,6 +722,12 @@ test.describe("coarse-pointer targets", () => {
     await expect(page.locator(".ws-items")).toBeVisible();
     await expectBigTargets(page, "app sheet");
 
+    // Task 13: the reading sheet's links and Show-as-text toggles
+    // meet the same target.
+    await page.goto("/?worksheet=trees-clades-traits&kind=paper");
+    await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+    await expectBigTargets(page, "reading sheet");
+
     await page.goto("/?key=nj-by-hand&kind=paper");
     const gate = page.getByRole("dialog", {
       name: "Answer keys are for instructors",
@@ -577,5 +767,26 @@ test("axe-clean: the paper sheet and the gated key", async ({ page }) => {
   expect(
     keyBad.map((v) => v.id),
     "paper key has no serious/critical axe violations",
+  ).toEqual([]);
+
+  // Task 13: the reading sheet and its gated key are axe-clean too.
+  await page.goto("/?worksheet=trees-clades-traits&kind=paper");
+  await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+  const readSheetScan = await new AxeBuilder({ page }).analyze();
+  expect(
+    readSheetScan.violations.filter(
+      (v) => v.impact === "serious" || v.impact === "critical",
+    ).map((v) => v.id),
+    "reading sheet has no serious/critical axe violations",
+  ).toEqual([]);
+
+  await openKey(page, "/?key=trees-clades-traits&kind=paper");
+  await expect(page.locator(".ws-key-items")).toBeVisible();
+  const readKeyScan = await new AxeBuilder({ page }).analyze();
+  expect(
+    readKeyScan.violations.filter(
+      (v) => v.impact === "serious" || v.impact === "critical",
+    ).map((v) => v.id),
+    "reading key has no serious/critical axe violations",
   ).toEqual([]);
 });

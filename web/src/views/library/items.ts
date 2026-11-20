@@ -15,6 +15,7 @@ import { listLabs } from "../../labs/registry";
 import type { DatasetSummary } from "../../library/registry";
 import { LESSONS } from "../../lessons/catalog";
 import type { ReadingSetSummary } from "../../reading/registry";
+import { keyHref, worksheetHref } from "../worksheets/load";
 
 export type TypeKey = "lessons" | "reading" | "phylip" | "mega" | "datasets";
 
@@ -208,6 +209,65 @@ export function readingItem(s: ReadingSetSummary): CardItem {
     follows: [],
     reading: s,
   };
+}
+
+export interface CardAction {
+  href: string;
+  label: string;
+}
+
+/** A card's action links, in order (v1.4d Task 13): the open link for
+ * the item's own route, then the worksheet and answer-key links its
+ * kind carries. Datasets only open. Reading sets get the paper
+ * worksheet and key — the plan's "paper worksheet, answer key"
+ * actions, which this task activates; lessons and labs keep the
+ * Task-11 in-app/paper pair gated on `paper`. */
+export function cardActions(
+  item: CardItem,
+  paper: boolean | undefined,
+): CardAction[] {
+  if (item.dataset !== undefined) {
+    return [
+      {
+        href: `?ds=${encodeURIComponent(item.id)}`,
+        label: "Open dataset",
+      },
+    ];
+  }
+  if (item.reading !== undefined) {
+    return [
+      {
+        href: `?read=${encodeURIComponent(item.id)}`,
+        label: "Open set",
+      },
+      { href: worksheetHref(item.id, "paper"), label: "Paper worksheet" },
+      { href: keyHref(item.id, "paper"), label: "Answer key" },
+    ];
+  }
+  const open =
+    item.lab !== undefined
+      ? { href: `?lab=${encodeURIComponent(item.id)}`, label: "Open lab" }
+      : {
+          href: `?lesson=${encodeURIComponent(item.id)}`,
+          label: "Open lesson",
+        };
+  const actions: CardAction[] = [
+    open,
+    { href: worksheetHref(item.id, "app"), label: "In-app worksheet" },
+  ];
+  if (paper === true) {
+    actions.push({
+      href: worksheetHref(item.id, "paper"),
+      label: "Paper worksheet",
+    });
+  }
+  if (paper !== undefined) {
+    actions.push({
+      href: keyHref(item.id, paper ? "paper" : "app"),
+      label: "Answer key",
+    });
+  }
+  return actions;
 }
 
 /** A dataset index entry as a card. */
