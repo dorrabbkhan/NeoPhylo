@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "cov-structural",
+  "title": "Coverage — lettered nodes, points, clades and subtrees",
+  "summary": "Coverage items on a lettered abstract tree: MRCA at lettered points, placing a taxon on a branch, clade membership, smallest clade, counting clades, subtree agreement and node ordering.",
+  "taxa_pool": {},
+  "trees": {
+    "letters8": {
+      "newick": "(((A,B),(C,D)),((E,F),(G,H)));",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        { "on": ["A", "B", "C", "D"], "letter": "P" },
+        { "on": ["E", "F", "G", "H"], "letter": "Q" }
+      ],
+      "points": [
+        { "at": "node", "on": ["A", "B"], "letter": "W" },
+        { "at": "node", "on": ["G", "H"], "letter": "X" },
+        { "at": "branch", "on": ["E", "F"], "letter": "Y" },
+        { "at": "branch", "on": ["C", "D"], "letter": "V" },
+        { "at": "node", "on": ["C"], "letter": "Z" }
+      ]
+    },
+    "ref8": {
+      "newick": "(((A,B),(C,D)),((E,F),(G,H)));"
+    },
+    "small-1": {
+      "newick": "(A,(C,D));"
+    },
+    "small-2": {
+      "newick": "(E,(G,H));"
+    },
+    "cand-ok": {
+      "newick": "(((A,B),(C,D)),((E,F),(G,H)));"
+    },
+    "cand-bad": {
+      "newick": "(((A,C),(B,D)),((E,F),(G,H)));"
+    },
+    "conf-c": {
+      "newick": "((A,C),D);"
+    }
+  },
+  "items": [
+    {
+      "id": "q-mrca-points",
+      "text": "At which lettered point is the most recent common ancestor of A and B?",
+      "trees": ["letters8"],
+      "tips": ["A", "B"],
+      "question": { "type": "mrca", "options": ["W", "X", "Y"] }
+    },
+    {
+      "id": "q-place",
+      "text": "A new tip, newt, is the sister of the clade {set}. Which lettered point shows where it attaches?",
+      "trees": ["letters8"],
+      "tips": ["C", "D"],
+      "question": {
+        "type": "place_taxon",
+        "name": "newt",
+        "sister": ["C", "D"]
+      }
+    },
+    {
+      "id": "q-mrca",
+      "text": "Tap the most recent common ancestor of {set}.",
+      "trees": ["letters8"],
+      "tips": ["A", "E"],
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-clade",
+      "text": "Do {set} form a clade — a node plus every tip that descends from it?",
+      "trees": ["letters8"],
+      "style": { "shape": "diagonal", "tips": "left" },
+      "tips": ["E", "F", "G"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-smallest",
+      "text": "Tap the smallest clade that contains {set}.",
+      "trees": ["letters8"],
+      "tips": ["A", "C"],
+      "question": { "type": "smallest_clade" }
+    },
+    {
+      "id": "q-count",
+      "text": "How many clades does this tree show? Count every internal node, including the root; single tips are not clades.",
+      "trees": ["letters8"],
+      "question": { "type": "count_clades" }
+    },
+    {
+      "id": "q-fits",
+      "text": "Which large tree agrees with BOTH small trees shown below it?",
+      "trees": ["cand-ok", "cand-bad"],
+      "question": {
+        "type": "which_fits",
+        "small": ["small-1", "small-2"]
+      }
+    },
+    {
+      "id": "q-conflict",
+      "text": "Which small tree conflicts with the relationships in the large tree?",
+      "trees": ["small-1", "conf-c", "small-2"],
+      "question": {
+        "type": "which_differs",
+        "reference": "ref8"
+      }
+    },
+    {
+      "id": "q-order-letters",
+      "text": "Order the lettered nodes from oldest to youngest.",
+      "trees": ["letters8"],
+      "note_after": "A node is older than every node below it. Nodes on separate lineages — like P and Q — cannot be ordered: every order consistent with ancestry is accepted.",
+      "question": { "type": "order_nodes", "nodes": ["P", "Q", "R"] }
+    }
+  ]
+}

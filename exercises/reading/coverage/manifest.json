@@ -1,0 +1,354 @@
+{
+  "entries": [
+    {
+      "id": "cov-styles",
+      "format": "which-differs",
+      "mirrors": "Baum et al. 2005, Quiz I item 6 format",
+      "items": ["q-diff-rect", "q-diff-circ", "q-diff-diag", "q-all-same"],
+      "styles": [
+        "rectangular:right",
+        "rectangular:left",
+        "diagonal:up",
+        "diagonal:left",
+        "diagonal:down",
+        "circular:right",
+        "circular:up",
+        "circular:left",
+        "circular:down"
+      ],
+      "features": []
+    },
+    {
+      "id": "cov-styles",
+      "format": "restyled-differs",
+      "mirrors": "Baum et al. 2005, Quiz II tree-structure format",
+      "items": ["q-diff-circ", "q-diff-diag", "q-all-same"],
+      "styles": [
+        "rectangular:left",
+        "diagonal:up",
+        "diagonal:left",
+        "diagonal:down",
+        "circular:right",
+        "circular:up",
+        "circular:left",
+        "circular:down"
+      ],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "closest-relative",
+      "mirrors": "Baum et al. 2005, Quiz I format; Kummer et al. 2019 ETCI, learning outcome 1a",
+      "items": ["q-closest"],
+      "styles": ["diagonal:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "most-distant",
+      "mirrors": "Baum et al. 2005, Quiz I format",
+      "items": ["q-distant"],
+      "styles": ["diagonal:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "pairwise-equally",
+      "mirrors": "Baum et al. 2005, Quiz I format; Naegle TTCI (Gibson & Hoefnagels)",
+      "items": ["q-pair", "q-pair-poly"],
+      "styles": ["rectangular:up", "rectangular:right"],
+      "features": ["polytomy"]
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "relatedness-vs-resemblance",
+      "mirrors": "Kummer et al. 2019 ETCI, relatedness misconception",
+      "items": ["q-similar"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "two-tier",
+      "mirrors": "Kummer et al. 2019 ETCI, two-tier item format",
+      "items": ["q-similar"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "meaning-lines",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 1b",
+      "items": ["q-lines"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "meaning-nodes",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 1b",
+      "items": ["q-parts"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "concept-progress",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 2",
+      "items": ["q-progress"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-relatedness",
+      "format": "concept-still-evolving",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 2",
+      "items": ["q-still"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "mrca",
+      "mirrors": "Baum et al. 2005, Quiz I format",
+      "items": ["q-mrca"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "mrca-lettered-points",
+      "mirrors": "Baum et al. 2005, Quiz I item with lettered points",
+      "items": ["q-mrca-points"],
+      "styles": ["rectangular:right"],
+      "features": ["points"]
+    },
+    {
+      "id": "cov-structural",
+      "format": "place-taxon",
+      "mirrors": "Baum et al. 2005, Quiz I place-a-taxon format",
+      "items": ["q-place"],
+      "styles": ["rectangular:right"],
+      "features": ["branch-points"]
+    },
+    {
+      "id": "cov-structural",
+      "format": "clade-membership",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 1a",
+      "items": ["q-clade"],
+      "styles": ["diagonal:left"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "smallest-clade",
+      "mirrors": "Baum et al. 2005, Quiz I format",
+      "items": ["q-smallest"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "count-clades",
+      "mirrors": "Kummer et al. 2019 ETCI, clade counting",
+      "items": ["q-count"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "which-fits",
+      "mirrors": "Baum et al. 2005, Quiz II which-tree-fits format",
+      "items": ["q-fits"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "reference-conflict",
+      "mirrors": "Baum et al. 2005, Quiz II conflict format",
+      "items": ["q-conflict"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-structural",
+      "format": "order-nodes",
+      "mirrors": "Baum et al. 2005, Quiz I node-order format",
+      "items": ["q-order-letters"],
+      "styles": ["rectangular:right"],
+      "features": ["letters"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "trait-which-have",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 3",
+      "items": ["q-have"],
+      "styles": ["diagonal:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "trait-has-not",
+      "mirrors": "Baum et al. 2005, Quiz II trait-gains-and-losses format",
+      "items": ["q-hasnot"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "trait-profile",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 3",
+      "items": ["q-profile"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "trait-gain-order",
+      "mirrors": "Baum et al. 2005, Quiz II order-of-gains format",
+      "items": ["q-changes", "q-marks-select"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "ancestral-vs-derived",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 3",
+      "items": ["q-ancder"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "homologous-vs-independent",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 3",
+      "items": ["q-homo"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "trait-group-phyly",
+      "mirrors": "Kummer et al. 2019 ETCI, learning outcome 1a",
+      "items": ["q-mono", "q-para", "q-poly"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-traits",
+      "format": "shared-derived",
+      "mirrors": "Kummer et al. 2019 ETCI, synapomorphy outcome",
+      "items": ["q-shared", "q-marks-select"],
+      "styles": ["rectangular:right"],
+      "features": ["marks"]
+    },
+    {
+      "id": "cov-statements",
+      "format": "select-true",
+      "mirrors": "Baum et al. 2005, Quiz II true/false format",
+      "items": ["q-two-trees", "q-ages"],
+      "styles": ["rectangular:right", "rectangular:left", "rectangular:down"],
+      "features": ["letters", "time-axis", "fossil-tips"]
+    },
+    {
+      "id": "cov-statements",
+      "format": "select-true-across-trees",
+      "mirrors": "Baum et al. 2005, statements across two diagrams",
+      "items": ["q-two-trees"],
+      "styles": ["rectangular:right", "rectangular:left", "rectangular:down"],
+      "features": []
+    },
+    {
+      "id": "cov-statements",
+      "format": "clade-in-not-in",
+      "mirrors": "Baum et al. 2005, Quiz II clade-in-one-tree format",
+      "items": ["q-two-trees"],
+      "styles": ["rectangular:right", "rectangular:left", "rectangular:down"],
+      "features": []
+    },
+    {
+      "id": "cov-statements",
+      "format": "rotation-vs-different",
+      "mirrors": "Kummer et al. 2019 ETCI, rotation misconception",
+      "items": ["q-two-trees"],
+      "styles": ["rectangular:right", "rectangular:left", "rectangular:down"],
+      "features": []
+    },
+    {
+      "id": "cov-statements",
+      "format": "order-nodes-times",
+      "mirrors": "Baum et al. 2005, Quiz II time-order format",
+      "items": ["q-order-ages"],
+      "styles": ["rectangular:right"],
+      "features": ["letters", "time-axis", "fossil-tips"]
+    },
+    {
+      "id": "cov-statements",
+      "format": "ages-vs-date",
+      "mirrors": "Baum et al. 2005, Quiz II fossil-date format",
+      "items": ["q-ages"],
+      "styles": ["rectangular:right"],
+      "features": ["letters", "time-axis", "fossil-tips"]
+    },
+    {
+      "id": "cov-statements",
+      "format": "no-time-component",
+      "mirrors": "Baum et al. 2005, Quiz I diagram-has-no-time format",
+      "items": ["q-no-time"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-statements",
+      "format": "soft-polytomy",
+      "mirrors": "Naegle TTCI (Gibson & Hoefnagels), kept as a concept item",
+      "items": ["q-poly-meaning"],
+      "styles": ["rectangular:right"],
+      "features": ["polytomy"]
+    },
+    {
+      "id": "cov-statements",
+      "format": "dendrogram-vs-phylogeny",
+      "mirrors": "Baum et al. 2005, kept as a concept item",
+      "items": ["q-dendro"],
+      "styles": ["rectangular:right"],
+      "features": []
+    },
+    {
+      "id": "cov-statements",
+      "format": "co-evolution-trees",
+      "mirrors": "Baum et al. 2005, kept as a concept item",
+      "items": ["q-coev"],
+      "styles": ["rectangular:right"],
+      "features": []
+    }
+  ],
+  "gaps": [
+    {
+      "format": "character-matrix fit / most-parsimonious placement",
+      "deferred_to": "v2.0",
+      "reason": "Needs the matrix view and parsimony scoring; Task 13/14 groundwork is not in this milestone."
+    },
+    {
+      "format": "branch lengths drawn to a scale bar / V-shaped unrooted trees",
+      "deferred_to": "v2.0",
+      "reason": "Reading sets carry topology only; branch lengths and unrooted layouts are scheduled for the v2.0 format pass."
+    },
+    {
+      "format": "colour-mapped ancestral-state reconstructions / counting migrations on a map",
+      "deferred_to": "v2.7",
+      "reason": "Needs the geographic/ancestral-state renderer planned for v2.7."
+    },
+    {
+      "format": "support values on branches",
+      "deferred_to": "v2.x",
+      "reason": "No support-value field on reading trees yet; follows the v2 confidence-interval work."
+    },
+    {
+      "format": "error bars on node ages / external event lines on the axis",
+      "deferred_to": "v2.6",
+      "reason": "Needs age ranges and event markers on the time axis; axis work is scheduled for v2.6."
+    }
+  ]
+}

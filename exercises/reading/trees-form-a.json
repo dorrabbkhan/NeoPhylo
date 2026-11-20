@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-form-a",
+  "title": "Tree reading — form A",
+  "summary": "A short before/after check of tree-reading skills — relatedness, clades and trait marks on animals and plants. These are NeoPhylo's own questions, not a validated instrument.",
+  "meta": {
+    "objectives": [
+      "Compare trees and read relatedness from shared ancestry",
+      "Tell clades from other groups and read trait marks including losses"
+    ],
+    "minutes": 15,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "test",
+  "taxa_pool": {
+    "felids": ["cheetah", "puma", "lion", "tiger", "leopard", "jaguar"],
+    "plants": ["moss", "fern", "pine", "oak", "cactus"],
+    "tetrapods": ["shark", "frog", "camel", "pig", "hippo", "dolphin"]
+  },
+  "trees": {
+    "cats": {
+      "newick": "((cheetah,puma),(lion,tiger,leopard,jaguar));"
+    },
+    "cats-rot": {
+      "newick": "((jaguar,leopard,tiger,lion),(puma,cheetah));"
+    },
+    "cats-diff": {
+      "newick": "((cheetah,puma),(lion,(tiger,(leopard,jaguar))));"
+    },
+    "cats-lettered": {
+      "newick": "((cheetah,puma),(lion,tiger,leopard,jaguar));",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        { "on": ["cheetah", "puma"], "letter": "F" },
+        { "on": ["jaguar", "leopard", "lion", "tiger"], "letter": "P" }
+      ]
+    },
+    "plants": {
+      "newick": "(moss,(fern,(pine,(oak,cactus))));",
+      "marks": [
+        {
+          "on": ["fern", "pine", "oak", "cactus"],
+          "trait": "vascular tissue",
+          "change": "gain"
+        },
+        {
+          "on": ["pine", "oak", "cactus"],
+          "trait": "seeds",
+          "change": "gain"
+        },
+        { "on": ["oak", "cactus"], "trait": "flowers", "change": "gain" }
+      ],
+      "traits": [
+        {
+          "name": "vascular tissue",
+          "ancestral": "non-vascular",
+          "derived": "vascular"
+        },
+        { "name": "seeds", "ancestral": "seedless", "derived": "seeded" },
+        {
+          "name": "flowers",
+          "ancestral": "flowerless",
+          "derived": "flowering"
+        }
+      ]
+    },
+    "whales": {
+      "newick": "(shark,(frog,(camel,(pig,(hippo,dolphin)))));",
+      "marks": [
+        {
+          "on": ["frog", "camel", "pig", "hippo", "dolphin"],
+          "trait": "limbs",
+          "change": "gain"
+        },
+        { "on": ["dolphin"], "trait": "limbs", "change": "loss" },
+        {
+          "on": ["camel", "pig", "hippo", "dolphin"],
+          "trait": "hair",
+          "change": "gain"
+        },
+        {
+          "on": ["dolphin"],
+          "trait": "echolocation",
+          "change": "gain"
+        }
+      ],
+      "traits": [
+        { "name": "limbs", "ancestral": "limbless", "derived": "limbed" },
+        { "name": "hair", "ancestral": "hairless", "derived": "hairy" },
+        {
+          "name": "echolocation",
+          "ancestral": "no echolocation",
+          "derived": "echolocates"
+        }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-parts",
+      "text": "What does an internal node — a point where branches meet — on this tree represent?",
+      "trees": ["cats"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "A common ancestor of the lineages that meet there",
+          "A living species",
+          "A measure of how similar two tips are"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-rot",
+      "text": "One of these trees shows different relationships from the other two. Rotate nodes freely — which tree is it?",
+      "trees": ["cats", "cats-rot", "cats-diff"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "rectangular", "tips": "up" },
+          { "shape": "diagonal", "tips": "right" }
+        ]
+      },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-select",
+      "text": "Select every true statement. The node letters are on the first tree.",
+      "trees": ["cats-lettered", "cats-rot", "cats-diff"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 1,
+            "text": "The first and second trees show the same relationships."
+          },
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 2,
+            "text": "The first and third trees show the same relationships."
+          },
+          {
+            "kind": "older_than",
+            "p": "R",
+            "q": "F",
+            "text": "Node R is older than node F."
+          },
+          {
+            "kind": "older_than",
+            "p": "F",
+            "q": "P",
+            "text": "Node F is older than node P."
+          }
+        ]
+      }
+    },
+    {
+      "id": "q-closest",
+      "text": "Tap {a}'s closest relative.",
+      "trees": ["cats"],
+      "a": "cheetah",
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-pair",
+      "text": "Is {a} more closely related to {b} or to {c}?",
+      "trees": ["cats"],
+      "a": "cheetah",
+      "b": "puma",
+      "c": "lion",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-sea",
+      "text": "A {a} looks more like a {c} than a {b} — but which is it more closely related to?",
+      "trees": ["whales"],
+      "a": "dolphin",
+      "b": "hippo",
+      "c": "shark",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-clade",
+      "text": "Do {set} form a clade — a node plus every tip that descends from it?",
+      "trees": ["plants"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "tips": ["fern", "oak", "pine"],
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-smallest",
+      "text": "Tap the smallest clade that contains {set}.",
+      "trees": ["whales"],
+      "tips": ["camel", "dolphin"],
+      "question": { "type": "smallest_clade" }
+    },
+    {
+      "id": "q-mono",
+      "text": "Are the taxa with hair monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["whales"],
+      "question": { "type": "is_clade", "by_trait": "hair" }
+    },
+    {
+      "id": "q-para",
+      "text": "Are the taxa with limbs monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["whales"],
+      "question": { "type": "is_clade", "by_trait": "limbs" }
+    },
+    {
+      "id": "q-have",
+      "text": "Tap every tip that has limbs.",
+      "trees": ["whales"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "which_have", "trait_name": "limbs" }
+      }
+    },
+    {
+      "id": "q-order",
+      "text": "Order the lettered nodes from oldest to youngest.",
+      "trees": ["cats-lettered"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "note_after": "A node is older than every node below it. Nodes on separate lineages — like F and P — cannot be ordered: every order consistent with ancestry is accepted.",
+      "question": { "type": "order_nodes", "nodes": ["F", "P", "R"] }
+    }
+  ]
+}

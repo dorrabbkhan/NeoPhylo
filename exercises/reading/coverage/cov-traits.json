@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "cov-traits",
+  "title": "Coverage — trait marks, gains, losses and groups",
+  "summary": "Coverage items on a lettered tree with trait marks: which tips have a trait, shared derived traits, profiles, gains and losses, homologous versus independent origins, and mono-, para- and polyphyletic groups.",
+  "taxa_pool": {},
+  "trees": {
+    "beasties": {
+      "newick": "((a,(b,c)),(d,e));",
+      "marks": [
+        { "on": ["a", "b", "c"], "trait": "armor", "change": "gain" },
+        { "on": ["a", "b", "c"], "trait": "plumes", "change": "gain" },
+        { "on": ["b"], "trait": "plumes", "change": "loss" },
+        { "on": ["a"], "trait": "venom", "change": "gain" },
+        { "on": ["d"], "trait": "venom", "change": "gain" },
+        { "on": ["d", "e"], "trait": "shell", "change": "gain" }
+      ],
+      "traits": [
+        { "name": "armor", "ancestral": "unarmored", "derived": "armored" },
+        { "name": "plumes", "ancestral": "unplumed", "derived": "plumed" },
+        { "name": "venom", "ancestral": "harmless", "derived": "venomous" },
+        { "name": "shell", "ancestral": "shell-less", "derived": "shelled" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-have",
+      "text": "Tap every tip that has armor.",
+      "trees": ["beasties"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "which_have", "trait_name": "armor" }
+      }
+    },
+    {
+      "id": "q-hasnot",
+      "text": "Tap every tip that has plumes but lacks venom.",
+      "trees": ["beasties"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "has_not", "has": "plumes", "lacks": "venom" }
+      }
+    },
+    {
+      "id": "q-profile",
+      "text": "Which traits does d have? Select all that apply.",
+      "trees": ["beasties"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "profile", "tip": "d" }
+      }
+    },
+    {
+      "id": "q-changes",
+      "text": "How many times did plumes change on this tree? Count every gain and every loss mark.",
+      "trees": ["beasties"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "how_many_changes", "trait_name": "plumes" }
+      }
+    },
+    {
+      "id": "q-ancder",
+      "text": "In d, is armor the ancestral state or the derived state?",
+      "trees": ["beasties"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "ancestral_or_derived", "trait_name": "armor", "tip": "d" }
+      }
+    },
+    {
+      "id": "q-homo",
+      "text": "a and d both have venom. Is their venom homologous — inherited from a common ancestor that already had it — or did it arise independently?",
+      "trees": ["beasties"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "homologous", "trait_name": "venom", "x": "a", "y": "d" }
+      }
+    },
+    {
+      "id": "q-mono",
+      "text": "Are the tips with armor monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["beasties"],
+      "question": { "type": "is_clade", "by_trait": "armor" }
+    },
+    {
+      "id": "q-para",
+      "text": "Are the tips with plumes monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["beasties"],
+      "question": { "type": "is_clade", "by_trait": "plumes" }
+    },
+    {
+      "id": "q-poly",
+      "text": "Are the tips with venom monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["beasties"],
+      "question": { "type": "is_clade", "by_trait": "venom" }
+    },
+    {
+      "id": "q-shared",
+      "text": "Which trait do a, b and c share — present in all three and absent from d and e?",
+      "trees": ["beasties"],
+      "tips": ["a", "b", "c"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "which_shared", "tips": ["a", "b", "c"] }
+      }
+    },
+    {
+      "id": "q-marks-select",
+      "text": "Select every true statement.",
+      "trees": ["beasties"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "shared_derived",
+            "trait_name": "armor",
+            "tips": ["a", "b"],
+            "text": "a and b share armor as a derived trait — it arose once in their common ancestor."
+          },
+          {
+            "kind": "shared_derived",
+            "trait_name": "venom",
+            "tips": ["a", "d"],
+            "text": "a and d share venom as a derived trait — it arose once in their common ancestor."
+          },
+          {
+            "kind": "gained_within",
+            "inner": "plumes",
+            "outer": "armor",
+            "text": "Plumes arose within a lineage that already had armor."
+          },
+          {
+            "kind": "gained_within",
+            "inner": "armor",
+            "outer": "plumes",
+            "text": "Armor arose within a lineage that already had plumes."
+          },
+          {
+            "kind": "has_trait",
+            "tip": "c",
+            "trait_name": "armor",
+            "text": "c has armor."
+          },
+          {
+            "kind": "has_trait",
+            "tip": "b",
+            "trait_name": "plumes",
+            "text": "b has plumes."
+          }
+        ]
+      }
+    }
+  ]
+}

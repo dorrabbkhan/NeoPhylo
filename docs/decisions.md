@@ -8932,3 +8932,45 @@ scroll end".
     updated, plus a `data-cue="left"` pin on the scroll-end scene.
   - `web/e2e/__screenshots__/` — the two regenerated baselines above.
   - `docs/decisions.md` — this entry.
+
+## v1.4d Task 12: forms A and B, format-coverage set (owner review)
+
+Two before/after forms (`trees-form-a`, `trees-form-b`, `mode:
+"test"`, 12 items each, same misconception-category list, each with a
+trait-loss item, familiar and unfamiliar taxa) and the format-coverage
+sets under `exercises/reading/coverage/` — `cov-styles`,
+`cov-relatedness`, `cov-structural`, `cov-traits`, `cov-statements` —
+plus `manifest.json` mapping every §8.3 bullet to the items that carry
+it and listing the deferred format gaps. The content oracle
+`crates/neophylo-core/tests/reading_content.rs` now stores the
+expected answer of every form and coverage item, the per-item
+misconception categories, and the manifest↔spec coverage checks; the
+coverage e2e `web/e2e/reading-coverage.spec.ts` renders every set in
+its manifest styles and round-trips three coverage items through the
+Task-10 editor.
+
+- Baselines: owner approved regenerating the `library` scene (6
+  files) because forms A and B add Tree reading cards
+  - `web/e2e/__screenshots__/library-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/library-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/library-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/library-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/library-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/library-768x1024-dark-linux.png`
+- **Files outside the task's Files block:**
+  - `web/e2e/visualScenes.ts` (owner-approved): the `library` scene's
+    reading-card count is now computed from the shipped
+    `exercises/reading/*.json` files minus `trees-demo` (6 after this
+    task) instead of the literal 4.
+  - `web/src/views/reading/ReadingTree.tsx`: the figure element now
+    carries `data-shape`/`data-tips` so the coverage e2e asserts the
+    styles the manifest lists against the rendered DOM rather than
+    the JSON alone.
+  - `exercises/reading/SOURCES.md`: provenance for the new form and
+    coverage trees (same pattern as Task 11).
+  - `docs/decisions.md`: this entry.
+- **Follow-ups noticed:** the editor's `has_not` ask fields are
+  tap-only readouts that capture the tapped *tip* name, but the wire
+  ask expects trait names — a `has_not` item cannot currently be
+  authored correctly through the reading editor (the round-trip e2e
+  uses `homologous` for its trait-mark item instead).
