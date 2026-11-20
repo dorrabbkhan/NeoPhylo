@@ -8975,7 +8975,7 @@ Task-10 editor.
   authored correctly through the reading editor (the round-trip e2e
   uses `homologous` for its trait-mark item instead).
 - **Fix round 1 (owner review):** `cetartiodactyls` ages re-set to
-  cited estimates (R 70 / W 60 — Hassanin et al. 2012 Table 2 means;
+  cited estimates (R 70 / W 60 — Hassanin et al. 2012 Table 1 means;
   C 45, N 35, basilosaurus 37 — fossil literature, all in SOURCES.md
   with DOIs) and `q-ages` thresholds moved to 30/65 so every
   `lineage_at_least` statement reads the same under the fossil-bound
@@ -8991,3 +8991,5 @@ Task-10 editor.
   new `arthropods` tree (`q-sea`, `q-smallest` — OTL-checked,
   SOURCES entry) and ginkgo in `plants` (`q-clade`); a test comment
   names the unfamiliar-taxa items in each form.
+- **Fix round 2 (owner-approved):** Hassanin et al. 2012 table
+  reference corrected to Table 1.

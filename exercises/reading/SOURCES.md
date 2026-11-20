@@ -400,7 +400,9 @@ as `trees-demo`; they carry letters, not taxa, and need no source.
   mitochondrial genomes", *C. R. Biologies* 335:32–50,
   doi:10.1016/j.crvi.2011.11.002 — its Bayesian relaxed-clock
   means are 69.7 Ma (BD-SOFT) / 69.0 Ma (BD-HARD) for
-  Cetruminantia and 60.1 / 57.7 Ma for Whippomorpha (Table 2);
+  Cetruminantia and 60.1 / 57.7 Ma for Whippomorpha (Table 1;
+  BD-SOFT / BD-HARD models, the paper's UNI-HARD model gives
+  55.1 and 52.1);
   both fall inside the range of published estimates compiled in
   J. Gatesy 2009, "Whales and even-toed ungulates
   (Cetartiodactyla)" in Hedges & Kumar, *The Timetree of Life*,
