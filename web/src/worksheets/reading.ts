@@ -274,9 +274,10 @@ function spaceFor(
 }
 
 /** The accepted answer as one line of key text — engine values only:
- * tip sets join "a, b and c" like the explanations do; a `choices`
- * answer renders the same option texts the sheet printed; orders name
- * their rule rather than a sequence the engine chose not to fix. */
+ * tip sets join "a, b and c" like the explanations do; `choices` and
+ * `select_true` answers render the same option texts the sheet
+ * printed; orders name their rule rather than a sequence the engine
+ * chose not to fix. */
 function acceptedText(
   q: Question,
   item: Item,
@@ -310,14 +311,16 @@ function acceptedText(
           ? `closer to ${item.c ?? "C"}`
           : "equally close";
     case "statements": {
+      // The sheet lists the statements as unnumbered tick options, so
+      // the key names each true one by the same text it printed —
+      // an index would give the marker nothing to match against.
+      const opts = choiceOptions(q, item, tree);
       const trues = acc.value
-        .map((v, i) => (v ? i + 1 : 0))
-        .filter((n) => n > 0);
+        .map((v, i) => (v ? opts[i] : undefined))
+        .filter((t): t is string => t !== undefined);
       return trues.length === 0
         ? "no statement is true"
-        : trues.length === 1
-          ? `statement ${trues[0]} is true`
-          : `statements ${joinAnd(trues.map(String))} are true`;
+        : trues.join("; ");
     }
     case "two_tier":
       if (q.type === "two_tier") {

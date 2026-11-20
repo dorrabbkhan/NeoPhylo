@@ -9048,3 +9048,8 @@ cards now link both.
 - **Not done here:** `?worksheet=<reading-id>&kind=app` and
   `?key=<reading-id>&kind=app` point at the paper kind — a reading
   set's in-app work is the reading area itself.
+- **Fix round 1:** key names true statements by text — the
+  `select_true` accepted answer renders each true statement's filled
+  text ("; "-joined) instead of an index the unnumbered sheet never
+  shows; the `worksheet-reading-key*` baselines (10 files) were
+  regenerated for it.

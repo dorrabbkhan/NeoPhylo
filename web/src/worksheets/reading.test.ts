@@ -179,6 +179,51 @@ describe("readingKey", () => {
     expect(sawAges).toBe(true);
   });
 
+  it("select_true keys name each true statement by its printed text", () => {
+    let saw = 0;
+    for (const [id, set] of SETS) {
+      const k = readingKey(set);
+      if (!k.ok) continue;
+      set.items.forEach((item, i) => {
+        const q = effective(item.question);
+        if (q.type !== "select_true") return;
+        const a = engine.readingAnswer(set, i);
+        expect(a.ok, `${id}#${item.id} answers`).toBe(true);
+        if (!a.ok) return;
+        const acc =
+          a.value.accepted.kind === "two_tier"
+            ? a.value.accepted.value.first
+            : a.value.accepted;
+        if (acc.kind !== "statements") return;
+        saw += 1;
+        const answer = k.value.items[i].answer;
+        // The engine's truth flags against the same filled texts the
+        // sheet printed — a marker matches words, never an index.
+        const texts = q.statements.map((s) =>
+          fillPlaceholders(s.text, item),
+        );
+        acc.value.forEach((truth, j) => {
+          if (truth) {
+            expect(
+              answer,
+              `${id}#${item.id} omits a true statement`,
+            ).toContain(texts[j]);
+          } else {
+            expect(
+              answer,
+              `${id}#${item.id} names a false statement`,
+            ).not.toContain(texts[j]);
+          }
+        });
+        expect(
+          answer,
+          `${id}#${item.id} prints a statement index`,
+        ).not.toMatch(/\bstatements? \d/);
+      });
+    }
+    expect(saw).toBeGreaterThan(0);
+  });
+
   it("every authored key item is labelled", () => {
     let authored = 0;
     for (const [id, set] of SETS) {
