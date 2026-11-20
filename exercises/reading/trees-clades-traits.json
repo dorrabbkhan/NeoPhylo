@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-clades-traits",
+  "title": "Clades and shared traits",
+  "summary": "A clade is a node plus every tip that descends from it. Read trait marks — gains and losses on branches — to find clades, and meet monophyletic, paraphyletic and polyphyletic groups.",
+  "meta": {
+    "objectives": [
+      "Test whether a set of tips forms a clade",
+      "Read trait marks as gains and losses on the branches below them",
+      "Tell monophyletic, paraphyletic and polyphyletic trait groups apart"
+    ],
+    "minutes": 18,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "practice",
+  "taxa_pool": {
+    "amniote-vertebrates": [
+      "chicken",
+      "frog",
+      "human",
+      "lizard",
+      "mouse",
+      "shark",
+      "snake"
+    ]
+  },
+  "trees": {
+    "amniotes": {
+      "newick": "(shark,(frog,((human,mouse),(chicken,(lizard,snake)))));",
+      "marks": [
+        {
+          "on": ["chicken", "human", "lizard", "mouse", "snake"],
+          "trait": "amniotic egg",
+          "change": "gain"
+        },
+        {
+          "on": ["chicken", "frog", "human", "lizard", "mouse", "snake"],
+          "trait": "limbs",
+          "change": "gain"
+        },
+        { "on": ["snake"], "trait": "limbs", "change": "loss" },
+        { "on": ["chicken"], "trait": "endothermy", "change": "gain" },
+        {
+          "on": ["human", "mouse"],
+          "trait": "endothermy",
+          "change": "gain"
+        },
+        { "on": ["human", "mouse"], "trait": "hair", "change": "gain" }
+      ],
+      "traits": [
+        {
+          "name": "amniotic egg",
+          "ancestral": "no amniotic egg",
+          "derived": "amniotic egg"
+        },
+        { "name": "limbs", "ancestral": "limbless", "derived": "limbed" },
+        {
+          "name": "endothermy",
+          "ancestral": "ectothermic",
+          "derived": "endothermic"
+        },
+        { "name": "hair", "ancestral": "hairless", "derived": "hairy" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-clade-yes",
+      "text": "Do {set} form a clade — a node plus every tip that descends from it?",
+      "trees": ["amniotes"],
+      "tips": ["chicken", "lizard", "snake"],
+      "note_after": "{set} are exactly the descendants of one node — nothing left out, nothing extra.",
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-clade-no",
+      "text": "Do {set} form a clade?",
+      "trees": ["amniotes"],
+      "tips": ["chicken", "human", "lizard"],
+      "note_after": "Their common ancestor has other descendants too — a clade must include every tip below the node.",
+      "question": { "type": "is_clade" }
+    },
+    {
+      "id": "q-mono",
+      "text": "The marks show where traits changed. Are the taxa with an amniotic egg monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["amniotes"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "note_after": "The trait arose once, and the taxa carrying it are exactly that clade — monophyletic.",
+      "rotate_tool": true,
+      "question": { "type": "is_clade", "by_trait": "amniotic egg" }
+    },
+    {
+      "id": "q-para",
+      "text": "Are the taxa with limbs monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["amniotes"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "note_after": "Limbs arose once on the shared stem and one lineage inside the clade later lost them — the limbed taxa are that clade minus a lineage: paraphyletic.",
+      "question": { "type": "is_clade", "by_trait": "limbs" }
+    },
+    {
+      "id": "q-poly",
+      "text": "Are the endothermic taxa monophyletic, paraphyletic or polyphyletic?",
+      "trees": ["amniotes"],
+      "style": { "shape": "circular", "tips": "right" },
+      "note_after": "Endothermy arose twice, in the mammal line and in the bird line — separate origins make the group polyphyletic.",
+      "question": { "type": "is_clade", "by_trait": "endothermy" }
+    },
+    {
+      "id": "q-have",
+      "text": "Tap every tip that has hair.",
+      "trees": ["amniotes"],
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "which_have", "trait_name": "hair" }
+      }
+    },
+    {
+      "id": "q-shared",
+      "text": "Which trait is shared by exactly {set} — a shared derived trait of that clade?",
+      "trees": ["amniotes"],
+      "tips": ["human", "mouse"],
+      "note_after": "A trait marking exactly one clade is a shared derived trait — a synapomorphy — of that clade.",
+      "question": {
+        "type": "trait",
+        "ask": { "kind": "which_shared", "tips": ["human", "mouse"] }
+      }
+    },
+    {
+      "id": "q-homo",
+      "text": "Is endothermy in {a} and {b} homologous — inherited from a single origin — or did it arise independently?",
+      "trees": ["amniotes"],
+      "a": "chicken",
+      "b": "human",
+      "question": {
+        "type": "trait",
+        "ask": {
+          "kind": "homologous",
+          "trait_name": "endothermy",
+          "x": "chicken",
+          "y": "human"
+        }
+      }
+    },
+    {
+      "id": "q-synap",
+      "text": "Select every true statement about the trait marks.",
+      "trees": ["amniotes"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "gained_within",
+            "inner": "hair",
+            "outer": "amniotic egg",
+            "text": "Hair arose within a lineage that already had the amniotic egg."
+          },
+          {
+            "kind": "gained_within",
+            "inner": "amniotic egg",
+            "outer": "hair",
+            "text": "The amniotic egg arose within a lineage that already had hair."
+          },
+          {
+            "kind": "gained_within",
+            "inner": "limbs",
+            "outer": "amniotic egg",
+            "text": "Limbs arose within a lineage that already had the amniotic egg."
+          }
+        ]
+      }
+    },
+    {
+      "id": "q-two",
+      "text": "Do {set} form a clade — and why?",
+      "trees": ["amniotes"],
+      "tips": ["lizard", "snake"],
+      "question": {
+        "type": "two_tier",
+        "first": { "type": "is_clade" },
+        "reasons": [
+          "They share a node that no other tip descends from.",
+          "They are drawn next to each other — neighbouring tips always form a clade."
+        ],
+        "correct_reason": 0
+      }
+    }
+  ]
+}

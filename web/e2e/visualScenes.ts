@@ -733,15 +733,22 @@ export const SCENES: {
         page.getByRole("heading", { name: "Library", exact: true }),
       ).toBeVisible();
       // Every non-dataset card ends with an Answer key link once the
-      // exercise pass finishes; every dataset row's source resolves.
+      // exercise pass finishes — except reading cards, which have no
+      // key until Task 13 (v1.4d Task 11, owner-approved); every
+      // dataset row's source resolves.
       await expect(page.locator('.lib-card[data-kind="datasets"]'))
         .toHaveCount(5);
-      const nonDatasets = await page
-        .locator('.lib-card:not([data-kind="datasets"])')
+      await expect(
+        page.locator('.lib-card[data-kind="reading"]'),
+      ).toHaveCount(4);
+      const nonKeyed = await page
+        .locator(
+          '.lib-card:not([data-kind="datasets"]):not([data-kind="reading"])',
+        )
         .count();
       await expect(
         page.getByRole("link", { name: "Answer key" }),
-      ).toHaveCount(nonDatasets);
+      ).toHaveCount(nonKeyed);
       await expect(async () => {
         const texts = await page
           .locator(".lib-dataset-source")

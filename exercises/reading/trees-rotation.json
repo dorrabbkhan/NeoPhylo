@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-rotation",
+  "title": "Rotation changes nothing",
+  "summary": "The same relationships can be drawn many ways. Rotate nodes, compare styles and learn that the order of tips on the page carries no meaning — on a tree of apes.",
+  "meta": {
+    "objectives": [
+      "See that rotating a node changes the drawing, never the relationships",
+      "Recognise the same relationships drawn in different styles",
+      "Reject the idea that one tip is more evolved than another"
+    ],
+    "minutes": 10,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "practice",
+  "taxa_pool": {
+    "apes": ["chimp", "gibbon", "gorilla", "human", "orangutan"]
+  },
+  "trees": {
+    "apes-a": {
+      "newick": "((((human,chimp),gorilla),orangutan),gibbon);",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        { "on": ["chimp", "gorilla", "human"], "letter": "Q" },
+        { "on": ["chimp", "human"], "letter": "P" }
+      ]
+    },
+    "apes-b": {
+      "newick": "(gibbon,(orangutan,(gorilla,(chimp,human))));"
+    },
+    "apes-c": {
+      "newick": "((((human,gorilla),chimp),orangutan),gibbon);"
+    }
+  },
+  "items": [
+    {
+      "id": "q-two-same",
+      "text": "Do these two trees show the same relationships, or does one show something different?",
+      "trees": ["apes-a", "apes-b"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "circular", "tips": "right" }
+        ]
+      },
+      "note_after": "Reordering the branches at a node — rotating it — changes the drawing, never the relationships.",
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-three-diff",
+      "text": "One of these trees shows different relationships from the other two. Rotate nodes freely — which tree is it?",
+      "trees": ["apes-a", "apes-b", "apes-c"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "diagonal", "tips": "right" },
+          { "shape": "rectangular", "tips": "up" }
+        ]
+      },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-select",
+      "text": "Select every true statement. The node letters are on the first tree.",
+      "trees": ["apes-a", "apes-b", "apes-c"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 1,
+            "text": "The first and second trees show the same relationships."
+          },
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 2,
+            "text": "The first and third trees show the same relationships."
+          },
+          {
+            "kind": "older_than",
+            "p": "R",
+            "q": "P",
+            "text": "Node R is older than node P."
+          },
+          {
+            "kind": "older_than",
+            "p": "P",
+            "q": "Q",
+            "text": "Node P is older than node Q."
+          }
+        ]
+      }
+    },
+    {
+      "id": "q-two",
+      "text": "These two trees are drawn differently. Do they show the same relationships — and why?",
+      "trees": ["apes-a", "apes-b"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "rectangular", "tips": "up" }
+        ]
+      },
+      "question": {
+        "type": "two_tier",
+        "first": { "type": "which_differs" },
+        "reasons": [
+          "They place every split among the same groups of taxa — rotating a node changes the drawing, never the relationships.",
+          "Their tips are drawn in a different order, so their relationships must differ."
+        ],
+        "correct_reason": 0
+      }
+    },
+    {
+      "id": "q-evolved",
+      "text": "On a phylogenetic tree, which tip is the most evolved?",
+      "trees": ["apes-a"],
+      "note_after": "Every tip is a present-day lineage; there is no 'advanced' or 'primitive' end of a tree.",
+      "question": {
+        "type": "concept",
+        "options": [
+          "No tip — every lineage has been evolving for the same total time since the root",
+          "The tip that branched off earliest",
+          "The tip whose ancestors branched most often"
+        ],
+        "correct": [0]
+      }
+    }
+  ]
+}

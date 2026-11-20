@@ -370,10 +370,14 @@ export function LibraryPage({
   // The shipped reading sets arrive with the engine like the datasets
   // (v1.4d Task 9): each file loads through loadReadingSet inside the
   // registry, so an unloadable file silently drops out rather than
-  // erroring the page — an empty list is the failure mode.
+  // erroring the page — an empty list is the failure mode. The list
+  // must wait for initEngine: a call before wasm is ready throws and
+  // the catch below would leave the cards empty for the session
+  // (v1.4d Task 11).
   useEffect(() => {
     let live = true;
-    listReadingSets()
+    void initEngine()
+      .then(() => listReadingSets())
       .then((list) => {
         if (live) setReadingSets(list);
       })

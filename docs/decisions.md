@@ -8756,3 +8756,64 @@ Owner-requested rendering fixes after the PR #139 review; branch
   the Files block's "and tests" (no deviation).
 - **Fix round 2:** both editors stay mounted (inactive one `hidden`)
   so toggling the mode never discards unsaved work.
+
+## v1.4d Task 11: tree-reading lessons
+
+Four built-in reading sets (`trees-reading-a-tree`, `trees-rotation`,
+`trees-closest-relatives`, `trees-clades-traits`), their provenance in
+`exercises/reading/SOURCES.md`, and the content oracle
+`crates/neophylo-core/tests/reading_content.rs`.
+
+- **Baselines:** owner approved regenerating the `library` scene (6
+  files) because the four lessons add Tree reading cards (conductor
+  note of the owner's decision):
+  `library-1920x1080-light-linux.png`,
+  `library-1920x1080-dark-linux.png`,
+  `library-1024x768-light-linux.png`,
+  `library-1024x768-dark-linux.png`,
+  `library-768x1024-light-linux.png`,
+  `library-768x1024-dark-linux.png`.
+- **Files outside the task's Files block:**
+  - `web/e2e/visualScenes.ts` (owner-approved): the `library` scene
+    waits for the four `.lib-card[data-kind="reading"]` cards and
+    counts `Answer key` links only on non-dataset, non-reading cards —
+    reading cards have no key link until Task 13.
+  - `web/src/views/library/LibraryPage.tsx` (bug fix the new wait
+    exposed): the reading-sets effect called `listReadingSets()`
+    without awaiting `initEngine()` first — a wasm call before init
+    throws, the `.catch` then stores `[]`, and the Tree reading cards
+    stay empty for the session. It now chains `initEngine()` first,
+    the same pattern `paperFlags` already uses. Harmless while only
+    trees-demo shipped (an empty list was the baseline anyway); real
+    sets make the race visible.
+  - `web/e2e/library-page.spec.ts`: two stale "no reading cards"
+    assumptions — `TOTAL` (fed `allCards`) now includes the shipped
+    listed reading sets, and the `level=intro` filter test now counts
+    the intro-level reading cards (`READING_INTRO`, read from the
+    JSONs' meta, never re-typed) since reading items carry level and
+    minutes like lessons.
+  - `web/src/views/library/LibraryPage.test.tsx`: comment only — the
+    `listReadingSets` stub's "empty default matches today" note was
+    stale now that real sets ship; the tests themselves were already
+    dynamic.
+  - `docs/decisions.md` — this entry.
+- **Content decisions:** every tree uses `"times": "schematic"` (no
+  numeric ages); all relationships are textbook-settled and avoid the
+  owner's debated-placement list (no animal root, no placental root,
+  no bat/turtle/tardigrade placements, no Neoaves order). `SOURCES.md`
+  names the Open Tree of Life synthesis each topology follows, lists
+  every simplification (dropped taxa, the rodents polytomy, common
+  names) and marks the citations for the owner's phylogeneticist
+  check.
+- **Ambiguities resolved:**
+  - `order_nodes` on a schematic tree accepts every order consistent
+    with ancestry; the lesson-one item's `note_after` tells the
+    student cross-lineage orders (C and P) can't be resolved, and the
+    content test pins both accepted orders plus a descendant-first and
+    an incomplete rejection.
+  - The rotation lesson's `which_differs` items keep one genuinely
+    different topology (human grouped with gorilla instead of chimp)
+    so "rotate to check" is a real task, not a trick.
+  - The ocean tree groups dolphin with the penguin+chicken pair
+    (tetrapods) rather than with the fish — the resemblance
+    distractor the lesson teaches against.

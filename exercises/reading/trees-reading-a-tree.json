@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-reading-a-tree",
+  "title": "Reading a tree",
+  "summary": "Learn the parts of a phylogenetic tree — tips, branches, nodes and the root — and what each one means, on a small tree of vertebrates.",
+  "meta": {
+    "objectives": [
+      "Name the parts of a phylogenetic tree: tips, branches, nodes and the root",
+      "Read an internal node as the common ancestor of the lineages below it",
+      "Follow the direction of time from the root toward the tips"
+    ],
+    "minutes": 12,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "practice",
+  "taxa_pool": {
+    "vertebrates": ["cat", "chimp", "dog", "frog", "human", "salmon", "shark"]
+  },
+  "trees": {
+    "vertebrates": {
+      "newick": "(shark,(salmon,(frog,((cat,dog),(human,chimp)))));",
+      "times": "schematic"
+    },
+    "vertebrates-lettered": {
+      "newick": "(shark,(salmon,(frog,((cat,dog),(human,chimp)))));",
+      "times": "schematic",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        { "on": ["cat", "chimp", "dog", "frog", "human"], "letter": "T" },
+        { "on": ["cat", "chimp", "dog", "human"], "letter": "A" },
+        { "on": ["cat", "dog"], "letter": "C" },
+        { "on": ["chimp", "human"], "letter": "P" }
+      ]
+    }
+  },
+  "items": [
+    {
+      "id": "q-tips",
+      "text": "Each labelled end of this tree is a tip. What does a tip represent?",
+      "trees": ["vertebrates"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "A lineage — a species or group of organisms",
+          "A common ancestor of several lineages",
+          "A change in a trait"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-nodes",
+      "text": "A node is a point where branches meet. What does an internal node represent?",
+      "trees": ["vertebrates"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "question": {
+        "type": "concept",
+        "options": [
+          "A common ancestor shared by every lineage below it",
+          "The oldest living species on the tree",
+          "A migration event"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-branches",
+      "text": "What does a branch — a line joining two nodes, or a node and a tip — represent?",
+      "trees": ["vertebrates"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "question": {
+        "type": "concept",
+        "options": [
+          "A lineage persisting through time, ancestor to whatever lies beyond it",
+          "A measure of how similar two tips look",
+          "A geographical boundary"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-root",
+      "text": "Tap the node where every lineage on this tree last met — its deepest node.",
+      "trees": ["vertebrates"],
+      "tips": ["cat", "chimp", "dog", "frog", "human", "salmon", "shark"],
+      "note_after": "That deepest node is the root: the common ancestor of the whole tree.",
+      "rotate_tool": true,
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-mrca",
+      "text": "Tap the most recent common ancestor of {set}.",
+      "trees": ["vertebrates"],
+      "tips": ["chimp", "human"],
+      "note_after": "The ancestor sits at the node where their lineages meet. Every tip below that node shares it — not only the named ones.",
+      "question": { "type": "mrca" }
+    },
+    {
+      "id": "q-time",
+      "text": "This tree draws a time direction. Which way does time run?",
+      "trees": ["vertebrates"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "From the root toward the tips — the tips are the present",
+          "From the tips toward the root",
+          "The diagram has no time direction"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-order",
+      "text": "Order the lettered nodes from oldest to youngest.",
+      "trees": ["vertebrates-lettered"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "note_after": "A node is older than every node below it. Nodes on separate lineages — like C and P — cannot be ordered: every order consistent with ancestry is accepted.",
+      "question": { "type": "order_nodes", "nodes": ["C", "P", "A", "T", "R"] }
+    }
+  ]
+}

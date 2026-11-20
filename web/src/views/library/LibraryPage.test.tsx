@@ -42,10 +42,10 @@ import { LabIndex } from "../labs/LabIndex";
 import { LibraryPage } from "./LibraryPage";
 
 // v1.4d Task 9: `listReadingSets` is stubbed so a test can give the
-// page a reading card before the real lessons land (Tasks 11–12);
-// the shipped-set count test below still reads exercises/reading/
-// off disk. The empty default matches today — only trees-demo is
-// shipped and the registry never lists it.
+// page a controlled reading card; the shipped-set count test below
+// still reads exercises/reading/ off disk (the Task 11 lessons land
+// there). The empty default means "no reading sets" unless a test
+// sets one.
 const mockReading = vi.hoisted(() => ({
   list: [] as unknown[],
 }));
