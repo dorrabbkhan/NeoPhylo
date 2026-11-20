@@ -9038,6 +9038,10 @@ cards now link both.
   - `web/e2e/visualScenes.ts` (owner-approved): the `library` scene's
     Answer-key count drops the reading exclusion — every non-dataset
     card has one — plus the six new worksheet-reading scenes.
+  - `web/e2e/library-page.spec.ts`: the e2e's own "activate in
+    Task 13" assertions — `allCards`' Answer-key count now includes
+    the listed reading sets, and the reading-card test expects the
+    Paper worksheet and Answer key links instead of none.
   - `web/e2e/__screenshots__/worksheet-reading*-linux.png`: the new
     baselines named above.
   - `docs/decisions.md`: this entry.
