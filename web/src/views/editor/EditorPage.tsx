@@ -3,7 +3,7 @@
 // EditorPanel. Mounted from main.tsx as a lazy chunk so the editor
 // (and Task 10's ajv import) never enters the initial bundle.
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { EditorHistory } from "../../editor/history";
 import { engine, initEngine } from "../../engine/index";
@@ -12,12 +12,28 @@ import "../../design/fonts.css";
 import { Wordmark } from "../Wordmark";
 import { EditorPanel } from "./EditorPanel";
 
+// v1.4d Task 10: the reading-set editor is its own lazy chunk, so the
+// initial-JS budget never sees it (the budget is nearly full — never
+// import it eagerly here).
+const ReadingEditor = lazy(() =>
+  import("./reading/ReadingEditor").then((m) => ({
+    default: m.ReadingEditor,
+  })),
+);
+
 /** The starter tree a new exercise begins with — the nj-basics example. */
 const STARTER_NEWICK = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
+
+type EditorMode = "exercise" | "reading";
 
 export function EditorPage() {
   const [model, setModel] = useState<EditorHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<EditorMode>("exercise");
+  // The reading editor mounts lazily on its first selection but then
+  // stays MOUNTED — like the exercise editor it is only `hidden` when
+  // inactive, so toggling the mode never discards unsaved work.
+  const [readingVisited, setReadingVisited] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +78,53 @@ export function EditorPage() {
       {error === null && model === null && (
         <p className="editor-loading">Loading the NeoPhylo engine…</p>
       )}
-      {model !== null && <EditorPanel model={model} />}
+      {model !== null && (
+        <>
+          <fieldset className="editor-mode">
+            <legend>What are you making?</legend>
+            <label className="editor-mode-opt">
+              <input
+                type="radio"
+                name="editor-mode"
+                checked={mode === "exercise"}
+                onChange={() => setMode("exercise")}
+              />
+              Distance exercise
+            </label>
+            <label className="editor-mode-opt">
+              <input
+                type="radio"
+                name="editor-mode"
+                checked={mode === "reading"}
+                onChange={() => {
+                  setMode("reading");
+                  setReadingVisited(true);
+                }}
+              />
+              Tree reading set
+            </label>
+          </fieldset>
+          {/* The wrappers are styleless — `hidden` falls back to the UA
+            `display: none`, so an inactive editor leaves no pixel trace
+            and drops out of the accessibility tree while staying mounted. */}
+          <div hidden={mode !== "exercise"}>
+            <EditorPanel model={model} />
+          </div>
+          {readingVisited && (
+            <div hidden={mode !== "reading"}>
+              <Suspense
+                fallback={
+                  <p className="editor-loading">
+                    Loading the reading editor…
+                  </p>
+                }
+              >
+                <ReadingEditor model={model} />
+              </Suspense>
+            </div>
+          )}
+        </>
+      )}
     </main>
   );
 }
