@@ -10,10 +10,10 @@ names standing in for binomials.
 query of the Open Tree of Life synthetic tree (OpenTreeOfLife,
 opentreeoflife.org; CC0) was possible. Every topology below is the
 textbook-settled consensus the OTL synthesis also shows; each entry
-names the synthesis and/or a peer-reviewed source. **All citations
-need the owner's phylogeneticist check** before release (no DOIs or
-page numbers are given on purpose — only authors, year, title and
-journal).
+names the synthesis and/or a peer-reviewed source. Bibliographic
+records (authors, year, title, journal, DOI) were checked against
+publisher and PubMed records on 2026-11-20. The topology choices
+still need the owner's phylogeneticist check.
 
 All trees are drawn as cladograms (branch lengths ignored). Every
 tree's `times` axis is schematic — direction of time only, no numeric
@@ -36,7 +36,8 @@ simplification for intro students.
   fish–tetrapod backbone also follows Betancur-R. R., Broughton R. E.,
   Wiley E. O., Carpenter K., López J. A., Li C., et al. 2013, "The
   tree of life and a new classification of bony fishes", *PLOS
-  Currents Tree of Life*.
+  Currents Tree of Life* 5,
+  doi:10.1371/currents.tol.53ba26640df0ccaee75bb165c8c26288.
 - **Simplifications:** only seven of the tens of thousands of OTL
   vertebrate tips are kept; every other lineage is dropped; common
   names are used for binomials.
@@ -56,7 +57,8 @@ simplification for intro students.
 - **Source:** the Open Tree of Life synthetic tree (CC0); the
   human–chimpanzee sister relationship also follows Prado-Martinez J.,
   Sudmant P. H., Kidd J. M., Li H., Kelley J. L., et al. 2013, "Great
-  ape genetic diversity and population history", *Nature*.
+  ape genetic diversity and population history", *Nature* 499:471–475,
+  doi:10.1038/nature12228.
 - **Simplifications:** five ape genera only (all other hominoids and
   outgroups dropped); common names used; `apes-c` is an intentional
   distractor, not a claimed topology.
@@ -84,10 +86,12 @@ simplification for intro students.
   the "rodent trichotomy" is famously unresolved, so the tree takes no
   position on it. Mouse + rat resolve because both are murids.
 - **Source:** the Open Tree of Life synthetic tree (CC0); for the
-  unresolved trichotomy see Fabre P.-H., Hautier L., Dimitrov D.,
-  Douzery E. J. P. 2012, "A glimpse on the pattern of rodent
-  diversification: a phylogenetic approach", *BMC Evolutionary
-  Biology*.
+  unresolved trichotomy see Blanga-Kanfi S., Miranda H., Penn O.,
+  Pupko T., DeBry R. W., Huchon D. 2009, "Rodent phylogeny revised:
+  analysis of six nuclear genes from all major rodent clades", *BMC
+  Evolutionary Biology* 9:71, doi:10.1186/1471-2148-9-71 (the three
+  major clades are well supported; their basal relationships are
+  unresolved).
 - **Simplifications:** one genus per lineage; the polytomy is real
   (the literature genuinely does not resolve the order), not a
   dropped-resolution artefact; common names.
@@ -123,7 +127,7 @@ about marks.
 - **Source:** the Open Tree of Life synthetic tree (CC0).
 - **Simplifications:** seven genera only; common names.
 - **Trait marks** are textbook teaching states, not a published
-  character matrix: amniotic egg gains on the amniote stem
+  character matrix: the amnion gains on the amniote stem
   (monophyletic); limbs gain on the tetrapod stem and are lost on the
   snake branch (paraphyletic group); endothermy gains independently on
   the mammal stem and the chicken branch (polyphyletic group); hair

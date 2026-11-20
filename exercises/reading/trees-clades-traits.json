@@ -35,7 +35,7 @@
       "marks": [
         {
           "on": ["chicken", "human", "lizard", "mouse", "snake"],
-          "trait": "amniotic egg",
+          "trait": "amnion",
           "change": "gain"
         },
         {
@@ -54,9 +54,9 @@
       ],
       "traits": [
         {
-          "name": "amniotic egg",
-          "ancestral": "no amniotic egg",
-          "derived": "amniotic egg"
+          "name": "amnion",
+          "ancestral": "no amnion",
+          "derived": "amnion"
         },
         { "name": "limbs", "ancestral": "limbless", "derived": "limbed" },
         {
@@ -89,11 +89,11 @@
     },
     {
       "id": "q-mono",
-      "text": "The marks show where traits changed. Are the taxa with an amniotic egg monophyletic, paraphyletic or polyphyletic?",
+      "text": "The marks show where traits changed. Are the taxa with an amnion monophyletic, paraphyletic or polyphyletic?",
       "trees": ["amniotes-traits"],
       "note_after": "The trait arose once, and the taxa carrying it are exactly that clade — monophyletic.",
       "rotate_tool": true,
-      "question": { "type": "is_clade", "by_trait": "amniotic egg" }
+      "question": { "type": "is_clade", "by_trait": "amnion" }
     },
     {
       "id": "q-para",
@@ -155,20 +155,20 @@
           {
             "kind": "gained_within",
             "inner": "hair",
-            "outer": "amniotic egg",
-            "text": "Hair arose within a lineage that already had the amniotic egg."
+            "outer": "amnion",
+            "text": "Hair arose within a lineage that already had the amnion."
           },
           {
             "kind": "gained_within",
-            "inner": "amniotic egg",
+            "inner": "amnion",
             "outer": "hair",
-            "text": "The amniotic egg arose within a lineage that already had hair."
+            "text": "The amnion arose within a lineage that already had hair."
           },
           {
             "kind": "gained_within",
             "inner": "limbs",
-            "outer": "amniotic egg",
-            "text": "Limbs arose within a lineage that already had the amniotic egg."
+            "outer": "amnion",
+            "text": "Limbs arose within a lineage that already had the amnion."
           }
         ]
       }
@@ -177,7 +177,7 @@
       "id": "q-two",
       "text": "Do {set} form a clade — and why?",
       "trees": ["amniotes"],
-      "style": { "shape": "circular", "tips": "right" },
+      "style": { "shape": "rectangular", "tips": "up" },
       "tips": ["lizard", "snake"],
       "question": {
         "type": "two_tier",

@@ -141,7 +141,10 @@ export function ReadingDraw({
     <g aria-hidden="true">
       {fig.edges.map((e) => {
         const toKey = cladeKey(e.to);
-        const hl = hlSet.size > 0 && e.to.every((t) => hlSet.has(t));
+        // Only the listed tips' own terminal branches light up — an
+        // internal edge (or a ring on the MRCA) would draw the clade
+        // boundary and give away is_clade/mrca answers.
+        const hl = e.to.length === 1 && hlSet.has(e.to[0]);
         return (
           <path
             key={toKey}
@@ -156,10 +159,6 @@ export function ReadingDraw({
       {fig.nodes.map((nd) => {
         const key = cladeKey(nd.clade);
         const sel = selSet.has(key);
-        const hl =
-          hlSet.size > 0 &&
-          nd.clade.length === hlSet.size &&
-          nd.clade.every((t) => hlSet.has(t));
         return (
           <g
             key={key}
@@ -167,10 +166,8 @@ export function ReadingDraw({
             data-clade={key}
             data-kind={nd.isTip ? "tip" : "node"}
             data-selected={sel || undefined}
-            data-hl={hl || undefined}
             style={anim(nd.x, nd.y, reduced)}
           >
-            {hl && <circle className="rt-hl-ring" r={LETTER_R + 5} />}
             {sel && <circle className="rt-sel-ring" r={LETTER_R + 3} />}
             {nd.letter !== undefined ? (
               <Badge letter={nd.letter} fontPx={fontPx} />

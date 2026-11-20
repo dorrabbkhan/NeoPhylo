@@ -44,7 +44,7 @@
         "tips": "right",
         "per_tree": [
           { "shape": "rectangular", "tips": "right" },
-          { "shape": "circular", "tips": "right" }
+          { "shape": "rectangular", "tips": "up" }
         ]
       },
       "note_after": "Reordering the branches at a node — rotating it — changes the drawing, never the relationships.",

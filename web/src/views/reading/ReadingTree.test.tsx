@@ -289,6 +289,112 @@ describe("ReadingTree keyboard", () => {
   });
 });
 
+describe("ReadingTree highlight", () => {
+  // (shark,(frog,((human,mouse),(chicken,(lizard,snake))))) — the
+  // trees-clades-traits tree: {chicken,lizard,snake} IS a clade here,
+  // {chicken,human,lizard} is not. The highlight must look the same
+  // for both — only the listed tips' own terminal branches — or the
+  // drawing gives the is_clade/mrca answer away.
+  function amnioteView(): ReadingTreeView {
+    const tip = (clade: string[], parent: number) => ({
+      clade,
+      parent,
+      children: [],
+      label: clade[0],
+      letter: null,
+      age: null,
+    });
+    const node = (clade: string[], parent: number | null, children: number[]) => ({
+      clade,
+      parent,
+      children,
+      label: null,
+      letter: null,
+      age: null,
+    });
+    const all = [
+      "chicken",
+      "frog",
+      "human",
+      "lizard",
+      "mouse",
+      "shark",
+      "snake",
+    ];
+    return {
+      root: 12,
+      nodes: [
+        tip(["shark"], 12),
+        tip(["frog"], 11),
+        tip(["human"], 8),
+        tip(["mouse"], 8),
+        tip(["chicken"], 9),
+        tip(["lizard"], 7),
+        tip(["snake"], 7),
+        node(["lizard", "snake"], 9, [5, 6]),
+        node(["human", "mouse"], 10, [2, 3]),
+        node(["chicken", "lizard", "snake"], 10, [4, 7]),
+        node(["chicken", "human", "lizard", "mouse", "snake"], 11, [8, 9]),
+        node(all.filter((t) => t !== "shark"), 12, [1, 10]),
+        node(all, null, [0, 11]),
+      ],
+      points: [],
+      marks: [],
+      traits: [],
+      times: "none",
+      unit: null,
+    };
+  }
+
+  function highlighted(container: HTMLElement): string[] {
+    return [...container.querySelectorAll(".rt-edge[data-hl]")].map(
+      (e) => e.getAttribute("data-to") ?? "",
+    );
+  }
+
+  it("lights only the listed tips' terminal branches on a clade", () => {
+    const p = props({
+      view: amnioteView(),
+      highlight: ["chicken", "lizard", "snake"],
+    });
+    const { container } = render(<ReadingTree {...p} />);
+    expect(highlighted(container).sort()).toEqual(
+      ['["chicken"]', '["lizard"]', '["snake"]'].sort(),
+    );
+    expect(container.querySelectorAll(".rt-hl-ring")).toHaveLength(0);
+  });
+
+  it("lights the same count of terminal branches on a non-clade", () => {
+    const p = props({
+      view: amnioteView(),
+      highlight: ["chicken", "human", "lizard"],
+    });
+    const { container } = render(<ReadingTree {...p} />);
+    expect(highlighted(container).sort()).toEqual(
+      ['["chicken"]', '["human"]', '["lizard"]'].sort(),
+    );
+    expect(container.querySelectorAll(".rt-hl-ring")).toHaveLength(0);
+  });
+
+  it("lights only the 7 terminal edges when every tip is listed", () => {
+    const p = props({
+      view: amnioteView(),
+      highlight: [
+        "chicken",
+        "frog",
+        "human",
+        "lizard",
+        "mouse",
+        "shark",
+        "snake",
+      ],
+    });
+    const { container } = render(<ReadingTree {...p} />);
+    expect(highlighted(container)).toHaveLength(7);
+    expect(container.querySelectorAll(".rt-hl-ring")).toHaveLength(0);
+  });
+});
+
 describe("ReadingTree rotate animation", () => {
   it("animates the swap at 300 ms ease-in-out", () => {
     const p = props({ rotatable: true });
