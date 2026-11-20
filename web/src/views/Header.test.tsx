@@ -5,8 +5,8 @@
 // 1024–1279 through the Settings drawer item, below 1024 through the
 // More menu — one reopen path per width.
 
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Dispatch } from "react";
 
@@ -17,7 +17,11 @@ import { Header } from "./Header";
 
 afterEach(cleanup);
 
-function setup(breakpoint: Breakpoint, presenter = false) {
+function setup(
+  breakpoint: Breakpoint,
+  presenter = false,
+  onOpenReading?: () => void,
+) {
   const dispatched: Action[] = [];
   const dispatch: Dispatch<Action> = (a) => dispatched.push(a);
   render(
@@ -30,6 +34,7 @@ function setup(breakpoint: Breakpoint, presenter = false) {
       onPickLesson={() => {}}
       onOpenPhylipHelp={() => {}}
       onOpenMegaHelp={() => {}}
+      onOpenReading={onOpenReading}
       theme="light"
       presenter={presenter}
       dispatch={dispatch}
@@ -108,6 +113,35 @@ describe("Header — Reading trees link (v1.4d Task 9, spec §7.1)", () => {
         screen.queryByRole("link", { name: "Reading trees" }),
       ).toBeNull();
     }
+  });
+
+  it("routes a plain primary click through onOpenReading — the unsaved-work question's owner (fix round 1)", () => {
+    const onOpenReading = vi.fn();
+    setup("wide", false, onOpenReading);
+    const link = screen.getByRole("link", { name: "Reading trees" });
+    const click = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    fireEvent(link, click);
+    expect(onOpenReading).toHaveBeenCalledTimes(1);
+    expect(click.defaultPrevented).toBe(true);
+  });
+
+  it("keeps the native href for a modified click — no preventDefault, no onOpenReading", () => {
+    const onOpenReading = vi.fn();
+    setup("wide", false, onOpenReading);
+    const link = screen.getByRole("link", { name: "Reading trees" });
+    const click = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      ctrlKey: true,
+    });
+    fireEvent(link, click);
+    expect(onOpenReading).not.toHaveBeenCalled();
+    expect(click.defaultPrevented).toBe(false);
   });
 });
 

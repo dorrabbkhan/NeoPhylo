@@ -663,3 +663,43 @@ test("the Lessons menu's Reading trees item asks over unsaved work and opens the
     page.getByRole("region", { name: "Tree reading" }),
   ).toBeVisible();
 });
+
+test("the header's Reading trees link asks over unsaved work like the menus; a clean sandbox navigates directly", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await page
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(GAP_INPUT);
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  // The ≥ 1280 header link routes a plain click through onOpenReading
+  // (fix round 1), so the same sheet as the menus' items opens.
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Leave your unsaved work?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /keep my work/i }).click();
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await page
+    .getByRole("button", { name: /leave and open the library/i })
+    .click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+
+  // A clean sandbox goes straight through the link with no sheet.
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+});

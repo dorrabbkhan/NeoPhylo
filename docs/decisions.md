@@ -8658,8 +8658,11 @@ Owner-requested rendering fixes after the PR #139 review; branch
   decision B's one-path-per-width rule: the More menu owns it below
   1024 (the plan's stated placement), and the Lessons menu's action
   row carries the same target at every width, both routed through
-  `onOpenReading` so the unsaved-work question runs identically —
-  the direct link is a plain `href`, like `a.labs-link`.
+  `onOpenReading` so the unsaved-work question runs identically.
+  Fix round 1: the direct link keeps its `href` for modified clicks
+  (open in a new tab) and routes plain primary clicks through
+  `onOpenReading`, so it asks over unsaved work like the Library
+  entry rather than leaving a dirty sandbox silently.
 - **Files outside the Files block:**
   - `web/src/views/App.tsx` — the guarded navigation target: the
     `libraryAsk` confirm state now stores the destination string
