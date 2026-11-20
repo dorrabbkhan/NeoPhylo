@@ -202,11 +202,14 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // the import panel — including inside the Settings drawer, which
   // closes behind it like the replicate panel's does.
   const [datasetSheet, setDatasetSheet] = useState(false);
-  // The in-app "Library" menu item's unsaved-work confirm (v1.4c Task
-  // 12, spec §7.1): the library is a page change, so leaving a dirty
-  // sandbox asks "Leave your unsaved work?" — DatasetSheet's keep/
-  // replace pattern with leave wording, since nothing is replaced.
-  const [libraryAsk, setLibraryAsk] = useState(false);
+  // The in-app "Library"/"Reading trees" menu items' unsaved-work
+  // confirm (v1.4c Task 12, spec §7.1; v1.4d Task 9, spec §7.1): a
+  // page change, so leaving a dirty sandbox asks "Leave your unsaved
+  // work?" — DatasetSheet's keep/replace pattern with leave wording,
+  // since nothing is replaced. The state holds the navigation target
+  // (`?library`, or the Task-9 filtered `?library&type=reading`) so
+  // one confirm sheet serves both entries.
+  const [libraryAsk, setLibraryAsk] = useState<string | null>(null);
   // The last replicate detail delivered by a worker job (spec §6.5);
   // keyed by replicate index so a stale result can't paint the panel.
   const [repDetail, setRepDetail] = useState<{
@@ -470,17 +473,29 @@ export function App({ exercise }: { exercise?: Exercise }) {
     [dispatch, session],
   );
 
-  // The header's "Library" entries (v1.4c Task 12, spec §7.1): a page
-  // change, so a dirty sandbox asks before the navigation loses the
-  // work — declining keeps it exactly (same Sheet/confirm pattern as
+  // The header's "Library" and "Reading trees" entries (v1.4c Task
+  // 12, spec §7.1; v1.4d Task 9, spec §7.1): a page change, so a
+  // dirty sandbox asks before the navigation loses the work —
+  // declining keeps it exactly (same Sheet/confirm pattern as
   // DatasetSheet); a clean sandbox goes straight through.
-  const onOpenLibrary = useCallback(() => {
-    if (session !== null && hasImportedData(session)) {
-      setLibraryAsk(true);
-      return;
-    }
-    window.location.assign("?library");
-  }, [session]);
+  const openLibrary = useCallback(
+    (target: string) => {
+      if (session !== null && hasImportedData(session)) {
+        setLibraryAsk(target);
+        return;
+      }
+      window.location.assign(target);
+    },
+    [session],
+  );
+  const onOpenLibrary = useCallback(
+    () => openLibrary("?library"),
+    [openLibrary],
+  );
+  const onOpenReading = useCallback(
+    () => openLibrary("?library&type=reading"),
+    [openLibrary],
+  );
 
   // The header's Lessons menu (checkpoint 13): pick a built-in lesson
   // and it loads straight through the `load` reducer — the lesson
@@ -1027,6 +1042,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
         onOpenPhylipHelp={() => setGuide("phylip")}
         onOpenMegaHelp={() => setGuide("mega")}
         onOpenLibrary={onOpenLibrary}
+        onOpenReading={onOpenReading}
         theme={session.theme}
         presenter={session.presenter}
         dispatch={dispatch}
@@ -1350,16 +1366,17 @@ export function App({ exercise }: { exercise?: Exercise }) {
           {controlsSections}
         </SettingsDrawer>
       )}
-      {libraryAsk && (
+      {libraryAsk !== null && (
         <Sheet
           className="dataset-sheet"
           labelledBy="library-confirm-title"
-          onClose={() => setLibraryAsk(false)}
+          onClose={() => setLibraryAsk(null)}
           closeOnBackdrop
         >
           {/* DatasetSheet's unsaved-work pattern (v1.4c Task 12) with
               leave wording: accepting navigates to the library — the
-              work is lost, not replaced. */}
+              work is lost, not replaced. The state carries the
+              target: ?library or the Task-9 ?library&type=reading. */}
           <div className="lab-confirm">
             <h3 id="library-confirm-title">Leave your unsaved work?</h3>
             <p>
@@ -1369,11 +1386,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
             <div className="lab-confirm-actions">
               <button
                 type="button"
-                onClick={() => window.location.assign("?library")}
+                onClick={() => window.location.assign(libraryAsk)}
               >
                 Leave and open the library
               </button>
-              <button type="button" onClick={() => setLibraryAsk(false)}>
+              <button type="button" onClick={() => setLibraryAsk(null)}>
                 Keep my work
               </button>
             </div>

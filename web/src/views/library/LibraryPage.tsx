@@ -27,6 +27,8 @@ import { loadLab } from "../../labs/registry";
 import type { DatasetSummary } from "../../library/registry";
 import { listDatasets, loadProvenance } from "../../library/registry";
 import { loadLesson } from "../../lessons/loader";
+import { listReadingSets } from "../../reading/registry";
+import type { ReadingSetSummary } from "../../reading/registry";
 import { exerciseLink, keyHref, worksheetHref } from "../worksheets/load";
 import { paperSheet } from "../../worksheets/build";
 import { Wordmark } from "../Wordmark";
@@ -42,6 +44,7 @@ import {
   LEVEL_LABEL,
   matches,
   parseFilters,
+  readingItem,
   TYPE_GROUP,
   TYPE_ORDER,
 } from "./items";
@@ -114,6 +117,7 @@ function Card({
 }) {
   const lab = item.lab;
   const ds = item.dataset;
+  const rd = item.reading;
   // issue #135: the same scroll-in-place region the lab pages use —
   // the card shrinks to the column and a too-wide settings table
   // scrolls inside it.
@@ -146,12 +150,14 @@ function Card({
   const open =
     ds !== undefined
       ? { href: `?ds=${encodeURIComponent(item.id)}`, label: "Open dataset" }
-      : lab !== undefined
-        ? { href: `?lab=${encodeURIComponent(item.id)}`, label: "Open lab" }
-        : {
-            href: `?lesson=${encodeURIComponent(item.id)}`,
-            label: "Open lesson",
-          };
+      : rd !== undefined
+        ? { href: `?read=${encodeURIComponent(item.id)}`, label: "Open set" }
+        : lab !== undefined
+          ? { href: `?lab=${encodeURIComponent(item.id)}`, label: "Open lab" }
+          : {
+              href: `?lesson=${encodeURIComponent(item.id)}`,
+              label: "Open lesson",
+            };
   return (
     <li
       className={lab !== undefined ? "lab-card lib-card" : "lib-card"}
@@ -228,7 +234,9 @@ function Card({
         ))}
       <p className="lab-card-actions">
         <a href={open.href}>{open.label}</a>
-        {ds === undefined && (
+        {/* Reading sets get their paper worksheet and answer key in
+            Task 13 — only the Open set action shows until then. */}
+        {ds === undefined && rd === undefined && (
           <>
             <a href={worksheetHref(item.id, "app")}>In-app worksheet</a>
             {paper === true && (
@@ -263,6 +271,9 @@ export function LibraryPage({
   const [items] = useState<CardItem[]>(() => buildItems());
   const [datasets, setDatasets] = useState<DatasetSummary[] | null>(null);
   const [datasetError, setDatasetError] = useState<string | null>(null);
+  const [readingSets, setReadingSets] = useState<
+    ReadingSetSummary[] | null
+  >(null);
   const [sources, setSources] = useState<Map<string, string>>(new Map());
   const [paper, setPaper] = useState<Record<string, boolean>>({});
   const [filters, setFilters] = useState<Filters>(() =>
@@ -356,6 +367,24 @@ export function LibraryPage({
     };
   }, [items]);
 
+  // The shipped reading sets arrive with the engine like the datasets
+  // (v1.4d Task 9): each file loads through loadReadingSet inside the
+  // registry, so an unloadable file silently drops out rather than
+  // erroring the page — an empty list is the failure mode.
+  useEffect(() => {
+    let live = true;
+    listReadingSets()
+      .then((list) => {
+        if (live) setReadingSets(list);
+      })
+      .catch(() => {
+        if (live) setReadingSets([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   /** Write the filter state back to the URL as `?library&…` — a filter
    * change on `?labs` leaves the short URL for the canonical one. */
   const applyFilters = (next: (f: Filters) => Filters): void => {
@@ -367,18 +396,23 @@ export function LibraryPage({
   };
 
   const allItems = useMemo(
-    () => [...items, ...(datasets ?? []).map(datasetItem)],
-    [items, datasets],
+    () => [
+      ...items,
+      ...(datasets ?? []).map(datasetItem),
+      ...(readingSets ?? []).map(readingItem),
+    ],
+    [items, datasets, readingSets],
   );
   const visible = allItems.filter((i) => matches(i, filters));
   const labsOnly = sameTypes(filters.types, LAB_TYPES);
-  // The zero-match line waits on the dataset fetch whenever datasets
-  // could still match — while it's in flight "no items" would be a lie.
+  // The zero-match line waits on the async lists whenever they could
+  // still match — while either is in flight "no items" would be a lie.
   const nothingMatches =
     visible.length === 0 &&
     (datasets !== null ||
       datasetError !== null ||
-      !filters.types.has("datasets"));
+      !filters.types.has("datasets")) &&
+    (readingSets !== null || !filters.types.has("reading"));
 
   const groupBody = (type: TypeKey, shown: CardItem[]) => {
     const anyOfType = allItems.some((i) => i.type === type);
@@ -408,6 +442,9 @@ export function LibraryPage({
           </p>
         );
       }
+    }
+    if (type === "reading" && readingSets === null) {
+      return <p className="labs-empty">Loading reading sets…</p>;
     }
     if (anyOfType) {
       return (

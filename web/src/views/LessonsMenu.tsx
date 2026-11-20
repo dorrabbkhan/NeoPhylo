@@ -46,23 +46,29 @@ export interface LessonsMenuProps {
    * link: the caller owns the unsaved-work question before the page
    * change. */
   onOpenLibrary?: () => void;
+  /** Opens the library's Tree reading filter (v1.4d Task 9, spec
+   * §7.1) — an action like onOpenLibrary for the same unsaved-work
+   * question; it renders at every width. */
+  onOpenReading?: () => void;
 }
 
-export function LessonsMenu({ currentId, onPick, onOpenLibrary, onTakeTour }: LessonsMenuProps) {
+export function LessonsMenu({ currentId, onPick, onOpenLibrary, onOpenReading, onTakeTour }: LessonsMenuProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  // The roving index covers the Library and tour action rows when
-  // they render (in that order).
+  // The roving index covers the Library, Reading trees and tour
+  // action rows when they render (in that order).
   const itemCount =
     LESSONS.length +
     (onOpenLibrary !== undefined ? 1 : 0) +
+    (onOpenReading !== undefined ? 1 : 0) +
     (onTakeTour !== undefined ? 1 : 0);
   const libraryIndex = LESSONS.length;
-  const tourIndex = libraryIndex + (onOpenLibrary !== undefined ? 1 : 0);
+  const readingIndex = libraryIndex + (onOpenLibrary !== undefined ? 1 : 0);
+  const tourIndex = readingIndex + (onOpenReading !== undefined ? 1 : 0);
 
   const openAt = (index: number) => {
     setActive(index);
@@ -229,6 +235,23 @@ export function LessonsMenu({ currentId, onPick, onOpenLibrary, onTakeTour }: Le
               }}
             >
               Library
+            </button>
+          )}
+          {onOpenReading !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              className="lessons-menu-tour lessons-menu-reading"
+              tabIndex={-1}
+              ref={(el) => {
+                itemRefs.current[readingIndex] = el;
+              }}
+              onClick={() => {
+                closeMenu(true);
+                onOpenReading();
+              }}
+            >
+              Reading trees
             </button>
           )}
           {onTakeTour !== undefined && (

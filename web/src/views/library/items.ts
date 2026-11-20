@@ -14,11 +14,13 @@ import type { LabSummary } from "../../labs/registry";
 import { listLabs } from "../../labs/registry";
 import type { DatasetSummary } from "../../library/registry";
 import { LESSONS } from "../../lessons/catalog";
+import type { ReadingSetSummary } from "../../reading/registry";
 
-export type TypeKey = "lessons" | "phylip" | "mega" | "datasets";
+export type TypeKey = "lessons" | "reading" | "phylip" | "mega" | "datasets";
 
 export const TYPE_ORDER: readonly TypeKey[] = [
   "lessons",
+  "reading",
   "phylip",
   "mega",
   "datasets",
@@ -26,6 +28,7 @@ export const TYPE_ORDER: readonly TypeKey[] = [
 
 export const TYPE_GROUP: Record<TypeKey, string> = {
   lessons: "Lessons",
+  reading: "Tree reading",
   phylip: "PHYLIP labs",
   mega: "MEGA labs",
   datasets: "Datasets",
@@ -33,6 +36,7 @@ export const TYPE_GROUP: Record<TypeKey, string> = {
 
 const TYPE_TAG: Record<TypeKey, string> = {
   lessons: "Lesson",
+  reading: "Tree reading",
   phylip: "PHYLIP lab",
   mega: "MEGA lab",
   datasets: "Dataset",
@@ -65,6 +69,8 @@ export interface CardItem {
   follows: { id: string; title: string; href: string }[];
   lab?: LabSummary;
   dataset?: DatasetSummary;
+  /** The reading set behind a "Tree reading" card (v1.4d Task 9). */
+  reading?: ReadingSetSummary;
   /** The dataset's "good for" line — datasets have no objectives. */
   goodFor?: string;
 }
@@ -183,6 +189,25 @@ export function buildItems(): CardItem[] {
     });
   }
   return items;
+}
+
+/** A reading-set index entry as a card (v1.4d Task 9, spec §8.4).
+ * Level, minutes and objectives come from the set's meta; prepares-
+ * for / follows stay empty — the plan asks only for the card fields
+ * and the registry resolves ids asynchronously, after buildItems. */
+export function readingItem(s: ReadingSetSummary): CardItem {
+  return {
+    id: s.id,
+    type: "reading",
+    title: s.title,
+    tag: TYPE_TAG.reading,
+    level: s.meta?.level,
+    minutes: s.meta?.minutes,
+    objectives: s.meta?.objectives ?? [],
+    preparesFor: [],
+    follows: [],
+    reading: s,
+  };
 }
 
 /** A dataset index entry as a card. */

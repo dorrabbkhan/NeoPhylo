@@ -184,6 +184,10 @@ export interface MoreMenuProps {
   /** Opens the library (v1.4c Task 12, spec §7.1) — an action like the
    * guide items: the caller owns the unsaved-work question. */
   onOpenLibrary?: () => void;
+  /** Opens the library's Tree reading filter (v1.4d Task 9, spec §7.1)
+   * — the header link's < 1024 px path, an action like the Library
+   * item it follows. */
+  onOpenReading?: () => void;
 }
 
 export function MoreMenu({
@@ -191,6 +195,7 @@ export function MoreMenu({
   onOpenMegaHelp,
   onTakeTour,
   onOpenLibrary,
+  onOpenReading,
 }: MoreMenuProps) {
   return (
     <MenuButton
@@ -207,6 +212,12 @@ export function MoreMenu({
         // before the page change.
         ...(onOpenLibrary !== undefined
           ? [{ label: "Library", action: onOpenLibrary }]
+          : []),
+        // §7.1 (v1.4d Task 9): the header link's < 1024 px path — the
+        // same filtered-library target, through the same action so the
+        // unsaved-work question runs identically.
+        ...(onOpenReading !== undefined
+          ? [{ label: "Reading trees", action: onOpenReading }]
           : []),
         // §6.7: the tour's only reopen path.
         { label: "Take the tour", action: onTakeTour },

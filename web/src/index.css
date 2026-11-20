@@ -1569,7 +1569,8 @@ button:disabled {
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
 .phylip-help-open,
-.labs-link {
+.labs-link,
+.reading-link {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1580,8 +1581,11 @@ button:disabled {
 }
 
 /* The "PHYLIP labs" header entry is a link, not a button — it shares
- * the chip styling above (v1.4 Task 11, spec §6.5). */
-a.labs-link {
+ * the chip styling above (v1.4 Task 11, spec §6.5). The "Reading
+ * trees" link is the same chip on the filtered-library target
+ * (v1.4d Task 9, spec §7.1). */
+a.labs-link,
+a.reading-link {
   align-items: center;
   display: inline-flex;
   text-decoration: none;
@@ -1590,7 +1594,9 @@ a.labs-link {
 .phylip-help-open:hover,
 .phylip-help-open:focus-visible,
 .labs-link:hover,
-.labs-link:focus-visible {
+.labs-link:focus-visible,
+.reading-link:hover,
+.reading-link:focus-visible {
   border-color: var(--color-accent-border);
 }
 
@@ -2144,8 +2150,10 @@ a.labs-link {
   /* v1.4 Task 11 fix: the header's "PHYLIP labs" entry and its
    * Settings-drawer mirror are links, so the button/rule selectors
    * above miss them — same ≥40×40 floor (the More-menu item is a
-   * [role="menuitem"], already covered). */
-  a.labs-link {
+   * [role="menuitem"], already covered). The "Reading trees" link is
+   * the same kind of chip (v1.4d Task 9). */
+  a.labs-link,
+  a.reading-link {
     min-width: 40px;
     min-height: 40px;
   }

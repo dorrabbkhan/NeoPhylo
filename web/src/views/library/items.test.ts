@@ -7,8 +7,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Filters, TypeKey } from "./items";
-import { filtersQuery, parseFilters, TYPE_ORDER } from "./items";
+import type { CardItem, Filters, TypeKey } from "./items";
+import {
+  filtersQuery,
+  matches,
+  parseFilters,
+  TYPE_ORDER,
+} from "./items";
 
 const ALL = new Set<TypeKey>(TYPE_ORDER);
 
@@ -64,5 +69,64 @@ describe("library filters — type= URL round-trip", () => {
       level: "intro",
       short: true,
     });
+  });
+});
+
+// v1.4d Task 9 (spec §7.1/§8.4): the "reading" TypeKey — the header's
+// "Reading trees" link lands on `?library&type=reading`, so the value
+// must parse, combine with the other filters and round-trip through a
+// reload like every other type.
+describe("library filters — the reading type (v1.4d Task 9)", () => {
+  it("type=reading parses, writes canonically and reads back", () => {
+    expect(parseFilters("?library&type=reading").types).toEqual(
+      new Set(["reading"]),
+    );
+    const q = filtersQuery(filters(new Set<TypeKey>(["reading"])));
+    expect(q).toBe("?library&type=reading");
+    expect(parseFilters(q).types).toEqual(new Set(["reading"]));
+  });
+
+  it("reading combines with level and short and survives a reload", () => {
+    const q = filtersQuery({
+      types: new Set<TypeKey>(["reading", "lessons"]),
+      level: "intro",
+      short: true,
+    });
+    // Canonical type order keeps reading beside lessons.
+    expect(q).toBe("?library&type=lessons,reading&level=intro&short=1");
+    expect(parseFilters(q)).toEqual({
+      types: new Set(["lessons", "reading"]),
+      level: "intro",
+      short: true,
+    });
+  });
+
+  it("a reading card filters by type, level and minutes like the other kinds", () => {
+    const card: CardItem = {
+      id: "trees-sample",
+      type: "reading",
+      title: "Sample reading set",
+      tag: "Tree reading",
+      level: "intro",
+      minutes: 20,
+      objectives: [],
+      preparesFor: [],
+      follows: [],
+    };
+    const readingOnly = filters(new Set<TypeKey>(["reading"]));
+    expect(matches(card, readingOnly)).toBe(true);
+    expect(matches(card, filters(new Set<TypeKey>(["lessons"])))).toBe(false);
+    expect(
+      matches(card, { ...readingOnly, level: "intro" }),
+    ).toBe(true);
+    expect(
+      matches(card, { ...readingOnly, level: "advanced" }),
+    ).toBe(false);
+    expect(matches(card, { ...readingOnly, short: true })).toBe(true);
+    // Like every kind, a reading set without minutes is hidden by the
+    // "≤ 30 min" filter.
+    expect(
+      matches({ ...card, minutes: undefined }, { ...readingOnly, short: true }),
+    ).toBe(false);
   });
 });

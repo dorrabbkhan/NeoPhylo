@@ -42,6 +42,10 @@ export interface HeaderProps {
   /** Navigates to the library (v1.4c Task 12, spec §7.1) — the caller
    * owns the unsaved-work question, so this is an action, not a link. */
   onOpenLibrary?: () => void;
+  /** Navigates to the library's Tree reading filter (v1.4d Task 9,
+   * spec §7.1) — an action like onOpenLibrary for the same unsaved-
+   * work question; the menus carry it at every width. */
+  onOpenReading?: () => void;
   theme: ThemeName;
   /** Presenter mode flag (§6.6): scales the app 1.5× and hides the
    * controls column and the drawer button. */
@@ -64,6 +68,7 @@ export function Header({
   onOpenPhylipHelp,
   onOpenMegaHelp,
   onOpenLibrary,
+  onOpenReading,
   theme,
   presenter,
   dispatch,
@@ -123,6 +128,7 @@ export function Header({
         currentId={currentLessonId}
         onPick={onPickLesson}
         onOpenLibrary={onOpenLibrary}
+        onOpenReading={onOpenReading}
         onTakeTour={
           belowWide ? undefined : () => dispatch({ type: "tourStart" })
         }
@@ -151,6 +157,38 @@ export function Header({
           Labs
         </a>
       )}
+      {/* The reading area's header entry (v1.4d Task 9, spec §7.1):
+          a link to the library's Tree reading filter, direct only at
+          ≥ 1280 like the Labs chip — its ~114 px of fixed width pushes
+          the header's min-content past the 1024 row the same way
+          "PHYLIP labs" did before its owner decision (measured 1050 vs
+          1024 in the pinned image). Below 1280 the More menu's item
+          (< 1024) and the Lessons menu's action row carry the same
+          target. A plain primary click routes through onOpenReading,
+          so the link asks "Leave your unsaved work?" exactly like the
+          menus' items and the Library entry (fix round 1); the href
+          stays for modified clicks (open in a new tab). */}
+      {!belowWide && (
+        <a
+          className="reading-link"
+          href="?library&type=reading"
+          onClick={(event) => {
+            if (
+              onOpenReading !== undefined &&
+              event.button === 0 &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.shiftKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              onOpenReading();
+            }
+          }}
+        >
+          Reading trees
+        </a>
+      )}
       {/* v1.4b Task 12 (owner decision, 2026-11-02): the two guides
           live behind one "Guides" menu-button where the bare "Coming
           from PHYLIP?" button sat; below 1024 the More menu carries
@@ -166,6 +204,7 @@ export function Header({
           onOpenPhylipHelp={onOpenPhylipHelp}
           onOpenMegaHelp={onOpenMegaHelp}
           onOpenLibrary={onOpenLibrary}
+          onOpenReading={onOpenReading}
           onTakeTour={() => dispatch({ type: "tourStart" })}
         />
       )}

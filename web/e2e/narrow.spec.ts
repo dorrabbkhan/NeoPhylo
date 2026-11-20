@@ -369,3 +369,25 @@ test("320x640: the reading area never scrolls sideways", async ({
   await expect(page.locator(".rt-figure svg").first()).toBeVisible();
   await expectNoSidewaysScroll(page, 320, "the reading area at 320 px");
 });
+
+/* ---- v1.4d Task 9: the header's Reading trees entry below 1024 px ---- */
+
+test("375x812: the More menu's Reading trees item fits and opens the filtered library", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("button", { name: "More" }).click();
+  const item = page.getByRole("menuitem", { name: "Reading trees" });
+  await expect(item).toBeVisible();
+  const box = await item.boundingBox();
+  expect(box, "the More menu's Reading trees item has a box").not.toBeNull();
+  expect(box!.width).toBeGreaterThanOrEqual(39.95);
+  expect(box!.height).toBeGreaterThanOrEqual(39.95);
+  await expectNoSidewaysScroll(page, NARROW.w, "the open More menu");
+  await item.click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+});

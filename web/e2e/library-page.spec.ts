@@ -99,6 +99,7 @@ test("the library lists one card per lesson, lab and dataset with the header's g
   ).toHaveAttribute("href", "?guide");
   for (const group of [
     "Lessons",
+    "Tree reading",
     "PHYLIP labs",
     "MEGA labs",
     "Datasets",
@@ -189,7 +190,13 @@ test("unticking every type writes type=, and a reload keeps none checked with th
 }) => {
   await page.goto("/?library");
   await allCards(page);
-  for (const name of ["Lessons", "PHYLIP labs", "MEGA labs", "Datasets"]) {
+  for (const name of [
+    "Lessons",
+    "Tree reading",
+    "PHYLIP labs",
+    "MEGA labs",
+    "Datasets",
+  ]) {
     await page.getByRole("checkbox", { name }).uncheck();
   }
   await expect(page).toHaveURL(/\?library&type=$/);
@@ -201,7 +208,13 @@ test("unticking every type writes type=, and a reload keeps none checked with th
   // The empty selection round-trips: the reload restores no types —
   // before the fix, `type=` decoded to every type.
   await page.reload();
-  for (const name of ["Lessons", "PHYLIP labs", "MEGA labs", "Datasets"]) {
+  for (const name of [
+    "Lessons",
+    "Tree reading",
+    "PHYLIP labs",
+    "MEGA labs",
+    "Datasets",
+  ]) {
     await expect(
       page.getByRole("checkbox", { name }),
     ).not.toBeChecked();
@@ -517,3 +530,176 @@ test("under (pointer: coarse) every link and control on the guide is ≥40×40",
   await context.close();
 });
 
+
+/* ---- v1.4d Task 9: the "Tree reading" type and the header entry ---- */
+
+const READING_DIR = fileURLToPath(
+  new URL("../../exercises/reading/", import.meta.url),
+);
+/** The sets the library lists — shipped files minus the dev-only
+ * trees-demo (registry.ts's exclusion); the Task-12 coverage sets
+ * live in a subdirectory the *.json filter never reaches. */
+const READING_IDS = readdirSync(READING_DIR)
+  .filter((f) => f.endsWith(".json") && f !== "trees-demo.json")
+  .map((f) => f.slice(0, -".json".length))
+  .sort();
+
+test("every shipped listed reading set has exactly one card opening ?read=<id>", async ({
+  page,
+}) => {
+  await page.goto("/?library&type=reading");
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+  await expect(cards(page, "reading")).toHaveCount(READING_IDS.length);
+  for (const id of READING_IDS) {
+    const set = JSON.parse(
+      readFileSync(`${READING_DIR}/${id}.json`, "utf8"),
+    ) as { title: string };
+    const card = page.locator('.lib-card[data-kind="reading"]', {
+      has: page.getByRole("heading", { level: 3, name: set.title }),
+    });
+    await expect(
+      card.getByRole("link", { name: "Open set" }),
+    ).toHaveAttribute("href", `?read=${id}`);
+    // The worksheet and key actions stay hidden until Task 13.
+    await expect(
+      card.getByRole("link", { name: /worksheet|answer key/i }),
+    ).toHaveCount(0);
+  }
+});
+
+test("the Tree reading filter combines with the other filters and survives a reload", async ({
+  page,
+}) => {
+  await page.goto("/?library&type=reading");
+  await expect(cards(page, "reading")).toHaveCount(READING_IDS.length);
+  await expect(cards(page, "lessons")).toHaveCount(0);
+
+  await page.getByRole("checkbox", { name: "Datasets" }).check();
+  await expect(page).toHaveURL(/type=reading,datasets/);
+  await page.getByRole("checkbox", { name: /30 min/ }).check();
+  await expect(page).toHaveURL(/short=1/);
+  await page
+    .getByRole("combobox", { name: /level/i })
+    .selectOption("intro");
+  await expect(page).toHaveURL(/level=intro/);
+
+  // The same URL on a fresh load restores the filters.
+  const url = new URL(page.url());
+  await page.goto(`${url.pathname}${url.search}`);
+  await expect(
+    page.getByRole("checkbox", { name: "Tree reading" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Datasets" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Lessons" }),
+  ).not.toBeChecked();
+});
+
+test('the header "Reading trees" link is a plain ≥40×40 link under a coarse pointer', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await waitForApp(page);
+  const link = page.locator('header.app-header a.reading-link');
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href", "?library&type=reading");
+  const box = await link.boundingBox();
+  expect(box, "the header Reading trees link has a box").not.toBeNull();
+  expect(box!.width).toBeGreaterThanOrEqual(39.95);
+  expect(box!.height).toBeGreaterThanOrEqual(39.95);
+  await link.click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+  await context.close();
+});
+
+test("the Lessons menu's Reading trees item asks over unsaved work and opens the filtered library", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await page
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(GAP_INPUT);
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  await page.getByRole("button", { name: "Lessons" }).click();
+  await page.getByRole("menuitem", { name: "Reading trees" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Leave your unsaved work?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /keep my work/i }).click();
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  await page.getByRole("button", { name: "Lessons" }).click();
+  await page.getByRole("menuitem", { name: "Reading trees" }).click();
+  await page
+    .getByRole("button", { name: /leave and open the library/i })
+    .click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+});
+
+test("the header's Reading trees link asks over unsaved work like the menus; a clean sandbox navigates directly", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await page
+    .locator('.import-file input[type="file"]')
+    .setInputFiles(GAP_INPUT);
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  // The ≥ 1280 header link routes a plain click through onOpenReading
+  // (fix round 1), so the same sheet as the menus' items opens.
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Leave your unsaved work?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /keep my work/i }).click();
+  await expect(page.locator(".gap-count")).toContainText("0 of 500");
+
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await page
+    .getByRole("button", { name: /leave and open the library/i })
+    .click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+
+  // A clean sandbox goes straight through the link with no sheet.
+  await page.goto("/");
+  await waitForApp(page);
+  await page.getByRole("link", { name: "Reading trees" }).click();
+  await expect(page).toHaveURL(/\?library&type=reading/);
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+});

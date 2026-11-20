@@ -90,3 +90,64 @@ describe("MoreMenu", () => {
     expect(document.activeElement).toBe(button);
   });
 });
+
+// v1.4d Task 9 (spec §7.1): the "Reading trees" item — the header
+// link's below-1024 path — joins the More menu's action rows after
+// "Library"; both run the caller's action so the unsaved-work
+// question can run.
+describe("MoreMenu — Reading trees item (v1.4d Task 9)", () => {
+  function setupReading() {
+    const onOpenReading = vi.fn();
+    const onOpenLibrary = vi.fn();
+    const utils = render(
+      <MoreMenu
+        onOpenPhylipHelp={vi.fn()}
+        onOpenMegaHelp={vi.fn()}
+        onTakeTour={vi.fn()}
+        onOpenLibrary={onOpenLibrary}
+        onOpenReading={onOpenReading}
+      />,
+    );
+    const button = utils.getByRole("button", { name: "More" });
+    return { ...utils, button, onOpenReading, onOpenLibrary };
+  }
+
+  it("lists Reading trees after Library as an action item", () => {
+    const { button, getByRole } = setupReading();
+    fireEvent.click(button);
+    const menu = getByRole("menu", { name: "More" });
+    const labels = Array.from(
+      menu.querySelectorAll('[role="menuitem"]'),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual([
+      "Coming from PHYLIP?",
+      "Coming from MEGA?",
+      "Labs",
+      "Library",
+      "Reading trees",
+      "Take the tour",
+      "Licenses",
+      "Source code",
+      "Help",
+    ]);
+  });
+
+  it("clicking it calls onOpenReading and returns focus to the button", () => {
+    const { button, getByRole, queryByRole, onOpenReading, onOpenLibrary } =
+      setupReading();
+    fireEvent.click(button);
+    fireEvent.click(getByRole("menuitem", { name: "Reading trees" }));
+    expect(onOpenReading).toHaveBeenCalledTimes(1);
+    expect(onOpenLibrary).not.toHaveBeenCalled();
+    expect(queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("is absent without onOpenReading", () => {
+    const { button, queryByRole } = setup();
+    fireEvent.click(button);
+    expect(
+      queryByRole("menuitem", { name: "Reading trees" }),
+    ).toBeNull();
+  });
+});
