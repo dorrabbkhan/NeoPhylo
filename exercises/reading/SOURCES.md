@@ -21,7 +21,9 @@ the intentional distractor, was not checked.
 
 All trees are drawn as cladograms (branch lengths ignored). Every
 tree's `times` axis is schematic — direction of time only, no numeric
-ages — so no age citation is needed. Common names stand in for
+ages — so no age citation is needed, except `cetartiodactyls` in
+`coverage/cov-statements.json`, whose numeric axis gives cited
+estimates (listed in its entry below). Common names stand in for
 binomials as a simplification for intro students; in the lessons
 each common name stands for its whole genus or family as drawn,
 which does not change any relationship on these trees. The
@@ -53,6 +55,46 @@ binomials used for the OTL check:
 | dolphin | *Tursiops truncatus* |
 | lizard | *Lacerta agilis* |
 | snake | *Python bivittatus* |
+| cheetah | *Acinonyx jubatus* |
+| puma | *Puma concolor* |
+| leopard | *Panthera pardus* |
+| jaguar | *Panthera onca* |
+| moss | *Physcomitrium patens* |
+| fern | *Pteridium aquilinum* |
+| ginkgo | *Ginkgo biloba* |
+| oak | *Quercus robur* |
+| cactus | *Carnegiea gigantea* |
+| camel | *Camelus dromedarius* |
+| pig | *Sus scrofa* |
+| hippo | *Hippopotamus amphibius* |
+| ostrich | *Struthio camelus* |
+| duck | *Anas platyrhynchos* |
+| albatross | *Diomedea exulans* |
+| opossum | *Didelphis virginiana* |
+| quoll | *Dasyurus viverrinus* |
+| kangaroo | *Macropus rufus* |
+| koala | *Phascolarctos cinereus* |
+| wombat | *Vombatus ursinus* |
+| rice | *Oryza sativa* |
+| wheat | *Triticum aestivum* |
+| corn | *Zea mays* |
+| earthworm | *Lumbricus terrestris* |
+| sparrow | *Passer domesticus* |
+| cow | *Bos taurus* |
+| whale | *Megaptera novaeangliae* |
+| basilosaurus | *Basilosaurus isis* |
+| blue whale | *Balaenoptera musculus* |
+| lemur | *Lemur catta* |
+| galago | *Otolemur garnettii* |
+| tarsier | *Carlito syrichta* |
+| marmoset | *Callithrix jacchus* |
+| aotus | *Aotus azarae* |
+| macaque | *Macaca mulatta* |
+| baboon | *Papio anubis* |
+| horseshoe crab | *Limulus polyphemus* |
+| lobster | *Homarus gammarus* |
+| crab | *Carcinus maenas* |
+| spider | *Araneus diadematus* |
 
 ## trees-reading-a-tree
 
@@ -177,3 +219,208 @@ about marks.
   gains on the human + mouse clade. The "limb loss in snakes"
   simplification follows standard textbook usage (snakes descend from
   limbed squamate ancestors).
+
+## trees-form-a
+
+Recorded 2026-11-20. The new topologies below were checked against
+the Open Tree of Life synthetic tree `opentree16.1` on 2026-11-20
+(`tnrs/match_names`, with approximate matching only where noted,
+then `tree_of_life/induced_subtree`; each rooted clade set compared
+with the induced subtree pruned to the queried taxa).
+
+### `cats`, `cats-rot`, `cats-diff`, `cats-lettered`
+
+`((cheetah,puma),(lion,tiger,leopard,jaguar));`
+
+- **Topology:** the felid backbone — the *Acinonyx* + *Puma* lineage
+  (Acinonychinae) sister to *Panthera*. The four *Panthera* species
+  are drawn as an honest polytomy.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** six species only; the *Panthera* radiation is
+  drawn unresolved (the synthesis resolves it; the polytomy is a
+  deliberate simplification, not a claim); common names.
+- `cats-rot` is the same topology with rotated child orders;
+  `cats-lettered` is the same topology plus display letters;
+  `cats-diff` resolves a different pairing inside *Panthera* and is
+  the intentional distractor (not checked).
+- OTL check (opentree16.1, 2026-11-20): no conflict; the synthesis
+  resolves the *Panthera* split drawn here as a polytomy.
+
+### `plants`
+
+`(moss,(fern,(ginkgo,(oak,cactus))));`
+
+- **Topology:** bryophyte (moss) sister to the vascular plants;
+  ferns sister to seed plants; gymnosperm (ginkgo) sister to the
+  angiosperms (oak + cactus) — settled.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** five species only; common names. The moss
+  common name stands for *Physcomitrium patens*; OTL matches it via
+  its synonym *Physcomitrella patens*.
+- OTL check (opentree16.1, 2026-11-20): exact match (moss matched
+  approximately via *Physcomitrella patens*, ott 821359).
+
+### `arthropods`
+
+`((lobster,crab),('horseshoe crab',spider));`
+
+- **Topology:** decapod crustaceans (lobster + crab, Pleocyemata)
+  versus chelicerates (horseshoe crab + spider) — settled; the
+  horseshoe crab is a chelicerate, not a crustacean, the
+  resemblance distractor the `q-sea` item teaches against.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** four species only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
+
+### `whales`
+
+`(shark,(frog,(camel,(pig,(hippo,dolphin)))));`
+
+- **Topology:** the cetartiodactyl chain — hippo sister to dolphin
+  (Whippomorpha/Cetancodonta), pig next, then camel, inside
+  tetrapods with frog and shark as successive outgroups — settled.
+- **Source:** the Open Tree of Life synthetic tree (CC0); the
+  hippo–whale relationship also follows Gatesy J., Hayashi C.,
+  Cronin M. A., Arctander P. 1996, "Evidence from milk casein genes
+  that cetaceans are close relatives of hippopotamid artiodactyls",
+  *Molecular Biology and Evolution* 13:954–963, doi:10.1093/
+  oxfordjournals.molbev.a025663.
+- **Simplifications:** six species only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
+
+## trees-form-b
+
+Recorded and checked as for `trees-form-a` (2026-11-20,
+`opentree16.1`).
+
+### `birds`, `birds-rot`, `birds-diff`, `birds-lettered`
+
+`(lizard,(ostrich,((chicken,duck),(penguin,albatross))));`
+
+- **Topology:** lizard (lepidosaur) as outgroup to birds; ostrich
+  (paleognath) sister to the neognaths; within neognaths chicken +
+  duck (Galloanserae) versus penguin + albatross (both waterbird
+  clade Aequornithes/Neoaves) — the early splits are settled, the
+  deep neoavian pairing is a simplification (Neoaves resolution is
+  still researched).
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** six species only; the penguin + albatross
+  pairing follows the synthesis (both core waterbirds); common names.
+- `birds-rot` is the same topology rotated; `birds-lettered` adds
+  display letters; `birds-diff` pairs chicken with penguin and is
+  the intentional distractor (not checked).
+- OTL check (opentree16.1, 2026-11-20): no conflict.
+
+### `marsupials`
+
+`(opossum,(quoll,(kangaroo,(koala,wombat))));`
+
+- **Topology:** didelphid (opossum) sister to the other sampled
+  marsupials; dasyurid (quoll) next; diprotodontians (kangaroo,
+  koala, wombat) together with koala + wombat (Vombatiformes)
+  sister — settled.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** five species only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
+
+### `grasses`
+
+`(oak,(rice,wheat,corn));`
+
+- **Topology:** oak (eudicot outgroup) sister to the three grasses
+  (Poaceae). The rice (BEP clade), wheat (BEP) and corn (PACMAD)
+  split is drawn as a polytomy — a simplification; the synthesis
+  resolves rice + wheat (both BEP).
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** four species only; the grass trichotomy is
+  drawn unresolved for teaching (the item only asks which tip is
+  sister to the clade / outside it); common names.
+- OTL check (opentree16.1, 2026-11-20): no conflict; the synthesis
+  resolves rice + wheat, drawn here as a polytomy.
+
+## coverage/
+
+Recorded and checked as for `trees-form-a` (2026-11-20,
+`opentree16.1`). Abstract lettered trees (`st-a`, `st-b`, `st-c`,
+`letters8`, `ref8`, `small-1`, `small-2`, `cand-ok`, `cand-bad`,
+`conf-c`, `beasties`) are teaching constructs — the same convention
+as `trees-demo`; they carry letters, not taxa, and need no source.
+`cand-bad`, `st-c` and `conf-c` are intentional distractors.
+`rodents` is the same tree and source as in
+`trees-closest-relatives` above.
+
+### `mammals6` (cov-relatedness)
+
+`(earthworm,(frog,((lizard,sparrow),(cow,whale))));`
+
+- **Topology:** annelid outgroup; frog (amphibian) sister to
+  amniotes; sauropsids (lizard + sparrow) sister to mammals
+  (cow + whale) — settled.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** six species only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
+
+### `primates`, `primates-rot`, `primates-diff` (cov-styles)
+
+`((lemur,galago),(tarsier,((marmoset,aotus),((macaque,baboon),(gibbon,(orangutan,(gorilla,(human,chimp))))))));`
+
+- **Topology:** strepsirrhines (lemur + galago) sister to
+  haplorhines; tarsier sister to anthropoids; platyrrhines
+  (marmoset + aotus) sister to catarrhines; cercopithecoids
+  (macaque + baboon) sister to hominoids; gibbon, orangutan,
+  gorilla, human + chimp successively — settled.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** twelve species only; common names.
+- `primates-rot` is the same topology rotated (the circular-style
+  comparison tree); `primates-diff` resolves (human,gorilla)+chimp
+  and is the intentional distractor (not checked).
+- OTL check (opentree16.1, 2026-11-20): exact match.
+
+### `cetartiodactyls` (cov-statements)
+
+`(cow,(hippo,(basilosaurus,('blue whale',dolphin))));`
+
+- **Topology:** the whale backbone with the fossil *Basilosaurus*
+  on the cetacean stem: cow sister to hippo + whales; basilosaurus
+  sister to crown whales (blue whale + dolphin) — settled for the
+  extant taxa; basilosaurus as a stem cetacean follows the cited
+  fossil literature.
+- **Source:** the Open Tree of Life synthetic tree (CC0) for the
+  extant taxa; the basilosaurus placement follows Uhen M. D. 1998,
+  "Middle to late Eocene basilosaurines and dorudontines", in
+  Thewissen J. G. M. (ed.) *The Emergence of Whales*, Plenum,
+  pp. 29–61, doi:10.1007/978-1-4899-0159-0_2.
+- **Ages:** the `times` axis gives numeric ages in Ma, each a
+  rounded published estimate (values: R 70, W 60, C 45, N 35,
+  basilosaurus tip 37). R (the ruminant–whippomorph split,
+  Cetruminantia) 70 Ma and W (hippo + whales,
+  Whippomorpha/Cetancodonta) 60 Ma: Hassanin et al. 2012, "Pattern
+  and timing of diversification of Cetartiodactyla (Mammalia,
+  Laurasiatheria), as revealed by a comprehensive analysis of
+  mitochondrial genomes", *C. R. Biologies* 335:32–50,
+  doi:10.1016/j.crvi.2011.11.002 — its Bayesian relaxed-clock
+  means are 69.7 Ma (BD-SOFT) / 69.0 Ma (BD-HARD) for
+  Cetruminantia and 60.1 / 57.7 Ma for Whippomorpha (Table 1;
+  BD-SOFT / BD-HARD models, the paper's UNI-HARD model gives
+  55.1 and 52.1);
+  both fall inside the range of published estimates compiled in
+  J. Gatesy 2009, "Whales and even-toed ungulates
+  (Cetartiodactyla)" in Hedges & Kumar, *The Timetree of Life*,
+  OUP, doi:10.1093/oso/9780199535033.003.0081. C
+  (basilosaurid stem + crown whales) 45 Ma: earliest basilosaurids
+  in the late middle Eocene (Uhen 1998, above). N (crown whales —
+  baleen *Balaenoptera* + toothed *Delphinus*, i.e. Neoceti) 35 Ma:
+  Hassanin et al. 2012 give means of 34.4–34.6 Ma for crown
+  Cetacea, matching the 35 ± 1 Ma fossil constraint on the
+  Mysticeti–Odontoceti split used there. The basilosaurus tip 37
+  Ma: the late Eocene (Priabonian) age of *Basilosaurus isis*
+  (Uhen 1998, above; Voss et al. 2019, *PLoS ONE* 14(1):e0209021,
+  doi:10.1371/journal.pone.0209021).
+- **Simplifications:** five species only; *Basilosaurus* is a
+  fossil tip drawn as a sampled stem lineage so the fossil bound
+  on the hippos' sister group reads straight off the tree; each
+  age is rounded to the nearest 1–2 Ma inside the cited range;
+  common names.
+- OTL check (opentree16.1, 2026-11-20): exact match for the extant
+  taxa; *Basilosaurus isis* is pruned from the synthesis (fossil),
+  so its placement is sourced to the literature.

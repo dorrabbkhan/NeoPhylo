@@ -5,7 +5,7 @@
 // run settings (100 replicates, seed 1), no wall-clock dependence
 // beyond settle waits.
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import type { Locator, Page } from "@playwright/test";
@@ -738,9 +738,17 @@ export const SCENES: {
       // dataset row's source resolves.
       await expect(page.locator('.lib-card[data-kind="datasets"]'))
         .toHaveCount(5);
+      // The reading-card count is the shipped top-level set count
+      // minus the dev-only trees-demo (v1.4d Task 12, owner-approved
+      // baseline change — forms A/B add two cards).
+      const readingFiles = (
+        await readdir(
+          fileURLToPath(new URL("../../exercises/reading/", import.meta.url)),
+        )
+      ).filter((f) => f.endsWith(".json") && f !== "trees-demo.json");
       await expect(
         page.locator('.lib-card[data-kind="reading"]'),
-      ).toHaveCount(4);
+      ).toHaveCount(readingFiles.length);
       const nonKeyed = await page
         .locator(
           '.lib-card:not([data-kind="datasets"]):not([data-kind="reading"])',

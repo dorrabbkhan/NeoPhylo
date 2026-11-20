@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "cov-styles",
+  "title": "Coverage — drawing styles and tree equivalence",
+  "summary": "Coverage items: the same relationships drawn in every shape and tip direction, plus which tree shows a different relationship — including all the same.",
+  "taxa_pool": {},
+  "trees": {
+    "primates": {
+      "newick": "((lemur,galago),(tarsier,((marmoset,aotus),((macaque,baboon),(gibbon,(orangutan,(gorilla,(human,chimp))))))));"
+    },
+    "primates-rot": {
+      "newick": "((((((((chimp,human),gorilla),orangutan),gibbon),(baboon,macaque)),(aotus,marmoset)),tarsier),(galago,lemur));"
+    },
+    "primates-diff": {
+      "newick": "((lemur,galago),(tarsier,((marmoset,aotus),((macaque,baboon),(gibbon,(orangutan,((human,gorilla),chimp)))))));"
+    }
+  },
+  "items": [
+    {
+      "id": "q-diff-rect",
+      "text": "One of these trees shows different relationships from the other two. Which one?",
+      "trees": ["primates", "primates-rot", "primates-diff"],
+      "style": { "shape": "rectangular", "tips": "right" },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-diff-circ",
+      "text": "One of these trees shows different relationships from the other two — notice the drawing style changes too. Which one?",
+      "trees": ["primates", "primates-rot", "primates-diff"],
+      "style": {
+        "shape": "circular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "circular", "tips": "right" },
+          { "shape": "circular", "tips": "up" },
+          { "shape": "circular", "tips": "left" }
+        ]
+      },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-diff-diag",
+      "text": "One of these diagonal trees shows different relationships from the other two. Which one?",
+      "trees": ["primates", "primates-rot", "primates-diff"],
+      "style": {
+        "shape": "diagonal",
+        "tips": "up",
+        "per_tree": [
+          { "shape": "diagonal", "tips": "up" },
+          { "shape": "diagonal", "tips": "left" },
+          { "shape": "diagonal", "tips": "down" }
+        ]
+      },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    },
+    {
+      "id": "q-all-same",
+      "text": "Do these trees all show the same relationships, or does one differ?",
+      "trees": ["primates", "primates-rot"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "left",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "left" },
+          { "shape": "circular", "tips": "down" }
+        ]
+      },
+      "rotate_tool": true,
+      "question": { "type": "which_differs" }
+    }
+  ]
+}

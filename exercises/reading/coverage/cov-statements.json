@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "cov-statements",
+  "title": "Coverage — statements, node order and time",
+  "summary": "Coverage items: true/false statements across diagrams, ordering nodes with and without a time axis, lineage ages against dated fossils, and what a cladogram does not show.",
+  "taxa_pool": {},
+  "trees": {
+    "st-a": {
+      "newick": "(((A,B),(C,D)),((E,F),(G,H)));",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        { "on": ["A", "B", "C", "D"], "letter": "P" },
+        { "on": ["E", "F", "G", "H"], "letter": "Q" },
+        { "on": ["A", "B"], "letter": "X" },
+        { "on": ["G", "H"], "letter": "Y" }
+      ]
+    },
+    "st-b": {
+      "newick": "(((B,A),(D,C)),((H,G),(F,E)));"
+    },
+    "st-c": {
+      "newick": "(((A,C),(B,D)),((E,F),(G,H)));"
+    },
+    "cetartiodactyls": {
+      "newick": "(cow,(hippo,(basilosaurus,('blue whale',dolphin))));",
+      "node_letters": [
+        { "on": "root", "letter": "R" },
+        {
+          "on": ["basilosaurus", "blue whale", "dolphin", "hippo"],
+          "letter": "W"
+        },
+        {
+          "on": ["basilosaurus", "blue whale", "dolphin"],
+          "letter": "C"
+        },
+        { "on": ["blue whale", "dolphin"], "letter": "N" }
+      ],
+      "times": {
+        "unit": "million years",
+        "source": "Rounded estimates: Hassanin et al. 2012; Uhen 1998 (see SOURCES.md)",
+        "ages": [
+          { "on": "root", "age": 70 },
+          {
+            "on": ["basilosaurus", "blue whale", "dolphin", "hippo"],
+            "age": 60
+          },
+          {
+            "on": ["basilosaurus", "blue whale", "dolphin"],
+            "age": 45
+          },
+          { "on": ["blue whale", "dolphin"], "age": 35 },
+          { "on": ["basilosaurus"], "age": 37 }
+        ]
+      }
+    },
+    "rodents": {
+      "newick": "(cat,(rabbit,((mouse,rat),squirrel,'guinea pig')));"
+    }
+  },
+  "items": [
+    {
+      "id": "q-two-trees",
+      "text": "Select every true statement. The node letters are on the first tree.",
+      "trees": ["st-a", "st-b", "st-c"],
+      "style": {
+        "shape": "rectangular",
+        "tips": "right",
+        "per_tree": [
+          { "shape": "rectangular", "tips": "right" },
+          { "shape": "rectangular", "tips": "left" },
+          { "shape": "rectangular", "tips": "down" }
+        ]
+      },
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 1,
+            "text": "The first and second trees show the same relationships."
+          },
+          {
+            "kind": "clade_in_not_in",
+            "tips": ["A", "B"],
+            "tree_i": 0,
+            "tree_j": 2,
+            "text": "A and B form a clade in the first tree but not in the third."
+          },
+          {
+            "kind": "clade_in_not_in",
+            "tips": ["E", "F"],
+            "tree_i": 0,
+            "tree_j": 2,
+            "text": "E and F form a clade in the first tree but not in the third."
+          },
+          {
+            "kind": "same_relationships",
+            "tree_i": 0,
+            "tree_j": 2,
+            "text": "The first and third trees show the same relationships."
+          },
+          {
+            "kind": "older_than",
+            "p": "R",
+            "q": "P",
+            "text": "Node R is older than node P."
+          }
+        ]
+      }
+    },
+    {
+      "id": "q-order-free",
+      "text": "Order the lettered nodes from oldest to youngest.",
+      "trees": ["st-a"],
+      "note_after": "A node is older than every node below it. Nodes on separate lineages cannot be ordered against each other — every order consistent with ancestry is accepted.",
+      "question": { "type": "order_nodes", "nodes": ["P", "Q", "R", "X", "Y"] }
+    },
+    {
+      "id": "q-order-ages",
+      "text": "Order the lettered nodes from oldest to youngest. The scale shows time in million years before today.",
+      "trees": ["cetartiodactyls"],
+      "question": { "type": "order_nodes", "nodes": ["C", "N", "R", "W"] }
+    },
+    {
+      "id": "q-ages",
+      "text": "Select every true statement. The scale shows time in million years before today; node letters and ages are on the tree.",
+      "trees": ["cetartiodactyls"],
+      "question": {
+        "type": "select_true",
+        "statements": [
+          {
+            "kind": "lineage_at_least",
+            "tip": "hippo",
+            "age": 30,
+            "text": "The hippo lineage is at least 30 million years old."
+          },
+          {
+            "kind": "lineage_at_least",
+            "tip": "hippo",
+            "age": 65,
+            "text": "The hippo lineage is at least 65 million years old."
+          },
+          {
+            "kind": "older_than_age",
+            "p": "W",
+            "age": 50,
+            "text": "Node W is older than 50 million years."
+          },
+          {
+            "kind": "older_than_age",
+            "p": "C",
+            "age": 50,
+            "text": "Node C is older than 50 million years."
+          }
+        ]
+      }
+    },
+    {
+      "id": "q-no-time",
+      "text": "Does this diagram show time?",
+      "trees": ["st-a"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "No — it shows only branching order; it has no time component",
+          "Yes — the tips sit on a time axis",
+          "Yes — longer branches always mean more time"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-poly-meaning",
+      "text": "This tree leaves the branching order of the squirrel, the guinea pig and the mouse–rat pair unresolved — a three-way split. What does that mean?",
+      "trees": ["rodents"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "The branching order is not resolved — the drawing cannot say which split came first",
+          "The three lineages really split in a single instant",
+          "The tree contains a mistake"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-dendro",
+      "text": "A dendrogram drawn from overall similarity scores groups tips that look alike. What can a phylogenetic tree claim that such a dendrogram cannot?",
+      "trees": ["rodents"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "It claims shared ancestry, not just similarity",
+          "Nothing — the two diagrams mean the same thing",
+          "It is always better at grouping by similarity"
+        ],
+        "correct": [0]
+      }
+    },
+    {
+      "id": "q-coev",
+      "text": "Suppose a tree of parasites drawn next to this tree of their hosts had almost the same shape. What would that suggest?",
+      "trees": ["rodents"],
+      "question": {
+        "type": "concept",
+        "options": [
+          "The parasites tended to speciate when their hosts did",
+          "The parasites spread between hosts at random",
+          "The hosts evolved to match their parasites"
+        ],
+        "correct": [0]
+      }
+    }
+  ]
+}

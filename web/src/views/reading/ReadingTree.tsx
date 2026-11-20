@@ -325,7 +325,11 @@ export function ReadingTree({
     nodes[byKey.get(cladeKey(clade)) ?? -1]?.label;
 
   return (
-    <figure className="rt-figure">
+    <figure
+      className="rt-figure"
+      data-shape={style.shape}
+      data-tips={style.tips}
+    >
       <figcaption className="rt-caption">{label}</figcaption>
       <div className="rt-canvas" ref={boxRef} data-cue={cue || undefined}>
         {fontsSettled && fig !== null && (
