@@ -68,6 +68,39 @@ describe("TestSummary", () => {
     expect(screen.getAllByText(/not answered|no answer/i).length).toBe(2);
   });
 
+  it("fills note_after placeholders on the summary", () => {
+    const set: ReadingSet = {
+      ...(JSON.parse(JSON.stringify(DEMO)) as ReadingSet),
+      mode: "test",
+      items: [
+        {
+          id: "q-note",
+          text: "Do {set} form a clade?",
+          trees: ["mammals"],
+          tips: ["chimp", "human"],
+          a: "chimp",
+          note_after:
+            "{a} and kin: {set} are exactly the descendants of one node.",
+          rotate_tool: false,
+          question: { type: "is_clade" },
+        },
+      ],
+    };
+    render(
+      <TestSummary
+        set={set}
+        responses={[{ kind: "choice", index: 0 }]}
+        onRestart={() => {}}
+      />,
+    );
+    const note = document.querySelector(".read-note");
+    expect(note).not.toBeNull();
+    expect(note!.textContent).toBe(
+      "chimp and kin: chimp and human are exactly the descendants of one node.",
+    );
+    expect(note!.textContent).not.toContain("{");
+  });
+
   it("Start again runs the restart callback", () => {
     const onRestart = vi.fn();
     render(

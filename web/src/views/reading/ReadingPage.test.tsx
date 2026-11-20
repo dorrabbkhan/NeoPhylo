@@ -130,6 +130,39 @@ describe("practice mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
     expect(screen.getByText(/everything that descends/i)).toBeTruthy();
   });
+
+  it("note_after placeholders are filled after Check", async () => {
+    const set: ReadingSet = {
+      ...(JSON.parse(JSON.stringify(DEMO)) as ReadingSet),
+      items: [
+        {
+          id: "q-note",
+          text: "Do {set} form a clade?",
+          trees: ["mammals"],
+          tips: ["chimp", "human"],
+          a: "chimp",
+          note_after:
+            "{a} and kin: {set} are exactly the descendants of one node.",
+          rotate_tool: false,
+          question: { type: "is_clade" },
+        },
+        // A second item so the page shows Next (a one-item set goes
+        // straight to Finish).
+        DEMO.items[0],
+      ],
+    };
+    await renderPage({ hash: encodeReadingLink(set) });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /yes — a clade/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    const note = document.querySelector(".read-note");
+    expect(note).not.toBeNull();
+    expect(note!.textContent).toBe(
+      "chimp and kin: chimp and human are exactly the descendants of one node.",
+    );
+    expect(note!.textContent).not.toContain("{");
+  });
 });
 
 describe("test mode", () => {

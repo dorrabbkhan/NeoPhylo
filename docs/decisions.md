@@ -8817,3 +8817,31 @@ Four built-in reading sets (`trees-reading-a-tree`, `trees-rotation`,
   - The ocean tree groups dolphin with the penguin+chicken pair
     (tetrapods) rather than with the fish — the resemblance
     distractor the lesson teaches against.
+- **Fix round 1:**
+  - `trees-clades-traits` splits its tree: `amniotes` is the bare
+    Newick for the three clade items (`q-clade-yes`, `q-clade-no`,
+    `q-two`, which now also carry the lesson's diagonal and circular
+    styles and `q-clade-no`'s rotate tool); `amniotes-traits` is the
+    same topology with the marks, used by every mark item, all drawn
+    rectangular tips-right (`q-mono` keeps its rotate tool). Same
+    topology, so every computed answer is unchanged; `SOURCES.md`
+    names both trees.
+  - **Follow-ups noticed:** mark labels collide in diagonal, tips-up
+    and circular layouts when several marks sit on short branches
+    (seen on the amniotes tree); the lesson draws marked trees
+    rectangular only; layout fix left for a later task.
+  - Residual even rectangular: the "amniotic egg" label is ~2 px
+    wider than its one-level stem, so its last glyph touches the
+    child-drop vertical at the amniote node at 1024×768 and 360×740
+    (checked geometrically; every other mark label is clear). A
+    label-vs-other-branch clearance is a layout fix, not content —
+    same follow-up.
+  - **Files outside the task's Files block:** `web/src/reading/state.ts`
+    (new `fillPlaceholders`, shared by `fillItemText`),
+    `web/src/views/reading/ItemView.tsx`,
+    `web/src/views/reading/TestSummary.tsx` and their tests
+    (`web/src/reading/state.test.ts`,
+    `web/src/views/reading/ReadingPage.test.tsx`,
+    `web/src/views/reading/TestSummary.test.tsx`) — `note_after`
+    placeholders were rendered raw (`{set}`, `{a}`); found while
+    checking the lessons.

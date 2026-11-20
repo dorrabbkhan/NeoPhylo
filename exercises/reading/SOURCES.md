@@ -108,9 +108,13 @@ simplification for intro students.
 
 ## trees-clades-traits
 
-### `amniotes`
+### `amniotes`, `amniotes-traits`
 
 `(shark,(frog,((human,mouse),(chicken,(lizard,snake)))));`
+
+`amniotes-traits` is the same topology carrying the trait marks
+below; `amniotes` is the bare tree for the items that do not ask
+about marks.
 
 - **Topology:** amphibian (frog) sister to amniotes; mammals
   (human + mouse) sister to sauropsids; within sauropsids, chicken

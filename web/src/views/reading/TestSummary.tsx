@@ -9,6 +9,7 @@ import { engine } from "../../engine/index";
 import {
   effectiveResponse,
   fillItemText,
+  fillPlaceholders,
   submittable,
   type ResponseDraft,
 } from "../../reading/state";
@@ -49,7 +50,10 @@ function rows(set: ReadingSet, responses: (ResponseDraft | null)[]): Row[] {
         explanation: key.ok
           ? key.value.explanation
           : "This item's answer could not be computed.",
-        noteAfter: item.note_after,
+        noteAfter:
+          item.note_after === undefined
+            ? undefined
+            : fillPlaceholders(item.note_after, item),
       };
     }
     const v = engine.readingCheck(set, i, effective);
@@ -61,7 +65,10 @@ function rows(set: ReadingSet, responses: (ResponseDraft | null)[]): Row[] {
       explanation: v.ok
         ? v.value.explanation
         : "Your answer could not be checked.",
-      noteAfter: item.note_after,
+      noteAfter:
+        item.note_after === undefined
+          ? undefined
+          : fillPlaceholders(item.note_after, item),
     };
   });
 }

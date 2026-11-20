@@ -109,7 +109,7 @@
         "type": "two_tier",
         "first": { "type": "closest_relative", "form": "pairwise" },
         "reasons": [
-          "Their lineages meet at a deeper node — a more recent common ancestor.",
+          "Their lineages meet at a more recent common ancestor than either shares with the other taxon.",
           "They look more alike — the streamlined swimmers must be closest."
         ],
         "correct_reason": 0

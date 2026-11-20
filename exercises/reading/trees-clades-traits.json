@@ -28,6 +28,9 @@
   },
   "trees": {
     "amniotes": {
+      "newick": "(shark,(frog,((human,mouse),(chicken,(lizard,snake)))));"
+    },
+    "amniotes-traits": {
       "newick": "(shark,(frog,((human,mouse),(chicken,(lizard,snake)))));",
       "marks": [
         {
@@ -78,15 +81,16 @@
       "id": "q-clade-no",
       "text": "Do {set} form a clade?",
       "trees": ["amniotes"],
+      "style": { "shape": "diagonal", "tips": "right" },
       "tips": ["chicken", "human", "lizard"],
       "note_after": "Their common ancestor has other descendants too — a clade must include every tip below the node.",
+      "rotate_tool": true,
       "question": { "type": "is_clade" }
     },
     {
       "id": "q-mono",
       "text": "The marks show where traits changed. Are the taxa with an amniotic egg monophyletic, paraphyletic or polyphyletic?",
-      "trees": ["amniotes"],
-      "style": { "shape": "rectangular", "tips": "up" },
+      "trees": ["amniotes-traits"],
       "note_after": "The trait arose once, and the taxa carrying it are exactly that clade — monophyletic.",
       "rotate_tool": true,
       "question": { "type": "is_clade", "by_trait": "amniotic egg" }
@@ -94,23 +98,21 @@
     {
       "id": "q-para",
       "text": "Are the taxa with limbs monophyletic, paraphyletic or polyphyletic?",
-      "trees": ["amniotes"],
-      "style": { "shape": "diagonal", "tips": "right" },
+      "trees": ["amniotes-traits"],
       "note_after": "Limbs arose once on the shared stem and one lineage inside the clade later lost them — the limbed taxa are that clade minus a lineage: paraphyletic.",
       "question": { "type": "is_clade", "by_trait": "limbs" }
     },
     {
       "id": "q-poly",
       "text": "Are the endothermic taxa monophyletic, paraphyletic or polyphyletic?",
-      "trees": ["amniotes"],
-      "style": { "shape": "circular", "tips": "right" },
+      "trees": ["amniotes-traits"],
       "note_after": "Endothermy arose twice, in the mammal line and in the bird line — separate origins make the group polyphyletic.",
       "question": { "type": "is_clade", "by_trait": "endothermy" }
     },
     {
       "id": "q-have",
       "text": "Tap every tip that has hair.",
-      "trees": ["amniotes"],
+      "trees": ["amniotes-traits"],
       "question": {
         "type": "trait",
         "ask": { "kind": "which_have", "trait_name": "hair" }
@@ -119,7 +121,7 @@
     {
       "id": "q-shared",
       "text": "Which trait is shared by exactly {set} — a shared derived trait of that clade?",
-      "trees": ["amniotes"],
+      "trees": ["amniotes-traits"],
       "tips": ["human", "mouse"],
       "note_after": "A trait marking exactly one clade is a shared derived trait — a synapomorphy — of that clade.",
       "question": {
@@ -130,7 +132,7 @@
     {
       "id": "q-homo",
       "text": "Is endothermy in {a} and {b} homologous — inherited from a single origin — or did it arise independently?",
-      "trees": ["amniotes"],
+      "trees": ["amniotes-traits"],
       "a": "chicken",
       "b": "human",
       "question": {
@@ -146,8 +148,7 @@
     {
       "id": "q-synap",
       "text": "Select every true statement about the trait marks.",
-      "trees": ["amniotes"],
-      "style": { "shape": "diagonal", "tips": "right" },
+      "trees": ["amniotes-traits"],
       "question": {
         "type": "select_true",
         "statements": [
@@ -176,6 +177,7 @@
       "id": "q-two",
       "text": "Do {set} form a clade — and why?",
       "trees": ["amniotes"],
+      "style": { "shape": "circular", "tips": "right" },
       "tips": ["lizard", "snake"],
       "question": {
         "type": "two_tier",
