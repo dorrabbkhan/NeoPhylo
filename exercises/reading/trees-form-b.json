@@ -79,7 +79,7 @@
       "id": "q-evolved",
       "text": "On this tree, which tip is the most advanced — the most evolved?",
       "trees": ["birds"],
-      "style": { "shape": "diagonal", "tips": "up" },
+      "style": { "shape": "rectangular", "tips": "up" },
       "question": {
         "type": "concept",
         "options": [

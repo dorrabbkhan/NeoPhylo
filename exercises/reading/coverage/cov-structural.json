@@ -46,7 +46,7 @@
       "text": "At which lettered point is the most recent common ancestor of A and B?",
       "trees": ["letters8"],
       "tips": ["A", "B"],
-      "question": { "type": "mrca", "options": ["W", "X", "Y"] }
+      "question": { "type": "mrca", "options": ["W", "Y", "Z", "V", "X"] }
     },
     {
       "id": "q-place",

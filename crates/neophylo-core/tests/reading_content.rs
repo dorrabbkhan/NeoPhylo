@@ -32,8 +32,9 @@ use std::path::PathBuf;
 
 use neophylo_core::newick::parse_newick;
 use neophylo_core::reading::{
-    answer, check, load_reading_set, Accepted, AnswerKey, Change, Closer, Item, PointAt, Question,
-    ReadingMode, ReadingSet, Response, Shape, Statement, Times, TipSide, TraitAsk,
+    answer, check, clade_key, find_clade, load_reading_set, sister_tips, Accepted, AnswerKey,
+    Change, Closer, Item, PointAt, Question, ReadingMode, ReadingSet, Response, Shape, Statement,
+    Times, TipSide, TraitAsk,
 };
 
 fn reading_dir() -> PathBuf {
@@ -213,7 +214,7 @@ fn expected() -> Vec<(&'static str, Vec<(&'static str, Accepted)>)> {
                 ("q-clade", Accepted::Choices(vec![1])),
                 (
                     "q-smallest",
-                    Accepted::Clade(clade(&["camel", "dolphin", "hippo", "pig"])),
+                    Accepted::Clade(clade(&["crab", "horseshoe crab", "lobster", "spider"])),
                 ),
                 ("q-mono", Accepted::Choices(vec![0])),
                 ("q-para", Accepted::Choices(vec![1])),
@@ -416,7 +417,7 @@ fn order_nodes_accepts_every_ancestry_consistent_order() {
 
 #[test]
 fn order_nodes_ages_rule_gives_the_unique_order() {
-    // cov-statements/q-order-ages letters C(45) ⊂ W(52) ⊂ R(55) chain
+    // cov-statements/q-order-ages letters C(45) ⊂ W(60) ⊂ R(70) chain
     // and N(35) below C: every age is distinct, so exactly one order
     // is accepted.
     let s = set("cov-statements");
@@ -458,10 +459,122 @@ fn order_nodes_free_order_accepts_lineage_swaps() {
     assert!(!verdict(&["P", "R", "Q"]));
 }
 
+/// The `select_true` statements an item asks, including inside a
+/// `two_tier` first question.
+fn statements_of(q: &Question) -> Vec<&Statement> {
+    match q {
+        Question::SelectTrue { statements } => statements.iter().collect(),
+        Question::TwoTier { first, .. } => statements_of(first),
+        _ => vec![],
+    }
+}
+
+#[test]
+fn lineage_at_least_statements_agree_with_the_drawn_split_age() {
+    // `lineage_at_least` bounds the lineage's age by the oldest fossil
+    // tip of the tip's sister group (spec §4.3). On a dated tree a
+    // student instead reads the drawn age of the node joining `tip` to
+    // that sister — the node drawn where the lineage splits. Both
+    // readings must give the same truth value, so thresholds must sit
+    // at or below the fossil bound or above the drawn node age.
+    for (set_name, _) in &expected() {
+        let s = set(set_name);
+        for item in &s.items {
+            let rt = &s.trees[&item.trees[0]];
+            let tree = parse_newick(&rt.newick).unwrap();
+            let age_of = |key: &[String]| -> Option<f64> {
+                match &rt.times {
+                    Some(Times::Ages { ages, .. }) => {
+                        ages.iter().find(|a| a.on.as_slice() == key).map(|a| a.age)
+                    }
+                    _ => None,
+                }
+            };
+            for st in statements_of(&item.question) {
+                let Statement::LineageAtLeast { tip, age, .. } = st else {
+                    continue;
+                };
+                let fossil_bound = sister_tips(&tree, tip)
+                    .unwrap()
+                    .iter()
+                    .map(|t| age_of(std::slice::from_ref(t)).unwrap_or(0.0))
+                    .fold(0.0_f64, f64::max);
+                let tip_node = find_clade(&tree, std::slice::from_ref(tip)).unwrap();
+                let Some(parent) = tree.nodes[tip_node.0 as usize].parent else {
+                    continue;
+                };
+                let Some(drawn_age) = age_of(&clade_key(&tree, parent)) else {
+                    continue;
+                };
+                assert_eq!(
+                    fossil_bound >= *age,
+                    drawn_age >= *age,
+                    "{set_name}/{}: lineage_at_least tip '{tip}' age {age} \
+                     disagrees between the fossil bound ({fossil_bound}) \
+                     and the drawn split age ({drawn_age})",
+                    item.id
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn mrca_point_options_cover_tip_branch_and_node() {
+    // cov-structural/q-mrca-points mirrors the Baum et al. 2005
+    // "MRCA among lettered points on tips, branches and nodes" format
+    // (spec §8.3): its options must offer at least one point of each
+    // kind — a point on a tip, on a branch and on an internal node.
+    let s = set("cov-structural");
+    let item = &s.items[idx(&s, "q-mrca-points")];
+    let rt = &s.trees[&item.trees[0]];
+    let tree = parse_newick(&rt.newick).unwrap();
+    let Question::Mrca {
+        options: Some(opts),
+    } = &item.question
+    else {
+        panic!("q-mrca-points needs lettered options");
+    };
+    let mut tip_point = false;
+    let mut branch_point = false;
+    let mut node_point = false;
+    for l in opts {
+        let p = rt
+            .points
+            .iter()
+            .find(|p| p.letter == *l)
+            .unwrap_or_else(|| panic!("option '{l}' is not a point"));
+        match p.at {
+            PointAt::Branch => branch_point = true,
+            PointAt::Node => {
+                let n = find_clade(&tree, &p.on).unwrap();
+                if tree.nodes[n.0 as usize].children.is_empty() {
+                    tip_point = true;
+                } else {
+                    node_point = true;
+                }
+            }
+        }
+    }
+    assert!(tip_point, "q-mrca-points offers no point on a tip");
+    assert!(branch_point, "q-mrca-points offers no point on a branch");
+    assert!(
+        node_point,
+        "q-mrca-points offers no point on an internal node"
+    );
+}
+
 // --- forms A and B (spec §8.2) ---------------------------------------------------
 
 /// The misconception category each form item exercises. The two forms
 /// must cover the same category list (parallel forms).
+///
+/// Unfamiliar taxa per form (the plan's "mixing familiar and
+/// unfamiliar taxa"): form A carries them on `arthropods` (horseshoe
+/// crab, lobster, spider — the `q-sea` and `q-smallest` items) and
+/// ginkgo on `plants` (`q-clade`); form B carries them on
+/// `marsupials` (quoll, wombat — `q-clade`, `q-smallest`, `q-count`)
+/// and the albatross on `birds`.
 fn form_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
     vec![
         (

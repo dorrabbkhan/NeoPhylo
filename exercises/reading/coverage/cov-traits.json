@@ -29,7 +29,7 @@
       "id": "q-have",
       "text": "Tap every tip that has armor.",
       "trees": ["beasties"],
-      "style": { "shape": "diagonal", "tips": "right" },
+      "style": { "shape": "rectangular", "tips": "right" },
       "question": {
         "type": "trait",
         "ask": { "kind": "which_have", "trait_name": "armor" }

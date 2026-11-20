@@ -21,7 +21,9 @@ the intentional distractor, was not checked.
 
 All trees are drawn as cladograms (branch lengths ignored). Every
 tree's `times` axis is schematic — direction of time only, no numeric
-ages — so no age citation is needed. Common names stand in for
+ages — so no age citation is needed, except `cetartiodactyls` in
+`coverage/cov-statements.json`, whose numeric axis gives cited
+estimates (listed in its entry below). Common names stand in for
 binomials as a simplification for intro students; in the lessons
 each common name stands for its whole genus or family as drawn,
 which does not change any relationship on these trees. The
@@ -59,7 +61,7 @@ binomials used for the OTL check:
 | jaguar | *Panthera onca* |
 | moss | *Physcomitrium patens* |
 | fern | *Pteridium aquilinum* |
-| pine | *Pinus sylvestris* |
+| ginkgo | *Ginkgo biloba* |
 | oak | *Quercus robur* |
 | cactus | *Carnegiea gigantea* |
 | camel | *Camelus dromedarius* |
@@ -89,6 +91,10 @@ binomials used for the OTL check:
 | aotus | *Aotus azarae* |
 | macaque | *Macaca mulatta* |
 | baboon | *Papio anubis* |
+| horseshoe crab | *Limulus polyphemus* |
+| lobster | *Homarus gammarus* |
+| crab | *Carcinus maenas* |
+| spider | *Araneus diadematus* |
 
 ## trees-reading-a-tree
 
@@ -242,17 +248,29 @@ with the induced subtree pruned to the queried taxa).
 
 ### `plants`
 
-`(moss,(fern,(pine,(oak,cactus))));`
+`(moss,(fern,(ginkgo,(oak,cactus))));`
 
 - **Topology:** bryophyte (moss) sister to the vascular plants;
-  ferns sister to seed plants; gymnosperm (pine) sister to the
-  angiosperms (oak + cactus, both eudicots/angiosperms) — settled.
+  ferns sister to seed plants; gymnosperm (ginkgo) sister to the
+  angiosperms (oak + cactus) — settled.
 - **Source:** the Open Tree of Life synthetic tree (CC0).
 - **Simplifications:** five species only; common names. The moss
   common name stands for *Physcomitrium patens*; OTL matches it via
   its synonym *Physcomitrella patens*.
 - OTL check (opentree16.1, 2026-11-20): exact match (moss matched
   approximately via *Physcomitrella patens*, ott 821359).
+
+### `arthropods`
+
+`((lobster,crab),('horseshoe crab',spider));`
+
+- **Topology:** decapod crustaceans (lobster + crab, Pleocyemata)
+  versus chelicerates (horseshoe crab + spider) — settled; the
+  horseshoe crab is a chelicerate, not a crustacean, the
+  resemblance distractor the `q-sea` item teaches against.
+- **Source:** the Open Tree of Life synthetic tree (CC0).
+- **Simplifications:** four species only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
 
 ### `whales`
 
@@ -372,8 +390,35 @@ as `trees-demo`; they carry letters, not taxa, and need no source.
   "Middle to late Eocene basilosaurines and dorudontines", in
   Thewissen J. G. M. (ed.) *The Emergence of Whales*, Plenum,
   pp. 29–61, doi:10.1007/978-1-4899-0159-0_2.
-- **Simplifications:** five species only; *Basilosaurus* is a fossil
-  tip drawn as a sampled stem lineage; common names.
+- **Ages:** the `times` axis gives numeric ages in Ma, each a
+  rounded published estimate (values: R 70, W 60, C 45, N 35,
+  basilosaurus tip 37). R (the ruminant–whippomorph split,
+  Cetruminantia) 70 Ma and W (hippo + whales,
+  Whippomorpha/Cetancodonta) 60 Ma: Hassanin et al. 2012, "Pattern
+  and timing of diversification of Cetartiodactyla (Mammalia,
+  Laurasiatheria), as revealed by a comprehensive analysis of
+  mitochondrial genomes", *C. R. Biologies* 335:32–50,
+  doi:10.1016/j.crvi.2011.11.002 — its Bayesian relaxed-clock
+  means are 69.7 Ma (BD-SOFT) / 69.0 Ma (BD-HARD) for
+  Cetruminantia and 60.1 / 57.7 Ma for Whippomorpha (Table 2);
+  both fall inside the range of published estimates compiled in
+  J. Gatesy 2009, "Whales and even-toed ungulates
+  (Cetartiodactyla)" in Hedges & Kumar, *The Timetree of Life*,
+  OUP, doi:10.1093/oso/9780199535033.003.0081. C
+  (basilosaurid stem + crown whales) 45 Ma: earliest basilosaurids
+  in the late middle Eocene (Uhen 1998, above). N (crown whales —
+  baleen *Balaenoptera* + toothed *Delphinus*, i.e. Neoceti) 35 Ma:
+  Hassanin et al. 2012 give means of 34.4–34.6 Ma for crown
+  Cetacea, matching the 35 ± 1 Ma fossil constraint on the
+  Mysticeti–Odontoceti split used there. The basilosaurus tip 37
+  Ma: the late Eocene (Priabonian) age of *Basilosaurus isis*
+  (Uhen 1998, above; Voss et al. 2019, *PLoS ONE* 14(1):e0209021,
+  doi:10.1371/journal.pone.0209021).
+- **Simplifications:** five species only; *Basilosaurus* is a
+  fossil tip drawn as a sampled stem lineage so the fossil bound
+  on the hippos' sister group reads straight off the tree; each
+  age is rounded to the nearest 1–2 Ma inside the cited range;
+  common names.
 - OTL check (opentree16.1, 2026-11-20): exact match for the extant
   taxa; *Basilosaurus isis* is pruned from the synthesis (fossil),
   so its placement is sourced to the literature.

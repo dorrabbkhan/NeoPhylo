@@ -16,8 +16,9 @@
   "mode": "test",
   "taxa_pool": {
     "felids": ["cheetah", "puma", "lion", "tiger", "leopard", "jaguar"],
-    "plants": ["moss", "fern", "pine", "oak", "cactus"],
-    "tetrapods": ["shark", "frog", "camel", "pig", "hippo", "dolphin"]
+    "plants": ["moss", "fern", "ginkgo", "oak", "cactus"],
+    "tetrapods": ["shark", "frog", "camel", "pig", "hippo", "dolphin"],
+    "arthropods": ["crab", "horseshoe crab", "lobster", "spider"]
   },
   "trees": {
     "cats": {
@@ -38,15 +39,15 @@
       ]
     },
     "plants": {
-      "newick": "(moss,(fern,(pine,(oak,cactus))));",
+      "newick": "(moss,(fern,(ginkgo,(oak,cactus))));",
       "marks": [
         {
-          "on": ["fern", "pine", "oak", "cactus"],
+          "on": ["fern", "ginkgo", "oak", "cactus"],
           "trait": "vascular tissue",
           "change": "gain"
         },
         {
-          "on": ["pine", "oak", "cactus"],
+          "on": ["ginkgo", "oak", "cactus"],
           "trait": "seeds",
           "change": "gain"
         },
@@ -65,6 +66,9 @@
           "derived": "flowering"
         }
       ]
+    },
+    "arthropods": {
+      "newick": "((lobster,crab),('horseshoe crab',spider));"
     },
     "whales": {
       "newick": "(shark,(frog,(camel,(pig,(hippo,dolphin)))));",
@@ -181,25 +185,25 @@
     {
       "id": "q-sea",
       "text": "A {a} looks more like a {c} than a {b} — but which is it more closely related to?",
-      "trees": ["whales"],
-      "a": "dolphin",
-      "b": "hippo",
-      "c": "shark",
+      "trees": ["arthropods"],
+      "a": "horseshoe crab",
+      "b": "spider",
+      "c": "crab",
       "question": { "type": "closest_relative", "form": "pairwise" }
     },
     {
       "id": "q-clade",
       "text": "Do {set} form a clade — a node plus every tip that descends from it?",
       "trees": ["plants"],
-      "style": { "shape": "diagonal", "tips": "right" },
-      "tips": ["fern", "oak", "pine"],
+      "style": { "shape": "rectangular", "tips": "right" },
+      "tips": ["fern", "ginkgo", "oak"],
       "question": { "type": "is_clade" }
     },
     {
       "id": "q-smallest",
       "text": "Tap the smallest clade that contains {set}.",
-      "trees": ["whales"],
-      "tips": ["camel", "dolphin"],
+      "trees": ["arthropods"],
+      "tips": ["crab", "horseshoe crab"],
       "question": { "type": "smallest_clade" }
     },
     {

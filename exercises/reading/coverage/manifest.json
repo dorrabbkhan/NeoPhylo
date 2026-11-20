@@ -184,7 +184,7 @@
       "format": "trait-which-have",
       "mirrors": "Kummer et al. 2019 ETCI, learning outcome 3",
       "items": ["q-have"],
-      "styles": ["diagonal:right"],
+      "styles": ["rectangular:right"],
       "features": ["marks"]
     },
     {

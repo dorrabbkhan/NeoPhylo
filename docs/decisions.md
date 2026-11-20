@@ -8974,3 +8974,20 @@ Task-10 editor.
   ask expects trait names — a `has_not` item cannot currently be
   authored correctly through the reading editor (the round-trip e2e
   uses `homologous` for its trait-mark item instead).
+- **Fix round 1 (owner review):** `cetartiodactyls` ages re-set to
+  cited estimates (R 70 / W 60 — Hassanin et al. 2012 Table 2 means;
+  C 45, N 35, basilosaurus 37 — fossil literature, all in SOURCES.md
+  with DOIs) and `q-ages` thresholds moved to 30/65 so every
+  `lineage_at_least` statement reads the same under the fossil-bound
+  and drawn-split readings; a new oracle test
+  (`lineage_at_least_statements_agree_with_the_drawn_split_age`)
+  checks that equivalence for every such statement in every set. The
+  spoiler clause was removed from the 30-Ma statement text.
+  `q-mrca-points` options now cover tip, branch and internal-node
+  points (`W,Y,Z,V,X`) with a new kind-coverage test. Mark-heavy
+  items drawn rectangular (`cov-traits/q-have`, form B `q-evolved`,
+  form A `q-clade`; manifest updated — `diagonal:right`/`up` coverage
+  kept by other entries). Form A now mixes in unfamiliar taxa on the
+  new `arthropods` tree (`q-sea`, `q-smallest` — OTL-checked,
+  SOURCES entry) and ginkgo in `plants` (`q-clade`); a test comment
+  names the unfamiliar-taxa items in each form.

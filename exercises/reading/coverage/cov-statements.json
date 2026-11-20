@@ -38,12 +38,12 @@
       ],
       "times": {
         "unit": "million years",
-        "source": "Cetartiodactyl divergence dates, coarse (see SOURCES.md)",
+        "source": "Rounded estimates: Hassanin et al. 2012; Uhen 1998 (see SOURCES.md)",
         "ages": [
-          { "on": "root", "age": 55 },
+          { "on": "root", "age": 70 },
           {
             "on": ["basilosaurus", "blue whale", "dolphin", "hippo"],
-            "age": 52
+            "age": 60
           },
           {
             "on": ["basilosaurus", "blue whale", "dolphin"],
@@ -134,13 +134,13 @@
             "kind": "lineage_at_least",
             "tip": "hippo",
             "age": 30,
-            "text": "The hippo lineage is at least 30 million years old — its split from the whales is at least that old."
+            "text": "The hippo lineage is at least 30 million years old."
           },
           {
             "kind": "lineage_at_least",
             "tip": "hippo",
-            "age": 40,
-            "text": "The hippo lineage is at least 40 million years old."
+            "age": 65,
+            "text": "The hippo lineage is at least 65 million years old."
           },
           {
             "kind": "older_than_age",
