@@ -45,6 +45,7 @@ import type { KeyboardEvent } from "react";
 import type { EditOp, EditorModel, EditorTree } from "../../editor/model";
 import type { Result } from "../../engine/index";
 import type { NeoError } from "../../engine/generated/NeoError";
+import type { NodeId } from "../../engine/generated/NodeId";
 import {
   labelRoomFor,
   leafFontSize,
@@ -69,6 +70,10 @@ import { useNewLeaf } from "./useNewLeaf";
 
 export interface DrawCanvasProps {
   model: EditorModel;
+  /** v1.4d Task 10: the reading editor resolves node taps to clades
+   *  for its annotate tools. Called on every node select (click or
+   *  Enter/Space), alongside the normal selection. */
+  onNodeTap?: (id: NodeId) => void;
 }
 
 const FALLBACK_PANEL_W = 560; // before the ResizeObserver fires / jsdom
@@ -89,7 +94,7 @@ function usePanelWidth(): [React.RefObject<HTMLDivElement | null>, number] {
   return [ref, width];
 }
 
-export function DrawCanvas({ model }: DrawCanvasProps) {
+export function DrawCanvas({ model, onNodeTap }: DrawCanvasProps) {
   const subscribe = useCallback(
     (fn: () => void) => model.subscribe(fn),
     [model],
@@ -135,6 +140,7 @@ export function DrawCanvas({ model }: DrawCanvasProps) {
       return [...cur, s].slice(-2);
     });
     setHint(null);
+    if (s.kind === "node") onNodeTap?.(s.id);
   };
 
   const fontSize = Math.max(MIN_FONT_PX, leafFontSize(LEAF_SPACING_NATURAL));

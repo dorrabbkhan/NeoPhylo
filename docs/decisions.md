@@ -8692,3 +8692,60 @@ Owner-requested rendering fixes after the PR #139 review; branch
   1024 and 768 frames stay byte-identical to main's (the few the
   first pass rewrote were pixel noise; main's bytes pass — same
   finding the v1.4c Task-11 round recorded).
+
+## v1.4d Task 10: editor reading mode
+
+- **Files outside the Files block:** the block names three `.tsx`
+  components, but the ~400-line / single-purpose rule and the task's
+  helper surface (draft↔set shaping, tap→field mapping, annotate
+  tools) forced a split inside the same `reading/` directory:
+  - `web/src/views/editor/reading/readingDraft.ts` — draft types,
+    `buildWireSet`/`draftFromSet`, the one-item `probeSetJson` probe
+    that powers `resolveTreeView`, and `canvasClade` (canvas node id
+    → tip labels → `readingCladeOf`).
+  - `web/src/views/editor/reading/readingItems.ts` — the question
+    type catalogue, `newQuestion`/`newItem` shells, `pickTargetsFor`
+    and `applyPick`.
+  - `web/src/views/editor/reading/readingExtras.ts` — the annotate
+    tools (`letter`, `age`, `mark`, `point-node`, `point-branch`)
+    and `applyExtra`.
+  - `web/src/views/editor/reading/fields.tsx` — shared field
+    controls (`Field`, `Text`, `Num`, `CsvField`, `PickedField`).
+  - `web/src/views/editor/reading/QuestionFields.tsx` — per-question
+    -type item fields (the `ItemForm` sub-form).
+  - `web/src/views/editor/reading/StatementFields.tsx` — the
+    select_true statements editor.
+  - `web/src/views/editor/reading/TraitAskFields.tsx` — the trait
+    ask editor.
+  - `web/src/views/editor/reading/TraitDefsForm.tsx` — trait display
+    names (split out of `TreeExtrasForm`).
+  - `web/src/views/editor/reading/TreeSlot.tsx` — one stored tree's
+    card (split out of `ReadingEditor`).
+  - `web/src/views/editor/reading/SetBasicsForm.tsx` — the actions
+    row, notice, global error and Set fields (split out of
+    `ReadingEditor`).
+  - `web/src/index.css` — `.editor-mode` (the mode radio group) and
+    the `.rde-*` form styles, matching `.prompt-item`/`.settings-form`
+    conventions.
+  - `docs/decisions.md` — this entry.
+- **Ambiguities resolved:**
+  - `loadReadingSet` refuses an empty `items` array ("a set needs
+    1–60 items"), so Share/Save/Preview gate on the whole set
+    loading, and a fresh draft stays disabled until its first valid
+    item — same gate pattern as the exercise editor's
+    `settingsProblems`.
+  - An `InvalidReading` with a non-empty `item` is shown inside that
+    item's card; item-less refusals (tree probes, set-level fields)
+    surface once at the top, and each tree card separately probes
+    its own extras so letters/marks on missing clades flag beside
+    the tree they belong to.
+  - The share/preview URL is `?read=` plus the `#r=` fragment — the
+    fragment alone routes to `ReadingPage`, but the explicit query
+    keeps the link meaningful if the hash is ever stripped.
+  - Canvas↔stored-tree sync is explicit and button-driven ("Edit on
+    the canvas" / "Use canvas tree") so imports and typing never
+    clobber in-progress canvas work; canvas taps arm the extras form
+    that last chose a tool.
+  - `DrawCanvas` gained only the `onNodeTap` callback (fired from
+    `toggleSel` for node hits, covering click and Enter/Space); all
+    gesture and keyboard behaviour is unchanged.

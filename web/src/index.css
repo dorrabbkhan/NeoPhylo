@@ -3139,3 +3139,184 @@ button,
     justify-content: center;
   }
 }
+
+/* ---- Reading-set editor (v1.4d Task 10, spec §7.5) ---- */
+
+/* The "What are you making?" mode switch on EditorPage. */
+.editor-mode {
+  display: flex;
+  gap: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  margin: 0 0 var(--space-16);
+  font-size: var(--size-sm);
+}
+
+.editor-mode legend {
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+}
+
+.editor-mode-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* One stored tree and one item are bordered cards, like .prompt-item. */
+.rde-tree,
+.rde-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  margin: 0 0 var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rde-item-head,
+.rde-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-16);
+}
+
+.rde-checks {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rde-checks legend {
+  font-size: var(--size-sm);
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+}
+
+.rde-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+/* The same label-above-control column .settings-form gives .field. */
+.rde-tree .field,
+.rde-item .field,
+.rde-extras .field,
+.rde-statements .field,
+.rde-pick .field,
+.editor-section .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.rde-tree .field > span,
+.rde-item .field > span,
+.rde-extras .field > span,
+.rde-statements .field > span,
+.rde-pick .field > span,
+.editor-section .field > span {
+  color: var(--color-text);
+}
+
+.rde-tree input,
+.rde-tree select,
+.rde-tree textarea,
+.rde-item input,
+.rde-item select,
+.rde-item textarea,
+.rde-extras input,
+.rde-extras select,
+.rde-statements input,
+.rde-statements select,
+.editor-section .field input,
+.editor-section .field select,
+.editor-section .field textarea {
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.rde-chip-x {
+  font-size: var(--size-xs);
+}
+
+/* A tap-set value shown with its clear button. */
+.rde-picked {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.rde-picked-label {
+  color: var(--color-text);
+}
+
+/* The engine's live answer under an item. */
+.rde-answer {
+  font-size: var(--size-sm);
+  margin: 0;
+}
+
+.rde-authored {
+  color: var(--color-text-muted);
+}
+
+.rde-statements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rde-statement {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rde-statement legend {
+  font-size: var(--size-sm);
+  color: var(--color-text);
+  padding: 0 var(--space-4);
+}
+
+.rde-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+/* Everything already on the stored tree, each removable. */
+.rde-extra-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.rde-extra-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
