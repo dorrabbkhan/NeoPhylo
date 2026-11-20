@@ -8749,3 +8749,8 @@ Owner-requested rendering fixes after the PR #139 review; branch
   - `DrawCanvas` gained only the `onNodeTap` callback (fired from
     `toggleSel` for node hits, covering click and Enter/Space); all
     gesture and keyboard behaviour is unchanged.
+- **Baselines:** owner approved regenerating `editor-default`,
+  `editor-f84`, `editor-prompts` (24 files) because the mode switch
+  changes the editor layout (conductor note of the owner's decision).
+- `ReadingEditor.test.tsx` and `readingDraft.test.ts` are covered by
+  the Files block's "and tests" (no deviation).
