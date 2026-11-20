@@ -253,11 +253,18 @@ export function traitNames(view: ReadingTreeView): string[] {
  *  the tip list, joined English-style ("a, b and c"). The engine
  *  binds the same placeholders the same way in its explanations. */
 export function fillItemText(item: Item): string {
-  let text = item.text;
-  if (item.a !== undefined) text = text.replaceAll("{a}", item.a);
-  if (item.b !== undefined) text = text.replaceAll("{b}", item.b);
-  if (item.c !== undefined) text = text.replaceAll("{c}", item.c);
-  return text.replaceAll("{set}", joinAnd(item.tips));
+  return fillPlaceholders(item.text, item);
+}
+
+/** The same binding for any authored string of an item — `text` and
+ *  `note_after` share the placeholder set (validate.rs allows the
+ *  same four in both). */
+export function fillPlaceholders(text: string, item: Item): string {
+  let out = text;
+  if (item.a !== undefined) out = out.replaceAll("{a}", item.a);
+  if (item.b !== undefined) out = out.replaceAll("{b}", item.b);
+  if (item.c !== undefined) out = out.replaceAll("{c}", item.c);
+  return out.replaceAll("{set}", joinAnd(item.tips));
 }
 
 /** "a and b" / "a, b and c" — the same convention as the engine's

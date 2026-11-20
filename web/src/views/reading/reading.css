@@ -66,13 +66,6 @@
   stroke-width: 2;
 }
 
-.rt-hl-ring {
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 1.5;
-  stroke-dasharray: 3 2;
-}
-
 .rt-point-leader {
   stroke: currentColor;
   stroke-width: 1;

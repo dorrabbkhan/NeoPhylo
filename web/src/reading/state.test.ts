@@ -26,6 +26,7 @@ import {
   effectiveResponse,
   emptyResponse,
   fillItemText,
+  fillPlaceholders,
   initSession,
   isComplete,
   readingReducer,
@@ -426,6 +427,17 @@ describe("item text + helpers", () => {
   it("joins three or more tips with commas and 'and'", () => {
     const fake = { ...item("q-clade"), tips: ["a", "b", "c"] };
     expect(fillItemText(fake)).toBe("Do a, b and c form a clade?");
+  });
+
+  it("fillPlaceholders binds any item string (note_after) the same way", () => {
+    const fake = {
+      ...item("q-clade"),
+      a: "rabbit",
+      tips: ["chicken", "lizard", "snake"],
+    };
+    expect(fillPlaceholders("{a}'s sister; {set}", fake)).toBe(
+      "rabbit's sister; chicken, lizard and snake",
+    );
   });
 
   it("emptyResponse makes an incomplete answer of the right kind", () => {

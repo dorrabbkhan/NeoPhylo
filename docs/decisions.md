@@ -8756,3 +8756,140 @@ Owner-requested rendering fixes after the PR #139 review; branch
   the Files block's "and tests" (no deviation).
 - **Fix round 2:** both editors stay mounted (inactive one `hidden`)
   so toggling the mode never discards unsaved work.
+
+## v1.4d Task 11: tree-reading lessons
+
+Four built-in reading sets (`trees-reading-a-tree`, `trees-rotation`,
+`trees-closest-relatives`, `trees-clades-traits`), their provenance in
+`exercises/reading/SOURCES.md`, and the content oracle
+`crates/neophylo-core/tests/reading_content.rs`.
+
+- **Baselines:** owner approved regenerating the `library` scene (6
+  files) because the four lessons add Tree reading cards (conductor
+  note of the owner's decision):
+  `library-1920x1080-light-linux.png`,
+  `library-1920x1080-dark-linux.png`,
+  `library-1024x768-light-linux.png`,
+  `library-1024x768-dark-linux.png`,
+  `library-768x1024-light-linux.png`,
+  `library-768x1024-dark-linux.png`.
+- **Files outside the task's Files block:**
+  - `web/e2e/visualScenes.ts` (owner-approved): the `library` scene
+    waits for the four `.lib-card[data-kind="reading"]` cards and
+    counts `Answer key` links only on non-dataset, non-reading cards —
+    reading cards have no key link until Task 13.
+  - `web/src/views/library/LibraryPage.tsx` (bug fix the new wait
+    exposed): the reading-sets effect called `listReadingSets()`
+    without awaiting `initEngine()` first — a wasm call before init
+    throws, the `.catch` then stores `[]`, and the Tree reading cards
+    stay empty for the session. It now chains `initEngine()` first,
+    the same pattern `paperFlags` already uses. Harmless while only
+    trees-demo shipped (an empty list was the baseline anyway); real
+    sets make the race visible.
+  - `web/e2e/library-page.spec.ts`: two stale "no reading cards"
+    assumptions — `TOTAL` (fed `allCards`) now includes the shipped
+    listed reading sets, and the `level=intro` filter test now counts
+    the intro-level reading cards (`READING_INTRO`, read from the
+    JSONs' meta, never re-typed) since reading items carry level and
+    minutes like lessons.
+  - `web/src/views/library/LibraryPage.test.tsx`: comment only — the
+    `listReadingSets` stub's "empty default matches today" note was
+    stale now that real sets ship; the tests themselves were already
+    dynamic.
+  - `docs/decisions.md` — this entry.
+- **Content decisions:** every tree uses `"times": "schematic"` (no
+  numeric ages); all relationships are textbook-settled and avoid the
+  owner's debated-placement list (no animal root, no placental root,
+  no bat/turtle/tardigrade placements, no Neoaves order). `SOURCES.md`
+  names the Open Tree of Life synthesis each topology follows, lists
+  every simplification (dropped taxa, the rodents polytomy, common
+  names) and marks the citations for the owner's phylogeneticist
+  check.
+- **Ambiguities resolved:**
+  - `order_nodes` on a schematic tree accepts every order consistent
+    with ancestry; the lesson-one item's `note_after` tells the
+    student cross-lineage orders (C and P) can't be resolved, and the
+    content test pins both accepted orders plus a descendant-first and
+    an incomplete rejection.
+  - The rotation lesson's `which_differs` items keep one genuinely
+    different topology (human grouped with gorilla instead of chimp)
+    so "rotate to check" is a real task, not a trick.
+  - The ocean tree groups dolphin with the penguin+chicken pair
+    (tetrapods) rather than with the fish — the resemblance
+    distractor the lesson teaches against.
+- **Fix round 1:**
+  - `trees-clades-traits` splits its tree: `amniotes` is the bare
+    Newick for the three clade items (`q-clade-yes`, `q-clade-no`,
+    `q-two`, which now also carry the lesson's diagonal and circular
+    styles and `q-clade-no`'s rotate tool); `amniotes-traits` is the
+    same topology with the marks, used by every mark item, all drawn
+    rectangular tips-right (`q-mono` keeps its rotate tool). Same
+    topology, so every computed answer is unchanged; `SOURCES.md`
+    names both trees.
+  - **Follow-ups noticed:** mark labels collide in diagonal, tips-up
+    and circular layouts when several marks sit on short branches
+    (seen on the amniotes tree); the lesson draws marked trees
+    rectangular only; layout fix left for a later task.
+  - Residual even rectangular: the "amniotic egg" label is ~2 px
+    wider than its one-level stem, so its last glyph touches the
+    child-drop vertical at the amniote node at 1024×768 and 360×740
+    (checked geometrically; every other mark label is clear). A
+    label-vs-other-branch clearance is a layout fix, not content —
+    same follow-up.
+  - **Files outside the task's Files block:** `web/src/reading/state.ts`
+    (new `fillPlaceholders`, shared by `fillItemText`),
+    `web/src/views/reading/ItemView.tsx`,
+    `web/src/views/reading/TestSummary.tsx` and their tests
+    (`web/src/reading/state.test.ts`,
+    `web/src/views/reading/ReadingPage.test.tsx`,
+    `web/src/views/reading/TestSummary.test.tsx`) — `note_after`
+    placeholders were rendered raw (`{set}`, `{a}`); found while
+    checking the lessons.
+- **Fix round 2:**
+  - **Baselines:** owner approved regenerating the reading frames
+    changed by the tip-only highlight (conductor note of the owner's
+    decision): `reading-q-is-clade-{1024x768,360x740}-{light,dark}`,
+    `reading-q-place-taxon-{1024x768,360x740}-{light,dark}`,
+    `reading-q-two-tier-{1024x768,360x740}-{light,dark}` and
+    `reading-tipsup-12-long-names-360-360x740-{light,dark}` — 14
+    files, every `reading-*` frame whose pixels changed (the three
+    question screens whose `tips` form a clade, and the 12-tip
+    tips-up scene). Frames whose `tips` are not a clade were already
+    byte-identical (a non-clade lit only terminals under the old code
+    too), so e.g. `reading-q-mrca` needed no new baseline.
+  - **Files outside the task's Files block:**
+    `web/src/views/reading/readingDraw.tsx`, `reading.css` and
+    `ReadingTree.test.tsx` — the tip highlight lit every edge whose
+    tips were all listed and ringed the node whose clade equalled the
+    set, so `is_clade` and `mrca` answers were drawn before the
+    student answered; found while checking the lessons. Now only each
+    listed tip's own terminal branch is highlighted and the
+    `.rt-hl-ring` is gone (the `.rt-sel-ring` selection marker is
+    unchanged); no text/ARIA path names or marks the clade/MRCA of the
+    highlighted tips.
+  - `trees-clades-traits` renames the trait "amniotic egg" to
+    "amnion" (placental mammals do not lay eggs) in the marks, the
+    `traits` entry, `by_trait`, the q-mono text and the q-synap
+    statements; the topologies and tip sets are untouched so every
+    computed answer is unchanged. The shorter label also clears the
+    fix-round-1 residual where "amniotic egg" touched the child drop
+    line.
+  - `trees-rotation` `q-two-same` tree 2 and `trees-clades-traits`
+    `q-two` switch from circular to `rectangular`/`tips-up`: the
+    circular layout of the 5- and 7-tip trees was cramped (crossing
+    arcs near the centre, labels larger than branches). Both lessons
+    still draw ≥2 styles (rectangular + diagonal + tips-up variants).
+  - `SOURCES.md`: the rodents trichotomy now cites Blanga-Kanfi et
+    al. 2009 (*BMC Evol Biol* 9:71), which reports the three major
+    clades supported and their basal relationships unresolved, instead
+    of the Fabre et al. 2012 diversification-rate paper; DOIs added
+    for Betancur-R. et al. 2013 and Prado-Martinez et al. 2013; the
+    "no DOIs on purpose" sentence replaced by the records-checked
+    note (checked 2026-11-20).
+  - **Follow-ups noticed:** circular layout is cramped for trees
+    under about 10 tips (crossing arcs near the centre); lessons
+    avoid it; layout follow-up.
+- **Fix round 3:** topologies checked against the Open Tree of Life
+  synthesis opentree16.1 on 2026-11-20 by the conductor
+  (owner-approved third round, documentation only); no conflicts;
+  rodents polytomy kept deliberately.

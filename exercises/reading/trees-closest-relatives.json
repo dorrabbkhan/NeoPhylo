@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "kind": "reading",
+  "id": "trees-closest-relatives",
+  "title": "Who is closest?",
+  "summary": "Relatedness comes from shared ancestry — the node where two lineages last met — not from how close tips sit on the page or how alike the organisms look.",
+  "meta": {
+    "objectives": [
+      "Find a tip's closest relative as the lineage sharing its most recent common ancestor",
+      "Read a polytomy as 'the tree does not say which split came first'",
+      "Tell relatedness apart from resemblance and from tip order on the page"
+    ],
+    "minutes": 15,
+    "level": "intro",
+    "prepares_for": []
+  },
+  "mode": "practice",
+  "taxa_pool": {
+    "land-vertebrates": [
+      "cat",
+      "fox",
+      "guinea pig",
+      "lion",
+      "mouse",
+      "rabbit",
+      "rat",
+      "squirrel",
+      "tiger",
+      "wolf"
+    ],
+    "sea-and-land": ["chicken", "dolphin", "penguin", "salmon", "shark"]
+  },
+  "trees": {
+    "carnivores": {
+      "newick": "((lion,tiger),(wolf,fox));"
+    },
+    "rodents": {
+      "newick": "(cat,(rabbit,((mouse,rat),squirrel,'guinea pig')));"
+    },
+    "ocean": {
+      "newick": "(shark,(salmon,((penguin,chicken),dolphin)));"
+    }
+  },
+  "items": [
+    {
+      "id": "q-closest",
+      "text": "Tap {a}'s closest relative.",
+      "trees": ["carnivores"],
+      "a": "lion",
+      "note_after": "A tip's closest relative is its sister: whatever shares its most recent node.",
+      "rotate_tool": true,
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-sister",
+      "text": "Tap one of {a}'s closest relatives — the sister may be a whole clade, not a single tip.",
+      "trees": ["rodents"],
+      "a": "rabbit",
+      "note_after": "{a}'s sister is the whole rodent clade: every tip in it shares the same most recent common ancestor with {a}.",
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-pair",
+      "text": "Is {a} more closely related to {b} or to {c}, or is it equally close to both?",
+      "trees": ["carnivores"],
+      "a": "lion",
+      "b": "tiger",
+      "c": "wolf",
+      "note_after": "Shared ancestry decides: {a} and {b} meet at a node that {c} does not descend from.",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-pair-poly",
+      "text": "Is {a} more closely related to {b} or to {c}, or is it equally close to both?",
+      "trees": ["rodents"],
+      "style": { "shape": "diagonal", "tips": "right" },
+      "a": "squirrel",
+      "b": "mouse",
+      "c": "guinea pig",
+      "note_after": "All three lineages meet at the same polytomy — the tree does not say which two split first, so {a} is equally close to both.",
+      "question": { "type": "closest_relative", "form": "pairwise" }
+    },
+    {
+      "id": "q-distant",
+      "text": "Tap every tip most distant from {a}.",
+      "trees": ["carnivores"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "a": "lion",
+      "note_after": "The most distant tips sit beyond {a}'s side of the deepest split — here, the whole other clade.",
+      "question": { "type": "closest_relative", "form": "most_distant" }
+    },
+    {
+      "id": "q-sea-closest",
+      "text": "Tap one of {a}'s closest relatives.",
+      "trees": ["ocean"],
+      "style": { "shape": "rectangular", "tips": "up" },
+      "a": "dolphin",
+      "note_after": "{a} is shaped like a fish, but shared ancestry decides relatedness: its lineage meets the birds' lineage before it meets any fish.",
+      "question": { "type": "closest_relative", "form": "closest" }
+    },
+    {
+      "id": "q-two",
+      "text": "Is {a} more closely related to {b} or to {c} — and why?",
+      "trees": ["ocean"],
+      "a": "dolphin",
+      "b": "penguin",
+      "c": "shark",
+      "question": {
+        "type": "two_tier",
+        "first": { "type": "closest_relative", "form": "pairwise" },
+        "reasons": [
+          "Their lineages meet at a more recent common ancestor than either shares with the other taxon.",
+          "They look more alike — the streamlined swimmers must be closest."
+        ],
+        "correct_reason": 0
+      }
+    }
+  ]
+}

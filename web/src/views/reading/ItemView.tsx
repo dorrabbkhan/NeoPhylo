@@ -17,6 +17,7 @@ import { readErrorMessage } from "../../reading/errors";
 import {
   effectiveResponse,
   fillItemText,
+  fillPlaceholders,
   selectableFor,
   submittable,
   type ReadingAction,
@@ -254,7 +255,9 @@ export function ItemView({
             </p>
           )}
           {item.note_after !== undefined && (
-            <p className="read-note">{item.note_after}</p>
+            <p className="read-note">
+              {fillPlaceholders(item.note_after, item)}
+            </p>
           )}
         </div>
       )}

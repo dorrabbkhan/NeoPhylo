@@ -40,6 +40,27 @@ const DATASETS = JSON.parse(readFileSync(LIBRARY_INDEX, "utf8")) as {
   title: string;
 }[];
 
+const READING_DIR = fileURLToPath(
+  new URL("../../exercises/reading/", import.meta.url),
+);
+/** The sets the library lists — shipped files minus the dev-only
+ * trees-demo (registry.ts's exclusion); the Task-12 coverage sets
+ * live in a subdirectory the *.json filter never reaches. */
+const READING_IDS = readdirSync(READING_DIR)
+  .filter((f) => f.endsWith(".json") && f !== "trees-demo.json")
+  .map((f) => f.slice(0, -".json".length))
+  .sort();
+/** Reading sets carry level and minutes from their meta, so the
+ * intro-level filter shows the ones marked intro. */
+const READING_INTRO = READING_IDS.filter(
+  (id) =>
+    (
+      JSON.parse(readFileSync(`${READING_DIR}/${id}.json`, "utf8")) as {
+        meta?: { level?: string };
+      }
+    ).meta?.level === "intro",
+).length;
+
 /** Each lab's title and its own settings count, read from the lab
  * files — the summaries below are checked against these, never
  * re-typed. */
@@ -54,7 +75,11 @@ const LAB_SETTINGS = new Map(
   }),
 );
 
-const TOTAL = LESSON_IDS.length + LAB_IDS.length + DATASETS.length;
+const TOTAL =
+  LESSON_IDS.length +
+  LAB_IDS.length +
+  READING_IDS.length +
+  DATASETS.length;
 
 /** The cards' locator — one `li` per registry item, tagged by type. */
 const cards = (page: import("@playwright/test").Page, kind?: string) =>
@@ -110,6 +135,7 @@ test("the library lists one card per lesson, lab and dataset with the header's g
   }
   await allCards(page);
   await expect(cards(page, "lessons")).toHaveCount(LESSON_IDS.length);
+  await expect(cards(page, "reading")).toHaveCount(READING_IDS.length);
   // PHYLIP vs MEGA is read from the registry's tool field — the
   // shipped packs are dnadist/protdist/seqboot + the four MEGA
   // handouts, the counts the dirs above gave.
@@ -159,15 +185,20 @@ test("filters combine, ignore unknown values and survive a reload", async ({
   await expect(cards(page)).toHaveCount(DATASETS.length);
 
   await page.goto("/?library&level=intro");
-  // Only the intro lessons survive — the labs and datasets carry no
-  // level and are hidden by any level filter.
+  // Only the intro lessons and intro reading sets survive — the labs
+  // and datasets carry no level and are hidden by any level filter.
   await expect(cards(page).first()).toBeVisible();
+  // The reading cards arrive asynchronously — wait for them before
+  // the one-shot total count.
+  await expect(cards(page, "reading")).toHaveCount(READING_INTRO);
   const introCount = await cards(page).count();
-  expect(introCount).toBeGreaterThan(0);
+  expect(introCount).toBeGreaterThan(READING_INTRO);
   await expect(
     page.getByRole("region", { name: "Lessons" }),
   ).toBeVisible();
-  await expect(cards(page, "lessons")).toHaveCount(introCount);
+  await expect(cards(page, "lessons")).toHaveCount(
+    introCount - READING_INTRO,
+  );
   await expect(cards(page, "phylip")).toHaveCount(0);
   await expect(cards(page, "mega")).toHaveCount(0);
   await expect(cards(page, "datasets")).toHaveCount(0);
@@ -532,17 +563,6 @@ test("under (pointer: coarse) every link and control on the guide is ≥40×40",
 
 
 /* ---- v1.4d Task 9: the "Tree reading" type and the header entry ---- */
-
-const READING_DIR = fileURLToPath(
-  new URL("../../exercises/reading/", import.meta.url),
-);
-/** The sets the library lists — shipped files minus the dev-only
- * trees-demo (registry.ts's exclusion); the Task-12 coverage sets
- * live in a subdirectory the *.json filter never reaches. */
-const READING_IDS = readdirSync(READING_DIR)
-  .filter((f) => f.endsWith(".json") && f !== "trees-demo.json")
-  .map((f) => f.slice(0, -".json".length))
-  .sort();
 
 test("every shipped listed reading set has exactly one card opening ?read=<id>", async ({
   page,
