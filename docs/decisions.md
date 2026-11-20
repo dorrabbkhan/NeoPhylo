@@ -8889,3 +8889,7 @@ Four built-in reading sets (`trees-reading-a-tree`, `trees-rotation`,
   - **Follow-ups noticed:** circular layout is cramped for trees
     under about 10 tips (crossing arcs near the centre); lessons
     avoid it; layout follow-up.
+- **Fix round 3:** topologies checked against the Open Tree of Life
+  synthesis opentree16.1 on 2026-11-20 by the conductor
+  (owner-approved third round, documentation only); no conflicts;
+  rodents polytomy kept deliberately.

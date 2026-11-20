@@ -6,20 +6,53 @@ source the topology follows, the date it was recorded and every
 simplification — taxa dropped, polytomies drawn unresolved and common
 names standing in for binomials.
 
-**Recorded 2026-11-20.** The agent had no network access, so no live
-query of the Open Tree of Life synthetic tree (OpenTreeOfLife,
-opentreeoflife.org; CC0) was possible. Every topology below is the
-textbook-settled consensus the OTL synthesis also shows; each entry
-names the synthesis and/or a peer-reviewed source. Bibliographic
-records (authors, year, title, journal, DOI) were checked against
-publisher and PubMed records on 2026-11-20. The topology choices
-still need the owner's phylogeneticist check.
+**Recorded 2026-11-20.** Bibliographic records (authors, year,
+title, journal, DOI) were checked against publisher and PubMed
+records on 2026-11-20. The topologies were checked against the Open
+Tree of Life synthetic tree `opentree16.1` (synthesis of
+2025-12-20) on 2026-11-20 through its public API —
+`tnrs/match_names` without approximate matching for the species in
+the table below, then `tree_of_life/induced_subtree` — comparing
+each lesson tree's rooted clade set with the induced synthetic
+subtree. The result is noted per tree below: exact match
+everywhere except `rodents` (no conflict; the synthesis resolves
+one split the lesson deliberately draws as a polytomy). `apes-c`,
+the intentional distractor, was not checked.
 
 All trees are drawn as cladograms (branch lengths ignored). Every
 tree's `times` axis is schematic — direction of time only, no numeric
-ages — so no age citation is needed. Common names ("human", "guinea
-pig") stand in for binomials (Homo sapiens, Cavia porcellus) as a
-simplification for intro students.
+ages — so no age citation is needed. Common names stand in for
+binomials as a simplification for intro students; in the lessons
+each common name stands for its whole genus or family as drawn,
+which does not change any relationship on these trees. The
+binomials used for the OTL check:
+
+| Common name | Binomial |
+| --- | --- |
+| shark | *Carcharodon carcharias* |
+| salmon | *Salmo salar* |
+| frog | *Rana temporaria* |
+| cat | *Felis catus* |
+| dog | *Canis lupus* |
+| human | *Homo sapiens* |
+| chimp | *Pan troglodytes* |
+| gorilla | *Gorilla gorilla* |
+| orangutan | *Pongo abelii* |
+| gibbon | *Hylobates lar* |
+| lion | *Panthera leo* |
+| tiger | *Panthera tigris* |
+| wolf | *Canis lupus* |
+| fox | *Vulpes vulpes* |
+| rabbit | *Oryctolagus cuniculus* |
+| mouse | *Mus musculus* |
+| rat | *Rattus norvegicus* |
+| squirrel | *Sciurus vulgaris* |
+| guinea pig | *Cavia porcellus* |
+| penguin | *Aptenodytes forsteri* |
+| chicken | *Gallus gallus* |
+| dolphin | *Tursiops truncatus* |
+| lizard | *Lacerta agilis* |
+| snake | *Python bivittatus* |
 
 ## trees-reading-a-tree
 
@@ -43,6 +76,7 @@ simplification for intro students.
   names are used for binomials.
 - `vertebrates-lettered` is the same tree plus display letters R, T,
   A, C and P on internal nodes, and carries the same source.
+- OTL check (opentree16.1, 2026-11-20): exact match.
 
 ## trees-rotation
 
@@ -62,6 +96,9 @@ simplification for intro students.
 - **Simplifications:** five ape genera only (all other hominoids and
   outgroups dropped); common names used; `apes-c` is an intentional
   distractor, not a claimed topology.
+- OTL check (opentree16.1, 2026-11-20): exact match for `apes-a` and
+  `apes-b` (same topology); `apes-c` is the intentional distractor
+  and was not checked.
 
 ## trees-closest-relatives
 
@@ -73,6 +110,7 @@ simplification for intro students.
   (wolf + fox) — the feliform/caniform split of Carnivora.
 - **Source:** the Open Tree of Life synthetic tree (CC0).
 - **Simplifications:** four genera only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
 
 ### `rodents`
 
@@ -95,6 +133,9 @@ simplification for intro students.
 - **Simplifications:** one genus per lineage; the polytomy is real
   (the literature genuinely does not resolve the order), not a
   dropped-resolution artefact; common names.
+- OTL check (opentree16.1, 2026-11-20): no conflict; the synthesis
+  resolves mouse + rat with guinea pig, drawn here as an unresolved
+  polytomy (see source above).
 
 ### `ocean`
 
@@ -109,6 +150,7 @@ simplification for intro students.
   fish–tetrapod backbone follows Betancur-R. R. et al. 2013 (full
   citation above).
 - **Simplifications:** five genera only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
 
 ## trees-clades-traits
 
@@ -126,6 +168,7 @@ about marks.
   settled. Shark is the outgroup.
 - **Source:** the Open Tree of Life synthetic tree (CC0).
 - **Simplifications:** seven genera only; common names.
+- OTL check (opentree16.1, 2026-11-20): exact match.
 - **Trait marks** are textbook teaching states, not a published
   character matrix: the amnion gains on the amniote stem
   (monophyletic); limbs gain on the tetrapod stem and are lost on the
