@@ -26,7 +26,7 @@ describe("GuidePage", () => {
     expect(
       screen.getByRole("heading", { name: "Instructor guide", level: 1 }),
     ).toBeTruthy();
-    expect(SECTION_HEADINGS.length).toBe(6);
+    expect(SECTION_HEADINGS.length).toBe(8);
     for (const h of SECTION_HEADINGS) {
       expect(
         screen.getByRole("heading", { name: h, level: 2 }),
@@ -68,7 +68,7 @@ describe("GuidePage", () => {
     // nj-by-hand is 20 min in meta.minutes; dnadist-neighbor 25 in
     // lab.minutes — the page must read the registries, not the text.
     const plans = screen.getAllByRole("list", { name: /plan/i });
-    expect(plans.length).toBe(2);
+    expect(plans.length).toBe(3);
     const njByHand = within(plans[0]).getByRole("link", {
       name: /Neighbor-Joining, by hand/,
     });
@@ -79,10 +79,18 @@ describe("GuidePage", () => {
     });
     expect(dnadist.getAttribute("href")).toBe("?lab=dnadist-neighbor");
     expect(dnadist.textContent).toContain("— 25 min");
-    // Totals are computed, not typed: 15 + 20 + 15 and
-    // 20 + 25 + 40 + 35 + 30 + 30.
+    // Reading-set minutes resolve the same way (v1.4d Task 14): the
+    // registry's meta.minutes, shown inside the link.
+    const clades = within(plans[2]).getByRole("link", {
+      name: /Clades and shared traits/,
+    });
+    expect(clades.getAttribute("href")).toBe("?read=trees-clades-traits");
+    expect(clades.textContent).toContain("— 18 min");
+    // Totals are computed, not typed: 15 + 20 + 15,
+    // 20 + 25 + 40 + 35 + 30 + 30 and 15 + 18 + 15.
     expect(screen.getByText(/Total: 50 min/)).toBeTruthy();
     expect(screen.getByText(/Total: 180 min/)).toBeTruthy();
+    expect(screen.getByText(/Total: 48 min/)).toBeTruthy();
   });
 
   it("injects no raw HTML and carries the print control", () => {

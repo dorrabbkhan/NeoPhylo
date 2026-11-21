@@ -1,17 +1,19 @@
 // docs/instructor-guide.md link and plan checks (v1.4c plan Task 13,
 // spec §7.5 "a repo test checks every library link in the guide
-// exists" plus the plan's timing rule). Every `[text](href)` in the
-// guide must be one of the internal `?route` forms links.ts knows AND
-// resolve to a real lesson, lab, worksheet/key target or bare route —
-// an unknown link form fails here, not in the page. The two plan
-// lists must link only to library items and sum to 50 ± 5 and
-// 180 ± 5 from the same registry minutes GuidePage displays
-// (meta.minutes for lessons, lab.minutes ?? meta.minutes for labs).
+// exists" plus the plan's timing rule; v1.4d Task 14 added the
+// `?read=` form). Every `[text](href)` in the guide must be one of the
+// internal `?route` forms links.ts knows AND resolve to a real lesson,
+// lab, reading set, worksheet/key target or bare route — an unknown
+// link form fails here, not in the page. The plan lists must link
+// only to library items and sum to their slot ± 5 from the same
+// registry minutes GuidePage displays (meta.minutes for lessons,
+// lab.minutes ?? meta.minutes for labs, the reading registry's
+// meta.minutes for `?read=` sets).
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { engine } from "../../engine/index";
 import type { Exercise } from "../../engine/generated/Exercise";
@@ -22,8 +24,14 @@ import {
   parseInternalHref,
   planItemHrefs,
 } from "../../links";
+import {
+  listReadingSets,
+  loadBuiltinReadingSet,
+} from "../../reading/registry";
+import type { ReadingSetSummary } from "../../reading/registry";
 import { exerciseMetas, buildItems } from "../library/items";
 import { paperSheet } from "../../worksheets/build";
+import { readingKey, readingSheet } from "../../worksheets/reading";
 
 const GUIDE = resolve("..", "docs", "instructor-guide.md");
 const SOURCE = readFileSync(GUIDE, "utf8");
@@ -34,6 +42,34 @@ const LESSON_FILES = import.meta.glob<string>(
   "../../../../exercises/*.json",
   { query: "?raw", import: "default", eager: true },
 );
+
+// Every shipped reading file, top-level and coverage — the same two
+// trees loadBuiltinReadingSet resolves. Parsed for their `title` so
+// the link-text check covers `?read=` links too (manifest.json is
+// skipped by the kind check).
+const READING_FILES = import.meta.glob<string>(
+  [
+    "../../../../exercises/reading/*.json",
+    "../../../../exercises/reading/coverage/*.json",
+  ],
+  { query: "?raw", import: "default", eager: true },
+);
+
+function stem(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1).replace(/\.json$/, "");
+}
+
+const readingTitles = new Map<string, string>();
+for (const [path, text] of Object.entries(READING_FILES)) {
+  try {
+    const d = JSON.parse(text) as { kind?: string; title?: unknown };
+    if (d.kind === "reading" && typeof d.title === "string") {
+      readingTitles.set(stem(path), d.title);
+    }
+  } catch {
+    // not a reading set (the coverage manifest) — nothing to check
+  }
+}
 
 function loadLessonFile(id: string): Exercise | null {
   const text = LESSON_FILES[`../../../../exercises/${id}.json`];
@@ -50,12 +86,24 @@ const lessonIds = new Set(LESSONS.map((l) => l.id));
 const labIds = new Set(listLabs().map((l) => l.id));
 
 /** The registry minutes the page shows for a linked item — the same
- * buildItems() resolution the library cards use. */
+ * resolution the library cards use: buildItems() for lessons and
+ * labs, listReadingSets() meta.minutes for reading sets. */
 const minutesById = new Map(
   buildItems()
     .filter((i) => i.minutes !== undefined)
     .map((i) => [i.id, i.minutes as number]),
 );
+
+/** The library-listed reading sets (registry summaries) — the cards
+ * a `?read=` plan item must resolve to, and their meta.minutes. */
+let readingListedIds = new Set<string>();
+beforeAll(async () => {
+  const readingSets: ReadingSetSummary[] = await listReadingSets();
+  readingListedIds = new Set(readingSets.map((s) => s.id));
+  for (const s of readingSets) {
+    if (s.meta?.minutes !== undefined) minutesById.set(s.id, s.meta.minutes);
+  }
+});
 
 /** The guide's plan sections, in document order: the first
  * all-link ordered list after each `##` heading containing "plan". */
@@ -80,7 +128,7 @@ function plans(): { heading: string; hrefs: string[] }[] {
 }
 
 describe("guide internal links", () => {
-  it("every [text](href) is a known internal form and resolves", () => {
+  it("every [text](href) is a known internal form and resolves", async () => {
     const links = markdownLinks(SOURCE);
     expect(links.length).toBeGreaterThan(0);
     for (const { text, href } of links) {
@@ -100,21 +148,41 @@ describe("guide internal links", () => {
             `?lab=${t.id} is not a registry lab`,
           ).toBe(true);
           break;
+        case "read": {
+          const r = await loadBuiltinReadingSet(t.id ?? "");
+          expect(
+            r.ok,
+            `?read=${t.id} is not a shipped reading set`,
+          ).toBe(true);
+          break;
+        }
         case "worksheet":
         case "key": {
           const id = t.id ?? "";
+          const reading = await loadBuiltinReadingSet(id);
           expect(
-            lessonIds.has(id) || labIds.has(id),
-            `?${t.route}=${id} matches no lesson or lab`,
+            lessonIds.has(id) || labIds.has(id) || reading.ok,
+            `?${t.route}=${id} matches no lesson, lab or reading set`,
           ).toBe(true);
           if (t.kind === "paper") {
-            const lab = labIds.has(id) ? loadLab(id) : null;
-            const src =
-              lab !== null && lab.ok ? lab.value : loadLessonFile(id);
-            expect(
-              src !== null && paperSheet(src, href) !== null,
-              `?${t.route}=${id}&kind=paper has no paper sheet`,
-            ).toBe(true);
+            if (reading.ok) {
+              const ok =
+                t.route === "worksheet"
+                  ? readingSheet(reading.value, href).items.length > 0
+                  : readingKey(reading.value).ok;
+              expect(
+                ok,
+                `?${t.route}=${id}&kind=paper has no paper sheet`,
+              ).toBe(true);
+            } else {
+              const lab = labIds.has(id) ? loadLab(id) : null;
+              const src =
+                lab !== null && lab.ok ? lab.value : loadLessonFile(id);
+              expect(
+                src !== null && paperSheet(src, href) !== null,
+                `?${t.route}=${id}&kind=paper has no paper sheet`,
+              ).toBe(true);
+            }
           }
           break;
         }
@@ -130,20 +198,24 @@ describe("guide internal links", () => {
     const titles = new Map<string, string>();
     for (const l of LESSONS) titles.set(l.id, l.title);
     for (const l of listLabs()) titles.set(l.id, l.title);
+    for (const [id, title] of readingTitles) titles.set(id, title);
     for (const { text, href } of markdownLinks(SOURCE)) {
       const t = parseInternalHref(href);
       if (t === null || t.id === undefined) continue;
-      if (t.route !== "lesson" && t.route !== "lab") continue;
+      if (t.route !== "lesson" && t.route !== "lab" && t.route !== "read") {
+        continue;
+      }
       expect(text, `link text for ${t.id}`).toBe(titles.get(t.id));
     }
   });
 });
 
 describe("guide plans", () => {
-  it("has exactly the two plan lists", () => {
+  it("has exactly the three plan lists", () => {
     expect(plans().map((p) => p.heading)).toEqual([
       expect.stringMatching(/50-minute/i),
       expect.stringMatching(/hour lab plan/i),
+      expect.stringMatching(/tree-reading/i),
     ]);
   });
 
@@ -153,38 +225,46 @@ describe("guide plans", () => {
         const t = parseInternalHref(href);
         expect(t, `plan link ${href}`).not.toBeNull();
         if (t === null) continue;
-        expect(["lesson", "lab"]).toContain(t.route);
+        expect(["lesson", "lab", "read"]).toContain(t.route);
         expect(
-          lessonIds.has(t.id ?? "") || labIds.has(t.id ?? ""),
+          lessonIds.has(t.id ?? "") ||
+            labIds.has(t.id ?? "") ||
+            readingListedIds.has(t.id ?? ""),
           `plan item ${href} is not in the library`,
         ).toBe(true);
       }
     }
   });
 
-  it("the class plan totals 50 ± 5 minutes from registry minutes and fits its slot", () => {
-    const plan = plans()[0];
-    const total = plan.hrefs.reduce(
-      (sum, href) => sum + (minutesById.get(parseInternalHref(href)?.id ?? "") ?? 0),
-      0,
-    );
-    expect(Math.abs(total - 50), `50-minute plan sums to ${total}`).toBeLessThanOrEqual(5);
-    // The slot is the hard ceiling — the plan must not run over.
-    expect(total, `50-minute plan sums to ${total}`).toBeLessThanOrEqual(50);
-    expect(total, `50-minute plan sums to ${total}`).toBeGreaterThanOrEqual(45);
-  });
-
-  it("the lab plan totals 180 ± 5 minutes from registry minutes and fits its slot", () => {
-    const plan = plans()[1];
-    const total = plan.hrefs.reduce(
-      (sum, href) => sum + (minutesById.get(parseInternalHref(href)?.id ?? "") ?? 0),
-      0,
-    );
-    expect(Math.abs(total - 180), `3-hour plan sums to ${total}`).toBeLessThanOrEqual(5);
-    // The slot is the hard ceiling — the plan must not run over.
-    expect(total, `3-hour plan sums to ${total}`).toBeLessThanOrEqual(180);
-    expect(total, `3-hour plan sums to ${total}`).toBeGreaterThanOrEqual(175);
-  });
+  // The slot is the hard ceiling — a plan must not run over. Totals
+  // come from the registries, never from typed text.
+  it.each([
+    { match: /50-minute class plan/i, slot: 50 },
+    { match: /hour lab plan/i, slot: 180 },
+    { match: /tree-reading class plan/i, slot: 50 },
+  ])(
+    "the $match plan totals its slot ± 5 minutes from registry minutes",
+    ({ match, slot }) => {
+      const plan = plans().find((p) => match.test(p.heading));
+      expect(plan, `no plan heading matches ${match}`).toBeDefined();
+      const total = (plan?.hrefs ?? []).reduce(
+        (sum, href) =>
+          sum + (minutesById.get(parseInternalHref(href)?.id ?? "") ?? 0),
+        0,
+      );
+      expect(
+        Math.abs(total - slot),
+        `plan "${plan?.heading}" sums to ${total}`,
+      ).toBeLessThanOrEqual(5);
+      expect(total, `plan "${plan?.heading}" sums to ${total}`).toBeLessThanOrEqual(
+        slot,
+      );
+      expect(
+        total,
+        `plan "${plan?.heading}" sums to ${total}`,
+      ).toBeGreaterThanOrEqual(slot - 5);
+    },
+  );
 
   it("every plan item has a registry minutes value to display", () => {
     for (const { hrefs } of plans()) {

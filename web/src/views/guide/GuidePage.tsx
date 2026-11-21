@@ -25,7 +25,7 @@ import { mdBlocks, parseInternalHref, planItemHrefs } from "../../links";
 import { Wordmark } from "../Wordmark";
 import { LabPrintStyles } from "../labs/LabPrintStyles";
 import { MdBlock } from "../labs/Md";
-import { buildItems } from "../library/items";
+import { buildItems, exerciseMetas } from "../library/items";
 
 import "../labs/labs.css";
 import "./guide.css";
@@ -73,11 +73,19 @@ export function GuidePage() {
     [],
   );
   // The same minutes the library cards show: meta.minutes for
-  // lessons, lab.minutes ?? meta.minutes for labs.
+  // lessons, lab.minutes ?? meta.minutes for labs, meta.minutes for
+  // reading sets (their cards resolve asynchronously, so they are not
+  // in buildItems — the guide reads the shipped files' metas, which is
+  // the same field listReadingSets exposes).
   const minutes = useMemo(() => {
     const m = new Map<string, number>();
     for (const item of buildItems()) {
       if (item.minutes !== undefined) m.set(item.id, item.minutes);
+    }
+    for (const [id, meta] of exerciseMetas()) {
+      if (!m.has(id) && meta.minutes !== undefined) {
+        m.set(id, meta.minutes);
+      }
     }
     return m;
   }, []);

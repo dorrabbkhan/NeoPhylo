@@ -107,9 +107,20 @@ describe("lesson content: no data numbers in new text (§8.2)", () => {
 // carry registry ids (mega-bootstrap-100), and links.test.ts pins
 // the text to the real title. The only other allowed constants are
 // the plan headings' own "50-minute" and "3-hour" — every item's
-// minutes is computed by the page at render time, never typed.
+// minutes is computed by the page at render time, never typed —
+// plus (v1.4d Task 14) the §8.4 citations' years, which are part of
+// the required citation strings, and the coverage manifest's
+// deferred-milestone versions (v2.0/v2.6/v2.7/v2.x) the known-gaps
+// list must name.
 describe("guide content: no data numbers (§8.2, v1.4c Task 13)", () => {
-  const GUIDE_ALLOWED_PATTERNS = [/50-minute/g, /3-hour/g];
+  const GUIDE_ALLOWED_PATTERNS = [
+    /50-minute/g,
+    /3-hour/g,
+    /Baum et al\. 2005/g,
+    /Kummer et al\. 2019/g,
+    /Furrow & Hsu 2019/g,
+    /v2\.[0-9x]+/g,
+  ];
   const WITHOUT_LINKS = /\[[^\]]*\]\([^)]*\)/g;
 
   it("docs/instructor-guide.md has no digits outside the allowlist", () => {
