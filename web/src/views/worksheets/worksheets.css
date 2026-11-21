@@ -194,6 +194,88 @@
   margin-bottom: var(--space-4);
 }
 
+/* ---- Reading worksheet and key (v1.4d Task 13) ---- */
+
+/* Answer space under the drawn trees. */
+.ws-space {
+  margin: var(--space-8) 0;
+}
+
+.ws-space-hint {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: 0 0 var(--space-4);
+}
+
+/* Circle-one / tick-all options: the bubble is the write-in target. */
+.ws-options {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--space-8);
+}
+
+.ws-options li {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+.ws-bubble {
+  border: 1px solid var(--color-text);
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  height: 0.85em;
+  width: 0.85em;
+}
+
+/* order_nodes: the lettered nodes to sequence, then one write-in
+ * slot per letter, numbered oldest first. */
+.ws-order-letters {
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  margin: var(--space-4) 0;
+}
+
+.ws-order-slots {
+  display: flex;
+  gap: var(--space-16);
+  margin: 0;
+}
+
+.ws-order-slots li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+/* The key's own lines: the accepted answer (with the authored label
+ * muted), the engine explanation and the post-answer note. */
+.ws-authored {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  font-weight: 400;
+}
+
+.ws-explain {
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+  margin: var(--space-4) 0 0;
+}
+
+.ws-note {
+  font-size: var(--size-sm);
+  font-style: italic;
+  margin: var(--space-4) 0 0;
+}
+
+/* The reading trees on the sheet — the app's own .read-trees row
+ * with the item blocks kept on one page in print. */
+.ws-read-trees {
+  margin: var(--space-8) 0;
+}
+
 /* ---- Instructor gate ---- */
 
 .ws-gate {
@@ -256,5 +338,31 @@
    * hidden by labs.css's .lab-nav rule. */
   .ws-page section {
     break-inside: avoid-page;
+  }
+
+  /* Reading trees print stacked inside the A4 printable width
+   * (~180 mm ≈ 680 px — the shared @page margins): the figures stack,
+   * each canvas is capped so its ResizeObserver refits the drawing
+   * at paper width instead of clipping, and the screen-only controls
+   * (scroll cue, Show-as-text toggle) stay off the sheet. */
+  .ws-read-item {
+    break-inside: avoid-page;
+  }
+
+  .ws-read-trees {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .ws-read-trees .rt-figure {
+    max-width: 680px;
+  }
+
+  .ws-read-trees .rt-canvas {
+    overflow: visible;
+  }
+
+  .ws-read-trees .rt-controls {
+    display: none;
   }
 }

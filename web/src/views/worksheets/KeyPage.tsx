@@ -30,6 +30,8 @@ import type {
   WorksheetRun,
 } from "../../worksheets/build";
 import type { CompanionKey, PaperKey } from "../../worksheets/types";
+import { readingKey } from "../../worksheets/reading";
+import { readErrorMessage } from "../../reading/errors";
 import { LabPrintStyles } from "../labs/LabPrintStyles";
 
 import { InstructorGate } from "./InstructorGate";
@@ -41,6 +43,7 @@ import {
   worksheetHref,
 } from "./load";
 import type { WorksheetSource } from "./load";
+import { ReadingKeyView } from "./ReadingKeyView";
 import { joinContext, matrixLower } from "./steps";
 import type { JoinContext } from "./steps";
 import "../labs/labs.css";
@@ -127,6 +130,40 @@ function KeyContent({ id, kind }: KeyPageProps) {
     );
   }
   const { src } = state;
+  // A reading set's key comes from `readingAnswer` alone (v1.4d Task
+  // 13) — no join trace, no companion kind.
+  if (src.kind === "reading") {
+    if (kind === "app") {
+      return (
+        <>
+          <h1>{src.set.title} — answer key</h1>
+          <p>
+            A tree-reading set has no in-app answer key — the paper key
+            is the printed one.
+          </p>
+          <p>
+            <a href={keyHref(id, "paper")}>Open the paper answer key</a>
+          </p>
+        </>
+      );
+    }
+    if (kind !== "paper") {
+      return (
+        <>
+          <h1>Unknown key kind</h1>
+          <p role="alert" className="error">
+            <code>kind</code> must be <code>paper</code> or{" "}
+            <code>app</code>.
+          </p>
+        </>
+      );
+    }
+    const rkey = readingKey(src.set);
+    if (!rkey.ok) {
+      return <KeyError msg={readErrorMessage(rkey.error)} />;
+    }
+    return <ReadingKeyView keyModel={rkey.value} id={id} />;
+  }
   const model = src.kind === "lab" ? src.lab : src.exercise;
   if (kind === "app") return <CompanionKeyContent src={src} model={model} id={id} />;
   if (kind !== "paper") {
@@ -185,7 +222,7 @@ function CompanionKeyContent({
   model,
   id,
 }: {
-  src: WorksheetSource;
+  src: Exclude<WorksheetSource, { kind: "reading" }>;
   model: Parameters<typeof companionSheet>[0];
   id: string;
 }) {

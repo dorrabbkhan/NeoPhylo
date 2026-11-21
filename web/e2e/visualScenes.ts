@@ -733,9 +733,9 @@ export const SCENES: {
         page.getByRole("heading", { name: "Library", exact: true }),
       ).toBeVisible();
       // Every non-dataset card ends with an Answer key link once the
-      // exercise pass finishes — except reading cards, which have no
-      // key until Task 13 (v1.4d Task 11, owner-approved); every
-      // dataset row's source resolves.
+      // exercise pass finishes — reading cards included since Task 13
+      // (owner-approved scene change); every dataset row's source
+      // resolves.
       await expect(page.locator('.lib-card[data-kind="datasets"]'))
         .toHaveCount(5);
       // The reading-card count is the shipped top-level set count
@@ -750,9 +750,7 @@ export const SCENES: {
         page.locator('.lib-card[data-kind="reading"]'),
       ).toHaveCount(readingFiles.length);
       const nonKeyed = await page
-        .locator(
-          '.lib-card:not([data-kind="datasets"]):not([data-kind="reading"])',
-        )
+        .locator('.lib-card:not([data-kind="datasets"])')
         .count();
       await expect(
         page.getByRole("link", { name: "Answer key" }),
@@ -1097,6 +1095,125 @@ export const SCENES: {
           name: "Answer keys are for instructors",
         }),
       ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  // ---- v1.4d Task 13: reading worksheets and keys (spec §8.4) ----
+  // New frames — no existing worksheet-* baseline is touched. One
+  // lesson set's sheet and key and the form A sheet, screen and
+  // print, both themes.
+  {
+    // A lesson's paper sheet: each item's drawn tree(s) in their
+    // authored styles plus the answer space and the link/QR.
+    name: "worksheet-reading",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?worksheet=trees-clades-traits&kind=paper");
+      await expect(
+        page.getByRole("heading", {
+          name: "Clades and shared traits",
+          level: 1,
+        }),
+      ).toBeVisible();
+      // Figures settle through ResizeObserver — wait for every tree
+      // before the frame.
+      await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+      await expect(page.locator("svg.ws-qr")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The same sheet as it prints — light remap, trees stacked at
+    // paper width.
+    name: "worksheet-reading-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?worksheet=trees-clades-traits&kind=paper");
+      await expect(
+        page.locator(".rt-figure svg").first(),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The lesson's answer key after the instructor gate — engine
+    // answers, explanations, the authored label.
+    name: "worksheet-reading-key",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?key=trees-clades-traits&kind=paper");
+      await page
+        .getByRole("button", { name: "I'm an instructor" })
+        .click();
+      await expect(
+        page.getByRole("heading", {
+          name: "Clades and shared traits — answer key",
+        }),
+      ).toBeVisible();
+      await expect(page.locator(".ws-answer").first()).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // The key as it prints — light remap like the sheet.
+    name: "worksheet-reading-key-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?key=trees-clades-traits&kind=paper");
+      await page
+        .getByRole("button", { name: "I'm an instructor" })
+        .click();
+      await expect(
+        page.getByRole("heading", {
+          name: "Clades and shared traits — answer key",
+        }),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Form A's paper sheet — the test-mode set's whole item list.
+    name: "worksheet-reading-form",
+    fullPage: true,
+    setup: async (page) => {
+      await page.goto("/?worksheet=trees-form-a&kind=paper");
+      await expect(
+        page.getByRole("heading", {
+          name: "Tree reading — form A",
+          level: 1,
+        }),
+      ).toBeVisible();
+      await expect(page.locator(".rt-figure svg").first()).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // Form A as it prints.
+    name: "worksheet-reading-form-print",
+    fullPage: true,
+    viewports: [
+      { w: 1920, h: 1080 },
+      { w: 768, h: 1024 },
+    ],
+    setup: async (page) => {
+      await page.goto("/?worksheet=trees-form-a&kind=paper");
+      await expect(
+        page.locator(".rt-figure svg").first(),
+      ).toBeVisible();
+      await page.emulateMedia({ media: "print" });
+      await expect(page.locator(".lab-print-head")).toBeVisible();
       await settleFrame(page);
     },
   },

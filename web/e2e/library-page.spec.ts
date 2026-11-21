@@ -92,10 +92,11 @@ const cards = (page: import("@playwright/test").Page, kind?: string) =>
 async function allCards(page: import("@playwright/test").Page) {
   await expect(cards(page)).toHaveCount(TOTAL);
   // The paperSheet pass adds the answer-key links once every exercise
-  // resolves — before it finishes the action row is incomplete.
+  // resolves — before it finishes the action row is incomplete. The
+  // reading cards' keys land with their cards (v1.4d Task 13).
   await expect(
     page.getByRole("link", { name: "Answer key" }),
-  ).toHaveCount(LESSON_IDS.length + LAB_IDS.length);
+  ).toHaveCount(LESSON_IDS.length + LAB_IDS.length + READING_IDS.length);
 }
 
 test.beforeEach(async ({ context }) => {
@@ -582,9 +583,16 @@ test("every shipped listed reading set has exactly one card opening ?read=<id>",
     await expect(
       card.getByRole("link", { name: "Open set" }),
     ).toHaveAttribute("href", `?read=${id}`);
-    // The worksheet and key actions stay hidden until Task 13.
+    // Task 13: the paper worksheet and gated key — paper kind only;
+    // a reading set has no in-app worksheet action.
     await expect(
-      card.getByRole("link", { name: /worksheet|answer key/i }),
+      card.getByRole("link", { name: "Paper worksheet" }),
+    ).toHaveAttribute("href", `?worksheet=${id}&kind=paper`);
+    await expect(
+      card.getByRole("link", { name: "Answer key" }),
+    ).toHaveAttribute("href", `?key=${id}&kind=paper`);
+    await expect(
+      card.getByRole("link", { name: /in-app worksheet/i }),
     ).toHaveCount(0);
   }
 });

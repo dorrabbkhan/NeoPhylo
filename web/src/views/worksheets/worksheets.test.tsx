@@ -332,7 +332,7 @@ describe("WorksheetPage kind=paper", () => {
     setUrl("/?worksheet=no-such&kind=paper");
     render(<WorksheetPage id="no-such" kind="paper" />);
     await screen.findByText("Worksheet not available");
-    expect(bodyText()).toContain("no lesson or lab named");
+    expect(bodyText()).toContain("no lesson, lab or reading set named");
   });
 
   it("serves a custom matrix exercise through #x=", async () => {
