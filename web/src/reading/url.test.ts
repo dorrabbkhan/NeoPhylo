@@ -61,6 +61,19 @@ describe("encodeReadingLink / decodeReadingLink", () => {
     }
   });
 
+  it("reports a fragment lz-string cannot decode at all", () => {
+    // `zzz` throws inside decompressFromEncodedURIComponent — the
+    // refusal names the link, not the engine (checkpoint §21(h)).
+    const r = decodeReadingLink("#r=zzz");
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.kind).toBe("InvalidReading");
+      if (r.error.kind === "InvalidReading") {
+        expect(r.error.msg).toMatch(/decompress/i);
+      }
+    }
+  });
+
   it("reports non-JSON payloads", () => {
     const payload = compressToEncodedURIComponent("this is not json");
     const r = decodeReadingLink(`#r=${payload}`);

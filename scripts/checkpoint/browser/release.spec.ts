@@ -1650,16 +1650,15 @@ test("§16 an unknown ?read= id and a malformed #r= link refuse plainly", async 
     page.getByRole("alert"),
     "unknown set id names the id",
   ).toContainText('unknown reading set "no-such-set"');
-  // Each link corruption reports its own refusal — the empty fragment
-  // the decompression failure, a non-JSON payload the JSON failure, a
-  // well-formed link carrying a bad set the engine's InvalidReading.
+  // Each link corruption reports its own refusal — a fragment lz-string
+  // cannot decode at all and the empty fragment the decompression
+  // failure, a non-JSON payload the JSON failure, a well-formed link
+  // carrying a bad set the engine's InvalidReading.
   // Each gets a fresh cold load (goto("/") first): a fragment-only
   // navigation doesn't remount the page, and a user landing on a
-  // corrupted link arrives cold anyway. One wart recorded in the
-  // checklist's §21: a fragment lz-string can't even decode (`zzz`)
-  // falls through to the generic "The NeoPhylo engine could not be
-  // loaded." catch.
+  // corrupted link arrives cold anyway.
   for (const [frag, msg] of [
+    ["#r=zzz", "the shared set could not be decompressed"],
     ["#r=", "the shared set could not be decompressed"],
     [
       `#r=${lzstring.compressToEncodedURIComponent("not json")}`,
@@ -1919,19 +1918,20 @@ test("§19 the editor builds a reading set and its #r= link reopens it", async (
   const done = watchConsole(page);
   await prime(page, "light");
   // The editor's Share handler also tries navigator.clipboard.writeText
-  // — a rejected promise there is an unhandled pageerror (the try/catch
-  // around it only catches synchronous throws; recorded as a §21 wart).
-  // Where the context allows it (http has no clipboard-write grant), a
-  // resolved stub keeps the pageerror out so the test still proves the
-  // share-notice path on every engine.
+  // — a denied clipboard-write rejects that promise, which the app's
+  // own .catch must swallow (fixed in the §21(i) round; an unhandled
+  // rejection would be a pageerror watchConsole flags). The rejecting
+  // stub keeps the test honest: the share notice must still show the
+  // link on every engine. Insecure contexts without a clipboard object
+  // take the app's ?. catch path instead.
   await page.addInitScript(() => {
     try {
       Object.defineProperty(navigator.clipboard, "writeText", {
-        value: () => Promise.resolve(),
+        value: () => Promise.reject(new Error("clipboard-write denied")),
         configurable: true,
       });
     } catch {
-      /* no clipboard object on insecure contexts — the app's catch covers it */
+      /* no clipboard object on insecure contexts — the app's ?. covers it */
     }
   });
   await page.setViewportSize({ width: 1280, height: 900 });

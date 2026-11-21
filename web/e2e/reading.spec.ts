@@ -50,7 +50,9 @@ const verdict = (page: Page) =>
   page.getByRole("status", { name: "Verdict" });
 
 /** Check, then assert the engine's verdict — the retry path keeps
- * the Check button live after a wrong answer. */
+ * the Check button live after a wrong answer. The first wrong Check
+ * on an item is the retry verdict ("Not quite — try again.") with no
+ * explanation; a second resolves the item (§21(c) feedback design). */
 async function checkExpect(
   page: Page,
   ok: boolean,
@@ -62,7 +64,7 @@ async function checkExpect(
     await expect(verdict(page)).toContainText("Correct.");
     await expect(verdict(page)).not.toContainText("Not correct");
   } else {
-    await expect(verdict(page)).toContainText("Not correct");
+    await expect(verdict(page)).toContainText("Not quite — try again");
   }
 }
 
@@ -434,6 +436,191 @@ test("rotating a selected node keeps the selection on the same clade", async ({
   );
 
   await checkExpect(page, true, "mouse");
+});
+
+/* ---- practice feedback staging (§21(c)) ----------------------------------- */
+
+test("a first wrong verdict is a real retry: no explanation, Show answer resolves", async ({
+  page,
+}) => {
+  await gotoItem(page, 0); // q-differs, the odd tree is Tree 3
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  // Nothing about the answer leaks on a first wrong Check — no
+  // explanation, no note_after, and no mark of which option was right.
+  await expect(page.locator(".read-explain")).toHaveCount(0);
+  await expect(page.locator(".read-note")).toHaveCount(0);
+
+  // "Show answer" resolves the item — the engine's explanation lands.
+  await page.getByRole("button", { name: "Show answer" }).click();
+  await expect(verdict(page)).toContainText("Not correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+});
+
+test("a second wrong Check resolves the item", async ({ page }) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  // Check stays live on the unchanged response; the second wrong
+  // answer shows the engine's explanation.
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+});
+
+test("a correct first Check shows the explanation at once", async ({
+  page,
+}) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 3")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Show answer" }),
+  ).toHaveCount(0);
+});
+
+test("Back/Next keeps a first-wrong item's tried-once, not-shown state", async ({
+  page,
+}) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Question 2 of")).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByText("Question 1 of")).toBeVisible();
+  // Still tried once, still unshown — the retry verdict is back with
+  // its Show answer button and no explanation.
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  await expect(page.locator(".read-explain")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Show answer" }),
+  ).toBeVisible();
+});
+
+/* ---- item-change relayout (§21(j)) ----------------------------------------- */
+
+/** Running animations whose target sits inside a reading figure. */
+const runningTreeAnims = (page: Page): Promise<number> =>
+  page.evaluate(
+    () =>
+      document.getAnimations().filter((a) => {
+        const t = (a.effect as KeyframeEffect | null)?.target;
+        return (
+          a.playState === "running" &&
+          t instanceof Element &&
+          t.closest(".rt-figure svg") !== null
+        );
+      }).length,
+  );
+
+/** Every positioned group rests where its own transform puts it —
+ * the checker's readingDrift rule (translate vs getScreenCTM, ≤2 px). */
+const treeDrift = (page: Page): Promise<string[]> =>
+  page.evaluate(() => {
+    const out: string[] = [];
+    const translate = /^translate\(([-\d.eE+]+)px[,\s]+([-\d.eE+]+)px\)$/;
+    for (const svg of document.querySelectorAll<SVGSVGElement>(
+      ".rt-figure svg",
+    )) {
+      const ctm = svg.getScreenCTM();
+      if (ctm === null) continue;
+      for (const g of svg.querySelectorAll<SVGGElement>(
+        ".rt-anim, .rt-hit",
+      )) {
+        const m = translate.exec(g.style.transform);
+        if (m === null) continue;
+        const want = new DOMPoint(
+          Number(m[1]),
+          Number(m[2]),
+        ).matrixTransform(ctm);
+        const got = g.getScreenCTM();
+        if (got === null) continue;
+        const d = Math.hypot(want.x - got.e, want.y - got.f);
+        if (d > 2) {
+          out.push(
+            `${g.getAttribute("class") ?? "?"}: ${d.toFixed(1)}px off`,
+          );
+        }
+      }
+    }
+    return out;
+  });
+
+test("an item change lands the trees at their final spots — dots never slide", async ({
+  page,
+}) => {
+  // trees-reading-a-tree items 1→2 draw the same vertebrates tree in
+  // different styles — exactly the re-use case §21(j) caught mid-slide.
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  await expect(firstFig(page).locator("svg")).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  // Inside the old 300 ms window: the view change draws with the
+  // transition off, so nothing animates and every dot already rests
+  // on its node.
+  expect(
+    await runningTreeAnims(page),
+    "no running animation on an item change",
+  ).toBe(0);
+  expect(await treeDrift(page), "dots rest on their nodes").toEqual([]);
+  await expect(page.getByText("Question 2 of 7")).toBeVisible();
+});
+
+test("rotating inside an item keeps its 300 ms animation", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  await firstFig(page)
+    .getByRole("button", { name: "Rotate here" })
+    .click();
+  await expect
+    .poll(() => runningTreeAnims(page), {
+      message: "a rotation still animates the swap",
+    })
+    .toBeGreaterThan(0);
+});
+
+test("a panel resize relayouts without sliding the dots", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  const svg = firstFig(page).locator("svg");
+  await expect(svg).toBeVisible();
+  const before = await svg.getAttribute("width");
+  await page.setViewportSize({ width: 480, height: 768 });
+  // Wait for the relayout to actually land — asserting before it
+  // would prove nothing.
+  await expect
+    .poll(async () => svg.getAttribute("width"))
+    .not.toBe(before);
+  expect(
+    await runningTreeAnims(page),
+    "a size-only relayout never animates",
+  ).toBe(0);
+  expect(await treeDrift(page), "dots rest on their nodes").toEqual([]);
+});
+
+/* ---- malformed links ---------------------------------------------------------- */
+
+test("a #r= fragment lz-string cannot decode refuses with the link message", async ({
+  page,
+}) => {
+  await page.goto("/#r=zzz");
+  const alert = page.getByRole("alert");
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText(
+    "the shared set could not be decompressed",
+  );
+  await expect(alert).not.toContainText(/engine/i);
 });
 
 /* ---- test mode --------------------------------------------------------------- */

@@ -218,3 +218,60 @@ test("build a six-tip reading set by tapping, then preview, share and reopen", a
   await expect(page.getByText(/Question 1 of 4/)).toBeVisible();
   await expectNoSeriousViolations(page, "shared reading set");
 });
+
+test("a denied clipboard still shows the share link, with no unhandled rejection", async ({
+  page,
+}) => {
+  // §21(i): the reading editor's Share hits the same writeText path —
+  // a rejected promise must not surface as a pageerror, and the notice
+  // still shows the link.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      value: () => Promise.reject(new Error("clipboard-write denied")),
+      configurable: true,
+    });
+  });
+  await gotoReadingEditor(page);
+
+  await page.getByRole("textbox", { name: "Set id" }).fill("clip-set");
+  await page
+    .getByRole("textbox", { name: "Set title" })
+    .fill("Clipboard denial");
+  await page
+    .getByRole("textbox", { name: "Summary" })
+    .fill("One tree, one question.");
+  const t1 = treeSlot(page, "t1");
+  await t1.getByRole("textbox", { name: "Newick" }).fill("((a,b),(c,d));");
+  await expect(
+    t1.getByRole("tree", { name: "Extras for t1" }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("combobox", { name: "New item type" })
+    .selectOption("is_clade");
+  await page.getByRole("button", { name: "Add item" }).click();
+  const q1 = item(page, "q1");
+  await q1
+    .getByRole("textbox", { name: "Question text" })
+    .fill("Are {set} a clade?");
+  for (const t of ["a", "b"]) {
+    await q1
+      .locator(
+        `.rt-hit[data-kind="tip"][data-clade='${JSON.stringify([t])}']`,
+      )
+      .click();
+  }
+  await expect(q1.getByText(/^Answer:/)).toBeVisible();
+
+  const share = page.getByRole("button", { name: "Share link" });
+  await expect(share).toBeEnabled();
+  await share.click();
+  const url = await page
+    .getByRole("textbox", { name: "Share link URL" })
+    .inputValue();
+  expect(url).toContain("#r=");
+  await page.waitForTimeout(100);
+  expect(errors).toEqual([]);
+});

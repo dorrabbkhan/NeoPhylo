@@ -113,6 +113,49 @@ describe("reading session reducer", () => {
     expect(s.checked[0]).toBe(false);
   });
 
+  it("check counts attempts; editing the response keeps the count", () => {
+    let s = initSession(DEMO);
+    expect(s.attempts[0]).toBe(0);
+    s = readingReducer(s, {
+      type: "answer",
+      response: { kind: "choice", index: 1 },
+    });
+    s = readingReducer(s, { type: "check" });
+    expect(s.attempts[0]).toBe(1);
+    // The retry clears `checked` but not the count — the second
+    // wrong Check still resolves the item.
+    s = readingReducer(s, {
+      type: "answer",
+      response: { kind: "choice", index: 2 },
+    });
+    expect(s.attempts[0]).toBe(1);
+    s = readingReducer(s, { type: "check" });
+    expect(s.attempts[0]).toBe(2);
+  });
+
+  it("reveal flags the item; the flag survives Back/Next", () => {
+    let s = initSession(DEMO);
+    s = readingReducer(s, { type: "reveal" });
+    expect(s.revealed[0]).toBe(true);
+    s = readingReducer(s, { type: "next" });
+    s = readingReducer(s, { type: "back" });
+    expect(s.revealed[0]).toBe(true);
+  });
+
+  it("test mode ignores check and reveal alike", () => {
+    const testSet: ReadingSet = { ...DEMO, mode: "test" };
+    let s = initSession(testSet);
+    s = readingReducer(s, {
+      type: "answer",
+      response: { kind: "choice", index: 0 },
+    });
+    s = readingReducer(s, { type: "check" });
+    s = readingReducer(s, { type: "reveal" });
+    expect(s.checked[0]).toBe(false);
+    expect(s.attempts[0]).toBe(0);
+    expect(s.revealed[0]).toBe(false);
+  });
+
   it("test mode never marks an item checked before Finish", () => {
     const testSet: ReadingSet = { ...DEMO, mode: "test" };
     let s = initSession(testSet);

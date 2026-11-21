@@ -148,6 +148,30 @@ export function ReadingTree({
   const [boxRef, box] = usePanelWidth();
   const reduced = useReducedMotion();
 
+  // Two kinds of draw must land at once, not glide through the
+  // rotation transition — the checkpoint's §21(j) slide: a width
+  // change (relayout, not a swap) and a new `view` (the parent
+  // switched to the next item's trees). `prev` mirrors the values the
+  // last committed render drew; a render meeting new ones latches
+  // `suppress` (React's render-adjust pattern), which keeps this
+  // frame's transition off, and a rAF re-arms it after that frame
+  // paints — rotation inside a settled width keeps its 300 ms.
+  // Suppressing beats remounting here: the figure is a flex item
+  // whose width feeds the layout, so a remount re-converges the
+  // measurement at a different width and visibly shrinks the drawing.
+  const [prev, setPrev] = useState({ w: 0, view });
+  const [suppress, setSuppress] = useState(false);
+  if (prev.w !== box.width || prev.view !== view) {
+    setPrev({ w: box.width, view });
+    setSuppress(true);
+  }
+  const still = reduced || suppress;
+  useEffect(() => {
+    if (!suppress) return;
+    const id = requestAnimationFrame(() => setSuppress(false));
+    return () => cancelAnimationFrame(id);
+  }, [suppress]);
+
   // Marker ids must be unique when several reading trees share a page.
   const markerId = `rt-arrow-${useId().replace(/:/g, "")}`;
 
@@ -350,7 +374,7 @@ export function ReadingTree({
               fontPx={fontPx}
               selected={selected}
               highlight={highlight}
-              reduced={reduced}
+              reduced={still}
               markerId={markerId}
             />
             {interactive &&
@@ -396,7 +420,7 @@ export function ReadingTree({
                     data-kind={nd.isTip ? "tip" : "node"}
                     data-selected={selSet.has(key) || undefined}
                     data-focus={key === effFocusKey || undefined}
-                    style={anim(nd.x, nd.y, reduced)}
+                    style={anim(nd.x, nd.y, still)}
                     onClick={
                       canPickNode(i) ? () => pick(i, "node") : undefined
                     }
@@ -424,7 +448,7 @@ export function ReadingTree({
                 style={style}
                 byKey={byKey}
                 selSet={selSet}
-                reduced={reduced}
+                reduced={still}
                 pick={pick}
               />
             )}
@@ -434,7 +458,7 @@ export function ReadingTree({
                 view={view}
                 byKey={byKey}
                 selSet={selSet}
-                reduced={reduced}
+                reduced={still}
                 pick={pick}
               />
             )}

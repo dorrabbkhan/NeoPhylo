@@ -1332,3 +1332,28 @@ test("a pasted matrix commits and saves as schema 5", async ({
   expect(file.data.lower).toEqual([0.2, 0.3, 0.4, 0.5, 0.6, 0.7]);
   expect(file.analysis).toEqual({ method: "NJ" });
 });
+
+test("a denied clipboard still shows the share link, with no unhandled rejection", async ({
+  page,
+}) => {
+  // §21(i): a rejected writeText promise (denied clipboard-write,
+  // plain-http origins) must be swallowed by the handler's own catch —
+  // the share notice still shows the link and no pageerror escapes.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      value: () => Promise.reject(new Error("clipboard-write denied")),
+      configurable: true,
+    });
+  });
+  await page.goto("/?editor");
+  await page.getByRole("button", { name: "Share link" }).click();
+  const url = await page
+    .getByRole("textbox", { name: "Share link URL" })
+    .inputValue();
+  expect(url).toContain("#x=");
+  // Give a leaked rejection a beat to surface before asserting none.
+  await page.waitForTimeout(100);
+  expect(errors).toEqual([]);
+});

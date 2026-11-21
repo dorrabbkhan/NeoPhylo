@@ -404,6 +404,7 @@ fn answer_question(
                 .collect();
             let expl = match true_ix.len() {
                 0 => "no statement is true.".to_string(),
+                1 => format!("statement {} is true.", true_ix[0]),
                 _ => format!("statements {} are true.", join_and(&true_ix)),
             };
             key(Accepted::Statements(vals), expl)

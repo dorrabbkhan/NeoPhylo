@@ -184,6 +184,15 @@ export function ItemView({
     practice && s.checked[s.index] && effective !== null
       ? engine.readingCheck(set, s.index, effective)
       : null;
+  // Resolved = the answer is out: "Show answer" pressed, or a second
+  // Check landed (the first wrong verdict is a real retry — no
+  // explanation, no note_after). Attempt and reveal state live in
+  // the session, so Back/Next keeps them (Review Focus 4).
+  const resolved =
+    (s.revealed[s.index] ?? false) || (s.attempts[s.index] ?? 0) >= 2;
+  const explain =
+    verdict !== null &&
+    (!verdict.ok || verdict.value.correct || resolved);
 
   return (
     <>
@@ -206,6 +215,11 @@ export function ItemView({
           }
           return (
             <ReadingTree
+              // No item index in the key: a remount here restarts the
+              // figure's width feedback loop at a different fixed
+              // point. ReadingTree suppresses the transition on a
+              // view change instead — same "lands at final spots"
+              // outcome without relayout drift (checkpoint §21(j)).
               key={`${t.name}-${t.label}`}
               view={v}
               style={styleFor(item, t.styleIndex)}
@@ -245,19 +259,34 @@ export function ItemView({
               >
                 {verdict.value.correct
                   ? "Correct."
-                  : "Not correct — you can try again."}
+                  : resolved
+                    ? "Not correct."
+                    : "Not quite — try again."}
               </p>
-              <p className="read-explain">{verdict.value.explanation}</p>
+              {explain && (
+                <p className="read-explain">
+                  {verdict.value.explanation}
+                </p>
+              )}
             </>
           ) : (
             <p className="read-verdict-bad">
               {readErrorMessage(verdict.error)}
             </p>
           )}
-          {item.note_after !== undefined && (
+          {explain && item.note_after !== undefined && (
             <p className="read-note">
               {fillPlaceholders(item.note_after, item)}
             </p>
+          )}
+          {verdict.ok && !verdict.value.correct && !resolved && (
+            <button
+              type="button"
+              className="read-nav-btn read-show-answer"
+              onClick={() => dispatch({ type: "reveal" })}
+            >
+              Show answer
+            </button>
           )}
         </div>
       )}
