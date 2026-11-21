@@ -60,7 +60,7 @@ jobs:
       - name: Changed paths (PRs only)
         id: filter
         if: steps.full.outputs.full != 'true'
-        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           # webapp gates wasm/web/licenses/e2e. wasm also runs when
           # `fixtures` matches because r-and-fixtures needs its artifact.
