@@ -262,7 +262,9 @@ test("editor round trip: rebuilt coverage items give the shipped answers", async
   await q3
     .getByRole("combobox", { name: "Ask" })
     .selectOption("homologous");
-  await q3.getByRole("textbox", { name: "Trait name" }).fill("venom");
+  await q3
+    .getByRole("combobox", { name: "Trait name" })
+    .selectOption("venom");
   const pick3 = q3.getByRole("combobox", { name: "Pick by tapping" });
   await pick3.selectOption({ label: "tip x" });
   await tip(q3, "a").click();

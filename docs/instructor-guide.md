@@ -67,7 +67,7 @@ Four practice-mode sets, all intro level, in teaching order:
 - [Who is closest?](?read=trees-closest-relatives) — relatedness read from shared ancestry, not from tip proximity or resemblance.
 - [Clades and shared traits](?read=trees-clades-traits) — monophyly and trait marks, including losses.
 
-Practice-mode feedback is staged: a correct answer earns the verdict and the engine's plain-English explanation at once; a first wrong answer hears only "Not quite — try again." with nothing revealed, so the student changes the response and checks again; a second Check — or pressing **Show answer** — resolves the item with the explanation and any teaching note. Back and Next move freely, and each item keeps its feedback state when the student returns to it.
+Practice-mode feedback is staged: a correct answer earns the verdict and the engine's plain-English explanation at once; a first wrong answer shows only "Not quite — try again." with nothing revealed, so the student changes the response and checks again; a second wrong answer — or pressing **Show answer** — resolves the item with the explanation and any teaching note, and a correct second answer shows them too. Back and Next move freely, and each item keeps its feedback state when the student returns to it.
 
 ### Using forms A and B
 
@@ -81,9 +81,8 @@ In the [editor](?editor), choose the **Tree reading set** mode. Give the set an 
 
 - Each stored tree takes pasted Newick — polytomies enter through Newick only; the shared draw canvas stays binary. **Edit on the canvas** loads a stored tree onto it, **Use canvas tree** stores the canvas back.
 - Annotations are made by tapping: pick the annotate tool — letter, age, mark or point — tap a clade on the preview (or a node on the canvas) and apply. Letters name nodes for items to reference, ages drive a numeric time axis, marks record trait gains and losses on branches, and points mark positions on nodes or branches; the times axis and trait display names live in the same panel.
-- Items are added by question type, and their tips, nodes and points are chosen by tapping — never by editing JSON. The engine re-checks the whole set after every change: a refusal names the item and the field, and **Save file**, **Share link** and **Preview** stay disabled until the set loads. Each item shows its engine-computed answer as you build.
+- Items are added by question type, and their tips, nodes and points are chosen by tapping — never by editing JSON. Trait-name fields (the trait a question asks about, including "has one trait, lacks another") are dropdowns offering the tree's own trait names from its marks and display names, so an item can never name a trait the tree does not know. The engine re-checks the whole set after every change: a refusal names the item and the field, and **Save file**, **Share link** and **Preview** stay disabled until the set loads. Each item shows its engine-computed answer as you build.
 - **Share link** copies a `?read=` URL that carries the set in its `#r=` fragment; **Save file** writes a `<id>.neophylo-reading.json` file; **Preview** opens exactly what the student sees; **Import a file or #r= link** takes either form back for later edits.
-- One current limit: the "has one trait, lacks another" trait question cannot be authored correctly yet — its fields capture tips where the format expects trait names — so leave that type out of sets you build.
 
 ### Measuring learning
 

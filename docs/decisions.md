@@ -8973,7 +8973,10 @@ Task-10 editor.
   tap-only readouts that capture the tapped *tip* name, but the wire
   ask expects trait names — a `has_not` item cannot currently be
   authored correctly through the reading editor (the round-trip e2e
-  uses `homologous` for its trait-mark item instead).
+  uses `homologous` for its trait-mark item instead). **Fixed
+  2026-11-21 in the Task 15 checkpoint PR (§21(d), fix round 2c):**
+  every trait-name field is a select offering the item's first tree's
+  trait names; see the round-2c entry below.
 - **Fix round 1 (owner review):** `cetartiodactyls` ages re-set to
   cited estimates (R 70 / W 60 — Hassanin et al. 2012 Table 1 means;
   C 45, N 35, basilosaurus 37 — fossil literature, all in SOURCES.md
@@ -9359,3 +9362,166 @@ two required problems.
   checks), `readingLayout.test.ts` (conditional gap bound),
   `reading.css` (the cap), `reading.spec.ts` (cap test) and
   `worksheets.spec.ts` (the rewritten DOM check).
+
+## v1.4d Task 15 fix round 2c (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2c covered §21 (d) the editor's `has_not` authoring limit,
+(g) the mode-box alignment, and the closing doc pass. With this
+session every §21 item (a)–(k) is fixed in this PR.
+
+- **`has_not` authoring (d) — conductor's recommendation,
+  owner-approved.** The ask's `has`/`lacks` fields captured tapped
+  *tip* names where the wire expects trait names. Every trait-name
+  field the item form carries is now a `TraitNameField` select
+  (`web/src/views/editor/reading/fields.tsx`) offering the item's
+  first tree's trait names in the engine's `trait_names` order —
+  trait defs first, then mark names (`traitNamesOf` in
+  `readingItems.ts`, fed by `ItemForm` from the resolved
+  `ReadingTreeView`). Covered: the ask's `trait_name` (which_have,
+  how_many_changes, ancestral_or_derived, homologous), `has`/`lacks`,
+  `is_clade`'s optional `by_trait`, and the select_true statements'
+  `trait_name`/`inner`/`outer` ("any other trait-name field"). The
+  bogus `ask-has`/`ask-lacks` tip-tap targets and their `applyPick`
+  case are removed; homologous' `x`/`y` stay tip picks — the wire
+  wants tips there. Devin's calls: the "Has trait"/"Lacks trait"
+  labels; a text-input fallback when the tree knows no traits yet;
+  an extra "(not on this tree)" option so an imported item holding
+  an unknown name still shows it instead of silently displaying the
+  placeholder; and "— none —" as `by_trait`'s empty label.
+- **Mode-box alignment (g) — conductor's recommendation,
+  owner-approved (baseline round).** `.editor-mode` now takes the
+  editor column's own box (`max-width: 1100px; margin: 0 auto`, the
+  cap `.editor-panel`/`.editor-page-head` already used), so its left
+  edge and width match the column's at 1280 and 1920 px. At 1024 and
+  768 the page is already narrower than the cap, so the box was
+  aligned before and after — nothing moved there (the new e2e
+  asserts all four widths anyway). Only `editor-default`'s two wide
+  frames changed: `editor-f84` and `editor-prompts` scroll the mode
+  box out of frame before shooting, so their baselines stayed
+  byte-identical.
+- **Doc pass:** the guide drops the `has_not` limit bullet, gains a
+  trait-dropdown clause, and corrects the staged-feedback wording
+  ("shows only"; a second *wrong* answer resolves; a correct second
+  answer shows the explanation too). The checkpoint doc gains the
+  §21(d)/(g) fix lines, a `has_not` item in the §19 owner pass, and
+  the §7.4 deviation entry, and loses the §22 `has_not` bullet and
+  the stale "nothing below is fixed" intro.
+- **Every file round 2 (sessions 2a, 2b, 2b2, 2c) changed outside
+  the Task 15 Files block** (`git diff --name-only 06e718ca..HEAD`;
+  the block names `docs/checkpoints/v1.4d-release.md`,
+  `docs/roadmap.md`, `CITATION.cff` and `scripts/checkpoint/` —
+  in-block changes are not listed):
+  - `crates/neophylo-core/src/reading/answer.rs`
+  - `crates/neophylo-core/tests/reading_answer.rs`
+  - `docs/instructor-guide.md`
+  - `docs/decisions.md` (this entry and the 2a/2b ones)
+  - `web/e2e/editor.spec.ts`
+  - `web/e2e/reading-coverage.spec.ts`
+  - `web/e2e/reading-editor.spec.ts`
+  - `web/e2e/reading.spec.ts`
+  - `web/e2e/worksheets.spec.ts`
+  - `web/e2e/__screenshots__/editor-default-1280x800-dark-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1280x800-light-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/reading-feedback-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-feedback-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-marks-same-branch-up-360x740-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-marks-same-branch-up-360x740-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-closest-relative-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-closest-relative-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-concept-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-concept-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-count-clades-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-count-clades-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-is-clade-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-is-clade-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-mrca-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-mrca-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-order-nodes-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-order-nodes-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-place-taxon-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-place-taxon-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-select-true-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-select-true-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-smallest-clade-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-smallest-clade-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-360x740-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-two-tier-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-two-tier-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-differs-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-differs-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-fits-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-fits-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-768x1024-light-linux.png`
+  - `web/src/design/tokens.ts`
+  - `web/src/index.css`
+  - `web/src/layout/labelCollision.ts`
+  - `web/src/layout/readingCircular.ts`
+  - `web/src/layout/readingCorpus.test.ts` (new)
+  - `web/src/layout/readingGeom.ts`
+  - `web/src/layout/readingLayout.test.ts`
+  - `web/src/layout/readingLayout.ts`
+  - `web/src/layout/readingMarkLabels.ts` (new)
+  - `web/src/reading/state.test.ts`
+  - `web/src/reading/state.ts`
+  - `web/src/reading/url.test.ts`
+  - `web/src/reading/url.ts`
+  - `web/src/views/editor/EditorPanel.tsx`
+  - `web/src/views/editor/reading/fields.tsx`
+  - `web/src/views/editor/reading/ItemForm.tsx`
+  - `web/src/views/editor/reading/QuestionFields.tsx`
+  - `web/src/views/editor/reading/ReadingEditor.tsx`
+  - `web/src/views/editor/reading/readingItems.ts`
+  - `web/src/views/editor/reading/StatementFields.tsx`
+  - `web/src/views/editor/reading/TraitAskFields.test.tsx` (new)
+  - `web/src/views/editor/reading/TraitAskFields.tsx`
+  - `web/src/views/ErrorBoundary.test.tsx`
+  - `web/src/views/ErrorBoundary.tsx`
+  - `web/src/views/reading/ItemView.tsx`
+  - `web/src/views/reading/reading.css`
+  - `web/src/views/reading/readingHelpers.ts`
+  - `web/src/views/reading/ReadingPage.test.tsx`
+  - `web/src/views/reading/ReadingPage.tsx`
+  - `web/src/views/reading/ReadingTree.tsx`
+  - `web/src/views/worksheets/ReadingSheetView.tsx`
+  - `web/src/views/worksheets/worksheets.css`
+  - `web/src/worksheets/reading.test.ts`
+  - `web/src/worksheets/reading.ts`

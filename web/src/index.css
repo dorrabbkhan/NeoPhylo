@@ -3142,14 +3142,18 @@ button,
 
 /* ---- Reading-set editor (v1.4d Task 10, spec §7.5) ---- */
 
-/* The "What are you making?" mode switch on EditorPage. */
+/* The "What are you making?" mode switch on EditorPage. It takes the
+ * editor column's own box — the same 1100 px centred cap .editor-panel
+ * and .editor-page-head use — so its left edge lines up with the
+ * column below instead of the page padding (fix round 2c). */
 .editor-mode {
   display: flex;
   gap: var(--space-16);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: var(--space-8);
-  margin: 0 0 var(--space-16);
+  max-width: 1100px;
+  margin: 0 auto var(--space-16);
   font-size: var(--size-sm);
 }
 

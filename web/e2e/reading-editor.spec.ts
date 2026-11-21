@@ -184,12 +184,15 @@ test("build a six-tip reading set by tapping, then preview, share and reopen", a
   await pickTarget.selectOption({ label: "tip {c}" });
   await tip(q3, "a").click();
 
-  // trait: which tips have wings.
+  // trait: which tips have wings — the field offers the tree's own
+  // trait names (§21(d): it was a free-text input).
   const q4 = await addItem(page, "trait", "q4");
   await q4
     .getByRole("textbox", { name: "Question text" })
     .fill("Which tips have wings?");
-  await q4.getByRole("textbox", { name: "Trait name" }).fill("wings");
+  await q4
+    .getByRole("combobox", { name: "Trait name" })
+    .selectOption("wings");
   await expect(q4.getByText(/^Answer:/)).toBeVisible();
 
   // Share stays gated until the set loads — by now it should be live.
@@ -217,6 +220,109 @@ test("build a six-tip reading set by tapping, then preview, share and reopen", a
   await page.goto(url);
   await expect(page.getByText(/Question 1 of 4/)).toBeVisible();
   await expectNoSeriousViolations(page, "shared reading set");
+});
+
+// §21(d): the has_not ask's has/lacks fields take trait names, so they
+// are selects offering the tree's own traits — the wire carries names
+// the engine knows, never a tapped tip.
+test("a has_not item builds on trait selects, shares, and save/import round-trips", async ({
+  page,
+}) => {
+  await gotoReadingEditor(page);
+
+  await page.getByRole("textbox", { name: "Set id" }).fill("e2e-hasnot");
+  await page
+    .getByRole("textbox", { name: "Set title" })
+    .fill("Has-not reading");
+  await page
+    .getByRole("textbox", { name: "Summary" })
+    .fill("One tree, two marks, one has_not item.");
+
+  const t1 = treeSlot(page, "t1");
+  await t1.getByRole("textbox", { name: "Newick" }).fill("((a,b),(c,d));");
+  await expect(
+    t1.getByRole("tree", { name: "Extras for t1" }),
+  ).toBeVisible();
+
+  // Marks by tapping, like the first test: hair gains on the branch to
+  // (a,b) and fur on b's own branch, so a alone has hair and no fur.
+  await t1.getByRole("combobox", { name: "Tool" }).selectOption("mark");
+  await t1
+    .getByRole("textbox", { name: "Trait", exact: true })
+    .fill("hair");
+  await branch(t1, ["a", "b"]).press("Enter");
+  await t1.getByRole("button", { name: "Add mark" }).click();
+  await expect(
+    t1.getByText("hair gain on the branch to a, b"),
+  ).toBeVisible();
+  await t1
+    .getByRole("textbox", { name: "Trait", exact: true })
+    .fill("fur");
+  await branch(t1, ["b"]).press("Enter");
+  await t1.getByRole("button", { name: "Add mark" }).click();
+  await expect(
+    t1.getByText("fur gain on the branch to b"),
+  ).toBeVisible();
+
+  // The item: has_not with "hair"/"fur" picked off the tree's trait
+  // list — no tips are tapped for this ask.
+  const q1 = await addItem(page, "trait", "q1");
+  await q1
+    .getByRole("textbox", { name: "Question text" })
+    .fill("Which tips have hair but lack fur?");
+  await q1.getByRole("combobox", { name: "Ask" }).selectOption("has_not");
+  await q1
+    .getByRole("combobox", { name: "Has trait" })
+    .selectOption("hair");
+  await q1
+    .getByRole("combobox", { name: "Lacks trait" })
+    .selectOption("fur");
+  // The engine's answer shows while building — a alone qualifies.
+  await expect(
+    q1.getByText(/have hair but lack fur\./),
+  ).toBeVisible();
+
+  // Save → the file's wire ask is trait names, then Import the file
+  // back and Save again: the round trip is byte-equal.
+  const { readFileSync } = await import("node:fs");
+  const [first] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save file" }).click(),
+  ]);
+  const firstJson = readFileSync((await first.path())!, "utf8");
+  expect(JSON.parse(firstJson).items[0].question).toEqual({
+    type: "trait",
+    ask: { kind: "has_not", has: "hair", lacks: "fur" },
+  });
+  await page.getByLabel("Import a reading-set file").setInputFiles({
+    name: first.suggestedFilename(),
+    mimeType: "application/json",
+    buffer: Buffer.from(firstJson, "utf8"),
+  });
+  await expect(
+    page.getByText(/Imported .Has-not reading./),
+  ).toBeVisible();
+  const [second] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save file" }).click(),
+  ]);
+  expect(readFileSync((await second.path())!, "utf8")).toBe(firstJson);
+
+  // Share, then answer the item correctly on the reopened set.
+  await page.getByRole("button", { name: "Share link" }).click();
+  const url = await page
+    .getByRole("textbox", { name: "Share link URL" })
+    .inputValue();
+  expect(url).toContain("#r=");
+  await page.goto(url);
+  await expect(page.getByText(/Question 1 of 1/)).toBeVisible();
+  await page
+    .locator(`.rt-hit[data-kind="tip"][data-clade='${JSON.stringify(["a"])}']`)
+    .click();
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(
+    page.getByRole("status", { name: "Verdict" }),
+  ).toContainText("Correct.");
 });
 
 test("a denied clipboard still shows the share link, with no unhandled rejection", async ({

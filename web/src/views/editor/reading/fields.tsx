@@ -59,6 +59,46 @@ export function Num({
   );
 }
 
+/** A trait-name field: the wire wants a name the tree knows, so the
+ *  control offers the tree's own trait names (trait defs first, then
+ *  mark names — the engine's `trait_names` order) instead of free
+ *  text. A tree with no traits yet falls back to a plain input; a
+ *  value the list doesn't know stays visible and selectable so an
+ *  imported item never lies about what it holds. */
+export function TraitNameField({
+  label,
+  value,
+  traitNames,
+  onChange,
+  emptyLabel = "— pick a trait —",
+}: {
+  label: string;
+  value: string;
+  traitNames: string[];
+  onChange: (v: string) => void;
+  /** The empty option's text; "none" wording for optional fields. */
+  emptyLabel?: string;
+}) {
+  if (traitNames.length === 0) {
+    return <Text label={label} value={value} onChange={onChange} />;
+  }
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{emptyLabel}</option>
+        {traitNames.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+        {value !== "" && !traitNames.includes(value) && (
+          <option value={value}>{value} (not on this tree)</option>
+        )}
+      </select>
+    </Field>
+  );
+}
+
 /** A tip list as a comma-separated input — the wire wants an array. */
 export function CsvField({
   label,

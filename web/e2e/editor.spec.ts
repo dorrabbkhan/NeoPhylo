@@ -1357,3 +1357,34 @@ test("a denied clipboard still shows the share link, with no unhandled rejection
   await page.waitForTimeout(100);
   expect(errors).toEqual([]);
 });
+
+// §21(g): the "What are you making?" mode box took the page's full
+// padded row while .editor-panel capped at 1100 px centred — at wide
+// viewports the box's left edge sat 66 px left of the column it heads.
+// It now shares the column's box.
+test("the mode box shares the editor column's left edge and width", async ({
+  page,
+}) => {
+  for (const width of [768, 1024, 1280, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?editor");
+    await expect(
+      page.getByRole("group", { name: "What are you making?" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("application", { name: "Tree canvas" }),
+    ).toBeVisible();
+    const mode = await page.locator(".editor-mode").boundingBox();
+    const column = await page.locator(".editor-panel").boundingBox();
+    expect(mode, `.editor-mode box at ${width}`).not.toBeNull();
+    expect(column, `.editor-panel box at ${width}`).not.toBeNull();
+    expect(
+      Math.abs(mode!.x - column!.x),
+      `mode box left edge matches the column at ${width}`,
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(mode!.width - column!.width),
+      `mode box width matches the column at ${width}`,
+    ).toBeLessThanOrEqual(1);
+  }
+});

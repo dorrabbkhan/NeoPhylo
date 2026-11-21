@@ -22,6 +22,7 @@ import {
   newQuestion,
   pickTargetsFor,
   QUESTION_TYPES,
+  traitNamesOf,
   type PickTarget,
 } from "./readingItems";
 
@@ -64,6 +65,9 @@ export function ItemForm({
   const previewName = item.trees[0] ?? treeNames[0];
   const view =
     previewName === undefined ? undefined : treeViews.get(previewName);
+  // The ask's trait fields validate against the item's first tree —
+  // offer exactly its trait names.
+  const traitNames = view === undefined ? [] : traitNamesOf(view);
   const style: ReadingStyle =
     item.style === undefined
       ? DEFAULT_STYLE
@@ -252,6 +256,7 @@ export function ItemForm({
         q={item.question}
         onChange={(question) => onChange({ ...item, question })}
         treeNames={treeNames}
+        traitNames={traitNames}
       />
       {targets.length > 0 && view !== undefined && (
         <div className="rde-pick">

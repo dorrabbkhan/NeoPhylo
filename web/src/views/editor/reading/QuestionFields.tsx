@@ -9,7 +9,7 @@ import { useId } from "react";
 
 import type { Question } from "../../../engine/generated/Question";
 
-import { Field, PickedField, Text } from "./fields";
+import { Field, PickedField, Text, TraitNameField } from "./fields";
 import { newQuestion, QUESTION_TYPES } from "./readingItems";
 import { StatementsEditor } from "./StatementFields";
 import { TraitAskFields } from "./TraitAskFields";
@@ -20,12 +20,16 @@ export interface QuestionFieldsProps {
   /** Every tree name in the set (which_fits' small trees, the
    *  which_differs reference). */
   treeNames: string[];
+  /** The item's first tree's trait names — every trait-name field
+   *  offers exactly these so the wire names a trait the engine knows. */
+  traitNames: string[];
 }
 
 export function QuestionFields({
   q,
   onChange,
   treeNames,
+  traitNames,
 }: QuestionFieldsProps) {
   const reasonGroup = useId();
   switch (q.type) {
@@ -99,9 +103,11 @@ export function QuestionFields({
       );
     case "is_clade":
       return (
-        <Text
+        <TraitNameField
           label="Trait that defines the group (optional)"
           value={q.by_trait ?? ""}
+          traitNames={traitNames}
+          emptyLabel="— none —"
           onChange={(v) =>
             onChange(
               v === ""
@@ -146,6 +152,7 @@ export function QuestionFields({
       return (
         <StatementsEditor
           statements={q.statements}
+          traitNames={traitNames}
           onChange={(statements) => onChange({ ...q, statements })}
         />
       );
@@ -153,6 +160,7 @@ export function QuestionFields({
       return (
         <TraitAskFields
           ask={q.ask}
+          traitNames={traitNames}
           onChange={(ask) => onChange({ ...q, ask })}
         />
       );
@@ -247,6 +255,7 @@ export function QuestionFields({
             q={q.first}
             onChange={(first) => onChange({ ...q, first })}
             treeNames={treeNames}
+            traitNames={traitNames}
           />
           {q.reasons.map((r, i) => (
             <div className="rde-option" key={i}>

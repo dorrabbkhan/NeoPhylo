@@ -5,7 +5,7 @@
 
 import type { Statement } from "../../../engine/generated/Statement";
 
-import { CsvField, Field, Num, Text } from "./fields";
+import { CsvField, Field, Num, Text, TraitNameField } from "./fields";
 
 const STATEMENT_KINDS: { value: Statement["kind"]; label: string }[] = [
   { value: "closer_than", label: "X and Y closer than X and Z" },
@@ -47,9 +47,11 @@ function newStatement(kind: Statement["kind"]): Statement {
 
 function StatementParams({
   s,
+  traitNames,
   onChange,
 }: {
   s: Statement;
+  traitNames: string[];
   onChange: (s: Statement) => void;
 }) {
   switch (s.kind) {
@@ -105,21 +107,21 @@ function StatementParams({
       return (
         <>
           <Text label="Tip" value={s.tip} onChange={(tip) => onChange({ ...s, tip })} />
-          <Text label="Trait" value={s.trait_name} onChange={(trait_name) => onChange({ ...s, trait_name })} />
+          <TraitNameField label="Trait" value={s.trait_name} traitNames={traitNames} onChange={(trait_name) => onChange({ ...s, trait_name })} />
         </>
       );
     case "shared_derived":
       return (
         <>
-          <Text label="Trait" value={s.trait_name} onChange={(trait_name) => onChange({ ...s, trait_name })} />
+          <TraitNameField label="Trait" value={s.trait_name} traitNames={traitNames} onChange={(trait_name) => onChange({ ...s, trait_name })} />
           <CsvField label="Tips" value={s.tips} onChange={(tips) => onChange({ ...s, tips })} />
         </>
       );
     case "gained_within":
       return (
         <>
-          <Text label="Inner trait" value={s.inner} onChange={(inner) => onChange({ ...s, inner })} />
-          <Text label="Outer trait" value={s.outer} onChange={(outer) => onChange({ ...s, outer })} />
+          <TraitNameField label="Inner trait" value={s.inner} traitNames={traitNames} onChange={(inner) => onChange({ ...s, inner })} />
+          <TraitNameField label="Outer trait" value={s.outer} traitNames={traitNames} onChange={(outer) => onChange({ ...s, outer })} />
         </>
       );
   }
@@ -127,9 +129,11 @@ function StatementParams({
 
 export function StatementsEditor({
   statements,
+  traitNames,
   onChange,
 }: {
   statements: Statement[];
+  traitNames: string[];
   onChange: (statements: Statement[]) => void;
 }) {
   return (
@@ -159,6 +163,7 @@ export function StatementsEditor({
           </Field>
           <StatementParams
             s={s}
+            traitNames={traitNames}
             onChange={(next) =>
               onChange(statements.map((x, j) => (j === i ? next : x)))
             }
