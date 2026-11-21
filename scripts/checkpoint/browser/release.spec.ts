@@ -24,7 +24,10 @@ import {
   pasteImport,
   prime,
   printColors,
+  readingDrift,
+  settleReading,
   shoot,
+  shootReading,
   showControls,
   visit,
   waitForApp,
@@ -1009,7 +1012,7 @@ test("§2 every answer key renders — gated, both kinds", async ({
 
 test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", async ({
   page,
-}, info) => {
+}) => {
   const done = watchConsole(page);
   await prime(page, "dark");
   // Pre-grant the instructor flag — §3 checks the gate itself.
@@ -1442,7 +1445,7 @@ test("§2 every reading paper worksheet renders and carries no answers", async (
       .soft(page.locator("body"), `${set.id}: in-app fallback`)
       .toContainText("no in-app worksheet");
     if (isChromium()) {
-      await shoot(page, info, "2-worksheets-reading", set.id);
+      await shootReading(page, info, "2-worksheets-reading", set.id);
     }
   }
   done();
@@ -1482,14 +1485,14 @@ test("§2 every reading answer key renders, gated", async ({ page }, info) => {
         `${set.id}: an explanation per item`,
       )
       .toHaveCount(set.items.length);
-    if (isChromium()) await shoot(page, info, "2-keys-reading", set.id);
+    if (isChromium()) await shootReading(page, info, "2-keys-reading", set.id);
   }
   done();
 });
 
 test("§2/§14 every reading sheet and key prints light; a PDF per id", async ({
   page,
-}, info) => {
+}) => {
   test.setTimeout(600_000);
   const done = watchConsole(page);
   await prime(page, "dark");
@@ -1595,7 +1598,8 @@ for (const set of SHIPPED_READING) {
         `${set.id}: item ${i + 1} no NaN`,
       ).not.toMatch(/\bNaN\b/);
     }
-    if (isChromium()) await shoot(page, info, "16-reading", `${set.id}-last`);
+    if (isChromium())
+      await shootReading(page, info, "16-reading", `${set.id}-last`);
     // Every mode ends on the results screen — Finish exists in
     // practice and test alike (practice shows verdicts along the way,
     // test only here).
@@ -1608,7 +1612,7 @@ for (const set of SHIPPED_READING) {
     ).toBeVisible();
     await expectCleanLayout(page, `read ${set.id} summary`);
     if (isChromium()) {
-      await shoot(page, info, "16-reading", `${set.id}-summary`);
+      await shootReading(page, info, "16-reading", `${set.id}-summary`);
     }
     done();
   });
@@ -1631,7 +1635,7 @@ for (const set of COV_READING) {
       page.locator(".rt-figure svg").first(),
       `${set.id}: item 1 draws a tree`,
     ).toBeVisible();
-    if (isChromium()) await shoot(page, info, "16-reading", set.id);
+    if (isChromium()) await shootReading(page, info, "16-reading", set.id);
     done();
   });
 }
@@ -1767,7 +1771,7 @@ for (const [device, vp] of [
         }
         await expectCleanLayout(page, `${set.id} ${device}`);
         if (isChromium()) {
-          await shoot(page, info, "17-devices", `${set.id}-${device}`);
+          await shootReading(page, info, "17-devices", `${set.id}-${device}`);
         }
         // Tap through the rest of the set to the results screen.
         for (let i = 1; i < set.items.length; i++) {
@@ -1880,8 +1884,19 @@ for (const theme of THEMES) {
           )) {
           seen.add(s);
         }
+        // Items re-using a tree relayout its live elements — the dots
+        // can still be gliding when the style read above lands. The
+        // drift check pins the settled frame (and the gallery shot
+        // below): every positioned group sits where its own transform
+        // puts it, within 2 px.
+        await settleReading(page);
+        expect(
+          await readingDrift(page),
+          `${id}: item ${i + 1} dots rest on their nodes`,
+        ).toEqual([]);
       }
-      if (isChromium()) await shoot(page, info, "18-styles", `${id}-${theme}`);
+      if (isChromium())
+        await shootReading(page, info, "18-styles", `${id}-${theme}`);
     }
     expect(
       [...seen].sort(),
@@ -1964,7 +1979,7 @@ test("§19 the editor builds a reading set and its #r= link reopens it", async (
     .getByRole("textbox", { name: "Share link URL" })
     .inputValue();
   expect(url, "the share link carries an #r= set").toContain("#r=");
-  if (isChromium()) await shoot(page, info, "19-editor", "reading-set");
+  if (isChromium()) await shootReading(page, info, "19-editor", "reading-set");
 
   // Reopen the link: the reading area mounts the same set.
   await visitReading(page, url);
@@ -2031,7 +2046,8 @@ test("§16 a #r= link opens its set and its custom paper worksheet", async ({
     "href",
     /#r=/,
   );
-  if (isChromium()) await shoot(page, info, "20-shared", "set-and-sheet");
+  if (isChromium())
+    await shootReading(page, info, "20-shared", "set-and-sheet");
   done();
 });
 
