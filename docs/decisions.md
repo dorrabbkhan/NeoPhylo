@@ -9053,3 +9053,51 @@ cards now link both.
   text ("; "-joined) instead of an index the unnumbered sheet never
   shows; the `worksheet-reading-key*` baselines (10 files) were
   regenerated for it.
+
+## v1.4d Task 14: instructor guide — tree-reading section
+
+The guide gains a **Teaching tree reading** section (the four lessons,
+forms A and B with their paper sheets and keys, building a reading set
+in the editor, and measuring learning with the spec §8.4 citations and
+caveats plus the manifest's five known gaps) and a second `##` plan,
+**A 50-minute tree-reading class plan** (form A → Clades and shared
+traits → form B, the owner-approved pick — the other three lessons are
+named as extensions for longer slots). `?read=<id>` and the library's
+`type=reading` filter value are new allowed link forms, so the
+guide's `?read=`, `?library&type=reading`, `?worksheet=`/`?key=`
+reading links render and resolve.
+
+- Baselines: owner approved regenerating the `guide` scene (6
+  files) because the guide gains a tree-reading section
+  - `web/e2e/__screenshots__/guide-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-dark-linux.png`
+- **Files outside the task's Files block:**
+  - `web/src/links.ts`: `read` joins the id routes (`?read=<id>`,
+    single-param like `?lesson=`), and `reading` joins the library
+    `type=` values — both forms the guide now links.
+  - `web/src/views/library/items.ts`: the `SHIPPED_META` glob adds
+    `exercises/reading/*.json` so `exerciseMetas()` also serves
+    reading-set metas; `buildItems()` itself is unchanged.
+  - `web/src/views/guide/GuidePage.tsx`: plan minutes merge
+    `exerciseMetas()` after `buildItems()` — reading cards resolve
+    asynchronously in the library, so the page reads the same
+    `meta.minutes` off the shipped files to stay synchronous.
+  - `web/src/views/guide/GuidePage.test.tsx`: section count 6 → 8,
+    plan count 2 → 3, and assertions that the tree-reading plan shows
+    the registry minutes and computed total.
+  - `web/src/lessons/content.test.ts`: the guide no-digits guard's
+    allowlist adds the §8.4 citation strings' years (Baum et al.
+    2005; Kummer et al. 2019; Furrow & Hsu 2019) and the manifest's
+    deferred-milestone tokens `v2.<n|x>` — both required prose, not
+    computed data numbers.
+  - `docs/decisions.md`: this entry.
+- **Noted, not fixed (parked in the task notes):** the guide tells
+  instructors that the paper sheets keep the screen-authored "Tap…"
+  wording, that a test-mode sheet's scan-the-code block opens the
+  test itself, and that mark labels can crowd on form A's printed
+  trait tree. The editor's `has_not` limit is described as a current
+  limit.

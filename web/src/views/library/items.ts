@@ -78,9 +78,16 @@ export interface CardItem {
 
 // `?raw` like labs/registry.ts: the meta key is optional, and a named
 // `meta` import would fail the build on files without it. schema.json
-// carries no meta, so it drops out below.
+// carries no meta, so it drops out below. The reading sets ride the
+// same map (v1.4d Task 14): buildItems() stays lessons-and-labs, but
+// exerciseMetas() lets the guide read `?read=` items' meta.minutes for
+// its plan totals without a second glob of the shipped files.
 const SHIPPED_META = import.meta.glob<string>(
-  ["../../../../exercises/*.json", "../../../../exercises/labs/*.json"],
+  [
+    "../../../../exercises/*.json",
+    "../../../../exercises/labs/*.json",
+    "../../../../exercises/reading/*.json",
+  ],
   { eager: true, query: "?raw", import: "default" },
 );
 const FIXTURE_META = import.meta.glob<string>(

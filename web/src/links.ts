@@ -14,13 +14,15 @@ export type InternalRoute =
   | "lab"
   | "worksheet"
   | "key"
+  | "read"
   | "library"
   | "labs"
   | "editor";
 
 export interface InternalTarget {
   route: InternalRoute;
-  /** The linked item's registry id (lesson/lab/worksheet/key links). */
+  /** The linked item's registry id (lesson/lab/read/worksheet/key
+   * links). */
   id?: string;
   /** worksheet/key sheet kind; absent defaults to "app" on the route. */
   kind?: "app" | "paper";
@@ -33,7 +35,13 @@ const ID_RE = /^[A-Za-z0-9_-]+$/;
 const SHEET_KINDS = new Set(["app", "paper"]);
 // The library's filtersQuery writes type= as a comma list of TypeKey,
 // level= as a Level, and short=1.
-const LIBRARY_TYPES = new Set(["lessons", "phylip", "mega", "datasets"]);
+const LIBRARY_TYPES = new Set([
+  "lessons",
+  "reading",
+  "phylip",
+  "mega",
+  "datasets",
+]);
 const LIBRARY_LEVELS = new Set(["intro", "intermediate", "advanced"]);
 
 /** Parse an href as one of NeoPhylo's own route links; null for
@@ -47,7 +55,7 @@ export function parseInternalHref(href: string): InternalTarget | null {
   const params = new URLSearchParams(q);
   const keys = [...params.keys()];
 
-  const idRoutes = ["lesson", "lab", "worksheet", "key"] as const;
+  const idRoutes = ["lesson", "lab", "worksheet", "key", "read"] as const;
   const present = idRoutes.filter((r) => params.has(r));
   if (present.length > 1) return null;
   if (present.length === 1) {
