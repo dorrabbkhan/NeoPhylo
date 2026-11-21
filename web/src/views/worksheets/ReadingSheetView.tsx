@@ -4,7 +4,8 @@
 // the answer space the control type needs — options to circle or
 // tick, order slots, a number or a ruled line. Nothing here is an
 // answer: the model carries only what the student needs to write
-// one, and the set opens at its `?read=`/`#r=` link + QR.
+// one. A practice set ends at its `?read=`/`#r=` link + QR; a test
+// set is handed in, so it prints the collect line instead.
 
 import { useMemo } from "react";
 
@@ -84,11 +85,18 @@ export function ReadingSheetView({ set, sheet }: ReadingSheetViewProps) {
           </li>
         ))}
       </ol>
-      <section aria-labelledby="ws-read-link-h">
-        <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
-        <p>Check your answers in the app — scan the code or follow the link:</p>
-        <LinkBlock link={sheet.link} />
-      </section>
+      {sheet.test ? (
+        <p className="ws-handin">Hand this sheet to your instructor.</p>
+      ) : (
+        <section aria-labelledby="ws-read-link-h">
+          <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
+          <p>
+            Check your answers in the app — scan the code or follow the
+            link:
+          </p>
+          <LinkBlock link={sheet.link} />
+        </section>
+      )}
       <footer className="lab-print-foot">
         Printed from NeoPhylo — worksheet for {sheet.title}.
       </footer>

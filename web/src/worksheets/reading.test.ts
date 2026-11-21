@@ -27,9 +27,9 @@ import type { Accepted } from "../engine/generated/Accepted";
 import type { Question } from "../engine/generated/Question";
 import type { ReadingSet } from "../engine/generated/ReadingSet";
 import { readErrorMessage } from "../reading/errors";
-import { fillPlaceholders } from "../reading/state";
+import { fillItemText, fillPlaceholders } from "../reading/state";
 
-import { readingKey, readingSheet } from "./reading";
+import { paperText, readingKey, readingSheet } from "./reading";
 import type { SheetSpace } from "./reading";
 
 const READING = resolve(
@@ -107,7 +107,7 @@ describe("readingKey", () => {
           want.authored,
         );
         expect(got.text, `${id}#${got.id} question text`).toBe(
-          fillPlaceholders(set.items[i].text, set.items[i]),
+          paperText(set.items[i]),
         );
         // The rendered answer carries every accepted value — tips,
         // letters and numbers are engine data the sheet shows.
@@ -445,12 +445,98 @@ describe("readingSheet", () => {
       const sheet = readingSheet(set, "x");
       sheet.items.forEach((si, i) => {
         expect(si.text, `${id}#${si.id} text`).toBe(
-          fillPlaceholders(set.items[i].text, set.items[i]),
+          paperText(set.items[i]),
         );
         expect(si.text, `${id}#${si.id} no placeholder`).not.toMatch(
           /\{[abcset]+\}/,
         );
       });
     }
+  });
+});
+
+describe("paper wording (§21(f))", () => {
+  /** The instruction verbs that must never reach paper, at a
+   * sentence start. */
+  const INSTRUCTION = /(^|[.!?]\s+)(Tap|Click|Drag|Press|Select|Swipe|Hover|Rotate nodes freely)\b/;
+
+  it("no sheet or key text carries a screen instruction verb", () => {
+    for (const [id, set] of SETS) {
+      const sheet = readingSheet(set, "x");
+      const k = readingKey(set);
+      expect(k.ok, `${id} key builds`).toBe(true);
+      for (const si of sheet.items) {
+        expect(si.text, `${id}#${si.id} sheet text`).not.toMatch(
+          INSTRUCTION,
+        );
+      }
+      if (k.ok) {
+        for (const ki of k.value.items) {
+          expect(ki.text, `${id}#${ki.id} key text`).not.toMatch(
+            INSTRUCTION,
+          );
+        }
+      }
+    }
+  });
+
+  it("every instruction the corpus uses is mapped", () => {
+    // Building every sheet and key already throws on an unmapped
+    // verb; pin the mappings so a wording change is deliberate.
+    const mapped = new Map<string, string>();
+    for (const [, set] of SETS) {
+      for (const item of set.items) {
+        const raw = fillPlaceholders(item.text, item);
+        const paper = paperText(item);
+        if (raw !== paper) mapped.set(raw, paper);
+      }
+    }
+    expect([...mapped.values()].join("\n")).not.toMatch(INSTRUCTION);
+    for (const paper of mapped.values()) {
+      expect(paper, `paper text "${paper.slice(0, 60)}"`).not.toMatch(
+        /arrange the list/,
+      );
+    }
+  });
+
+  it("an unmapped instruction verb fails the sheet", () => {
+    const set = SETS.get("trees-demo")!;
+    const bad = {
+      ...set,
+      items: [
+        {
+          ...set.items[0],
+          text: "Click the node where every lineage last met.",
+        },
+      ],
+    };
+    expect(() => readingSheet(bad, "x")).toThrow(/unmapped/);
+  });
+
+  it("items without an instruction verb pass through untouched", () => {
+    // The app keeps the authored wording; the paper step only edits
+    // the sentence-initial verbs it maps — everything else is
+    // verbatim.
+    for (const [id, set] of SETS) {
+      for (const item of set.items) {
+        const raw = fillItemText(item);
+        if (!INSTRUCTION.test(raw)) {
+          expect(paperText(item), `${id}#${item.id} untouched`).toBe(raw);
+        }
+      }
+    }
+  });
+
+  it("test-mode sheets are collected; practice sheets keep the QR", () => {
+    for (const [id, set] of SETS) {
+      const sheet = readingSheet(set, "x");
+      expect(
+        sheet.test,
+        `${id} test flag for mode ${set.mode}`,
+      ).toBe(set.mode === "test");
+    }
+    expect(SETS.get("trees-form-a")?.mode).toBe("test");
+    expect(SETS.get("trees-form-b")?.mode).toBe("test");
+    expect(SETS.get("trees-demo")?.mode).toBe("practice");
   });
 });

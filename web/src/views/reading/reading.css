@@ -298,8 +298,13 @@
 }
 
 /* A single figure wider than the column scrolls inside .rt-canvas;
- * the figure never pushes the page sideways. */
+ * the figure never pushes the page sideways. Each figure gets an
+ * equal, content-independent share of the row: a content-sized basis
+ * let the drawn width feed the next measured width, so the same item
+ * converged to different figure widths depending on how it was
+ * reached (checkpoint §21(k)). */
 .read-trees > .rt-figure {
+  flex: 1 1 0;
   max-width: 100%;
 }
 
@@ -307,11 +312,16 @@
  * matters in the column direction: a wrapping column line sizes to
  * its item's content, which would let a wide figure overflow the
  * viewport; nowrap keeps align-items:stretch clamping to the
- * container so .rt-canvas does the scrolling. */
+ * container so .rt-canvas does the scrolling. The stacked figure
+ * returns to content height (a zero basis would collapse it). */
 @media (max-width: 600px) {
   .read-trees {
     flex-direction: column;
     flex-wrap: nowrap;
+  }
+
+  .read-trees > .rt-figure {
+    flex: none;
   }
 }
 

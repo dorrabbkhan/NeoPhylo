@@ -858,3 +858,98 @@ test("under hasTouch: hit pads are ≥40×40 and a tip tap answers the question"
 
   await context.close();
 });
+
+/* ---- figure width independence (§21(k)) --------------------------------------- */
+
+// Session 2b: .rt-figure used to be a content-sized flex item whose
+// measured width fed ReadingTree's layout, so box.width and fig.width
+// formed a feedback loop — a figure converged to different widths
+// depending on how the item was reached. Each figure now gets an
+// equal, content-independent share of the row, so an item's figure
+// boxes depend only on the container and the tree — never on mount
+// history, navigation order or an earlier resize.
+const figBoxes = async (
+  page: Page,
+): Promise<{ w: number; h: number }[]> => {
+  const figs = page.locator(".read-trees > .rt-figure");
+  const n = await figs.count();
+  const out: { w: number; h: number }[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const b = await figs.nth(i).boundingBox();
+    expect(b, `figure ${i} has a box`).not.toBeNull();
+    out.push({ w: b!.width, h: b!.height });
+  }
+  return out;
+};
+
+const expectSameBoxes = (
+  a: { w: number; h: number }[],
+  b: { w: number; h: number }[],
+): void => {
+  expect(a.length).toBe(b.length);
+  a.forEach((fa, i) => {
+    expect(Math.abs(fa.w - b[i].w), `figure ${i} width`).toBeLessThanOrEqual(1);
+    expect(Math.abs(fa.h - b[i].h), `figure ${i} height`).toBeLessThanOrEqual(1);
+  });
+};
+
+/** Load a set and click Next `index` times. */
+async function reachItem(
+  page: Page,
+  set: string,
+  index: number,
+): Promise<void> {
+  await page.goto(`/?read=${set}`);
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(page.getByText(`Question ${index + 1} of`)).toBeVisible();
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+}
+
+for (const vp of [1280, 360]) {
+  for (const [set, idx, label] of [
+    ["cov-styles", 3, "item 4"],
+    ["trees-reading-a-tree", 1, "item 2"],
+  ] as const) {
+    test(`${set} ${label}: figure boxes are mount-order independent (${vp} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp, height: 800 });
+      await reachItem(page, set, idx);
+      const forward = await figBoxes(page);
+      // A different history: back to item 1, then forward again.
+      for (let i = 0; i < idx; i += 1) {
+        await page.getByRole("button", { name: "Back" }).click();
+      }
+      await expect(page.getByText("Question 1 of")).toBeVisible();
+      for (let i = 0; i < idx; i += 1) {
+        await page.getByRole("button", { name: "Next" }).click();
+      }
+      await expect(
+        page.locator(".read-trees > .rt-figure svg").first(),
+      ).toBeVisible();
+      expectSameBoxes(forward, await figBoxes(page));
+    });
+  }
+}
+
+test("resize to 360 and back restores the same figure boxes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await reachItem(page, "cov-styles", 3);
+  const wide = await figBoxes(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+  expectSameBoxes(wide, await figBoxes(page));
+});

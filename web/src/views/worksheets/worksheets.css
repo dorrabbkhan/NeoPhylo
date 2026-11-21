@@ -152,6 +152,13 @@
   font-size: var(--size-sm);
 }
 
+/* The collect line a test-mode sheet prints instead of the link + QR
+ * block (checkpoint §21(f)). */
+.ws-handin {
+  font-weight: 600;
+  margin: var(--space-24) 0;
+}
+
 /* ---- Companion sheet / key ---- */
 
 .ws-items {
@@ -354,7 +361,12 @@
     flex-wrap: nowrap;
   }
 
-  .ws-read-trees .rt-figure {
+  /* Column direction: content height again — the row rule's zero
+   * basis would collapse the figure (checkpoint §21(k)). The doubled
+   * class outranks .read-trees > .rt-figure whatever the bundle
+   * order. */
+  .read-trees.ws-read-trees > .rt-figure {
+    flex: none;
     max-width: 680px;
   }
 

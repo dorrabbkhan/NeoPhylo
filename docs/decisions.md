@@ -9199,3 +9199,105 @@ dots sliding on item change.
   - `docs/instructor-guide.md`: the §21(c) item requires updating
     the guide's practice-feedback text in the same PR.
   - `docs/decisions.md`: this entry.
+
+## v1.4d Task 15 fix round 2b (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2b covered §21 (a) mark-label collisions, (b) cramped
+circular layout, (f) paper wording + test-form QR and (k) the
+figure-width feedback loop (conductor finding, fixed in this
+session). The guide's known-gaps list was re-checked against
+`exercises/reading/coverage/manifest.json` — still the same five
+deferred formats.
+
+- **Mark-label collisions (a):** `placeMarks` keeps only the labels
+  of marks sharing one branch apart. The new
+  `resolveMarkLabels` (`web/src/layout/readingMarkLabels.ts`)
+  re-places any mark label that touches a tip label, a node- or
+  point-letter badge, another mark's glyph or another mark's label:
+  a deterministic ladder of directions beside the branch (the stem's
+  mirror side first), each keeping the LABEL_GAP construction off
+  the mark's own glyph, never nearer another mark's glyph than its
+  own. Lone marks keep their established placement — a label's own
+  glyph is never counted as its obstacle (the corpus scan flagged
+  exactly that false positive, which would have moved every lone
+  label). A resolved label that escapes the figure reports the same
+  grow/shift contract `placeMarks` already used, applied to every
+  placed element.
+- **Circular layout (b) — cause found first:** every parent→child
+  edge drew an arc at the parent's radius from the parent's angle to
+  the child's; at a polytomy the outer child's arc swept through a
+  middle child's radial junction. The fix keeps the circular model
+  but draws it differently: a child's edge is only its radial spoke,
+  and an internal node's fan is one arc spanning its children's full
+  angle range, appended to that node's own edge path. Internal radii
+  are now resolved bottom-up in `readingCircular.ts`: the age
+  coordinate is floored at the cladistic-depth ring
+  (`depth/maxDepth` of the arc radius — the stated minimum step is
+  R/maxDepth) and capped just below the shallowest descendant, so an
+  age-compressed ancestor can neither collapse onto the centre nor
+  sit on or past a shallow fossil tip's ring.
+- **Paper wording + test-form QR (f):** `paperText`
+  (`web/src/worksheets/reading.ts`) re-verbs sentence-initial screen
+  instructions through a table (`Tap …` → `Circle …`, the
+  lettered-order instruction → `Write the letters of the nodes in
+  order…`, `Select every true statement` → `Tick every true
+  statement`, `Rotate nodes freely` → `Rotating a node changes
+  nothing`) and drops the app-only ", or arrange the list" clause; a
+  sentence starting with an instruction verb the table doesn't cover
+  throws, so new screen wording fails the corpus test instead of
+  printing. The app keeps the authored text. A `mode: "test"` sheet
+  prints "Hand this sheet to your instructor." instead of the
+  link + QR block (`ReadingSheet.test`; `ReadingSheetView.tsx`).
+  Devin's call: `Rotate nodes freely` is re-verbed rather than
+  dropped so the printed question still explains why the odd tree
+  can be found on paper.
+- **Figure width (k):** `.rt-figure` was a content-sized flex item
+  whose measured width fed `ReadingTree`'s `box.width`, so drawn
+  width and measured width formed a feedback loop — the same item
+  converged to different widths by mount order (session 2a's
+  transition commit already observed the loop; the conductor saw
+  `cov-styles` item 4 draw ~560 px vs ~200 px at the same viewport).
+  `.rt-figure` now takes `flex: 1 1 0` — an equal,
+  content-independent share of the row — so the figure box depends
+  only on the container and the tree; the stacked layouts (≤600 px
+  media query, worksheet print column) restore `flex: none` so
+  figures return to content height there.
+  **Follow-on the flex change exposed (fixed here):** the §21(j)
+  suppression latched on `view` identity or width change, but
+  ItemView's `views` map is keyed by tree name — two items can hand
+  the SAME view object to one ReadingTree under a different
+  `styleIndex` (trees-reading-a-tree items 1→2). The width half of
+  the latch used to catch that because the content-sized figure
+  re-converged on every item change; with a constant share it
+  didn't, and the dots slid again. `ReadingTree`'s `prev` now
+  mirrors `style.shape`/`style.tips` by value alongside `view` and
+  width, so every non-rotation relayout snaps; the e2e check "an
+  item change lands the trees at their final spots" covers it.
+- **Shared `LETTER_R`:** the node-/point-letter badge radius moved
+  to `web/src/layout/readingGeom.ts` (re-exported from
+  `readingHelpers.ts`) so the layout pass can obstacle-badge boxes
+  without importing the view layer.
+- **Files outside the task's Files block** (the Task 15 block names
+  only `docs/checkpoints/v1.4d-release.md`, `docs/roadmap.md`,
+  `CITATION.cff` and `scripts/checkpoint/`; the owner decision
+  authorises product code, tests and docs for the listed items, and
+  this entry names them):
+  - `web/src/layout/readingLayout.ts`, `web/src/layout/readingCircular.ts`,
+    `web/src/layout/readingGeom.ts`, `web/src/layout/readingMarkLabels.ts`
+    (new), `web/src/layout/readingCorpus.test.ts` (new): items (a)
+    and (b).
+  - `web/src/views/reading/readingHelpers.ts`: `LETTER_R` re-export.
+  - `web/src/views/reading/reading.css`: the §21(k) flex fix.
+  - `web/src/views/reading/ReadingTree.tsx`: the style-by-value
+    suppression follow-on in the same bullet.
+  - `web/src/worksheets/reading.ts`, `web/src/worksheets/reading.test.ts`,
+    `web/src/views/worksheets/ReadingSheetView.tsx`,
+    `web/src/views/worksheets/worksheets.css`: item (f) and the print
+    side of (k).
+  - `web/e2e/reading.spec.ts`, `web/e2e/worksheets.spec.ts`: the (a)
+    DOM check, (f) hand-in/QR pair and (k) box-stability tests.
+  - `docs/instructor-guide.md`: the §21 paragraph requires updating
+    the guide in the same PR; the paper-caveats text now describes
+    the paper re-verb, the test-form hand-in line and the practice
+    QR. The `has_not` editor limit stays — §21(d) remains deferred.
+  - `docs/decisions.md`: this entry.

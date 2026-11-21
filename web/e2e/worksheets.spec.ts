@@ -677,6 +677,83 @@ test("every built-in reading set renders its paper sheet and key without console
   }
 });
 
+// §21(f): paper sheets print paper verbs, and a test-mode form is
+// collected — it carries no QR that would open the test itself.
+test("a test-mode paper sheet is handed in, with paper verbs", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-form-a&kind=paper");
+  await expect(page.locator(".ws-items")).toBeVisible();
+  await expect(
+    page.getByText("Hand this sheet to your instructor."),
+  ).toBeVisible();
+  await expect(page.locator(".ws-linkblock")).toHaveCount(0);
+  await expect(page.locator(".ws-qr")).toHaveCount(0);
+  // The authored "Tap every tip that has limbs." prints re-verbed.
+  await expect(
+    page.getByText("Circle every tip that has limbs."),
+  ).toBeVisible();
+  const body = await page.locator(".ws-items").innerText();
+  expect(body).not.toMatch(/\b[Tt]ap\b|\b[Cc]lick\b|\bSelect\b/);
+});
+
+test("a practice paper sheet keeps the check-in-app QR", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-demo&kind=paper");
+  await expect(page.locator(".ws-items")).toBeVisible();
+  await expect(
+    page.getByText(/Check your answers in the app/),
+  ).toBeVisible();
+  await expect(page.locator(".ws-qr")).toBeVisible();
+  await expect(
+    page.getByText("Hand this sheet to your instructor."),
+  ).toHaveCount(0);
+});
+
+// §21(a): the printed trait tree's mark labels used to touch the
+// "hippo" tip label — with real getBBox() no mark label may
+// intersect any tip label in the same figure.
+test("form A's trait tree: mark labels clear the tip labels", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-form-a&kind=paper");
+  await expect(page.locator(".rt-mark-label").first()).toBeVisible();
+  const result = await page.evaluate(() => {
+    const hits: string[] = [];
+    let checked = 0;
+    const marks = [
+      ...document.querySelectorAll<SVGGraphicsElement>(".rt-mark-label"),
+    ].filter(
+      (el) =>
+        el.textContent === "limbs" || el.textContent === "echolocation",
+    );
+    for (const m of marks) {
+      const mb = m.getBBox();
+      for (const el of m.ownerSVGElement!.querySelectorAll<SVGGraphicsElement>(
+        ".rt-tip-label",
+      )) {
+        const tb = el.getBBox();
+        checked += 1;
+        if (
+          mb.x < tb.x + tb.width &&
+          mb.x + mb.width > tb.x &&
+          mb.y < tb.y + tb.height &&
+          mb.y + mb.height > tb.y
+        ) {
+          hits.push(
+            `${m.textContent} touches ${el.textContent} @${m.ownerSVGElement!.id}`,
+          );
+        }
+      }
+    }
+    return { hits, checked, marks: marks.length };
+  });
+  expect(result.marks, "trait marks drawn").toBeGreaterThan(0);
+  expect(result.checked, "tip labels checked").toBeGreaterThan(0);
+  expect(result.hits).toEqual([]);
+});
+
 // Fix round 1 (review 4): under a coarse pointer every interactive
 // element on the worksheet pages — plain links included — meets the
 // 40×40 px target the app promises elsewhere.

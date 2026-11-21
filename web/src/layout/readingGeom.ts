@@ -33,6 +33,10 @@ export const MARK_GLYPH = 4.5;
 export const ABBREV_MAX = 18;
 export const ABBREV_KEEP = 16;
 
+/** Letter-badge radius — node letters and lettered points draw the
+ * same disc (views/reading/readingHelpers re-exports it). */
+export const LETTER_R = 9;
+
 export const D2R = Math.PI / 180;
 
 export function abbreviate(label: string): string {

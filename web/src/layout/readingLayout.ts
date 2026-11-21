@@ -28,6 +28,7 @@ import type { TipSide } from "../engine/generated/TipSide";
 
 import { circularPlace, type CircularPlace } from "./readingCircular";
 import { placeMarks } from "./readingMarks";
+import { resolveMarkLabels } from "./readingMarkLabels";
 import {
   abbreviate,
   AXIS_ROOM,
@@ -35,6 +36,7 @@ import {
   D2R,
   fmtNum,
   LABEL_GAP,
+  LETTER_R,
   MIN_DEPTH_PX,
   niceStep,
   NODE_R,
@@ -403,76 +405,7 @@ export function readingLayout(
       extent,
     });
   }
-  const { placed: placedMark, grow } = markLay;
-  // A shared branch's spread or label stack may reach past the figure
-  // edge; shift the whole drawing so every mark label stays inside
-  // and grow the figure if one still escapes on the right or bottom
-  // (`scroll` keeps its width > box.width meaning). Only figures with
-  // a shared branch pay for this — all others stay byte-identical.
-  if (grow !== null) {
-    for (let i = 0; i < n; i += 1) {
-      X[i] += grow.gx;
-      Y[i] += grow.gy;
-      const lb = labelBox[i];
-      if (lb !== null) {
-        labelBox[i] = {
-          minX: lb.minX + grow.gx,
-          maxX: lb.maxX + grow.gx,
-          minY: lb.minY + grow.gy,
-          maxY: lb.maxY + grow.gy,
-        };
-      }
-    }
-    if (circ !== null) {
-      circ.cx0 += grow.gx;
-      circ.cy0 += grow.gy;
-    }
-    const baseAt = axisAt;
-    axisAt = (c) => baseAt(c) + (horizontal ? grow.gx : grow.gy);
-    width += grow.gx + grow.addW;
-    height += grow.gy + grow.addH;
-  }
-
-  const nodes: ReadingFigureNode[] = t.nodes.map((nd, i) => ({
-    clade: nd.clade,
-    x: X[i],
-    y: Y[i],
-    ...(nd.letter !== null ? { letter: nd.letter } : {}),
-    isTip: nd.children.length === 0,
-    ...(labelText[i] !== null
-      ? { label: labelText[i], labelBox: labelBox[i]! }
-      : {}),
-  }));
-
-  // Edges: one path per non-root node. Rectangular elbows run at the
-  // parent's depth; diagonal is a straight line; circular arcs at the
-  // parent's radius then runs radially out.
-  const edges: ReadingFigureEdge[] = [];
-  for (let i = 0; i < n; i += 1) {
-    const p = t.nodes[i].parent;
-    if (p === null) continue;
-    let path: string;
-    if (style.shape === "diagonal") {
-      path = `M ${X[p]} ${Y[p]} L ${X[i]} ${Y[i]}`;
-    } else if (style.shape === "rectangular") {
-      path = horizontal
-        ? `M ${X[p]} ${Y[p]} L ${X[p]} ${Y[i]} L ${X[i]} ${Y[i]}`
-        : `M ${X[p]} ${Y[p]} L ${X[i]} ${Y[p]} L ${X[i]} ${Y[i]}`;
-    } else {
-      const c = circ!;
-      const polar = (r: number, a: number) =>
-        `${c.cx0 + r * Math.cos(a * D2R)} ${c.cy0 + r * Math.sin(a * D2R)}`;
-      if (c.rad[p] < 1e-9) {
-        path = `M ${polar(c.rad[p], c.ang[p])} L ${polar(c.rad[i], c.ang[i])}`;
-      } else {
-        const dA = c.ang[i] - c.ang[p];
-        const large = Math.abs(dA) > 180 ? 1 : 0;
-        const sweep = dA >= 0 ? 1 : 0;
-        path = `M ${polar(c.rad[p], c.ang[p])} A ${c.rad[p]} ${c.rad[p]} 0 ${large} ${sweep} ${polar(c.rad[p], c.ang[i])} L ${polar(c.rad[i], c.ang[i])}`;
-      }
-    }
-    edges.push({ from: t.nodes[p].clade, to: t.nodes[i].clade, path });
-  }
+  const { placed: placedMark } = markLay;
 
   // Midpoint of the branch leading to node i (its "stem") and the
   // branch's direction, used by points at:"branch" and trait marks.
@@ -506,6 +439,128 @@ export function readingLayout(
     const pos = pt.at === "branch" ? branchMid(i) : { x: X[i], y: Y[i] };
     return [{ letter: pt.letter, x: pos.x, y: pos.y }];
   });
+
+  // A shared branch's spread or a resolved mark label may reach past
+  // the figure edge; shift the whole drawing by the reported (gx, gy)
+  // so every mark label stays inside and grow the figure if one still
+  // escapes on the right or bottom (`scroll` keeps its width > box
+  // width meaning). Both grow sources shift their own placements; the
+  // helper takes care of the rest of the figure.
+  const applyGrow = (g: {
+    gx: number;
+    gy: number;
+    addW: number;
+    addH: number;
+  }): void => {
+    for (let i = 0; i < n; i += 1) {
+      X[i] += g.gx;
+      Y[i] += g.gy;
+      const lb = labelBox[i];
+      if (lb !== null) {
+        labelBox[i] = {
+          minX: lb.minX + g.gx,
+          maxX: lb.maxX + g.gx,
+          minY: lb.minY + g.gy,
+          maxY: lb.maxY + g.gy,
+        };
+      }
+    }
+    if (circ !== null) {
+      circ.cx0 += g.gx;
+      circ.cy0 += g.gy;
+    }
+    const baseAt = axisAt;
+    axisAt = (c) => baseAt(c) + (horizontal ? g.gx : g.gy);
+    width += g.gx + g.addW;
+    height += g.gy + g.addH;
+    for (const pt of points) {
+      pt.x += g.gx;
+      pt.y += g.gy;
+    }
+  };
+  if (markLay.grow !== null) applyGrow(markLay.grow);
+
+  // No mark-label box may cover a tip label, a letter badge (node or
+  // point), another mark's glyph or another mark's label (checkpoint
+  // §21(a)) — the resolver nudges any that does.
+  const badges: Box[] = [];
+  t.nodes.forEach((nd, i) => {
+    if (nd.letter !== null) {
+      badges.push({
+        minX: X[i] - LETTER_R - 1,
+        maxX: X[i] + LETTER_R + 1,
+        minY: Y[i] - LETTER_R - 1,
+        maxY: Y[i] + LETTER_R + 1,
+      });
+    }
+  });
+  for (const pt of points) {
+    badges.push({
+      minX: pt.x - LETTER_R - 1,
+      maxX: pt.x + LETTER_R + 1,
+      minY: pt.y - LETTER_R - 1,
+      maxY: pt.y + LETTER_R + 1,
+    });
+  }
+  const resolveGrow = resolveMarkLabels({
+    view: t,
+    placed: placedMark,
+    tipBoxes: labelBox,
+    badges,
+    asc,
+    desc,
+    measure,
+    width,
+    height,
+  });
+  if (resolveGrow !== null) applyGrow(resolveGrow);
+
+  const nodes: ReadingFigureNode[] = t.nodes.map((nd, i) => ({
+    clade: nd.clade,
+    x: X[i],
+    y: Y[i],
+    ...(nd.letter !== null ? { letter: nd.letter } : {}),
+    isTip: nd.children.length === 0,
+    ...(labelText[i] !== null
+      ? { label: labelText[i], labelBox: labelBox[i]! }
+      : {}),
+  }));
+
+  // Edges: one path per non-root node. Rectangular elbows run at the
+  // parent's depth; diagonal is a straight line. A circular edge is
+  // the radial spoke into the node; when the node is internal its
+  // edge ALSO carries the node's fan — one arc spanning its
+  // children's full angle range. Drawing the fan once per internal
+  // node (instead of a per-child arc from the node's own angle)
+  // keeps a polytomy's fan from sweeping through a middle child's
+  // spoke (checkpoint §21(b)).
+  const edges: ReadingFigureEdge[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const p = t.nodes[i].parent;
+    if (p === null) continue;
+    let path: string;
+    if (style.shape === "diagonal") {
+      path = `M ${X[p]} ${Y[p]} L ${X[i]} ${Y[i]}`;
+    } else if (style.shape === "rectangular") {
+      path = horizontal
+        ? `M ${X[p]} ${Y[p]} L ${X[p]} ${Y[i]} L ${X[i]} ${Y[i]}`
+        : `M ${X[p]} ${Y[p]} L ${X[i]} ${Y[p]} L ${X[i]} ${Y[i]}`;
+    } else {
+      const c = circ!;
+      const polar = (r: number, a: number) =>
+        `${c.cx0 + r * Math.cos(a * D2R)} ${c.cy0 + r * Math.sin(a * D2R)}`;
+      path = `M ${polar(c.rad[p], c.ang[i])} L ${polar(c.rad[i], c.ang[i])}`;
+      const kids = t.nodes[i].children;
+      if (kids.length > 1 && c.rad[i] > 1e-9) {
+        const aLo = Math.min(...kids.map((k) => c.ang[k]));
+        const aHi = Math.max(...kids.map((k) => c.ang[k]));
+        if (aHi - aLo > 1e-9) {
+          path += ` M ${polar(c.rad[i], aLo)} A ${c.rad[i]} ${c.rad[i]} 0 ${aHi - aLo > 180 ? 1 : 0} 1 ${polar(c.rad[i], aHi)}`;
+        }
+      }
+    }
+    edges.push({ from: t.nodes[p].clade, to: t.nodes[i].clade, path });
+  }
 
   const marks = t.marks.flatMap((m, j) => {
     const p = placedMark[j];

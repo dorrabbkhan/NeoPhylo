@@ -53,6 +53,10 @@ export interface ReadingSheet {
   minutes: number | null;
   /** The `?read=`/`#r=` link printed with its QR. */
   link: string;
+  /** A `mode: "test"` set is collected and marked, not self-checked:
+   * the sheet prints "Hand this sheet to your instructor." instead
+   * of the link + QR (checkpoint §21(f)). */
+  test: boolean;
   items: ReadingSheetItem[];
 }
 
@@ -334,6 +338,54 @@ function acceptedText(
   }
 }
 
+// Paper wording (checkpoint §21(f)): the authored question text is
+// written for the screen, so a sheet or key re-verbs every
+// sentence-initial instruction through PAPER_VERBS — "Tap every tip
+// that has…" → "Circle every tip that has…" — and drops app-only
+// clauses. A sentence that starts with a screen verb the table
+// doesn't cover throws, so a new instruction verb in shipped content
+// fails loudly instead of printing app wording on paper.
+
+const PAPER_VERBS: [string, string][] = [
+  [
+    "Tap the lettered nodes in order",
+    "Write the letters of the nodes in order",
+  ],
+  ["Tap every", "Circle every"],
+  ["Tap one of", "Circle one of"],
+  ["Tap the", "Circle the"],
+  ["Tap", "Circle"],
+  ["Select every true statement", "Tick every true statement"],
+  ["Select all that apply", "Tick all that apply"],
+  ["Select", "Tick"],
+  ["Rotate nodes freely", "Rotating a node changes nothing"],
+];
+
+/** Instruction verbs that can only mean the screen — a sentence
+ * starting with one and matching no table entry is unmapped. */
+const SCREEN_VERB =
+  /^(Tap|Click|Drag|Press|Select|Swipe|Hover|Rotate)\b/;
+
+/** An item's question text re-verbed for paper. Throws when a
+ * sentence starts with an instruction verb PAPER_VERBS doesn't map. */
+export function paperText(item: Item): string {
+  // Sentence starts: position 0 and right after ". "/"! "/"? " — the
+  // split keeps the punctuation so even-index pieces are sentences.
+  const parts = fillItemText(item).split(/([.!?]+\s+)/);
+  const out = parts.map((piece, idx) => {
+    if (idx % 2 === 1 || piece === "") return piece;
+    const hit = PAPER_VERBS.find(([from]) => piece.startsWith(from));
+    if (hit !== undefined) return hit[1] + piece.slice(hit[0].length);
+    if (SCREEN_VERB.test(piece)) {
+      throw new Error(
+        `paperText: unmapped instruction verb at "${piece.slice(0, 40)}"`,
+      );
+    }
+    return piece;
+  });
+  return out.join("").replaceAll(", or arrange the list", "");
+}
+
 /** The paper worksheet model: every item's question and answer space,
  * each shown tree in its authored style, and the set's open link for
  * the QR. Carries no answer — the space types hold only what the
@@ -343,9 +395,10 @@ export function readingSheet(set: ReadingSet, link: string): ReadingSheet {
     title: set.title,
     minutes: set.meta?.minutes ?? null,
     link,
+    test: set.mode === "test",
     items: set.items.map((item) => ({
       id: item.id,
-      text: fillItemText(item),
+      text: paperText(item),
       tips: item.tips,
       trees: sheetTrees(item),
       space: spaceFor(item.question, item, firstTree(set, item)),
@@ -365,7 +418,7 @@ export function readingKey(set: ReadingSet): Result<ReadingKey> {
     if (!k.ok) return { ok: false, error: k.error };
     items.push({
       id: item.id,
-      text: fillItemText(item),
+      text: paperText(item),
       answer: acceptedText(
         item.question,
         item,
