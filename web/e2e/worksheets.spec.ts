@@ -711,47 +711,128 @@ test("a practice paper sheet keeps the check-in-app QR", async ({
   ).toHaveCount(0);
 });
 
-// §21(a): the printed trait tree's mark labels used to touch the
-// "hippo" tip label — with real getBBox() no mark label may
-// intersect any tip label in the same figure.
-test("form A's trait tree: mark labels clear the tip labels", async ({
+// §21(a): on form A's printed trait tree the two marks on the
+// dolphin branch used to draw "limbs echolocation" across the hippo
+// branch — touching the hippo tip dot and reaching its tip label.
+// The old check missed it twice over: it never emulated print media
+// (the print stylesheet changes the figure width), and it compared
+// raw getBBox() values — but .rt-mark-label sits in a translated
+// <g> with relative x/y, so every box it compared was in a
+// different coordinate frame and nothing ever overlapped. Assert on
+// real rendered boxes (getBoundingClientRect resolves every
+// transform) on the exact print scene — viewport 768×1024, print
+// media — and on the screen sheet at 1024.
+test("form A's trait tree: mark labels clear hippo (print + screen)", async ({
   page,
 }) => {
+  const check = async (where: string) => {
+    const result = await page.evaluate(() => {
+      const hits: string[] = [];
+      let figs = 0;
+      const over = (a: DOMRect, b: DOMRect): boolean =>
+        a.left < b.right &&
+        a.right > b.left &&
+        a.top < b.bottom &&
+        a.bottom > b.top;
+      document
+        .querySelectorAll<SVGSVGElement>(".rt-figure svg")
+        .forEach((svg) => {
+          const labels = [...svg.querySelectorAll<SVGGraphicsElement>(
+            ".rt-mark-label",
+          )].filter(
+            (e) =>
+              e.textContent === "limbs" || e.textContent === "echolocation",
+          );
+          const hippo = [
+            ...svg.querySelectorAll<SVGGraphicsElement>(".rt-tip-label"),
+            // <text>'s textContent includes its <title> child, so a
+            // tip label reads "hippohippo" — the first text node is
+            // the drawn label itself.
+          ].find((e) => e.firstChild?.textContent === "hippo");
+          const edge = svg.querySelector<SVGGeometryElement>(
+            '.rt-edge[data-to=\'["hippo"]\']',
+          );
+          const dot = svg.querySelector<SVGCircleElement>(
+            '.rt-node[data-clade=\'["hippo"]\'] .rt-dot',
+          );
+          // Every branch except the ones the marks legitimately ride
+          // on: the dolphin tip edge carries the loss-of-limbs and
+          // echolocation marks, the big-clade edge carries the limbs
+          // gain mark.
+          const own = new Set([
+            '["dolphin"]',
+            '["camel","dolphin","frog","hippo","pig"]',
+          ]);
+          const others = [
+            ...svg.querySelectorAll<SVGGeometryElement>(".rt-edge"),
+          ].filter((e) => !own.has(e.getAttribute("data-to") ?? ""));
+          if (labels.length === 0 || !hippo || !edge || !dot) return;
+          figs += 1;
+          // "limbs", "echolocation" and "hippo" pairwise disjoint.
+          const texts = [...labels, hippo];
+          for (let i = 0; i < texts.length; i += 1) {
+            for (let j = i + 1; j < texts.length; j += 1) {
+              if (
+                over(
+                  texts[i].getBoundingClientRect(),
+                  texts[j].getBoundingClientRect(),
+                )
+              ) {
+                hits.push(
+                  `"${texts[i].textContent}" box overlaps "${texts[j].textContent}"`,
+                );
+              }
+            }
+          }
+          const db = dot.getBoundingClientRect();
+          for (const m of labels) {
+            const mb = m.getBoundingClientRect();
+            if (over(mb, db)) {
+              hits.push(`"${m.textContent}" box covers the hippo tip dot`);
+            }
+            // The label's rendered box may not cross another
+            // branch — the hippo's included. Sample every non-own
+            // path in screen space.
+            for (const e of [edge, ...others]) {
+              const ctm = e.getScreenCTM();
+              if (ctm === null) continue;
+              const len = e.getTotalLength();
+              for (let s = 0; s <= len; s += 1) {
+                const p = e.getPointAtLength(s).matrixTransform(ctm);
+                if (
+                  p.x > mb.left &&
+                  p.x < mb.right &&
+                  p.y > mb.top &&
+                  p.y < mb.bottom
+                ) {
+                  hits.push(
+                    `"${m.textContent}" box crosses the ${e.getAttribute("data-to")} branch`,
+                  );
+                  break;
+                }
+              }
+            }
+          }
+        });
+      return { hits, figs };
+    });
+    expect(result.figs, `${where}: trait figures checked`).toBeGreaterThan(0);
+    expect(result.hits, where).toEqual([]);
+  };
+
+  // The exact print scene: same route and media as the
+  // worksheet-reading-form-print visual baseline at 768×1024.
+  await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto("/?worksheet=trees-form-a&kind=paper");
   await expect(page.locator(".rt-mark-label").first()).toBeVisible();
-  const result = await page.evaluate(() => {
-    const hits: string[] = [];
-    let checked = 0;
-    const marks = [
-      ...document.querySelectorAll<SVGGraphicsElement>(".rt-mark-label"),
-    ].filter(
-      (el) =>
-        el.textContent === "limbs" || el.textContent === "echolocation",
-    );
-    for (const m of marks) {
-      const mb = m.getBBox();
-      for (const el of m.ownerSVGElement!.querySelectorAll<SVGGraphicsElement>(
-        ".rt-tip-label",
-      )) {
-        const tb = el.getBBox();
-        checked += 1;
-        if (
-          mb.x < tb.x + tb.width &&
-          mb.x + mb.width > tb.x &&
-          mb.y < tb.y + tb.height &&
-          mb.y + mb.height > tb.y
-        ) {
-          hits.push(
-            `${m.textContent} touches ${el.textContent} @${m.ownerSVGElement!.id}`,
-          );
-        }
-      }
-    }
-    return { hits, checked, marks: marks.length };
-  });
-  expect(result.marks, "trait marks drawn").toBeGreaterThan(0);
-  expect(result.checked, "tip labels checked").toBeGreaterThan(0);
-  expect(result.hits).toEqual([]);
+  await page.emulateMedia({ media: "print" });
+  await check("print 768×1024");
+
+  // The screen sheet at 1024.
+  await page.emulateMedia({ media: "screen" });
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.locator(".rt-mark-label").first()).toBeVisible();
+  await check("screen 1024");
 });
 
 // Fix round 1 (review 4): under a coarse pointer every interactive

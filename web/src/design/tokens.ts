@@ -90,6 +90,14 @@ export const color: Record<ThemeName, ColorTokens> = {
  * (9/11 → xs, 13 → sm, 15 → md, 17 → lg). */
 export const size = { xs: 12, sm: 14, md: 16, lg: 20, xl: 24, xxl: 32 } as const;
 
+/** A reading figure's deterministic maximum width on screen (v1.4d
+ * checkpoint §21(k)). Equal-flex rows made figures content-independent
+ * but let a single tree stretch across the whole row — ~950 px at
+ * 1024 vs the Task 7/8 owner-approved frames' ~230–550 px of ink.
+ * 560 sits just above the widest approved single-tree look, so
+ * multi-tree rows still share the row equally up to the cap. */
+export const READING_FIGURE_MAX = 560;
+
 /** Spacing scale in px (§3.2). */
 export const space = [4, 8, 12, 16, 24, 32, 48] as const;
 
@@ -192,6 +200,7 @@ export function cssVariables(theme: ThemeName): Record<`--${string}`, string> {
   }
   vars["--font-ui"] = font.ui;
   vars["--font-mono"] = font.mono;
+  vars["--reading-figure-max"] = `${READING_FIGURE_MAX}px`;
   for (const [key, v] of Object.entries(size)) {
     vars[`--size-${key}`] = `${v}px`;
   }

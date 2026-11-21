@@ -953,3 +953,31 @@ test("resize to 360 and back restores the same figure boxes", async ({
   ).toBeVisible();
   expectSameBoxes(wide, await figBoxes(page));
 });
+
+/* §21(k) follow-up (2b2): the equal-flex row restored determinism but
+ * let a single tree stretch across the whole row (~950 px at 1024 vs
+ * the approved ~230–550 px). --reading-figure-max caps each figure;
+ * multi-tree rows still share equally up to the cap. The test reads
+ * the token back from the DOM so it tracks the design token. */
+for (const vp of [1024, 1920]) {
+  test(`a single-tree item's figure stays within --reading-figure-max (${vp} px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp, height: 800 });
+    await reachItem(page, "trees-demo", 12); // q-order-nodes: one tree
+    const cap = await page.evaluate(() =>
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--reading-figure-max",
+        ),
+      ),
+    );
+    expect(Number.isFinite(cap), "--reading-figure-max is set").toBe(true);
+    const boxes = await figBoxes(page);
+    expect(boxes).toHaveLength(1);
+    expect(
+      boxes[0].w,
+      `single figure ${boxes[0].w}px exceeds the ${cap}px cap at ${vp}px`,
+    ).toBeLessThanOrEqual(cap + 1);
+  });
+}

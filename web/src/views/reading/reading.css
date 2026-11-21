@@ -305,7 +305,9 @@
  * reached (checkpoint §21(k)). */
 .read-trees > .rt-figure {
   flex: 1 1 0;
-  max-width: 100%;
+  /* …but no wider than the owner-approved compact look: a lone tree
+   * used to stretch across the whole row (§21(k) follow-up). */
+  max-width: min(100%, var(--reading-figure-max));
 }
 
 /* Below 600 px multi-tree items stack vertically (spec §6). nowrap

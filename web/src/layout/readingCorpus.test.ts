@@ -3,9 +3,10 @@
 // shipped and coverage reading tree, in every style an item could
 // draw it, gets the same guarantees the synthetic tests pin:
 //
-// - no mark-label box touches a tip label, a node- or point-letter
-//   badge, another mark's glyph or another mark's label, and every
-//   mark box stays inside the figure (a);
+// - every mark-label box keeps MARK_CLEAR off tip labels, node and
+//   tip dots, node- or point-letter badges, other marks' glyphs,
+//   other marks' labels and every branch except the mark's own, and
+//   every mark box stays inside the figure (a);
 // - circular edges never cross: a node's fan arc spans exactly its
 //   children's angles at its own ring, and the only point a spoke
 //   can touch a fan is the junction where it hangs off it (b);
@@ -25,9 +26,15 @@ import type { ReadingViewNode } from "../engine/generated/ReadingViewNode";
 import type { Shape } from "../engine/generated/Shape";
 import type { TipSide } from "../engine/generated/TipSide";
 
-import { intersects } from "./labelCollision";
+import { intersects, segBoxDist } from "./labelCollision";
 import { markGlyphBox } from "./readingMarks";
-import { LETTER_R, type Box } from "./readingGeom";
+import {
+  cladeKey,
+  LETTER_R,
+  MARK_CLEAR,
+  NODE_R,
+  type Box,
+} from "./readingGeom";
 import { readingLayout } from "./readingLayout";
 
 const READING = resolve(
@@ -81,7 +88,9 @@ describe("mark labels never cover anything they shouldn't (§21(a))", () => {
               measure,
             );
             const tag = `${stem(file)}/${tname} ${shape}/${tips}`;
-            // Fixed obstacles: tip labels, letter badges, mark glyphs.
+            // Fixed obstacles: tip labels, letter badges, the dot
+            // every unlettered node draws — every one keeps
+            // MARK_CLEAR off every label.
             const fixed: { what: string; box: Box }[] = [];
             fig.nodes.forEach((nd) => {
               if (nd.labelBox !== undefined) {
@@ -97,6 +106,16 @@ describe("mark labels never cover anything they shouldn't (§21(a))", () => {
                     maxY: nd.y + LETTER_R + 1,
                   },
                 });
+              } else {
+                fixed.push({
+                  what: `dot (${nd.clade.join(",")})`,
+                  box: {
+                    minX: nd.x - NODE_R - 1,
+                    maxX: nd.x + NODE_R + 1,
+                    minY: nd.y - NODE_R - 1,
+                    maxY: nd.y + NODE_R + 1,
+                  },
+                });
               }
             });
             fig.points.forEach((pt) => {
@@ -110,30 +129,61 @@ describe("mark labels never cover anything they shouldn't (§21(a))", () => {
                 },
               });
             });
+            // MARK_CLEAR applies to every obstacle, not just crossing:
+            // inflate the label and test intersection.
+            const near = (b: Box): Box => ({
+              minX: b.minX - MARK_CLEAR,
+              maxX: b.maxX + MARK_CLEAR,
+              minY: b.minY - MARK_CLEAR,
+              maxY: b.maxY + MARK_CLEAR,
+            });
             const labels: { what: string; box: Box }[] = [];
             fig.marks.forEach((m, j) => {
               const me = `mark "${m.trait}"#${j}`;
+              const nb = near(m.labelBox);
               for (const o of fixed) {
-                if (intersects(m.labelBox, o.box)) {
-                  bad.push(`${tag}: ${me} label touches ${o.what}`);
+                if (intersects(nb, o.box)) {
+                  bad.push(`${tag}: ${me} label within ${MARK_CLEAR}px of ${o.what}`);
                 }
               }
               for (const o of labels) {
-                if (intersects(m.labelBox, o.box)) {
-                  bad.push(`${tag}: ${me} label touches ${o.what}`);
+                if (intersects(nb, o.box)) {
+                  bad.push(`${tag}: ${me} label within ${MARK_CLEAR}px of ${o.what}`);
                 }
               }
               fig.marks.forEach((n, k) => {
                 if (k === j) return;
                 if (
                   intersects(
-                    m.labelBox,
+                    nb,
                     markGlyphBox(n.change, n.x, n.y, n.angle),
                   )
                 ) {
-                  bad.push(`${tag}: ${me} label touches "${n.trait}" glyph`);
+                  bad.push(
+                    `${tag}: ${me} label within ${MARK_CLEAR}px of "${n.trait}" glyph`,
+                  );
                 }
               });
+              for (const e of fig.edges) {
+                // The label may sit on its own branch but no other.
+                if (cladeKey(e.to) === cladeKey(m.on)) continue;
+                for (let s = 0; s + 1 < e.pts.length; s += 1) {
+                  const d = segBoxDist(
+                    {
+                      x1: e.pts[s].x,
+                      y1: e.pts[s].y,
+                      x2: e.pts[s + 1].x,
+                      y2: e.pts[s + 1].y,
+                    },
+                    m.labelBox,
+                  );
+                  if (d < MARK_CLEAR - 1e-9) {
+                    bad.push(
+                      `${tag}: ${me} label ${d.toFixed(2)}px from "${e.to.join(",")}" branch`,
+                    );
+                  }
+                }
+              }
               labels.push({ what: me, box: m.labelBox });
               if (
                 m.labelBox.minX < -0.5 ||

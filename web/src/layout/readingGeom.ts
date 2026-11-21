@@ -10,6 +10,11 @@ export type { Box };
 export const PAD = 8;
 export const NODE_R = 3;
 export const LABEL_GAP = 4;
+/** Clearance a mark label must keep from everything that is not its
+ * own mark — tip labels, node dots, letter badges, other labels,
+ * other marks' glyphs and every branch but its own (checkpoint
+ * §21(a)). */
+export const MARK_CLEAR = 3;
 /** Room reserved for the time axis: below the tree for tips
  * right/left, along its left side for tips up/down. */
 export const AXIS_ROOM = 30;

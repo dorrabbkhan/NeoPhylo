@@ -71,6 +71,12 @@ export interface ReadingFigureEdge {
   from: string[];
   to: string[];
   path: string;
+  /** The chain `path` draws: the elbow polyline for the flat shapes,
+   * the spoke plus the node's fan arc (sampled) for circular. The
+   * mark-label resolver and its corpus test keep labels off every
+   * branch but their own — they need the geometry, not the path
+   * string (checkpoint §21(a)). */
+  pts: { x: number; y: number }[];
 }
 
 export interface ReadingAxis {
@@ -88,6 +94,9 @@ export interface ReadingFigure {
   marks: {
     trait: string;
     change: "gain" | "loss";
+    /** The clade whose incoming branch carries this mark — the one
+     * edge its label is allowed to touch. */
+    on: string[];
     x: number;
     y: number;
     angle: number;
@@ -480,10 +489,12 @@ export function readingLayout(
   };
   if (markLay.grow !== null) applyGrow(markLay.grow);
 
-  // No mark-label box may cover a tip label, a letter badge (node or
-  // point), another mark's glyph or another mark's label (checkpoint
-  // §21(a)) — the resolver nudges any that does.
+  // No mark-label box may cover a tip label, a node dot, a letter
+  // badge (node or point), another mark's glyph, another mark's label
+  // or any branch but its own (checkpoint §21(a)) — the resolver
+  // nudges any that does.
   const badges: Box[] = [];
+  const dots: Box[] = [];
   t.nodes.forEach((nd, i) => {
     if (nd.letter !== null) {
       badges.push({
@@ -491,6 +502,13 @@ export function readingLayout(
         maxX: X[i] + LETTER_R + 1,
         minY: Y[i] - LETTER_R - 1,
         maxY: Y[i] + LETTER_R + 1,
+      });
+    } else {
+      dots.push({
+        minX: X[i] - NODE_R - 1,
+        maxX: X[i] + NODE_R + 1,
+        minY: Y[i] - NODE_R - 1,
+        maxY: Y[i] + NODE_R + 1,
       });
     }
   });
@@ -502,18 +520,83 @@ export function readingLayout(
       maxY: pt.y + LETTER_R + 1,
     });
   }
+
+  // The drawn branch per non-root node — the chains the edge paths
+  // below trace (a circular node's fan arc is sampled closely enough
+  // that the polyline stands in for it in the collision pass). A
+  // mark's label may cross only the chain tagged with its own node.
+  const edgeChains: { node: number; pts: { x: number; y: number }[] }[] =
+    [];
+  for (let i = 0; i < n; i += 1) {
+    const p = t.nodes[i].parent;
+    if (p === null) continue;
+    let pts: { x: number; y: number }[];
+    if (style.shape === "diagonal") {
+      pts = [
+        { x: X[p], y: Y[p] },
+        { x: X[i], y: Y[i] },
+      ];
+    } else if (style.shape === "rectangular") {
+      pts = horizontal
+        ? [
+            { x: X[p], y: Y[p] },
+            { x: X[p], y: Y[i] },
+            { x: X[i], y: Y[i] },
+          ]
+        : [
+            { x: X[p], y: Y[p] },
+            { x: X[i], y: Y[p] },
+            { x: X[i], y: Y[i] },
+          ];
+    } else {
+      const c = circ!;
+      const polar = (r: number, a: number) => ({
+        x: c.cx0 + r * Math.cos(a * D2R),
+        y: c.cy0 + r * Math.sin(a * D2R),
+      });
+      pts = [polar(c.rad[p], c.ang[i]), polar(c.rad[i], c.ang[i])];
+      const kids = t.nodes[i].children;
+      if (kids.length > 1 && c.rad[i] > 1e-9) {
+        const aLo = Math.min(...kids.map((k) => c.ang[k]));
+        const aHi = Math.max(...kids.map((k) => c.ang[k]));
+        if (aHi - aLo > 1e-9) {
+          const steps = Math.max(4, Math.ceil((aHi - aLo) / 8));
+          for (let s = 0; s <= steps; s += 1) {
+            pts.push(polar(c.rad[i], aLo + ((aHi - aLo) * s) / steps));
+          }
+        }
+      }
+    }
+    edgeChains.push({ node: i, pts });
+  }
+
   const resolveGrow = resolveMarkLabels({
     view: t,
     placed: placedMark,
     tipBoxes: labelBox,
     badges,
+    dots,
+    segs: edgeChains,
+    find,
     asc,
     desc,
     measure,
     width,
     height,
   });
-  if (resolveGrow !== null) applyGrow(resolveGrow);
+  if (resolveGrow !== null) {
+    applyGrow(resolveGrow);
+    for (const chain of edgeChains) {
+      for (const pt of chain.pts) {
+        pt.x += resolveGrow.gx;
+        pt.y += resolveGrow.gy;
+      }
+    }
+  }
+
+  const chainPts = new Map<number, { x: number; y: number }[]>(
+    edgeChains.map((c) => [c.node, c.pts]),
+  );
 
   const nodes: ReadingFigureNode[] = t.nodes.map((nd, i) => ({
     clade: nd.clade,
@@ -559,13 +642,18 @@ export function readingLayout(
         }
       }
     }
-    edges.push({ from: t.nodes[p].clade, to: t.nodes[i].clade, path });
+    edges.push({
+      from: t.nodes[p].clade,
+      to: t.nodes[i].clade,
+      path,
+      pts: chainPts.get(i)!,
+    });
   }
 
   const marks = t.marks.flatMap((m, j) => {
     const p = placedMark[j];
     if (p === undefined) return [];
-    return [{ trait: m.trait, change: m.change, ...p }];
+    return [{ trait: m.trait, change: m.change, on: m.on, ...p }];
   });
 
   // The axis runs along the depth axis; ticks sit at round ages.

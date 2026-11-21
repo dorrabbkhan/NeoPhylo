@@ -9301,3 +9301,61 @@ deferred formats.
     the paper re-verb, the test-form hand-in line and the practice
     QR. The `has_not` editor limit stays — §21(d) remains deferred.
   - `docs/decisions.md`: this entry.
+
+**2b2 (2026-11-21):** the conductor's pixel-check of round 2b found
+two required problems.
+
+- **(a) still broken on form A's printed trait tree.** The 2b
+  resolver only tested tip-label and badge boxes, so a label could
+  sit on a branch line or cover a node dot untouched — on the whale
+  tree "limbs"/"echolocation" lay on the hippo branch against its
+  tip dot. The DOM check missed it twice over: it never emulated
+  print media (the print stylesheet sets the figure width, and the
+  label moves with it), and `getBBox()` on `.rt-mark-label` returns
+  the translated `<g>`'s LOCAL frame — comparing boxes from
+  different coordinate frames, so nothing ever "overlapped".
+  `resolveMarkLabels` now also obstacles node dots, other marks'
+  glyphs and every branch chain but the mark's own at a 3 px
+  clearance (`MARK_CLEAR` in `readingGeom.ts`, `segBoxDist` in
+  `labelCollision.ts`); `readingLayout` builds the real edge
+  geometry per shape — rectangular elbow chains, diagonal segments,
+  spokes plus sampled fan arcs for circular — exposes it as
+  `edge.pts`, and resolves each mark's own branch through `find`
+  (new `mark.on` on the figure). Candidate order keeps a shared
+  branch's labels coherent: same-side at the construction distance,
+  then floated along the row's own direction (stays level, same
+  side), then anywhere, then a fine polar sweep for the
+  tips-up/down "picket fence" case where no inside spot exists
+  (the figure then grows, like placeMarks). The corpus test checks
+  dots, branch segments and figure bounds; `expectLegibleMarks`
+  asserts the exact LABEL_GAP construction only when the resolved
+  label still sits within that bound — the 3 px rule is
+  mathematically unsatisfiable inside it for dense tips-up/down
+  trees (Devin's call: clearance wins over construction distance).
+  The DOM check became "form A's trait tree: mark labels clear
+  hippo (print + screen)" — the real print scene at 768×1024 with
+  print media emulated plus the 1024 screen sheet, comparing
+  `getBoundingClientRect()`s and sampling the rendered edge paths
+  through `getScreenCTM()`.
+- **(k) over-corrected: a lone tree stretched to ~950 px.**
+  `flex: 1 1 0` made figures deterministic but content-independent
+  in both directions — a single tree grew to fill the row.
+  `READING_FIGURE_MAX = 560` (new token in
+  `web/src/design/tokens.ts`, emitted as `--reading-figure-max`)
+  caps `.read-trees > .rt-figure` at `min(100%, 560px)`; 560 sits
+  just above the ~550 px widest single-tree figure in the approved
+  Task 7/8 frames, so multi-tree rows share equally up to the cap
+  and a lone tree keeps the compact look (Devin's call: the number,
+  from the approved frames; the token mechanism was the conductor's
+  recommendation, owner-approved). New test: "a single-tree item's
+  figure stays within --reading-figure-max" at 1024 and 1920 px.
+- **New files outside the task's Files block this round:**
+  `web/src/design/tokens.ts` (the token), plus edits to
+  `web/src/layout/labelCollision.ts` (`segBoxDist`, `segsMeet`,
+  `Seg`), `readingGeom.ts` (`MARK_CLEAR`), `readingLayout.ts`
+  (`edge.pts`, `edgeChains`, dots, `mark.on`),
+  `readingMarkLabels.ts` (dot/segment obstacles, candidate order,
+  polar sweep), `readingCorpus.test.ts` (dot/segment/bounds
+  checks), `readingLayout.test.ts` (conditional gap bound),
+  `reading.css` (the cap), `reading.spec.ts` (cap test) and
+  `worksheets.spec.ts` (the rewritten DOM check).
