@@ -9101,3 +9101,42 @@ reading links render and resolve.
   test itself, and that mark labels can crowd on form A's printed
   trait tree. The editor's `has_not` limit is described as a current
   limit.
+
+## v1.4d Task 15: release checkpoint
+
+- **Files outside the task's Files block:**
+  - `docs/release-checkpoint.md`: the runbook is per-version — its
+    "This release" table, command examples, owner-pass steps, release
+    notes draft and the "Automation map" all still named v1.4c/v1.4.2.
+    The task's Files block covers `scripts/checkpoint/` plus "the
+    checklist's Automation map", and the Automation map lives in this
+    file; updated to v1.4d/v1.4.3 with the new §16–§23 rows rather
+    than leaving the owner a stale v1.4c runbook at release time.
+  - `docs/decisions.md`: this entry.
+- `CITATION.cff`: `version` bumped to `1.4.3` only; `date-released`
+  stays `2026-11-18` on purpose — the owner sets it on the tag day.
+- No engine, fixture, exercise-content, snapshot-baseline or product
+  `web/src` changes in this task: the checkpoint extensions live in
+  `scripts/checkpoint/browser/release.spec.ts` and are data-driven
+  from the committed reading JSON.
+- Parked for owner triage (listed in the checkpoint §21, not fixed):
+  mark-label collisions on short branches (a), cramped circular
+  layouts under ~10 tips (b), the practice-mode "try again" design
+  point (c), the editor's `has_not` authoring limit (d, still open on
+  main — `TraitAskFields` reads tip readouts while the wire ask wants
+  trait names), the `select_true` "statements 1 are true." wording
+  (e), paper-sheet "Tap…"/test-QR wording (f), and the editor mode-box
+  alignment at 1280 px (g, needs owner approval — 24 baselines). Two
+  warts found while running the new checker locally are recorded at
+  §21(h)/(i): `decompressFromEncodedURIComponent` throws on an
+  undecodable `#r=` fragment (surfaces as the generic engine-load
+  alert), and Share/copy's `void navigator.clipboard?.writeText(…)`
+  leaves an unhandled rejection when clipboard-write is denied.
+- The new checker ran end to end before this commit (the v1.4c
+  lesson): `CHECKPOINT_LOCAL=1 PLAYWRIGHT_BROWSERS_PATH=$PWD/.tmp-pw
+  scripts/checkpoint/browser.sh http://localhost:4173 /tmp/cp-v14d
+  --project=chromium` against `npm run build` + `vite preview` —
+  **99 passed / 0 failed** (all carried §1–§15 plus new §2/§4/§5
+  reading checks and §16–§20). Two first-run bugs in the new tests
+  were fixed and re-verified (a fragment-only goto reusing the stale
+  alert; the clipboard `pageerror` under plain http).

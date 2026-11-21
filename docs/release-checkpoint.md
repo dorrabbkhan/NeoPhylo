@@ -4,19 +4,19 @@ Follow this top to bottom for every release. Most checks are scripted in
 `scripts/checkpoint/`. What's left for you is the part only a person can
 judge, plus the owner-only GitHub steps: merge, tag, release. The
 per-version checklist (for this release,
-`docs/checkpoints/v1.4c-release.md`) remains the record of what was
+`docs/checkpoints/v1.4d-release.md`) remains the record of what was
 verified. This runbook is how you fill it in.
 
 ## This release
 
 | Field | Value |
 |---|---|
-| Milestone | v1.4c: matrix input, lesson library and worksheets |
-| Release tag | `v1.4.2` (proposed; the owner confirms the name) |
-| Previous tag | `v1.4.1` |
-| Checkpoint PR | the `[OWNER GATE] v1.4c Task 14` PR |
-| RC branch | `m1.4c/task-14-release-checkpoint` |
-| Checklist | `docs/checkpoints/v1.4c-release.md` |
+| Milestone | v1.4d: tree reading |
+| Release tag | `v1.4.3` (proposed; the owner confirms the name) |
+| Previous tag | `v1.4.2` |
+| Checkpoint PR | the `[OWNER GATE] v1.4d Task 15` PR |
+| RC branch | `m1.4d/task-15-release-checkpoint` |
+| Checklist | `docs/checkpoints/v1.4d-release.md` |
 | Deploy preview | https://pr-<PR>--neophylo.netlify.app |
 | Production | https://neophylo.netlify.app (deploys only on a `v*.*.*` tag) |
 | MEGA-CC | 12.1.4 (build 12261022-x86_64), the fixture version |
@@ -54,7 +54,7 @@ below take them as flags.
    the fuzz build. Dispatch the full matrix on the RC branch:
 
    ```sh
-   gh workflow run ci.yml --ref m1.4c/task-14-release-checkpoint
+   gh workflow run ci.yml --ref m1.4d/task-15-release-checkpoint
    ```
 
    A dispatch from a non-`main` branch deploys nothing, so it costs no
@@ -64,11 +64,11 @@ below take them as flags.
 ## Step 2: Run the automated checkpoint (20–30 min, unattended)
 
 ```sh
-scripts/checkpoint/run.sh --pr <PR> --tag v1.4.2 --milestone v1.4c \
-  --checklist docs/checkpoints/v1.4c-release.md --boot
+scripts/checkpoint/run.sh --pr <PR> --tag v1.4.3 --milestone v1.4d \
+  --checklist docs/checkpoints/v1.4d-release.md --boot
 ```
 
-The output lands in `~/neophylo-checkpoint/v1.4.2-<timestamp>/`:
+The output lands in `~/neophylo-checkpoint/v1.4.3-<timestamp>/`:
 
 | File | What it is |
 |---|---|
@@ -119,7 +119,7 @@ scripts/checkpoint/browser.sh https://pr-<PR>--neophylo.netlify.app /tmp/cp --pr
 # MEGA only, on .meg files you exported yourself
 python3 -I scripts/checkpoint/mega_verify.py --meg-dir ~/Downloads/megs --boot
 # preflight only
-scripts/checkpoint/preflight.sh --pr <PR> --tag v1.4.2 --milestone v1.4c --checklist docs/checkpoints/v1.4c-release.md
+scripts/checkpoint/preflight.sh --pr <PR> --tag v1.4.3 --milestone v1.4d --checklist docs/checkpoints/v1.4d-release.md
 ```
 
 **Reading failures.** A ❌ in `report.md` blocks the release until it's
@@ -158,34 +158,42 @@ version checklist as you go (see "Automation map" below).
    - free of "About N min" on the printed handouts and index
    - not cut off at the page edge
    Then print one paper worksheet and its key on real paper and work a
-   join by hand.
+   join by hand — plus one reading sheet and its key checked against
+   the app's `?read=` results.
 3. **Real Safari, 5 min (macOS or iPad).** WebKit automation isn't Safari's
    own print dialog or download handling. On the deploy preview:
+   - tap one reading set through on a real touchscreen (iPad or iPhone)
    - import a matrix by file, by paste and by grid
-   - print a paper worksheet from Safari's print dialog
-   - export a matrix `.meg` and check the download opens in MEGA
-   - open the library on an iPad-width window
+   - print a paper worksheet and a reading sheet from Safari's print dialog
+   - open the library on an iPad-width window, `?library&type=reading`
 4. **Exercise editor round-trip, 5 min (not scripted).**
-   1. Open `?editor`, switch a draft to the matrix data tab and give it a
-      matrix (file, paste or grid).
-   2. Save the file and check it says `"schema_version": 5`.
-   3. Import that file again, save it again, and diff the two files: they
+   1. Open `?editor` → **Tree reading set**, build a small set (a stored
+      tree, an item or two — marks by tapping the preview), Share it,
+      and reopen the `#r=` link (§19). Save the file too.
+   2. Still in the editor: switch a draft to the matrix data tab and
+      give it a matrix (file, paste or grid).
+   3. Save the file and check it says `"schema_version": 5`.
+   4. Import that file again, save it again, and diff the two files: they
       should be identical.
-   4. A non-matrix draft without a v4/v5-only field still saves as 3.
-5. **MEGA GUI.** The alignment `.meg` pass was done on 2026-11-05; what's
-   new this release is the **matrix** `.meg` — open at least one exported
-   `matrix_<name>.meg` in the MEGA GUI (it reads as a distance file) and
-   run one NJ tree on it. MEGA-CC covers the numbers either way.
-6. **Content sign-offs (§17).** The lesson-library, worksheet, editor and
-   guide reviews on this milestone's PRs are the record — these are
-   judgments only you can make.
+   5. A non-matrix draft without a v4/v5-only field still saves as 3.
+5. **NVDA, keyboard and real devices (§17).** One reading set under
+   NVDA on the Windows VM (the item text, "Show as text" figure
+   description and the verdict live region), one set keyboard-only,
+   and one on a real phone.
+6. **MEGA GUI.** Unchanged from v1.4c — open at least one exported
+   `matrix_<name>.meg` in the MEGA GUI (it reads as a distance file)
+   and run one NJ tree on it. MEGA-CC covers the numbers either way.
+7. **Content sign-offs (§23).** The lesson, editor, worksheet,
+   coverage-manifest and guide reviews on this milestone's PRs are the
+   record — plus the §21 triage dispositions — these are judgments only
+   you can make.
 
 ## Step 4: Record the result (5 min)
 
 1. Post the report on the PR as the checkpoint evidence:
-   `gh pr comment <PR> --body-file ~/neophylo-checkpoint/v1.4.2-<ts>/report.md`.
+   `gh pr comment <PR> --body-file ~/neophylo-checkpoint/v1.4.3-<ts>/report.md`.
 2. Tick the checklist boxes and add a `Findings (<date>):` line per
-   section. Either edit `docs/checkpoints/v1.4c-release.md` yourself, or
+   section. Either edit `docs/checkpoints/v1.4d-release.md` yourself, or
    comment `conductor: fix tick the checkpoint boxes covered by the
    report in <comment link>; leave <list> open`.
 3. Anything that needs a fix goes into the checkpoint PR as one fix
@@ -201,7 +209,7 @@ On the checkpoint PR, once preflight is clean and every box is ticked:
 | Field | Value |
 |---|---|
 | Merge method | **Create a merge commit** (the repo's convention: `Merge pull request #160 …`) |
-| Commit message title | leave the default: `Merge pull request <PR> from dorrabbkhan/m1.4c/task-14-release-checkpoint` |
+| Commit message title | leave the default: `Merge pull request <PR> from dorrabbkhan/m1.4d/task-15-release-checkpoint` |
 | Commit message body | leave the default (the PR title) |
 | After merge | **Delete branch** |
 
@@ -213,7 +221,7 @@ deploys the free `main--neophylo.netlify.app` staging alias.
 ```sh
 gh run list --workflow ci.yml --branch main -L 1
 gh run watch <run-id> --exit-status
-scripts/checkpoint/preflight.sh --pr <PR> --tag v1.4.2 --milestone v1.4c
+scripts/checkpoint/preflight.sh --pr <PR> --tag v1.4.3 --milestone v1.4d
 ```
 
 After the merge, preflight checks the merge commit's push run, WebKit
@@ -227,27 +235,27 @@ Tag the merge commit you just checked, not whatever `main` is by then:
 git fetch origin
 git switch --detach origin/main
 git log -1 --format='%H %s'          # must be "Merge pull request <PR> …"
-git tag -a v1.4.2 -m "NeoPhylo v1.4.2: matrix input, lesson library and worksheets"
-git push origin v1.4.2
+git tag -a v1.4.3 -m "NeoPhylo v1.4.3: tree reading"
+git push origin v1.4.3
 ```
 
 - The tag push runs the full CI matrix again. The `deploy` job then
   deploys to production (`environment: production`, whose branch policy
   allows `main` and `v*.*.*` tags; no reviewer approval is configured).
-- Watch it with `gh run list --workflow ci.yml --branch v1.4.2 -L 1`,
+- Watch it with `gh run list --workflow ci.yml --branch v1.4.3 -L 1`,
   then `gh run watch <id> --exit-status`.
 - If a job fails, production is not touched. Fix forward on `main` and
-  tag `v1.4.3`; never move a pushed tag.
+  tag `v1.4.4`; never move a pushed tag.
 
 ### 5.4 Smoke-test production (5 min)
 
 ```sh
-scripts/checkpoint/browser.sh https://neophylo.netlify.app ~/neophylo-checkpoint/v1.4.2-prod \
-  --project=chromium --grep "§0|§1|§4|§5|§11 16S"
+scripts/checkpoint/browser.sh https://neophylo.netlify.app ~/neophylo-checkpoint/v1.4.3-prod \
+  --project=chromium --grep "§0|§1|§4|§5|§11 16S|§16"
 ```
 
 Then by hand: hard-reload https://neophylo.netlify.app (the service worker
-may serve the old build once). Open `?library`, a paper worksheet, and a
+may serve the old build once). Open `?library`, `?read=trees-reading-a-tree`, a paper worksheet, and a
 matrix import.
 
 ### 5.5 GitHub release
@@ -256,10 +264,10 @@ Go to **Releases → Draft a new release** and fill in:
 
 | Field | Value |
 |---|---|
-| Choose a tag | `v1.4.2` (existing) |
+| Choose a tag | `v1.4.3` (existing) |
 | Target | greyed out, because the tag already exists |
-| Previous tag | `v1.4.1` |
-| Release title | `NeoPhylo v1.4.2: Distance matrices, lesson library and worksheets` |
+| Previous tag | `v1.4.2` |
+| Release title | `NeoPhylo v1.4.3: Tree reading` |
 | Description | the notes below |
 | Attach binaries | none (the app is the website; GitHub adds the source archives) |
 | Set as a pre-release | **off** |
@@ -271,26 +279,24 @@ Then press **Publish release**, not "Save draft".
 Release notes (paste as-is; the style matches `v1.4.0`):
 
 ```markdown
-## NeoPhylo v1.4.2: Distance matrices, lesson library and worksheets
+## NeoPhylo v1.4.3: Tree reading
 
-NeoPhylo now starts from a distance matrix — a file, pasted text, or a typed grid — so any lesson or lab can become a printed worksheet with an engine-computed answer key. A new library page lists every lesson, lab and dataset, and an instructor guide ties it together. Existing lessons, results and shared links are unchanged.
+NeoPhylo now teaches reading trees before building them — clades, most recent common ancestors, relatedness, rotation invariance and trait gains/losses — on the same tree drawings, with engine-checked answers. Instructors get ready-made sets, parallel test forms, an editor mode for their own sets, share links, printable worksheets and answer keys, and a coverage manifest against the published tree-thinking instruments. Existing lessons, results and shared links are unchanged.
 
-### Distance matrices
-- Open a `.meg` or PHYLIP distance file, paste a matrix, or type one into the grid — three to two hundred taxa. Ambiguous pastes are asked about, never guessed.
-- A matrix session builds the NJ or UPGMA tree directly: the badge reads "Distance matrix", alignment-only panels hide behind a one-line explanation, and the stepper still shows every join.
-- Export the supplied matrix as PHYLIP or `.meg` (opens in MEGA), or as an R script.
-- Share links carry the matrix (`d=`); a too-long link says so and offers the file instead.
+### Tree reading sets
+- **Reading sets** (`?read=`): six authored sets — four lessons (reading a tree, rotation, closest relatives, clades and shared traits) plus parallel test forms A and B — in practice and test modes, each item answered on the drawing itself.
+- Every item type is engine-checked: multiple choice, select-all, true statements, "tap a tip / mark the tips", and trait readouts — with the accepted answer, a wrong-answer explanation and an optional `note_after` all computed by the engine.
+- Twelve drawing styles (rectangular, diagonal and circular trees, tip-side right/up/left/down) so students see the same tree drawn differently — the "rotating branches doesn't change relationships" misconception is exercised, not just stated.
 
-### Lesson library and worksheets
-- **Library** (`?library`): every lesson, lab and dataset on one page with level, minutes, objectives and prepares-for/follows lines; `?labs` opens the lab view directly.
-- Every exercise gets an **in-app worksheet** and a gated **answer key** the engine computes; eight small exercises also get a **paper worksheet** — the printed matrix and blank join tables — with a worked key.
-- The answer-key gate asks once per session. It is a signal, not a lock — the guide says so plainly.
-- The **exercise editor** builds matrix exercises too (schema 5), and the **instructor guide** (`?guide`) collects the routes, the teaching notes and ready-made plans.
+### Instructor kit for reading
+- The **editor** builds reading sets: stored or per-item trees, marks and labels placed by tapping the preview, {set} tips picked the same way — then Share produces a `#r=` link carrying the whole set.
+- **Paper worksheets and answer keys** for every set (`?worksheet=<id>&kind=paper`, `?key=<id>&kind=paper`): the student sheet carries no key text; the key prints the engine's answers and explanations behind the instructor gate.
+- The **coverage manifest** (`exercises/reading/coverage/`) maps every published instrument format the sets mirror (Baum et al. quizzes, Kummer et al.'s ETCI) and lists what's deferred; the instructor guide's tree-reading section explains it.
 
 ### Unchanged
-- All v1/v2/v3 share links, including the new matrix links, open as before; every committed lesson and lab is byte-for-byte the same exercise.
+- All v1/v2/v3/matrix share links and every lesson, lab, worksheet and dataset open as before; every committed exercise is byte-for-byte the same.
 
-Full release checklist: `docs/checkpoints/v1.4c-release.md`. Decisions and deviations: `docs/decisions.md`.
+Full release checklist: `docs/checkpoints/v1.4d-release.md`. Decisions and deviations: `docs/decisions.md`.
 ```
 
 Check the notes against the shipped app before you publish. The claims
@@ -313,22 +319,21 @@ Step 3 exercise each one.
 
 - **`CITATION.cff` content (optional, a separate small PR).** The
   abstract and keywords still describe v1.4: no MEGA, no data library,
-  no matrix input. Suggested additions:
+  no matrix input, no tree reading. Suggested additions:
   - abstract: "…, reproduce standard MEGA and PHYLIP lab assignments with
-    the same numbers, open curated real datasets, and start from a
-    distance matrix."
-  - keywords: `MEGA`, `bootstrap`, `distance matrix`.
+    the same numbers, open curated real datasets, start from a distance
+    matrix, and practise reading trees."
+  - keywords: `MEGA`, `bootstrap`, `distance matrix`, `tree thinking`.
 
   GitHub's "Cite this repository" box reads this file.
 
 ### 5.7 After the release
 
-- Roadmap: mark v1.4c **released (v1.4.2, <date>)** in the next docs PR.
+- Roadmap: mark v1.4d **released (v1.4.3, <date>)** in the next docs PR.
 - Check the `main` nightly and the tag run's `@perf` timings once.
 - The open follow-ups start the v1.5 cycle: the serde `null` gap on old
-  optional keys (§16). The MEGA Adaptive Bootstrap sentence is resolved —
-  the owner confirmed in the MEGA 12 GUI on 2026-11-17 that NJ's Test of
-  Phylogeny has no Adaptive option, so the handout stays unchanged (§16).
+  optional keys, the boot1000 binomial bound, lab print fit, the `write_meg`
+  blank line (§22), and whatever §21's triage dispositions decided.
 
 ## Rollback
 
@@ -336,13 +341,13 @@ Production is whatever Netlify last published with `--prod`. If the
 release is broken:
 
 1. **Fastest:** Netlify → Site → Deploys. Pick the previous production
-   deploy (`v1.4.1`'s) and click **Publish deploy**. This takes effect
+   deploy (`v1.4.2`'s) and click **Publish deploy**. This takes effect
    instantly and needs no CI.
-2. Then fix forward: a fix PR → merge → tag `v1.4.3`. Never delete or move
-   `v1.4.2` once pushed. Edit the GitHub release notes to point to
-   `v1.4.3`.
+2. Then fix forward: a fix PR → merge → tag `v1.4.4`. Never delete or move
+   `v1.4.3` once pushed. Edit the GitHub release notes to point to
+   `v1.4.4`.
 
-## Automation map: v1.4c checklist (`docs/checkpoints/v1.4c-release.md`)
+## Automation map: v1.4d checklist (`docs/checkpoints/v1.4d-release.md`)
 
 "Auto" means a test in `scripts/checkpoint/browser/release.spec.ts` —
 run on all three engines except the Chromium-only parts noted below
@@ -375,9 +380,17 @@ only you can do it.
 | 14 | Print: light, controls hidden, no minutes on handouts | **Auto** + **PDFs**; one real paper print is **owner** |
 | 15 | WebKit pass | **Auto** (every § test runs on WebKit except the Chromium-only parts above) + 5 min real Safari (Step 3.3) |
 | 15 | Stale-link window (`d=` written after paint) | **Fixed** — the URL sync is a `useLayoutEffect`, pinned by `App.urlSync.test.tsx`; see the note in the checklist |
-| 16 | `bootstrap: null` serde gap | **Known issue, not fixed** — v1.5 owner decision |
-| 16 | MEGA Adaptive Bootstrap sentence | **Resolved** — owner confirmed in the MEGA 12 GUI on 2026-11-17 that NJ has no Adaptive option; handout unchanged |
-| 17 | Hand key-check, GUI open, printed matrix, sign-offs, tag | **Manual (owner)** |
+| 16 | Every `?read=` set opens and walks to results; coverage sets open | **Auto** (`§16`, all three engines) |
+| 16 | `#r=` link round-trips a set + custom worksheet; bad ids/links refuse | **Auto** (`§16`, `§19`); one second-browser open is **owner** |
+| 17 | Phone and tablet taps (coarse pointer, ≥40px pads, to results) | **Auto** (`§17`) + **gallery**; real hardware is **owner** |
+| 17 | Laptop mouse-only; keyboard-only through every set | **Auto** (`§16` walk; `§17` keyboard) |
+| 17 | NVDA screen reader | **Manual (owner)** — Step 3.5 |
+| 18 | All twelve drawing styles, both themes | **Auto** (`§18`) + **gallery** |
+| 19 | Editor reading mode builds, shares, reopens via `#r=` | **Auto** (`§19`); a real multi-item set is **owner** (Step 3.4) |
+| 20 | Guide known-gaps == manifest gaps | **Auto** (`§20`); manifest vs the two instruments is **owner** |
+| 21 | Triage dispositions | **Manual (owner)** |
+| 22 | `bootstrap: null` serde gap; boot1000 bound; lab print fit; `write_meg` blank line | **Known issues, not fixed** — the record in §22 |
+| 23 | Hand key-checks, GUI open, devices/NVDA, manifest read, triage, tag | **Manual (owner)** |
 
 **Note on §11 (pair panel):** the pair panel opens only in protein mode.
 The checklist's "marks the removed columns" item on **16S rRNA (DNA)**
