@@ -7,10 +7,13 @@
 // (spec §8.2 budget).
 //
 // Practice mode: Check asks the engine's `readingCheck` for the
-// verdict, explanation and note_after; retry is allowed. Test mode
-// shows none of that until Finish — the reducer's `checked` flag can
-// only be set in practice mode, so nothing can leak. All answers are
-// checked by the engine; the page computes nothing itself.
+// verdict — the first wrong verdict offers a retry without the
+// explanation; a second Check or "Show answer" resolves the item and
+// shows the explanation and note_after (the §7.4 deviation the owner
+// approved, checkpoint §21(c)). Test mode shows none of that until
+// Finish — the reducer's `checked` flag can only be set in practice
+// mode, so nothing can leak. All answers are checked by the engine;
+// the page computes nothing itself.
 
 import { useEffect, useReducer, useState } from "react";
 

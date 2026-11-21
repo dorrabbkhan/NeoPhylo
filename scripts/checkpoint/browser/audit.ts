@@ -190,6 +190,86 @@ export async function shoot(
   await page.screenshot({ path: file, fullPage: true });
 }
 
+/** Reading figures move with the 300 ms swap transition the plan gave
+ * rotations (web/src/views/reading/readingHelpers.ts `anim`/`animD`):
+ * an item change that re-uses a tree keeps its elements live
+ * (ItemView keys ReadingTree by tree name+label), so a screenshot
+ * taken right after "Next" can catch node/point dots mid-glide while
+ * the edge paths have already snapped — node groups transition
+ * `transform`, edges transition CSS `d`, and `d` flips discretely when
+ * the path structure changes, so the two can disagree for up to
+ * 300 ms. Emulating reduced motion cancels the in-flight transition
+ * and makes every later relayout instant; the getAnimations poll plus
+ * one frame covers whatever was still running when the emulation
+ * landed. */
+export async function settleReading(page: Page): Promise<void> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          document.getAnimations().every((a) => a.playState !== "running"),
+        ),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      }),
+  );
+}
+
+/** A gallery shot of a page that renders reading figures — settle any
+ * running swap transition first, so the owner's clipping/overlap look
+ * sees the final frame and never a mid-animation one. */
+export async function shootReading(
+  page: Page,
+  info: TestInfo,
+  section: string,
+  name: string,
+): Promise<void> {
+  await settleReading(page);
+  await shoot(page, info, section, name);
+}
+
+/** How far each positioned group of the rendered reading figures sits
+ * from the spot its own transform names — empty once the swap
+ * transition has finished everywhere. The group's inline
+ * `translate(x y)` is the position readingLayout computed (the node
+ * position the component exposes in the DOM); its rendered CTM is
+ * where the frame actually drew it. Mid-transition they disagree. */
+export async function readingDrift(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    const translate = /^translate\(([-\d.eE+]+)px[,\s]+([-\d.eE+]+)px\)$/;
+    for (const svg of document.querySelectorAll<SVGSVGElement>(
+      ".rt-figure svg",
+    )) {
+      const toScreen = svg.getScreenCTM();
+      if (toScreen === null) continue;
+      for (const g of svg.querySelectorAll<SVGGElement>(
+        ".rt-anim, .rt-hit",
+      )) {
+        const m = translate.exec(g.style.transform);
+        if (m === null) continue;
+        const want = new DOMPoint(
+          Number(m[1]),
+          Number(m[2]),
+        ).matrixTransform(toScreen);
+        const got = g.getScreenCTM();
+        if (got === null) continue;
+        const d = Math.hypot(want.x - got.e, want.y - got.f);
+        if (d > 2) {
+          out.push(`${g.getAttribute("class") ?? "?"}: ${d.toFixed(1)}px off`);
+        }
+      }
+    }
+    return out;
+  });
+}
+
 /** At the wide breakpoint (≥ 1280 px) the controls column — the import
  * panel with its tab strip — is on screen; below it the same sections
  * live in the header's Settings drawer. The panel is a lazy chunk, so

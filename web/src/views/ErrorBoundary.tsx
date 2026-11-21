@@ -21,7 +21,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private copyLink = () => {
-    void navigator.clipboard.writeText(window.location.href);
+    void navigator.clipboard
+      ?.writeText(window.location.href)
+      ?.catch(() => undefined);
   };
 
   render() {

@@ -5,8 +5,10 @@
 // - rotating after selecting keeps the selection on the same clade
 //   (Review Focus 4) — the response is a clade key, not a position;
 // - an invalid `#r=` shows the engine's message;
-// - practice Check shows the engine's verdict, explanation and
-//   note_after, and retry is allowed.
+// - practice Check: a correct answer shows the verdict, explanation
+//   and note_after at once; the first wrong verdict says "Not quite
+//   — try again." with none of those, and a second Check or "Show
+//   answer" resolves the item (the §7.4 deviation, checkpoint §21(c)).
 //
 // The page is rendered with the real wasm engine (test/setup.ts
 // inits it) and the shipped trees-demo set.
@@ -101,19 +103,76 @@ describe("ReadingPage loading", () => {
 });
 
 describe("practice mode", () => {
-  it("Check shows the engine's verdict, explanation and note_after", async () => {
+  it("a correct first Check shows the verdict and explanation at once", async () => {
+    await renderPage({ id: "trees-demo" });
+    // Item 0: which_differs, the odd tree is Tree 3.
+    fireEvent.click(screen.getByRole("radio", { name: /tree 3/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    const status = screen.getByRole("status", { name: /verdict|result/i });
+    expect(status.textContent).toMatch(/Correct\./);
+    // The explanation comes from the engine — it names the differing tree.
+    expect(status.textContent).toMatch(/mammals-diff|relationships/i);
+    expect(
+      screen.queryByRole("button", { name: /show answer/i }),
+    ).toBeNull();
+  });
+
+  it("first wrong Check hides the explanation; a second resolves the item", async () => {
     await renderPage({ id: "trees-demo" });
     // Item 0: which_differs, the odd tree is Tree 3.
     fireEvent.click(screen.getByRole("radio", { name: /tree 1/i }));
     fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
     const status = screen.getByRole("status", { name: /verdict|result/i });
-    expect(status.textContent).toMatch(/not correct|incorrect/i);
-    // The explanation comes from the engine — it names the differing tree.
+    expect(status.textContent).toMatch(/Not quite — try again\./);
+    // The first wrong verdict carries no explanation and no note —
+    // it is a real retry, not the revealed answer.
+    expect(status.textContent).not.toMatch(/mammals-diff|relationships/i);
+    // A second wrong Check resolves the item: verdict + explanation.
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    expect(status.textContent).toMatch(/Not correct\./);
     expect(status.textContent).toMatch(/mammals-diff|relationships/i);
-    // Retry: pick the right tree, check again → correct.
+    // Retry still works after the reveal: Tree 3 → Correct. The
+    // answer edit clears `checked`, which unmounts the status div —
+    // re-query it rather than reading the detached node.
     fireEvent.click(screen.getByRole("radio", { name: /tree 3/i }));
     fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
-    expect(status.textContent).toMatch(/correct/i);
+    const status2 = screen.getByRole("status", { name: /verdict|result/i });
+    expect(status2.textContent).toMatch(/Correct\./);
+  });
+
+  it("Show answer after a first wrong Check reveals the explanation", async () => {
+    await renderPage({ id: "trees-demo" });
+    fireEvent.click(screen.getByRole("radio", { name: /tree 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    const status = screen.getByRole("status", { name: /verdict|result/i });
+    expect(status.textContent).not.toMatch(/mammals-diff|relationships/i);
+    fireEvent.click(
+      screen.getByRole("button", { name: /show answer/i }),
+    );
+    expect(status.textContent).toMatch(/mammals-diff|relationships/i);
+    // Revealed stays revealed: edit + Check can't hide it again.
+    // (The edit unmounts the status div — re-query it.)
+    fireEvent.click(screen.getByRole("radio", { name: /tree 2/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    const status2 = screen.getByRole("status", { name: /verdict|result/i });
+    expect(status2.textContent).toMatch(/Not correct\./);
+    expect(status2.textContent).toMatch(/mammals-diff|relationships/i);
+  });
+
+  it("Back/Next keeps a first-wrong item's retry state", async () => {
+    await renderPage({ id: "trees-demo" });
+    fireEvent.click(screen.getByRole("radio", { name: /tree 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    next();
+    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    const status = screen.getByRole("status", { name: /verdict|result/i });
+    // Still "tried once, not shown": the retry verdict, no
+    // explanation, the Show answer button back on offer.
+    expect(status.textContent).toMatch(/Not quite — try again\./);
+    expect(status.textContent).not.toMatch(/mammals-diff|relationships/i);
+    expect(
+      screen.getByRole("button", { name: /show answer/i }),
+    ).toBeTruthy();
   });
 
   it("note_after appears only after Check", async () => {

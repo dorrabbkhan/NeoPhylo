@@ -202,7 +202,9 @@ export function EditorPanel({ model }: EditorPanelProps) {
       // Clipboard is convenience only (spec §5.4): never required —
       // the link field below stays for manual copy.
       try {
-        void navigator.clipboard?.writeText(r.url);
+        void navigator.clipboard
+          ?.writeText(r.url)
+          ?.catch(() => undefined);
       } catch {
         // blocked clipboard — the field still shows the link
       }

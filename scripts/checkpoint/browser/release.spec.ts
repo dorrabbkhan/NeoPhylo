@@ -1,8 +1,11 @@
 // Release-checkpoint browser pass (docs/release-checkpoint.md, step 3).
 // Runs against the deployed release candidate on Chromium, Firefox and
-// WebKit. Section numbers (§) match docs/checkpoints/v1.4c-release.md; the
-// generic parts (datasets, links, lessons, labs, printing) read their
-// lists from the repo, so they carry over to later releases.
+// WebKit. Section numbers (§) match docs/checkpoints/v1.4d-release.md;
+// the carried v1.4c items keep their §1–§15 numbers (§2, §4 and §5 now
+// also cover the reading sets) and the v1.4d reading checks are
+// §16–§20. The generic parts (datasets, links, lessons, labs, reading
+// sets, printing) read their lists from the repo, so they carry over
+// to later releases.
 //
 // Everything it saves lands under $CHECKPOINT_OUT for the owner:
 // shots/ (gallery screenshots), print/ (PDFs, Chromium), meg/ (exported
@@ -10,6 +13,7 @@
 
 import { test, expect } from "@playwright/test";
 import { readFileSync, readdirSync } from "node:fs";
+import lzstring from "lz-string";
 
 import {
   REPO,
@@ -20,7 +24,10 @@ import {
   pasteImport,
   prime,
   printColors,
+  readingDrift,
+  settleReading,
   shoot,
+  shootReading,
   showControls,
   visit,
   waitForApp,
@@ -51,6 +58,29 @@ const LABS = readdirSync(`${REPO}exercises/labs`)
 const LESSONS = readdirSync(`${REPO}exercises`)
   .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
   .map((f) => f.replace(/\.json$/, ""));
+
+// The reading-set registries, read from the repo like the lesson list
+// (v1.4d): every shipped file under exercises/reading/ resolves on
+// `?read=<id>` — trees-demo included (dev content, but it loads like
+// any set) — while the library lists everything but it; the Task-12
+// coverage sets open by id but are never listed.
+interface ReadingSetFile {
+  id: string;
+  title: string;
+  mode?: string;
+  items: { id: string }[];
+}
+const SHIPPED_READING = readdirSync(`${REPO}exercises/reading`)
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => readJson<ReadingSetFile>(`exercises/reading/${f}`))
+  .sort((a, b) => a.id.localeCompare(b.id));
+const COV_READING = readdirSync(`${REPO}exercises/reading/coverage`)
+  .filter((f) => f.endsWith(".json") && f !== "manifest.json")
+  .map((f) => readJson<ReadingSetFile>(`exercises/reading/coverage/${f}`))
+  .sort((a, b) => a.id.localeCompare(b.id));
+const ALL_READING = [...SHIPPED_READING, ...COV_READING];
+/** The library's Tree reading cards — every shipped set but the demo. */
+const LISTED_READING = SHIPPED_READING.filter((s) => s.id !== "trees-demo");
 
 const MEG_INPUTS = `${REPO}crates/neophylo-core/tests/meg_inputs/`;
 
@@ -982,7 +1012,7 @@ test("§2 every answer key renders — gated, both kinds", async ({
 
 test("§2/§14 the paper sheet and key print light; a worksheet PDF per id", async ({
   page,
-}, info) => {
+}) => {
   const done = watchConsole(page);
   await prime(page, "dark");
   // Pre-grant the instructor flag — §3 checks the gate itself.
@@ -1149,16 +1179,25 @@ for (const theme of THEMES) {
       await expect(
         page.getByRole("heading", { name: "Library", level: 1 }),
       ).toBeVisible();
-      // Wait for the datasets to land before counting cards.
+      // Wait for the datasets AND the reading sets to land before
+      // counting cards — both lists resolve asynchronously.
       const cards = page.locator(".lib-card");
       await expect
-        .soft(cards, "every lesson, lab and dataset has a card")
-        .toHaveCount(LESSONS.length + LABS.length + DATASETS.length);
+        .soft(cards, "every lesson, lab, reading set and dataset has a card")
+        .toHaveCount(
+          LESSONS.length +
+            LABS.length +
+            LISTED_READING.length +
+            DATASETS.length,
+        );
       const byKind = (k: string) =>
         page.locator(`.lib-card[data-kind="${k}"]`);
       await expect
         .soft(byKind("lessons"), "lesson cards")
         .toHaveCount(LESSONS.length);
+      await expect
+        .soft(byKind("reading"), "reading-set cards")
+        .toHaveCount(LISTED_READING.length);
       await expect
         .soft(byKind("phylip"), "PHYLIP lab cards")
         .toHaveCount(LABS.filter((l) => l.tool !== "mega").length);
@@ -1170,6 +1209,7 @@ for (const theme of THEMES) {
         .toHaveCount(DATASETS.length);
       for (const group of [
         "Lessons",
+        "Tree reading",
         "PHYLIP labs",
         "MEGA labs",
         "Datasets",
@@ -1178,13 +1218,20 @@ for (const theme of THEMES) {
           .soft(page.getByRole("region", { name: group }))
           .toBeVisible();
       }
-      // Every exercise card carries worksheet and key actions.
+      // Every exercise card carries worksheet and key actions: lessons
+      // and labs the in-app pair, reading sets the paper pair.
       await expect
         .soft(page.getByRole("link", { name: "In-app worksheet" }))
         .toHaveCount(LESSONS.length + LABS.length);
       await expect
+        .soft(page.getByRole("link", { name: "Open set" }))
+        .toHaveCount(LISTED_READING.length);
+      await expect
+        .soft(page.getByRole("link", { name: "Paper worksheet" }))
+        .toHaveCount(PAPER_IDS.size + LISTED_READING.length);
+      await expect
         .soft(page.getByRole("link", { name: "Answer key" }))
-        .toHaveCount(LESSONS.length + LABS.length);
+        .toHaveCount(LESSONS.length + LABS.length + LISTED_READING.length);
       await expect
         .soft(page.getByRole("link", { name: "Open dataset" }))
         .toHaveCount(DATASETS.length);
@@ -1224,6 +1271,73 @@ test("§4 ?labs opens filtered and a filter change moves the state into ?library
   done();
 });
 
+test("§4 ?library&type=reading shows only the Tree reading cards", async ({
+  page,
+}, info) => {
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await visitPage(page, "/?library&type=reading");
+  await expect(
+    page.getByRole("heading", { name: "Library", level: 1 }),
+  ).toBeVisible();
+  // The reading list resolves asynchronously — wait for a card, then
+  // count: every shipped set but trees-demo, nothing else.
+  await expect(page.locator(".lib-card").first()).toBeVisible();
+  await expect
+    .soft(page.locator(".lib-card"), "only reading cards")
+    .toHaveCount(LISTED_READING.length);
+  await expect
+    .soft(page.locator('.lib-card[data-kind="reading"]'))
+    .toHaveCount(LISTED_READING.length);
+  for (const s of LISTED_READING) {
+    await expect
+      .soft(page.locator("body"), `${s.id}: its card`)
+      .toContainText(s.title);
+  }
+  await expect(
+    page.getByRole("region", { name: "Tree reading" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Lessons" })).toHaveCount(0);
+  // Each card opens its set and offers the paper worksheet and key.
+  await expect
+    .soft(page.getByRole("link", { name: "Open set" }))
+    .toHaveCount(LISTED_READING.length);
+  await expect
+    .soft(page.getByRole("link", { name: "Paper worksheet" }))
+    .toHaveCount(LISTED_READING.length);
+  await expect
+    .soft(page.getByRole("link", { name: "Answer key" }))
+    .toHaveCount(LISTED_READING.length);
+  await expectCleanLayout(page, "library reading filter");
+  await shoot(page, info, "4-library", "reading-filtered");
+  done();
+});
+
+test('§4 the header "Reading trees" link opens the filtered library', async ({
+  page,
+}) => {
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await visit(page, "/?sb=1");
+  // A direct link at ≥ 1280 px; a clean sandbox goes straight through
+  // (the unsaved-work question only asks when there is work to lose).
+  const link = page.getByRole("link", { name: "Reading trees" });
+  await expect(link).toBeVisible();
+  expect(await link.getAttribute("href")).toBe("?library&type=reading");
+  await link.click();
+  await expect(
+    page.getByRole("heading", { name: "Library", level: 1 }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page).toHaveURL(/type=reading/);
+  await expect(page.locator(".lib-card").first()).toBeVisible();
+  await expect
+    .soft(page.locator(".lib-card"), "filtered to reading cards")
+    .toHaveCount(LISTED_READING.length);
+  done();
+});
+
 // ---------------------------------------------------------------- §5
 test("§5 the instructor guide renders, its links resolve, it prints light", async ({
   page,
@@ -1234,22 +1348,26 @@ test("§5 the instructor guide renders, its links resolve, it prints light", asy
   await visitPage(page, "/?guide");
   await expect(page.locator("h1").first()).toContainText(/guide/i);
   // Every internal link points at a route the app actually serves:
-  // ?lesson / ?lab / ?worksheet / ?key with a known id, or a bare
-  // ?library / ?labs / ?guide / ?editor route.
+  // ?lesson / ?lab / ?worksheet / ?key / ?read with a known id, or a
+  // bare ?library / ?labs / ?guide / ?editor route. v1.4d: reading-set
+  // ids (including the coverage sets) resolve for ?read, ?worksheet
+  // and ?key alike.
   const hrefs = await page
     .locator(".lab-main a[href^='?']")
     .evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""));
   expect.soft(hrefs.length, "the guide has internal links").toBeGreaterThan(0);
   const ids = new Set([...WS_IDS, "custom"]);
+  const readIds = new Set(ALL_READING.map((s) => s.id));
   for (const href of hrefs) {
     const m = /^(\?|\/\?)([a-z]+)(?:=([^&]+))?/.exec(href);
     const named = m?.[3];
     const ok =
       m !== null &&
       (["library", "labs", "guide", "editor", "sb"].includes(m[2]) ||
-        (["lesson", "lab", "worksheet", "key", "ds"].includes(m[2]) &&
+        (["lesson", "lab", "worksheet", "key", "ds", "read"].includes(m[2]) &&
           named !== undefined &&
           (ids.has(named) ||
+            readIds.has(named) ||
             DATASETS.some((d) => d.id === named))));
     expect.soft(ok, `guide link ${href} resolves`).toBe(true);
   }
@@ -1274,4 +1392,688 @@ test("§5 the instructor guide renders, its links resolve, it prints light", asy
   }
   await page.emulateMedia({ media: "screen" });
   done();
+});
+
+// ---------------------------------------------------------------- §2
+// The reading paper worksheets and keys (v1.4d Task 13, checklist §2):
+// every shipped set and every coverage set gets `?worksheet=<id>
+// &kind=paper` and `?key=<id>&kind=paper`. Item counts are read from
+// the committed files. `kind=app` for a reading id points at the paper
+// kind — a reading set's in-app work is the reading area itself.
+
+test("§2 every reading paper worksheet renders and carries no answers", async ({
+  page,
+}, info) => {
+  test.setTimeout(600_000);
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const set of ALL_READING) {
+    await visitPage(page, `/?worksheet=${set.id}&kind=paper`);
+    await expect(
+      page.getByRole("heading", { name: set.title, level: 1 }),
+      `${set.id}: sheet title`,
+    ).toBeVisible({ timeout: 90_000 });
+    await expect
+      .soft(
+        page.locator("ol.ws-items .ws-item"),
+        `${set.id}: one block per item`,
+      )
+      .toHaveCount(set.items.length);
+    await expect(
+      page.locator(".rt-figure svg").first(),
+      `${set.id}: a drawn tree`,
+    ).toBeVisible();
+    // The student sheet carries no key text — no answers,
+    // explanations, notes or authored labels anywhere in the DOM.
+    await expect(
+      page.locator(".ws-answer, .ws-explain, .ws-note"),
+      `${set.id}: no key text on the sheet`,
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("authored answer"),
+      `${set.id}: no authored label on the sheet`,
+    ).toHaveCount(0);
+    expect(
+      await page.locator("body").innerText(),
+      `${set.id}: no NaN`,
+    ).not.toMatch(/\bNaN\b/);
+    // kind=app points at the paper kind — the set's in-app work is the
+    // reading area itself.
+    await visitPage(page, `/?worksheet=${set.id}&kind=app`);
+    await expect
+      .soft(page.locator("body"), `${set.id}: in-app fallback`)
+      .toContainText("no in-app worksheet");
+    if (isChromium()) {
+      await shootReading(page, info, "2-worksheets-reading", set.id);
+    }
+  }
+  done();
+});
+
+test("§2 every reading answer key renders, gated", async ({ page }, info) => {
+  test.setTimeout(600_000);
+  const done = watchConsole(page);
+  await prime(page, "light");
+  // Pre-grant the instructor flag — §3 checks the gate itself.
+  await page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("neophylo.instructor", "1");
+    } catch {
+      /* storage blocked — the gate shows; that is §3's check */
+    }
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const set of ALL_READING) {
+    await visitPage(page, `/?key=${set.id}&kind=paper`);
+    await expect(
+      page.getByRole("heading", { name: /— answer key/ }),
+      `${set.id}: key heading`,
+    ).toBeVisible({ timeout: 90_000 });
+    await expect
+      .soft(
+        page.locator(".ws-key-items .ws-item"),
+        `${set.id}: one key block per item`,
+      )
+      .toHaveCount(set.items.length);
+    await expect
+      .soft(page.locator(".ws-answer"), `${set.id}: an answer per item`)
+      .toHaveCount(set.items.length);
+    await expect
+      .soft(
+        page.locator(".ws-explain"),
+        `${set.id}: an explanation per item`,
+      )
+      .toHaveCount(set.items.length);
+    if (isChromium()) await shootReading(page, info, "2-keys-reading", set.id);
+  }
+  done();
+});
+
+test("§2/§14 every reading sheet and key prints light; a PDF per id", async ({
+  page,
+}) => {
+  test.setTimeout(600_000);
+  const done = watchConsole(page);
+  await prime(page, "dark");
+  // Dark on screen: the printed page must still come out light.
+  await page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("neophylo.instructor", "1");
+    } catch {
+      /* storage blocked — the gate shows; that is §3's check */
+    }
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const set of ALL_READING) {
+    for (const [route, marker, cls] of [
+      ["worksheet", ".rt-figure svg", "read-sheet"],
+      ["key", ".ws-key-items", "read-key"],
+    ] as const) {
+      await visitPage(page, `/?${route}=${set.id}&kind=paper`);
+      await expect(
+        page.locator(marker).first(),
+        `${set.id} ${cls}: rendered`,
+      ).toBeVisible({ timeout: 90_000 });
+      await page.emulateMedia({ media: "print" });
+      const c = await printColors(page);
+      expect
+        .soft(c.background, `${set.id} ${cls}: printed page is light`)
+        .toBeGreaterThan(0.85);
+      expect
+        .soft(c.text, `${set.id} ${cls}: printed heading is dark`)
+        .toBeLessThan(0.35);
+      expect
+        .soft(c.page, `${set.id} ${cls}: paper around it is light`)
+        .toBeGreaterThan(0.85);
+      await expect
+        .soft(
+          page.locator(".lab-nav"),
+          `${set.id} ${cls}: controls hidden in print`,
+        )
+        .toBeHidden();
+      // PDFs are saved from Chromium only (the sibling worksheet
+      // print tests' rule); the media-emulation checks run everywhere.
+      if (isChromium()) {
+        await page.pdf({
+          path: outPath("print", `${set.id}-${cls}.pdf`),
+          format: "A4",
+          printBackground: true,
+          preferCSSPageSize: true,
+        });
+      }
+      await page.emulateMedia({ media: "screen" });
+    }
+  }
+  done();
+});
+
+// ---------------------------------------------------------------- §16
+// The reading area on the deploy (v1.4d checklist §16): every shipped
+// set opens on `?read=<id>` and walks to its results screen — titles
+// and item counts come from the committed files. trees-demo is dev
+// content but resolves like any built-in, so it is walked too. The
+// five coverage sets open by id the same way; their style/feature
+// coverage is §18's job.
+
+/** `?read=`/`#r=` mount `.read-page`, not `.lab-page` — its own wait.
+ * Same fonts-first settle as visitPage, so a late Inter load on the
+ * page being left never aborts mid-navigation. */
+async function visitReading(page: Page_, url: string): Promise<void> {
+  await page
+    .evaluate(() => document.fonts.ready.then(() => undefined))
+    .catch(() => undefined);
+  await page.goto(url);
+  await expect(page.locator(".read-page")).toBeVisible({ timeout: 60_000 });
+  await page.waitForLoadState("networkidle");
+}
+
+for (const set of SHIPPED_READING) {
+  test(`§16 ?read=${set.id} opens and walks its ${set.items.length} items`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(300_000);
+    const done = watchConsole(page);
+    await prime(page, "light");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await visitReading(page, `/?read=${set.id}`);
+    await expect(
+      page.getByRole("heading", { name: set.title }),
+      `${set.id}: its title`,
+    ).toBeVisible({ timeout: 60_000 });
+    for (let i = 0; i < set.items.length; i++) {
+      if (i > 0) {
+        await page.getByRole("button", { name: "Next" }).click();
+      }
+      await expect(
+        page.getByText(`Question ${i + 1} of ${set.items.length}`),
+        `${set.id}: item ${i + 1} header`,
+      ).toBeVisible();
+      await expect(
+        page.locator(".rt-figure svg").first(),
+        `${set.id}: item ${i + 1} draws a tree`,
+      ).toBeVisible();
+      expect(
+        await page.locator("body").innerText(),
+        `${set.id}: item ${i + 1} no NaN`,
+      ).not.toMatch(/\bNaN\b/);
+    }
+    if (isChromium())
+      await shootReading(page, info, "16-reading", `${set.id}-last`);
+    // Every mode ends on the results screen — Finish exists in
+    // practice and test alike (practice shows verdicts along the way,
+    // test only here).
+    await page.getByRole("button", { name: "Finish" }).click();
+    await expect(
+      page.getByText(
+        new RegExp(`You answered \\d+ of ${set.items.length} correctly`),
+      ),
+      `${set.id}: results screen`,
+    ).toBeVisible();
+    await expectCleanLayout(page, `read ${set.id} summary`);
+    if (isChromium()) {
+      await shootReading(page, info, "16-reading", `${set.id}-summary`);
+    }
+    done();
+  });
+}
+
+for (const set of COV_READING) {
+  test(`§16 coverage set ${set.id} opens on ?read=`, async ({
+    page,
+  }, info) => {
+    const done = watchConsole(page);
+    await prime(page, "light");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await visitReading(page, `/?read=${set.id}`);
+    await expect(
+      page.getByRole("heading", { name: set.title }),
+      `${set.id}: its title`,
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+    await expect(
+      page.locator(".rt-figure svg").first(),
+      `${set.id}: item 1 draws a tree`,
+    ).toBeVisible();
+    if (isChromium()) await shootReading(page, info, "16-reading", set.id);
+    done();
+  });
+}
+
+test("§16 an unknown ?read= id and a malformed #r= link refuse plainly", async ({
+  page,
+}) => {
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await visitReading(page, "/?read=no-such-set");
+  await expect(
+    page.getByRole("alert"),
+    "unknown set id names the id",
+  ).toContainText('unknown reading set "no-such-set"');
+  // Each link corruption reports its own refusal — a fragment lz-string
+  // cannot decode at all and the empty fragment the decompression
+  // failure, a non-JSON payload the JSON failure, a well-formed link
+  // carrying a bad set the engine's InvalidReading.
+  // Each gets a fresh cold load (goto("/") first): a fragment-only
+  // navigation doesn't remount the page, and a user landing on a
+  // corrupted link arrives cold anyway.
+  for (const [frag, msg] of [
+    ["#r=zzz", "the shared set could not be decompressed"],
+    ["#r=", "the shared set could not be decompressed"],
+    [
+      `#r=${lzstring.compressToEncodedURIComponent("not json")}`,
+      "the shared set is not valid JSON",
+    ],
+    [
+      `#r=${lzstring.compressToEncodedURIComponent(
+        JSON.stringify({ v: 1, set: { bogus: true } }),
+      )}`,
+      "",
+    ],
+  ] as const) {
+    await page.goto("/");
+    await visitReading(page, `/${frag}`);
+    const alert = page.getByRole("alert");
+    await expect(
+      alert,
+      `${frag.slice(0, 30)}… refuses plainly`,
+    ).toBeVisible();
+    if (msg !== "") await expect(alert).toContainText(msg);
+    else
+      // A well-formed link carrying a bad set reports the engine's
+      // InvalidReading — `field: msg` — not the generic catches.
+      await expect(alert).toContainText(/:|\bread\b|\blink\b/);
+  }
+  done();
+});
+
+// ---------------------------------------------------------------- §17
+// The input matrix (v1.4d checklist §17): every listed set — the four
+// lessons and forms A/B — on a phone and a tablet with real touch
+// taps, and every set completable by keyboard alone. The laptop,
+// mouse-only leg is the §16 walk itself (mouse clicks at 1280 px);
+// NVDA stays the owner's item.
+
+/** The four lessons plus forms A and B — the listed sets. */
+const DEVICE_SETS = LISTED_READING;
+
+/** Answer item 1 where a plain control allows it: a radio or a
+ * checkbox takes a tap or a Space; a tree hit pad takes a tap or an
+ * Enter — the same gesture the student makes. */
+async function answerItem1(page: Page_, how: "tap" | "key"): Promise<void> {
+  const radio = page.getByRole("radio").first();
+  if ((await radio.count()) > 0) {
+    if (how === "tap") await radio.tap();
+    else await radio.press(" ");
+    return;
+  }
+  const box = page.getByRole("checkbox").first();
+  if ((await box.count()) > 0) {
+    if (how === "tap") await box.tap();
+    else await box.press(" ");
+    return;
+  }
+  const hit = page.locator(".rt-hit").first();
+  if ((await hit.count()) > 0) {
+    if (how === "tap") await hit.tap();
+    else await hit.press("Enter");
+  }
+}
+
+for (const [device, vp] of [
+  ["phone", { width: 360, height: 740 }],
+  ["tablet", { width: 768, height: 1024 }],
+] as const) {
+  test.describe(`§17 ${device} (touch only)`, () => {
+    test.use({ hasTouch: true, viewport: vp });
+    for (const set of DEVICE_SETS) {
+      test(`§17 ${set.id} on a ${device} (${vp.width}px, taps only)`, async ({
+        page,
+      }, info) => {
+        test.setTimeout(300_000);
+        const done = watchConsole(page);
+        await prime(page, "light");
+        // Pin that the emulation really presents a coarse pointer —
+        // else the ≥40px pads under test never appear.
+        expect(
+          await page.evaluate(() =>
+            window.matchMedia("(pointer: coarse)").matches,
+          ),
+          "the emulation presents a coarse pointer",
+        ).toBe(true);
+        await visitReading(page, `/?read=${set.id}`);
+        await expect(page.getByText(/Question 1 of/)).toBeVisible({
+          timeout: 60_000,
+        });
+        // Every hit pad on item 1 is ≥ 40×40 under (pointer: coarse).
+        for (const sel of [".rt-hit", ".rt-point-hit", ".rt-branch-hit"]) {
+          for (const el of await page.locator(`.rt-figure ${sel}`).all()) {
+            const b = await el.boundingBox();
+            expect(
+              b !== null && b.width >= 40 && b.height >= 40,
+              `${set.id}: ${sel} pad is ${b?.width}×${b?.height}`,
+            ).toBe(true);
+          }
+        }
+        // A real tap answers item 1 where the control allows it, and
+        // the verdict arrives by tap too on a practice set.
+        await answerItem1(page, "tap");
+        if (set.mode !== "test") {
+          const check = page.getByRole("button", { name: "Check" });
+          if (await check.isEnabled()) {
+            await check.tap();
+            await expect(
+              page.getByRole("status", { name: "Verdict" }),
+              `${set.id}: a verdict by tap`,
+            ).toBeVisible();
+          }
+        }
+        await expectCleanLayout(page, `${set.id} ${device}`);
+        if (isChromium()) {
+          await shootReading(page, info, "17-devices", `${set.id}-${device}`);
+        }
+        // Tap through the rest of the set to the results screen.
+        for (let i = 1; i < set.items.length; i++) {
+          await page.getByRole("button", { name: "Next" }).tap();
+          await expect(
+            page.getByText(`Question ${i + 1} of`),
+            `${set.id}: tap Next to item ${i + 1}`,
+          ).toBeVisible();
+        }
+        await page.getByRole("button", { name: "Finish" }).tap();
+        await expect(
+          page.getByText(
+            new RegExp(`You answered \\d+ of ${set.items.length}`),
+          ),
+          `${set.id}: reached the results by taps`,
+        ).toBeVisible();
+        done();
+      });
+    }
+  });
+}
+
+test("§17 every lesson and form completes by keyboard alone", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const set of DEVICE_SETS) {
+    await visitReading(page, `/?read=${set.id}`);
+    await expect(page.getByText(/Question 1 of/)).toBeVisible({
+      timeout: 60_000,
+    });
+    // Item 1 answered by key where the control allows — a radio or a
+    // checkbox takes Space, a hit pad takes Enter; a practice set's
+    // verdict arrives by Enter on Check.
+    await answerItem1(page, "key");
+    if (set.mode !== "test") {
+      const check = page.getByRole("button", { name: "Check" });
+      if (await check.isEnabled()) {
+        await check.press("Enter");
+        await expect(
+          page.getByRole("status", { name: "Verdict" }),
+          `${set.id}: a verdict by keyboard`,
+        ).toBeVisible();
+      }
+    }
+    for (let i = 1; i < set.items.length; i++) {
+      await page.getByRole("button", { name: "Next" }).press("Enter");
+      await expect(
+        page.getByText(`Question ${i + 1} of`),
+        `${set.id}: Enter on Next reaches item ${i + 1}`,
+      ).toBeVisible();
+    }
+    await page.getByRole("button", { name: "Finish" }).press("Enter");
+    await expect(
+      page.getByText(
+        new RegExp(`You answered \\d+ of ${set.items.length}`),
+      ),
+      `${set.id}: reached the results by keyboard`,
+    ).toBeVisible();
+  }
+  done();
+});
+
+// ---------------------------------------------------------------- §18
+// Every drawing style in both themes (v1.4d checklist §18): the
+// layout's full shape × tip-side grid — the three Shapes × four
+// TipSides of ReadingStyle in web/src/layout/readingLayout.ts —
+// must appear in the DOM across the shipped sets. cov-styles alone
+// draws nine; cov-statements adds rectangular:down; the lessons add
+// diagonal:right and rectangular:up.
+
+const STYLE_SETS = ["cov-styles", "cov-statements", "trees-clades-traits"];
+const ALL_STYLES = (["rectangular", "diagonal", "circular"] as const).flatMap(
+  (shape) =>
+    (["right", "up", "left", "down"] as const).map(
+      (tips) => `${shape}:${tips}`,
+    ),
+);
+
+for (const theme of THEMES) {
+  test(`§18 all twelve drawing styles render, ${theme}`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(300_000);
+    const done = watchConsole(page);
+    await prime(page, theme);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const seen = new Set<string>();
+    for (const id of STYLE_SETS) {
+      const n = ALL_READING.find((s) => s.id === id)?.items.length ?? 0;
+      await visitReading(page, `/?read=${id}`);
+      await expect(page.getByText(/Question 1 of/)).toBeVisible({
+        timeout: 60_000,
+      });
+      for (let i = 0; i < n; i++) {
+        if (i > 0) {
+          await page.getByRole("button", { name: "Next" }).click();
+          await expect(
+            page.getByText(`Question ${i + 1} of`),
+            `${id}: item ${i + 1}`,
+          ).toBeVisible();
+        }
+        for (const s of await page
+          .locator(".rt-figure")
+          .evaluateAll((fs) =>
+            fs.map((f) => `${f.dataset.shape}:${f.dataset.tips}`),
+          )) {
+          seen.add(s);
+        }
+        // Items re-using a tree relayout its live elements — the dots
+        // can still be gliding when the style read above lands. The
+        // drift check pins the settled frame (and the gallery shot
+        // below): every positioned group sits where its own transform
+        // puts it, within 2 px.
+        await settleReading(page);
+        expect(
+          await readingDrift(page),
+          `${id}: item ${i + 1} dots rest on their nodes`,
+        ).toEqual([]);
+      }
+      if (isChromium())
+        await shootReading(page, info, "18-styles", `${id}-${theme}`);
+    }
+    expect(
+      [...seen].sort(),
+      `every shape × tip-side style renders (${theme})`,
+    ).toEqual([...ALL_STYLES].sort());
+    done();
+  });
+}
+
+// ---------------------------------------------------------------- §19
+// The editor's reading mode on the deploy (v1.4d checklist §19):
+// build a small set — one stored tree, one item whose {set} tips are
+// picked by tapping the preview — share it, and reopen the `?read=`
+// link whose `#r=` fragment carries the whole set.
+
+test("§19 the editor builds a reading set and its #r= link reopens it", async ({
+  page,
+}, info) => {
+  test.setTimeout(300_000);
+  const done = watchConsole(page);
+  await prime(page, "light");
+  // The editor's Share handler also tries navigator.clipboard.writeText
+  // — a denied clipboard-write rejects that promise, which the app's
+  // own .catch must swallow (fixed in the §21(i) round; an unhandled
+  // rejection would be a pageerror watchConsole flags). The rejecting
+  // stub keeps the test honest: the share notice must still show the
+  // link on every engine. Insecure contexts without a clipboard object
+  // take the app's ?. catch path instead.
+  await page.addInitScript(() => {
+    try {
+      Object.defineProperty(navigator.clipboard, "writeText", {
+        value: () => Promise.reject(new Error("clipboard-write denied")),
+        configurable: true,
+      });
+    } catch {
+      /* no clipboard object on insecure contexts — the app's ?. covers it */
+    }
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/?editor");
+  await page.getByRole("radio", { name: "Tree reading set" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Tree reading set editor" }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole("textbox", { name: "Set id" }).fill("checkpoint-set");
+  await page
+    .getByRole("textbox", { name: "Set title" })
+    .fill("Checkpoint set");
+  await page
+    .getByRole("textbox", { name: "Summary" })
+    .fill("One stored tree, one question — the checkpoint's editor pass.");
+  const t1 = page.getByRole("group", { name: "Tree t1" });
+  await t1.getByRole("textbox", { name: "Newick" }).fill("((a,b),(c,d));");
+  await expect(
+    t1.getByRole("tree", { name: "Extras for t1" }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("combobox", { name: "New item type" })
+    .selectOption("is_clade");
+  await page.getByRole("button", { name: "Add item" }).click();
+  const q1 = page.getByRole("group", { name: "Item q1" });
+  await q1
+    .getByRole("textbox", { name: "Question text" })
+    .fill("Are {set} a clade in this tree?");
+  for (const t of ["a", "b"]) {
+    await q1
+      .locator(
+        `.rt-hit[data-kind="tip"][data-clade='${JSON.stringify([t])}']`,
+      )
+      .click();
+  }
+  // The engine's answer readout shows once the item is bound.
+  await expect(q1.getByText(/^Answer:/)).toBeVisible();
+
+  const share = page.getByRole("button", { name: "Share link" });
+  await expect(share, "the set loads, so Share is live").toBeEnabled();
+  await share.click();
+  const url = await page
+    .getByRole("textbox", { name: "Share link URL" })
+    .inputValue();
+  expect(url, "the share link carries an #r= set").toContain("#r=");
+  if (isChromium()) await shootReading(page, info, "19-editor", "reading-set");
+
+  // Reopen the link: the reading area mounts the same set.
+  await visitReading(page, url);
+  await expect(
+    page.getByRole("heading", { name: "Checkpoint set" }),
+    "the shared set's title",
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Question 1 of 1/)).toBeVisible();
+  await expect(page.locator(".rt-figure svg")).toBeVisible();
+  done();
+});
+
+// ---------------------------------------------------------------- §16
+// `#r=` shared links (v1.4d checklist §16): a whole set rides in
+// the fragment, lz-compressed like `#x=` — decode a link built here
+// the way the editor's Share writes it, and a shared set's paper
+// worksheet resolves on `?worksheet=custom&kind=paper` too.
+
+const SHARED_SET = {
+  schema_version: 1,
+  kind: "reading",
+  id: "cp-shared",
+  title: "Checkpoint shared set",
+  summary: "A set carried by its #r= link.",
+  mode: "practice",
+  taxa_pool: {},
+  trees: { t: { newick: "((a,b),(c,d));" } },
+  items: [
+    {
+      id: "q-clade",
+      text: "Are {set} a clade in this tree?",
+      trees: ["t"],
+      tips: ["a", "b"],
+      question: { type: "is_clade" },
+    },
+  ],
+};
+
+test("§16 a #r= link opens its set and its custom paper worksheet", async ({
+  page,
+}, info) => {
+  const done = watchConsole(page);
+  await prime(page, "light");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const hash = `#r=${lzstring.compressToEncodedURIComponent(
+    JSON.stringify({ v: 1, set: SHARED_SET }),
+  )}`;
+  await visitReading(page, `/${hash}`);
+  await expect(
+    page.getByRole("heading", { name: "Checkpoint shared set" }),
+    "the shared set's title",
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Question 1 of 1/)).toBeVisible();
+  await expect(page.locator(".rt-figure svg")).toBeVisible();
+
+  await visitPage(page, `/?worksheet=custom&kind=paper${hash}`);
+  await expect(
+    page.getByRole("heading", { name: "Checkpoint shared set", level: 1 }),
+    "the shared set's paper sheet",
+  ).toBeVisible({ timeout: 90_000 });
+  await expect(page.locator(".rt-figure svg")).toBeVisible();
+  // The sheet's own link block carries the #r= payload back.
+  await expect(page.locator(".ws-link-text a")).toHaveAttribute(
+    "href",
+    /#r=/,
+  );
+  if (isChromium())
+    await shootReading(page, info, "20-shared", "set-and-sheet");
+  done();
+});
+
+// ---------------------------------------------------------------- §20
+// The guide's "Known gaps" list tracks the coverage manifest
+// (v1.4d checklist §5/§20): same count, same deferred-to milestones —
+// a static repo check, no browser needed.
+
+test("§20 the guide's known-gaps list matches the coverage manifest", () => {
+  const manifest = readJson<{
+    gaps: { format: string; deferred_to: string }[];
+  }>("exercises/reading/coverage/manifest.json");
+  const guide = readFileSync(`${REPO}docs/instructor-guide.md`, "utf8");
+  const start = guide.indexOf("**Known gaps.**");
+  expect(start, "the guide has a Known gaps list").toBeGreaterThanOrEqual(0);
+  const block = guide.slice(start, guide.indexOf("\n## ", start));
+  const bullets = block.match(/^- .+$/gm) ?? [];
+  expect(
+    bullets.length,
+    "the guide lists every manifest gap",
+  ).toBe(manifest.gaps.length);
+  const milestones = bullets
+    .map((b) => /—\s*(v[\d.x]+)/.exec(b)?.[1] ?? "")
+    .sort();
+  expect(
+    milestones,
+    "each guide gap names the manifest's deferred milestone",
+  ).toEqual(manifest.gaps.map((g) => g.deferred_to).sort());
 });

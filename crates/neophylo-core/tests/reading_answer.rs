@@ -495,6 +495,41 @@ fn gained_within_same_branch_inner_first_false() {
     );
 }
 
+#[test]
+fn select_true_explanation_matches_the_true_count() {
+    // "statements 1 are true." for a single true statement was the
+    // §21(e) wart the worksheet key printed verbatim — the count's
+    // grammar must agree: none / one (singular) / several (joined).
+    let mut raw: serde_json::Value = serde_json::from_str(input!("valid-rel.json")).unwrap();
+    // q-select's statements, snapshotted once — truths [T,T,T,T,F,F].
+    let all = raw["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["id"] == "q-select")
+        .unwrap()["question"]["statements"]
+        .as_array()
+        .unwrap()
+        .clone();
+    // `keep` subsets q-select's statements and reads the explanation
+    // the engine prints for that item.
+    let mut explanation = |keep: &[usize]| -> String {
+        let item = raw["items"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|i| i["id"] == "q-select")
+            .unwrap();
+        item["question"]["statements"] =
+            serde_json::Value::Array(keep.iter().map(|&i| all[i].clone()).collect());
+        let set = load_reading_set(&serde_json::to_string(&raw).unwrap()).unwrap();
+        answer(&set, idx(&set, "q-select")).unwrap().explanation
+    };
+    assert_eq!(explanation(&[4]), "no statement is true.");
+    assert_eq!(explanation(&[0]), "statement 1 is true.");
+    assert_eq!(explanation(&[0, 1]), "statements 1 and 2 are true.");
+}
+
 // --- trait asks ---------------------------------------------------------------
 
 #[test]

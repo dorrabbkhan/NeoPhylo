@@ -2,10 +2,10 @@
 
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
 rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)**,
-**v1.4b (MEGA companion and data library)** and **v1.4c (matrix input, lesson library and
-worksheets)** released or releasing; **next: v1.4d** (tree reading, moved forward from v1.6), **then v1.5**
-(instructor-run labs, exercise authoring and basic grading — the "Early-adopter pilots" milestone below). Last revised 2026-11-18 after the
-market and viability check (`docs/market/2026-11-18-market-and-viability.md`).
+**v1.4b (MEGA companion and data library)**, **v1.4c (matrix input, lesson library and
+worksheets)** and **v1.4d (tree reading, moved forward from v1.6)** released or releasing;
+**next: v1.5** (instructor-run labs, exercise authoring and basic grading — the "Early-adopter
+pilots" milestone below). Last revised 2026-11-21 at the v1.4d release checkpoint.
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows

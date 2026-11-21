@@ -9101,3 +9101,101 @@ reading links render and resolve.
   test itself, and that mark labels can crowd on form A's printed
   trait tree. The editor's `has_not` limit is described as a current
   limit.
+
+## v1.4d Task 15: release checkpoint
+
+- **Files outside the task's Files block:**
+  - `docs/release-checkpoint.md`: the runbook is per-version — its
+    "This release" table, command examples, owner-pass steps, release
+    notes draft and the "Automation map" all still named v1.4c/v1.4.2.
+    The task's Files block covers `scripts/checkpoint/` plus "the
+    checklist's Automation map", and the Automation map lives in this
+    file; updated to v1.4d/v1.4.3 with the new §16–§23 rows rather
+    than leaving the owner a stale v1.4c runbook at release time.
+  - `docs/decisions.md`: this entry.
+- `CITATION.cff`: `version` bumped to `1.4.3` only; `date-released`
+  stays `2026-11-18` on purpose — the owner sets it on the tag day.
+- No engine, fixture, exercise-content, snapshot-baseline or product
+  `web/src` changes in this task: the checkpoint extensions live in
+  `scripts/checkpoint/browser/release.spec.ts` and are data-driven
+  from the committed reading JSON.
+- Parked for owner triage (listed in the checkpoint §21, not fixed):
+  mark-label collisions on short branches (a), cramped circular
+  layouts under ~10 tips (b), the practice-mode "try again" design
+  point (c), the editor's `has_not` authoring limit (d, still open on
+  main — `TraitAskFields` reads tip readouts while the wire ask wants
+  trait names), the `select_true` "statements 1 are true." wording
+  (e), paper-sheet "Tap…"/test-QR wording (f), and the editor mode-box
+  alignment at 1280 px (g, needs owner approval — 24 baselines). Two
+  warts found while running the new checker locally are recorded at
+  §21(h)/(i): `decompressFromEncodedURIComponent` throws on an
+  undecodable `#r=` fragment (surfaces as the generic engine-load
+  alert), and Share/copy's `void navigator.clipboard?.writeText(…)`
+  leaves an unhandled rejection when clipboard-write is denied.
+- The new checker ran end to end before this commit (the v1.4c
+  lesson): `CHECKPOINT_LOCAL=1 PLAYWRIGHT_BROWSERS_PATH=$PWD/.tmp-pw
+  scripts/checkpoint/browser.sh http://localhost:4173 /tmp/cp-v14d
+  --project=chromium` against `npm run build` + `vite preview` —
+  **99 passed / 0 failed** (all carried §1–§15 plus new §2/§4/§5
+  reading checks and §16–§20). Two first-run bugs in the new tests
+  were fixed and re-verified (a fragment-only goto reusing the stale
+  alert; the clipboard `pageerror` under plain http).
+
+## v1.4d Task 15 fix round 2a (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2a covered §21 (c) practice feedback, (e) select_true
+wording, (h) undecodable `#r=`, (i) clipboard rejections and (j)
+dots sliding on item change.
+
+- **`select_true` explanation grammar (e):** the count wording now
+  agrees — `"statement 1 is true."` for one, `"statements … are
+  true."` (unchanged `join_and`) for several, `"no statement is
+  true."` for none. Engine test
+  `select_true_explanation_matches_the_true_count` pins all three
+  strings against the same item's statement list.
+- **§7.4 practice-feedback deviation (c) — conductor's
+  recommendation, owner-approved.** The spec reads "After Check:
+  correct or not, the engine explanation, and the item's
+  `note_after`. A student can retry." — which made "try again"
+  meaningless because the explanation was already on screen. Practice
+  mode now stages it: the first wrong verdict is "Not quite — try
+  again." with no explanation, no `note_after` and no revealing
+  highlight; a second Check or the new **Show answer** button
+  resolves the item (explanation + `note_after`, Check still
+  available). Correct-first-answer behaviour, test mode and the live
+  region are unchanged. `ReadingSession` gains `attempts` and
+  `revealed` arrays (Back/Next preserves both) and `ReadingAction`
+  gains `reveal`. `docs/instructor-guide.md` gained a staged-feedback
+  paragraph.
+- **`#r=` decode throw (h):** `decodeReadingLink` wraps
+  `decompressFromEncodedURIComponent` in a `try`; an undecodable
+  fragment (`#r=zzz`) refuses with the same link-naming message the
+  invalid-JSON path uses instead of surfacing as the generic
+  engine-load alert.
+- **Clipboard rejections (i):** `.catch(() => undefined)` on all
+  three `navigator.clipboard.writeText` call sites —
+  `EditorPanel.tsx`, `ReadingEditor.tsx`, `ErrorBoundary.tsx`. The
+  share notice still shows the link; `grep` found no other call sites
+  under `web/src`.
+- **Item-change sliding (j):** `ReadingTree.tsx` draws a render whose
+  `view` prop changed — an item switch — with the transition off, so
+  elements land at final coordinates in one commit. Devin's call,
+  deviating from the prescribed index-in-key remount: `.rt-figure` is
+  a flex item sized by its own content, so `box.width` (measured) and
+  `fig.width` (drawn) form a feedback loop — a remount restarts the
+  measurement near zero and visibly converges narrower (proved by the
+  `reading-q-count-clades` baseline diffing only with the remount in).
+  Suppression produces the same student-visible outcome without the
+  relayout drift. A panel resize slid dots the same way (a width
+  change rewrites every live transform, which the CSS transition
+  animates), so `ReadingTree.tsx` also suppresses the transition on a
+  width-only relayout; rotation within a stable width still
+  animates.
+- **Files outside the task's Files block:**
+  - `web/e2e/reading-editor.spec.ts`, `web/e2e/editor.spec.ts`:
+    denied-clipboard Share tests for §21(i) — the Files block names
+    `web/e2e/reading.spec.ts` for e2e, but the two Share handlers
+    under test live on the editor pages, whose specs are these.
+  - `docs/instructor-guide.md`: the §21(c) item requires updating
+    the guide's practice-feedback text in the same PR.
+  - `docs/decisions.md`: this entry.

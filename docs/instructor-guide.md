@@ -67,6 +67,8 @@ Four practice-mode sets, all intro level, in teaching order:
 - [Who is closest?](?read=trees-closest-relatives) — relatedness read from shared ancestry, not from tip proximity or resemblance.
 - [Clades and shared traits](?read=trees-clades-traits) — monophyly and trait marks, including losses.
 
+Practice-mode feedback is staged: a correct answer earns the verdict and the engine's plain-English explanation at once; a first wrong answer hears only "Not quite — try again." with nothing revealed, so the student changes the response and checks again; a second Check — or pressing **Show answer** — resolves the item with the explanation and any teaching note. Back and Next move freely, and each item keeps its feedback state when the student returns to it.
+
 ### Using forms A and B
 
 [Tree reading — form A](?read=trees-form-a) and [Tree reading — form B](?read=trees-form-b) are parallel test-mode sets: the same misconception categories on different trees and taxa, so a class can sit one before teaching and the other after. Test mode shows no per-item feedback; the Finish screen gives the score with each item's explanation. Both are labelled "NeoPhylo's own questions, not a validated instrument" — see **Measuring learning** below.

@@ -450,6 +450,10 @@
   color: var(--color-text-muted);
 }
 
+.read-show-answer {
+  margin-top: var(--space-8);
+}
+
 .read-nav {
   display: flex;
   gap: var(--space-8);

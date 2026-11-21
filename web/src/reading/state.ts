@@ -4,6 +4,10 @@
 // page asks the engine's `readingCheck` for the item the student
 // checked, so correctness and explanations live in Rust only
 // (spec §5.3). Test mode never marks an item checked before Finish.
+// What the session does keep per item is the Check count and the
+// "Show answer" flag: the first wrong verdict holds the explanation
+// back for one real retry, a second Check or a reveal resolves the
+// item (the §7.4 deviation the owner approved, checkpoint §21(c)).
 
 import type { Item } from "../engine/generated/Item";
 import type { Question } from "../engine/generated/Question";
@@ -27,12 +31,21 @@ export interface ReadingSession {
   index: number;
   responses: (ResponseDraft | null)[];
   checked: boolean[];
+  /** Check presses per item (practice mode only): the first wrong
+   *  verdict offers a retry without the explanation; a second Check
+   *  resolves the item (owner-approved §7.4 deviation, checkpoint
+   *  §21(c)). */
+  attempts: number[];
+  /** "Show answer" pressed on the item — its explanation is out for
+   *  good, so every later verdict shows it. */
+  revealed: boolean[];
   finished: boolean;
 }
 
 export type ReadingAction =
   | { type: "answer"; response: ResponseDraft | null }
   | { type: "check" }
+  | { type: "reveal" }
   | { type: "next" }
   | { type: "back" }
   | { type: "finish" }
@@ -47,6 +60,8 @@ export function initSession(set: ReadingSet): ReadingSession {
     index: 0,
     responses: Array.from({ length: set.items.length }, () => null),
     checked: Array.from({ length: set.items.length }, () => false),
+    attempts: Array.from({ length: set.items.length }, () => 0),
+    revealed: Array.from({ length: set.items.length }, () => false),
     finished: false,
   };
 }
@@ -76,7 +91,18 @@ export function readingReducer(
       }
       const checked = s.checked.slice();
       checked[s.index] = true;
-      return { ...s, checked };
+      const attempts = s.attempts.slice();
+      attempts[s.index] += 1;
+      return { ...s, checked, attempts };
+    }
+    case "reveal": {
+      // "Show answer" — practice mode only, like check. The button
+      // renders only beside a first wrong verdict, but the flag
+      // itself needs no response behind it.
+      if (s.set.mode !== "practice") return s;
+      const revealed = s.revealed.slice();
+      revealed[s.index] = true;
+      return { ...s, revealed };
     }
     case "next":
       return { ...s, index: Math.min(s.index + 1, s.set.items.length - 1) };
