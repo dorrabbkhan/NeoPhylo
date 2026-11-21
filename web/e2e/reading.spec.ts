@@ -981,3 +981,88 @@ for (const vp of [1024, 1920]) {
     ).toBeLessThanOrEqual(cap + 1);
   });
 }
+
+/* Round 2d (R1): the 2b2 cap only stopped a lone figure from
+ * stretching — it also forced .rt-canvas to scroll when a drawing was
+ * wider than the cap but not wider than the row (the long-name
+ * tips-up figure kept its cue at 1024 px in CI). A lone figure's
+ * width is now min(its share, max(its drawing, --reading-figure-max)),
+ * so at desktop widths a canvas may scroll only when its drawing is
+ * wider than the share the row allots it. Every item of trees-demo,
+ * cov-styles and the four lessons, at 1024 and 1920 px. */
+const FIGURE_FIT_SETS: [string, string][] = [
+  ["trees-demo", "trees-demo.json"],
+  ["cov-styles", "coverage/cov-styles.json"],
+  ["trees-reading-a-tree", "trees-reading-a-tree.json"],
+  ["trees-clades-traits", "trees-clades-traits.json"],
+  ["trees-closest-relatives", "trees-closest-relatives.json"],
+  ["trees-rotation", "trees-rotation.json"],
+];
+
+for (const vp of [1024, 1920]) {
+  test(`no canvas scrolls unless its drawing exceeds the row share (${vp} px)`, async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await page.setViewportSize({ width: vp, height: 800 });
+    for (const [id, file] of FIGURE_FIT_SETS) {
+      const items = (
+        JSON.parse(
+          readFileSync(
+            resolve("..", "exercises", "reading", file),
+            "utf8",
+          ),
+        ) as { items: unknown[] }
+      ).items.length;
+      await page.goto(`/?read=${id}`);
+      await expect(
+        page.getByText(/Question 1 of/),
+        `${id} loads`,
+      ).toBeVisible();
+      for (let i = 0; i < items; i += 1) {
+        await expect(
+          page.getByText(`Question ${i + 1} of`),
+          `${id} item ${i + 1}`,
+        ).toBeVisible();
+        await expect(
+          page.locator(".read-trees > .rt-figure svg").first(),
+          `${id} item ${i + 1} draws a tree`,
+        ).toBeVisible();
+        const bad = await page.evaluate(() => {
+          const out: string[] = [];
+          document
+            .querySelectorAll<HTMLElement>(".read-trees")
+            .forEach((row) => {
+              const gap =
+                parseFloat(getComputedStyle(row).columnGap) || 0;
+              const figs = [
+                ...row.querySelectorAll<HTMLElement>(".rt-figure"),
+              ];
+              // The equal flex share every figure gets — the row's
+              // width minus its gaps, split evenly.
+              const share =
+                (row.clientWidth - gap * (figs.length - 1)) /
+                figs.length;
+              figs.forEach((fig, j) => {
+                const c = fig.querySelector<HTMLElement>(".rt-canvas");
+                const svg = c?.querySelector("svg");
+                if (!c || !svg) return;
+                if (c.scrollWidth <= c.clientWidth + 1) return;
+                const w = svg.getBoundingClientRect().width;
+                if (w <= share + 1) {
+                  out.push(
+                    `figure ${j}: drawing ${w.toFixed(0)} px fits its ${share.toFixed(0)} px share but the canvas scrolls ${c.scrollWidth} > ${c.clientWidth}`,
+                  );
+                }
+              });
+            });
+          return out;
+        });
+        expect(bad, `${id} item ${i + 1} at ${vp} px`).toEqual([]);
+        if (i + 1 < items) {
+          await page.getByRole("button", { name: "Next" }).click();
+        }
+      }
+    }
+  });
+}

@@ -9525,3 +9525,48 @@ session every §21 item (a)–(k) is fixed in this PR.
   - `web/src/views/worksheets/worksheets.css`
   - `web/src/worksheets/reading.test.ts`
   - `web/src/worksheets/reading.ts`
+
+## v1.4d Task 15 fix round 2d (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2d covered the two follow-ups from CI and the round-2 review:
+the lone-figure width cap forcing an unnecessary scroll (§21(k)) and
+`paperText` throwing on user-authored shared sets (§21(f)).
+
+- **Lone-figure width (R1, CI run 44927037765):** the 2b2 rule
+  `max-width: min(100%, var(--reading-figure-max))` on
+  `.read-trees > .rt-figure` capped a lone figure below its content's
+  width, so `.rt-canvas` kept scrolling — and kept `data-cue` — even
+  when the row had room (the 565 px long-name tips-up tree at 1024 px).
+  `.read-trees > .rt-figure:only-of-type` now takes a content flex
+  basis (`flex: 0 1 auto`) floored at the compact cap and ceiled at
+  the row: width = min(row, max(drawing, READING_FIGURE_MAX)) — the
+  cap still stops a figure stretching past its drawing, never forces
+  a scroll, and multi-tree rows keep their equal share under the cap.
+  Devin's call: scoping the content basis to `:only-of-type` — a
+  `min()`/`clamp()` alternative on every figure would have let
+  multi-tree rows give each figure its own max instead of the equal
+  share the row contract wants, and a `min-width: fit-content` first
+  attempt overflowed the 360 px row instead of scrolling inside the
+  canvas (the scroll-cue e2e caught it). Mount-history independence
+  is unchanged — the rule is pure CSS off the same row geometry.
+- **`paperText` on user content (R2):** the unmapped-verb throw was
+  right for shipped content but `?worksheet=custom`/`?key=custom`
+  feed author-built sets through `#r=`, where an instruction like
+  "Click…"/"Pick…" crashed the sheet into the error page. `paperText`
+  now leaves an unmapped sentence's authored wording untouched;
+  strictness moved to the corpus: `unmappedPaperSentences(item)`
+  (new export) reports every sentence start hitting a screen verb
+  the table doesn't map, and the built-in+coverage corpus test
+  asserts it is empty for every shipped item. "Pick" joined
+  `SCREEN_VERB` and the test's instruction regex.
+- **No baselines regenerated:** the full `visual` project (333
+  scenes) passed unchanged — every shot lone figure draws ≤ 560 px
+  (the only >560 px figure in the baselined sets, trees-demo item
+  24's long-name tips-up tree, is shot only at 360 px where it
+  scrolls either way), so no frame moved.
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `web/e2e/reading.spec.ts`, `web/e2e/worksheets.spec.ts`: the
+    new §21(k) sweep and §21(f) custom-set e2e.
+  - `web/src/views/reading/reading.css`
+  - `web/src/worksheets/reading.ts`, `web/src/worksheets/reading.test.ts`

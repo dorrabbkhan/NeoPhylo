@@ -29,7 +29,12 @@ import type { ReadingSet } from "../engine/generated/ReadingSet";
 import { readErrorMessage } from "../reading/errors";
 import { fillItemText, fillPlaceholders } from "../reading/state";
 
-import { paperText, readingKey, readingSheet } from "./reading";
+import {
+  paperText,
+  readingKey,
+  readingSheet,
+  unmappedPaperSentences,
+} from "./reading";
 import type { SheetSpace } from "./reading";
 
 const READING = resolve(
@@ -458,7 +463,7 @@ describe("readingSheet", () => {
 describe("paper wording (§21(f))", () => {
   /** The instruction verbs that must never reach paper, at a
    * sentence start. */
-  const INSTRUCTION = /(^|[.!?]\s+)(Tap|Click|Drag|Press|Select|Swipe|Hover|Rotate nodes freely)\b/;
+  const INSTRUCTION = /(^|[.!?]\s+)(Tap|Click|Drag|Press|Select|Swipe|Hover|Pick|Rotate nodes freely)\b/;
 
   it("no sheet or key text carries a screen instruction verb", () => {
     for (const [id, set] of SETS) {
@@ -481,11 +486,17 @@ describe("paper wording (§21(f))", () => {
   });
 
   it("every instruction the corpus uses is mapped", () => {
-    // Building every sheet and key already throws on an unmapped
-    // verb; pin the mappings so a wording change is deliberate.
+    // Strictness lives here now (round 2d): paperText no longer
+    // throws, so the corpus itself must report no unmapped verb —
+    // a new screen instruction in shipped content fails this test
+    // instead of printing app wording on paper.
     const mapped = new Map<string, string>();
-    for (const [, set] of SETS) {
+    for (const [id, set] of SETS) {
       for (const item of set.items) {
+        expect(
+          unmappedPaperSentences(item),
+          `${id}#${item.id} starts a sentence with an unmapped verb`,
+        ).toEqual([]);
         const raw = fillPlaceholders(item.text, item);
         const paper = paperText(item);
         if (raw !== paper) mapped.set(raw, paper);
@@ -499,18 +510,27 @@ describe("paper wording (§21(f))", () => {
     }
   });
 
-  it("an unmapped instruction verb fails the sheet", () => {
+  it("an unmapped instruction verb prints the authored text", () => {
+    // User-built sets feed readingSheet through `?worksheet=custom` —
+    // a verb the table doesn't cover must not crash the sheet into
+    // the error page; it prints the authored wording instead (round
+    // 2d, R2). "Click" and "Pick" are both flagged unmapped, so these
+    // exercise the fallback rather than an unrelated pass-through.
     const set = SETS.get("trees-demo")!;
-    const bad = {
-      ...set,
-      items: [
-        {
-          ...set.items[0],
-          text: "Click the node where every lineage last met.",
-        },
-      ],
-    };
-    expect(() => readingSheet(bad, "x")).toThrow(/unmapped/);
+    for (const text of [
+      "Click the node where every lineage last met.",
+      "Pick the tip that branches off first.",
+    ]) {
+      const item = { ...set.items[0], text };
+      expect(
+        unmappedPaperSentences(item),
+        `"${text.slice(0, 30)}" is an unmapped screen verb`,
+      ).toHaveLength(1);
+      const sheet = readingSheet({ ...set, items: [item] }, "x");
+      expect(sheet.items[0].text, `"${text.slice(0, 30)}" verbatim`).toBe(
+        text,
+      );
+    }
   });
 
   it("items without an instruction verb pass through untouched", () => {

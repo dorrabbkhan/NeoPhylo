@@ -638,6 +638,59 @@ test("a custom reading set gets a paper sheet and key through #r=", async ({
   await expect(page.locator(".ws-answer")).toHaveCount(1);
 });
 
+// Round 2d (R2): an authored instruction verb the paper table
+// doesn't cover used to throw inside paperText and crash the sheet
+// into the error page — a shared set's paper sheet now prints the
+// authored wording.
+test("a custom set's unmapped instruction verb prints as authored", async ({
+  page,
+}) => {
+  const set = {
+    schema_version: 1,
+    kind: "reading",
+    id: "e2e-shared-verb",
+    title: "Shared verb set",
+    summary: "A set carried by its link",
+    mode: "practice",
+    taxa_pool: {},
+    trees: {
+      t: {
+        newick: "((a,b),(c,d));",
+        node_letters: [],
+        marks: [],
+        traits: [],
+        points: [],
+      },
+    },
+    items: [
+      {
+        id: "q-pick",
+        text: "Pick the tips that form a clade — are {set} a clade in this tree?",
+        trees: ["t"],
+        tips: ["a", "b"],
+        rotate_tool: false,
+        question: { type: "is_clade" },
+      },
+    ],
+  };
+  const hash = `#r=${lzstring.compressToEncodedURIComponent(
+    JSON.stringify({ v: 1, set }),
+  )}`;
+
+  await page.goto(`/?worksheet=custom&kind=paper${hash}`);
+  // The sheet renders — the authored "Pick…" instruction verbatim —
+  // and never the error page.
+  await expect(
+    page.getByRole("heading", { name: "Shared verb set", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Pick the tips that form a clade — are a and b a clade in this tree?",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Worksheet not available")).toHaveCount(0);
+});
+
 test("every built-in reading set renders its paper sheet and key without console errors", async ({
   page,
 }) => {

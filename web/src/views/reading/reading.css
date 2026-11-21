@@ -310,6 +310,22 @@
   max-width: min(100%, var(--reading-figure-max));
 }
 
+/* …yet the cap must only stop a lone figure from stretching past what
+ * its drawing needs — it must never force .rt-canvas to scroll while
+ * the row still has room (2d, R1). A lone figure sizes from its own
+ * content basis instead of the zero share: floored at the compact cap
+ * and ceiled at the row, its used width lands at
+ * min(row, max(drawing, --reading-figure-max)) — a drawing narrower
+ * than the cap keeps the compact look, a wider one grows to it and a
+ * wider-than-row one still scrolls. Scoped to a lone figure: a
+ * multi-tree row allots shares under the cap anyway, and there the
+ * equal share must stay the only constraint. */
+.read-trees > .rt-figure:only-of-type {
+  flex: 0 1 auto;
+  min-width: min(100%, var(--reading-figure-max));
+  max-width: 100%;
+}
+
 /* Below 600 px multi-tree items stack vertically (spec §6). nowrap
  * matters in the column direction: a wrapping column line sizes to
  * its item's content, which would let a wide figure overflow the
