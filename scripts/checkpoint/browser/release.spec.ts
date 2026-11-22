@@ -1654,9 +1654,12 @@ test("§16 an unknown ?read= id and a malformed #r= link refuse plainly", async 
   // cannot decode at all and the empty fragment the decompression
   // failure, a non-JSON payload the JSON failure, a well-formed link
   // carrying a bad set the engine's InvalidReading.
-  // Each gets a fresh cold load (goto("/") first): a fragment-only
-  // navigation doesn't remount the page, and a user landing on a
-  // corrupted link arrives cold anyway.
+  // Each gets a fresh cold load (goto("about:blank") first, never
+  // goto("/") — under load that second goto can land before the app's
+  // URL sync replaceState-s its lesson query onto "/", making the
+  // corrupted-link goto fragment-only, which never remounted the page:
+  // the WebKit flake this case had. A real user landing on a corrupted
+  // link arrives cold anyway.)
   for (const [frag, msg] of [
     ["#r=zzz", "the shared set could not be decompressed"],
     ["#r=", "the shared set could not be decompressed"],
@@ -1671,7 +1674,7 @@ test("§16 an unknown ?read= id and a malformed #r= link refuse plainly", async 
       "",
     ],
   ] as const) {
-    await page.goto("/");
+    await page.goto("about:blank");
     await visitReading(page, `/${frag}`);
     const alert = page.getByRole("alert");
     await expect(

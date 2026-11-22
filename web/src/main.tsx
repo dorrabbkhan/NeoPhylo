@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { BootstrapClient, bootstrapClient } from "./engine/bootstrapClient";
 import { engine } from "./engine";
+import { watchReadingLinks } from "./reading/hashWatch";
 import { Root } from "./Root.tsx";
 import { ErrorBoundary } from "./views/ErrorBoundary.tsx";
 
@@ -23,6 +24,11 @@ try {
   // localStorage can throw where storage is disabled; the hook is
   // e2e-only, so a failure just means no hook.
 }
+
+// Root's route is picked once, at module load — a fragment-only
+// navigation that crosses a `#r=` boundary must reload to re-pick it
+// (checkpoint fix, owner decision 2026-11-22).
+watchReadingLinks();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

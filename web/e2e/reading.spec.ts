@@ -623,6 +623,64 @@ test("a #r= fragment lz-string cannot decode refuses with the link message", asy
   await expect(alert).not.toContainText(/engine/i);
 });
 
+/* ---- same-tab #r= re-routing -------------------------------------------------- */
+
+// Root picks its route once at module load, so a fragment-only
+// navigation used to leave the old page mounted: a second `#r=` link
+// opened in the same tab kept showing the first set, and `#r=` added
+// to a `?read=` URL never mounted the shared set at all (reproduced on
+// the PR #182 deploy). The hashchange watcher now reloads across a
+// `#r=` boundary so the route is picked again — checkpoint fix, owner
+// decision 2026-11-22.
+
+/** A `#r=` hash carrying a one-item set built from the demo file —
+ *  the same { v: 1, set } envelope the editor's Share button writes. */
+const sharedHash = (id: string, title: string): string =>
+  "#r=" +
+  lzstring.compressToEncodedURIComponent(
+    JSON.stringify({
+      v: 1,
+      set: { ...demoSet, id, title, items: [demoSet.items[6]] },
+    }),
+  );
+
+test("a second #r= link in the same tab re-routes to its set", async ({
+  page,
+}) => {
+  await page.goto(`/${sharedHash("shared-a", "Shared set A")}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared set A" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
+
+  // Same-document navigation: only the fragment differs, so without
+  // the watcher the first set would stay mounted.
+  await page.goto(`/${sharedHash("shared-b", "Shared set B")}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared set B" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
+});
+
+test("adding #r= to a ?read= URL mounts the shared set", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-form-a");
+  await expect(
+    page.getByRole("heading", { name: "Tree reading — form A" }),
+  ).toBeVisible();
+
+  // `#r=` wins over `?read=` — the shared set's title replaces the
+  // shipped set's.
+  await page.goto(
+    `/?read=trees-form-a${sharedHash("shared-c", "Shared set C")}`,
+  );
+  await expect(
+    page.getByRole("heading", { name: "Shared set C" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
+});
+
 /* ---- test mode --------------------------------------------------------------- */
 
 test("a test-mode set hides verdicts until Finish, then shows the summary", async ({

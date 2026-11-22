@@ -9570,3 +9570,28 @@ the lone-figure width cap forcing an unnecessary scroll (§21(k)) and
     new §21(k) sweep and §21(f) custom-set e2e.
   - `web/src/views/reading/reading.css`
   - `web/src/worksheets/reading.ts`, `web/src/worksheets/reading.test.ts`
+
+## v1.4d Task 15 checkpoint finding (owner decision 2026-11-22: fix the fragment-only `#r=` re-route before tag)
+
+The §16 checkpoint run found that `web/src/Root.tsx` picks its route
+once at module load, so a navigation that differed only in the
+fragment never re-routed: a student on `/#r=<set A>` opening
+`/#r=<set B>` in the same tab kept set A, and adding `#r=` to a
+`?read=` URL never mounted the shared set (reproduced on the PR #182
+deploy). The same race made the §16 corrupted-link test's
+`goto("/")` + fragment-only goto flake on WebKit. A `hashchange`
+watcher (`web/src/reading/hashWatch.ts`, installed by `main.tsx`)
+now reloads the document when a fragment change crosses a `#r=`
+boundary — one side carrying a shared set and the two fragments
+differing — and leaves every other fragment change (the
+Skip-to-content `#main-content` link) alone. The §16 corrupted-link
+cases are true cold loads again (`about:blank`, not `/`).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: new §21 item (l).
+  - `web/src/main.tsx`, `web/src/reading/hashWatch.ts` (new),
+    `web/src/reading/hashWatch.test.ts` (new).
+  - `web/e2e/reading.spec.ts`: the same-tab `#r=` re-route pair.
+  - `scripts/checkpoint/browser/release.spec.ts`: cold-load fix
+    (inside the block's `scripts/checkpoint/` entry).
