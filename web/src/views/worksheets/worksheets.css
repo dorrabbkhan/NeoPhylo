@@ -347,15 +347,31 @@
     break-inside: avoid-page;
   }
 
+  /* Reading-sheet pagination (checkpoint §21(m)): the item as a
+   * whole may break across pages — an item taller than the room
+   * under the header used to be pushed whole onto page 2 (leaving
+   * page 1 holding the masthead alone), then split anyway and left
+   * a figure caption alone at a page bottom. The unbreakable units
+   * are the pieces instead: each figure — its caption and drawing —
+   * is one block, so a caption never separates; the question stays
+   * with the first figure, and the answer block stays whole and
+   * glued to the last figure. A short item still prints intact:
+   * every neighbour pair it has is a keep-together. */
+  .ws-read-item > .ws-question {
+    break-after: avoid-page;
+  }
+
+  .ws-read-item > .ws-space,
+  .ws-read-item > .ws-fill-line {
+    break-inside: avoid-page;
+    break-before: avoid-page;
+  }
+
   /* Reading trees print stacked inside the A4 printable width
    * (~180 mm ≈ 680 px — the shared @page margins): the figures stack,
    * each canvas is capped so its ResizeObserver refits the drawing
    * at paper width instead of clipping, and the screen-only controls
    * (scroll cue, Show-as-text toggle) stay off the sheet. */
-  .ws-read-item {
-    break-inside: avoid-page;
-  }
-
   .ws-read-trees {
     flex-direction: column;
     flex-wrap: nowrap;
@@ -368,6 +384,7 @@
   .read-trees.ws-read-trees > .rt-figure {
     flex: none;
     max-width: 680px;
+    break-inside: avoid-page;
   }
 
   .ws-read-trees .rt-canvas {

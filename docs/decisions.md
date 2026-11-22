@@ -9595,3 +9595,36 @@ cases are true cold loads again (`about:blank`, not `/`).
   - `web/e2e/reading.spec.ts`: the same-tab `#r=` re-route pair.
   - `scripts/checkpoint/browser/release.spec.ts`: cold-load fix
     (inside the block's `scripts/checkpoint/` entry).
+
+## v1.4d Task 15 checkpoint findings (owner decision 2026-11-22: fix the two print findings before tag)
+
+The v1.4.3 checkpoint run's `print/` PDFs showed two defects on the
+reading paper sheets (§21(m)/(n)): a whole-item `break-inside:
+avoid-page` pushed over-tall items past the header onto page 2 (blank
+page 1), then split anyway and orphaned figure captions at page
+bottoms; and Linux Chromium's hinted whole-pixel glyph advances made
+printed letter spacing uneven, splitting words in `pdftotext` ("minut
+es"). The item now breaks at piece level (figure = caption + drawing
+unbreakable, question glued to the first figure, answer block
+unbreakable and glued to the last figure) and print takes
+`text-rendering: geometricPrecision` on `:root` — screen keeps
+`optimizeLegibility`. The checkpoint gains a PDF text check
+(`scripts/checkpoint/pdfcheck.py`, folded into `report.py`): page 1
+carries item 1's prompt, every prompt is whole, and no page ends on a
+lone `Tree N` caption — positions from `pdftotext -tsv`, with the
+tail of an options run ("Circle one." → ○ Tree 1 / Tree 2) excluded
+since a last-line "Tree 2" there is an option, not a caption. The
+paper-text rebuild ports `PAPER_VERBS`/`{a,b,c,set}` filling from
+`web/src/worksheets/reading.ts` + `web/src/reading/state.ts` into
+Python; `test_pdfcheck.py` pins the table against the TS source.
+Regenerated print-only visual baselines (48 `*-print-*` files) in the
+pinned CI image; no screen baseline changed.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21 items (m)/(n), the §14
+    automated-coverage line.
+  - `web/src/index.css`, `web/src/views/worksheets/worksheets.css`:
+    the print rules.
+  - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
+  - `web/e2e/__screenshots__/`: 48 regenerated `*-print-*` baselines.

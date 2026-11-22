@@ -520,6 +520,14 @@ p {
  * svg scales down instead of clipping off the page's right edge, and
  * the screen-only scroll region can't clip it either. */
 @media print {
+  /* Checkpoint §21(n): on Linux, Chromium lays glyphs out at hinted
+   * whole-pixel advances, and printing reuses them — printed words
+   * get uneven letter gaps and pdftotext even splits them ("minut
+   * es"). geometricPrecision uses exact advances. Print-only: the
+   * screen keeps optimizeLegibility. */
+  :root {
+    text-rendering: geometricPrecision;
+  }
   .tree-canvas {
     overflow: visible;
   }

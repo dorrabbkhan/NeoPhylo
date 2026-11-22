@@ -888,6 +888,74 @@ test("form A's trait tree: mark labels clear hippo (print + screen)", async ({
   await check("screen 1024");
 });
 
+// §21(m)/(n): the reading sheet's print rules. text-rendering:
+// geometricPrecision is print-only — hinted whole-pixel advances made
+// printed letter spacing uneven and split words in the PDF text. And
+// the item's PIECES, not the item, avoid page breaks: each figure
+// (caption + drawing) is one unbreakable block, the question stays
+// with the first figure and the answer block stays whole and with
+// the last figure, while a multi-figure item may itself split.
+test("a reading sheet prints exact text with unbreakable pieces, not items", async ({
+  page,
+}) => {
+  const css = (loc: Locator, prop: string): Promise<string> =>
+    loc.evaluate(
+      (el, p) => getComputedStyle(el).getPropertyValue(p),
+      prop,
+    );
+
+  await page.goto("/?worksheet=trees-demo&kind=paper");
+  const items = page.locator(".ws-read-item");
+  await expect(items.first()).toBeVisible();
+
+  // Screen rendering is untouched: legibility, no print break rules.
+  expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
+    /geometricprecision/i,
+  );
+  expect(await css(items.first(), "break-inside")).toBe("auto");
+  expect(
+    await css(items.first().locator(".rt-figure").first(), "break-inside"),
+  ).toBe("auto");
+
+  await page.emulateMedia({ media: "print" });
+  // Chromium serializes the computed keyword lowercase.
+  expect(await css(page.locator("body"), "text-rendering")).toBe(
+    "geometricprecision",
+  );
+
+  // A multi-figure item (trees-demo item 1 shows three trees): the
+  // item may break — its pieces may not.
+  const figCounts = await items.evaluateAll((els) =>
+    els.map((e) => e.querySelectorAll(".rt-figure").length),
+  );
+  const mi = figCounts.findIndex((n) => n > 1);
+  expect(mi, "a multi-figure item exists").toBeGreaterThanOrEqual(0);
+  const multi = items.nth(mi);
+  expect(await css(multi, "break-inside")).not.toMatch(/^avoid/);
+  for (const fig of await multi.locator(".rt-figure").all()) {
+    expect(await css(fig, "break-inside"), "figure is one block").toMatch(
+      /^avoid/,
+    );
+  }
+  expect(
+    await css(multi.locator(".ws-question"), "break-after"),
+    "question stays with the first figure",
+  ).toMatch(/^avoid/);
+  const space = multi.locator(".ws-space, .ws-fill-line").last();
+  expect(await css(space, "break-inside"), "answer block unbreakable").toMatch(
+    /^avoid/,
+  );
+  expect(
+    await css(space, "break-before"),
+    "answer block stays with the last figure",
+  ).toMatch(/^avoid/);
+
+  await page.emulateMedia({ media: "screen" });
+  expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
+    /geometricprecision/i,
+  );
+});
+
 // Fix round 1 (review 4): under a coarse pointer every interactive
 // element on the worksheet pages — plain links included — meets the
 // 40×40 px target the app promises elsewhere.

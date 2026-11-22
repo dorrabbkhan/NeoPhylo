@@ -16,6 +16,8 @@ import re
 import sys
 from collections import defaultdict
 
+import pdfcheck
+
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -141,10 +143,14 @@ def main():
 
     browser, bfails = browser_summary(out)
     nshots, npdfs = gallery(out, args.title)
+    pdftext, pfails = pdfcheck.section(out)
     sections = [f"# {args.title}", ""]
-    for name in ("preflight.md", None, "mega.md"):
+    for name in ("preflight.md", None, "mega.md", "pdftext"):
         if name is None:
             sections.append(browser)
+            continue
+        if name == "pdftext":
+            sections.append(pdftext)
             continue
         p = os.path.join(out, name)
         sections.append(open(p).read() if os.path.exists(p)
@@ -155,7 +161,7 @@ def main():
         fh.write("\n".join(sections))
     print(f"report: {os.path.join(out, 'report.md')}")
     print(f"gallery: {os.path.join(out, 'gallery.html')} ({nshots} shots, {npdfs} PDFs)")
-    return 1 if bfails else 0
+    return 1 if bfails or pfails else 0
 
 
 if __name__ == "__main__":
