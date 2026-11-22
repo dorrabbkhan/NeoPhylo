@@ -915,8 +915,10 @@ test("form A's trait tree: mark labels clear hippo (print + screen)", async ({
 // (caption + drawing) is one unbreakable block, the question and the
 // first figure are one structural block (the .ws-lead wrapper —
 // break-after: avoid on the question did not reach into the flex
-// row), and the answer block stays whole and with the last figure,
-// while a multi-figure item may itself split.
+// row), and the last figure and the answer block are one structural
+// block too (the .ws-trail wrapper — Firefox computes break-before:
+// avoid to auto, so the glue can't be a break hint), while a
+// multi-figure item may itself split.
 test("a reading sheet prints exact text with unbreakable pieces, not items", async ({
   page,
 }) => {
@@ -931,8 +933,10 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
   await expect(items.first()).toBeVisible();
 
   // Screen rendering is untouched: legibility, no print break rules,
-  // and the structural wrappers are transparent (display: contents —
-  // .ws-end inside the tail is a block only to undo the list indent).
+  // and the structural wrappers are transparent — .ws-lead/.ws-trail
+  // are display: contents and .ws-tail is a plain block line of the
+  // trees row (.ws-end inside it is a block only to undo the list
+  // indent).
   expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
     /geometricprecision/i,
   );
@@ -944,8 +948,11 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
     await css(items.first().locator(".ws-lead"), "display"),
   ).toBe("contents");
   expect(
-    await css(items.first().locator(".ws-tail"), "display"),
+    await css(items.first().locator(".ws-trail"), "display"),
   ).toBe("contents");
+  expect(
+    await css(items.first().locator(".ws-tail"), "display"),
+  ).toBe("block");
 
   await page.emulateMedia({ media: "print" });
   // Chromium serializes the computed keyword lowercase.
@@ -979,28 +986,68 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
   expect(await css(space, "break-inside"), "answer block unbreakable").toMatch(
     /^avoid/,
   );
+  // The glue between the last figure and the answer block is
+  // STRUCTURAL — they share the .ws-trail wrapper, one unbreakable
+  // block in print that is display:contents on screen. Assert the
+  // structure, never a computed break-before/break-after value:
+  // Firefox can't produce one (it computes break-before: avoid to
+  // auto), while break-inside: avoid holds in every engine.
+  const trail = multi.locator(".ws-trail");
+  await expect(trail).toHaveCount(1);
+  expect(await css(trail, "display"), "trail is a real block in print").toBe(
+    "block",
+  );
   expect(
-    await css(space, "break-before"),
-    "answer block stays with the last figure",
+    await css(trail, "break-inside"),
+    "last figure + answer block are one unbreakable block",
   ).toMatch(/^avoid/);
+  expect(
+    await multi
+      .locator(".rt-figure")
+      .last()
+      .evaluate((el) => el.parentElement?.classList.contains("ws-trail")),
+    "the item's last figure lives inside the trail",
+  ).toBe(true);
+  expect(
+    await space.evaluate((el) => el.closest(".ws-trail") !== null),
+    "the answer block lives inside the trail",
+  ).toBe(true);
+
+  // A single-figure item merges lead and trail: prompt + figure +
+  // answer are one unbreakable block.
+  const si = figCounts.findIndex((n) => n === 1);
+  expect(si, "a single-figure item exists").toBeGreaterThanOrEqual(0);
+  const single = items.nth(si).locator(".ws-lead.ws-trail");
+  await expect(single).toHaveCount(1);
+  expect(
+    await css(single, "break-inside"),
+    "single-figure item is one block",
+  ).toMatch(/^avoid/);
+  expect(
+    await single.locator("> .ws-question, > .rt-figure, > .ws-tail").count(),
+    "prompt + figure + answer share the merged block",
+  ).toBe(3);
 
   // The last item's tail — answer space + closing block + footer —
   // is one unbreakable unit holding real text, so the last page
-  // never holds the footer alone. break-before is only a hint:
-  // Chromium ignores it, the structure is the guarantee.
+  // never holds the footer alone. The closing block's glue is
+  // structural as well: it sits inside the same atomic tail.
   const tail = items.last().locator(".ws-tail");
   expect(
     await css(tail, "break-inside"),
     "last item tail is one unbreakable unit",
   ).toMatch(/^avoid/);
+  expect(await css(tail, "display"), "tail is atomic in print").toBe(
+    "inline-block",
+  );
   const end = tail.locator(".ws-end");
   expect(await css(end, "break-inside"), "closing block is one unit").toMatch(
     /^avoid/,
   );
   expect(
-    await css(end, "break-before"),
-    "closing block stays with the last item",
-  ).toMatch(/^avoid/);
+    await end.evaluate((el) => el.closest(".ws-trail") !== null),
+    "closing block + footer live inside the last item's trail",
+  ).toBe(true);
 
   await page.emulateMedia({ media: "screen" });
   expect(await css(page.locator("body"), "text-rendering")).not.toMatch(

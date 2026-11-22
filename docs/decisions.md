@@ -9668,3 +9668,40 @@ PDFs (`scripts/checkpoint/testdata/`).
   - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
   - `web/e2e/__screenshots__/`: 8 regenerated
     `worksheet-reading(-form)-print-*` baselines.
+
+## v1.4d Task 15 checkpoint findings — fix round 3 (PR #182 firefox e2e, 2026-11-22)
+
+PR CI's firefox shard failed the print e2e: `break-before: avoid`
+computes to `auto` in Firefox (no `avoid` value), so the answer
+block's glue to the last figure only held in Chromium — a real gap
+for teachers printing from Firefox, not just a test issue. The glue
+is now structural like `.ws-lead`'s: `.ws-trail` wraps each item's
+last figure together with its `.ws-tail` (the answer space, and on
+the last item the closing block + footer) — `display: contents` on
+screen, `display: block; break-inside: avoid-page` in print. On a
+single-figure item lead and trail merge (`.ws-lead.ws-trail`): prompt
++ figure + answer are one block. `break-before: avoid-page` stays as
+a harmless extra; nothing depends on it. The e2e asserts the
+structure (the last figure and the answer block share `.ws-trail`,
+which keeps a `break-inside` starting with `avoid` in print), never
+a computed `break-before`/`break-after` Firefox cannot produce — it
+passes on Chromium and Firefox locally, plus a print-media DOM check
+in Firefox on the cov-styles and trees-form-a sheets. `.ws-tail`
+became a real flex line of the trees row on screen (the trail must
+hold it), with the margins that used to collapse through it
+re-pointed so the layout is pixel-identical — all 42 worksheet
+screen baselines re-verified unchanged in the pinned image; the only
+regenerated files are the 8 `worksheet-reading(-form)-print`
+baselines. All 24 reading sheet/key PDFs were regenerated and are
+clean under pdfcheck.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(m) follow-up text.
+  - `web/src/views/worksheets/worksheets.css`: the `.ws-trail`/screen
+    tail rules.
+  - `web/src/views/worksheets/ReadingSheetView.tsx`: the `.ws-trail`
+    wrapper.
+  - `web/e2e/worksheets.spec.ts`: structural print assertions.
+  - `web/e2e/__screenshots__/`: 8 regenerated
+    `worksheet-reading(-form)-print-*` baselines.

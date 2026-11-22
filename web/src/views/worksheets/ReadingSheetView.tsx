@@ -53,29 +53,21 @@ export function ReadingSheetView({ set, sheet }: ReadingSheetViewProps) {
         </p>
       </header>
       <ol className="ws-items">
-        {sheet.items.map((item, i) => (
-          <li key={item.id} className="ws-item ws-read-item">
-            {/* ws-lead is display:contents on screen — the question is
-                a full-width line of the trees row and the first figure
-                shares it with the rest — and one unbreakable block in
-                print, so the prompt can never end a page without its
-                first figure (checkpoint §21(m)). */}
-            <div className="read-trees ws-read-trees">
-              <div className="ws-lead">
-                <p className="ws-question">{item.text}</p>
-                {item.trees.slice(0, 1).map((t) => (
-                  <SheetTree key={`${t.name}-${t.label}`} item={item} t={t} view={views.get(t.name)} />
-                ))}
-              </div>
-              {item.trees.slice(1).map((t) => (
-                <SheetTree key={`${t.name}-${t.label}`} item={item} t={t} view={views.get(t.name)} />
-              ))}
-            </div>
-            {/* ws-tail is display:contents on screen and one
-                unbreakable block in print. On the last item it wraps
-                the answer space AND the closing block + footer: the
-                space always carries text, so the last page can never
-                hold the footer alone (checkpoint §21(m)). */}
+        {sheet.items.map((item, i) => {
+          const figs = item.trees.map((t) => (
+            <SheetTree
+              key={`${t.name}-${t.label}`}
+              item={item}
+              t={t}
+              view={views.get(t.name)}
+            />
+          ));
+          // ws-tail is a full-width line of the trees row on screen
+          // and one unbreakable block in print. On the last item it
+          // wraps the answer space AND the closing block + footer:
+          // the space always carries text, so the last page can
+          // never hold the footer alone (checkpoint §21(m)).
+          const tail = (
             <div className="ws-tail">
               <SpaceView space={item.space} />
               {i === sheet.items.length - 1 && (
@@ -100,8 +92,43 @@ export function ReadingSheetView({ set, sheet }: ReadingSheetViewProps) {
                 </div>
               )}
             </div>
-          </li>
-        ))}
+          );
+          return (
+            <li key={item.id} className="ws-item ws-read-item">
+              {/* ws-lead and ws-trail are display:contents on screen —
+                  the question is a full-width line of the trees row,
+                  the figures share it and the tail sits under them —
+                  and unbreakable blocks in print: ws-lead keeps the
+                  prompt with its first figure, ws-trail keeps the last
+                  figure with the answer block (a break hint can't —
+                  Firefox computes break-before: avoid to auto, so the
+                  glue has to be structural, checkpoint §21(m)). On a
+                  single-figure item lead and trail are one wrapper:
+                  prompt + figure + answer print as one block. */}
+              <div className="read-trees ws-read-trees">
+                {item.trees.length <= 1 ? (
+                  <div className="ws-lead ws-trail">
+                    <p className="ws-question">{item.text}</p>
+                    {figs}
+                    {tail}
+                  </div>
+                ) : (
+                  <>
+                    <div className="ws-lead">
+                      <p className="ws-question">{item.text}</p>
+                      {figs[0]}
+                    </div>
+                    {figs.slice(1, -1)}
+                    <div className="ws-trail">
+                      {figs[figs.length - 1]}
+                      {tail}
+                    </div>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </>
   );
