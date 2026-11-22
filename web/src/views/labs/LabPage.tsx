@@ -211,22 +211,28 @@ function LabContent({ lab }: { lab: LabExercise }) {
         <h2 id="lab-handout-title">Handout</h2>
         <Md source={block.handout_md} />
       </section>
-      <section aria-labelledby="lab-note-title">
-        <h2 id="lab-note-title">
-          {block.tool === "mega"
-            ? "What MEGA shows you vs what NeoPhylo shows you"
-            : "What PHYLIP's outfile showed you vs NeoPhylo"}
-        </h2>
-        <Md
-          source={
-            block.tool === "mega" ? block.mega_note_md : block.phylip_note_md
-          }
-        />
-      </section>
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — {block.chain.join(" → ")} lab (
-        {lab.fileName}).
-      </footer>
+      {/* ws-end is display:contents on screen and one unbreakable
+          block in print — the closing section and the footer travel
+          together, so a final page never holds the footer alone
+          (checkpoint §21(m)). */}
+      <div className="ws-end">
+        <section aria-labelledby="lab-note-title">
+          <h2 id="lab-note-title">
+            {block.tool === "mega"
+              ? "What MEGA shows you vs what NeoPhylo shows you"
+              : "What PHYLIP's outfile showed you vs NeoPhylo"}
+          </h2>
+          <Md
+            source={
+              block.tool === "mega" ? block.mega_note_md : block.phylip_note_md
+            }
+          />
+        </section>
+        <footer className="lab-print-foot">
+          Printed from NeoPhylo — {block.chain.join(" → ")} lab (
+          {lab.fileName}).
+        </footer>
+      </div>
     </>
   );
 }

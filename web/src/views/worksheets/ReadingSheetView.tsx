@@ -14,6 +14,7 @@ import type { ReadingSet } from "../../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
 import type {
   ReadingSheet,
+  ReadingSheetItem,
   SheetSpace,
 } from "../../worksheets/reading";
 import { ReadingTree } from "../reading/ReadingTree";
@@ -52,55 +53,85 @@ export function ReadingSheetView({ set, sheet }: ReadingSheetViewProps) {
         </p>
       </header>
       <ol className="ws-items">
-        {sheet.items.map((item) => (
+        {sheet.items.map((item, i) => (
           <li key={item.id} className="ws-item ws-read-item">
-            <p className="ws-question">{item.text}</p>
+            {/* ws-lead is display:contents on screen — the question is
+                a full-width line of the trees row and the first figure
+                shares it with the rest — and one unbreakable block in
+                print, so the prompt can never end a page without its
+                first figure (checkpoint §21(m)). */}
             <div className="read-trees ws-read-trees">
-              {item.trees.map((t) => {
-                const v = views.get(t.name);
-                if (v === undefined) {
-                  return (
-                    <p key={t.name} className="error">
-                      Tree “{t.name}” could not be drawn.
-                    </p>
-                  );
-                }
-                return (
-                  <ReadingTree
-                    key={`${t.name}-${t.label}`}
-                    view={v}
-                    style={t.style}
-                    selectable="none"
-                    selected={[]}
-                    onSelect={() => {}}
-                    highlight={item.tips}
-                    rotatable={false}
-                    onRotate={() => {}}
-                    label={t.label}
-                  />
-                );
-              })}
+              <div className="ws-lead">
+                <p className="ws-question">{item.text}</p>
+                {item.trees.slice(0, 1).map((t) => (
+                  <SheetTree key={`${t.name}-${t.label}`} item={item} t={t} view={views.get(t.name)} />
+                ))}
+              </div>
+              {item.trees.slice(1).map((t) => (
+                <SheetTree key={`${t.name}-${t.label}`} item={item} t={t} view={views.get(t.name)} />
+              ))}
             </div>
-            <SpaceView space={item.space} />
+            {/* ws-tail is display:contents on screen and one
+                unbreakable block in print. On the last item it wraps
+                the answer space AND the closing block + footer: the
+                space always carries text, so the last page can never
+                hold the footer alone (checkpoint §21(m)). */}
+            <div className="ws-tail">
+              <SpaceView space={item.space} />
+              {i === sheet.items.length - 1 && (
+                <div className="ws-end">
+                  {sheet.test ? (
+                    <p className="ws-handin">
+                      Hand this sheet to your instructor.
+                    </p>
+                  ) : (
+                    <section aria-labelledby="ws-read-link-h">
+                      <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
+                      <p>
+                        Check your answers in the app — scan the code or
+                        follow the link:
+                      </p>
+                      <LinkBlock link={sheet.link} />
+                    </section>
+                  )}
+                  <footer className="lab-print-foot">
+                    Printed from NeoPhylo — worksheet for {sheet.title}.
+                  </footer>
+                </div>
+              )}
+            </div>
           </li>
         ))}
       </ol>
-      {sheet.test ? (
-        <p className="ws-handin">Hand this sheet to your instructor.</p>
-      ) : (
-        <section aria-labelledby="ws-read-link-h">
-          <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
-          <p>
-            Check your answers in the app — scan the code or follow the
-            link:
-          </p>
-          <LinkBlock link={sheet.link} />
-        </section>
-      )}
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — worksheet for {sheet.title}.
-      </footer>
     </>
+  );
+}
+
+/** One item tree — the drawn figure or the error line in its place. */
+function SheetTree({
+  item,
+  t,
+  view,
+}: {
+  item: ReadingSheetItem;
+  t: ReadingSheetItem["trees"][number];
+  view: ReadingTreeView | undefined;
+}) {
+  if (view === undefined) {
+    return <p className="error">Tree “{t.name}” could not be drawn.</p>;
+  }
+  return (
+    <ReadingTree
+      view={view}
+      style={t.style}
+      selectable="none"
+      selected={[]}
+      onSelect={() => {}}
+      highlight={item.tips}
+      rotatable={false}
+      onRotate={() => {}}
+      label={t.label}
+    />
   );
 }
 

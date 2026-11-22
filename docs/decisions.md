@@ -9628,3 +9628,43 @@ pinned CI image; no screen baseline changed.
     the print rules.
   - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
   - `web/e2e/__screenshots__/`: 48 regenerated `*-print-*` baselines.
+
+## v1.4d Task 15 checkpoint findings — fix round 2 (owner: "fix both in this pr", 2026-11-22)
+
+The first round's after-PDFs still showed (a) prompts splitting across
+pages or ending a page without their first figure — Chromium never
+honoured `break-after: avoid` into the `.ws-read-trees` flex row —
+and (b) `trees-form-b` ending on a footer-only page. The keep-together
+is now structural: `.ws-lead` wraps prompt + first figure
+(`display: contents` on screen, unbreakable block in print) and the
+prompt itself gets `break-inside: avoid-page`. The footer/closing
+block can't strand because the last item's `.ws-tail` wraps its
+answer space + `.ws-end` (closing + footer) into one `inline-block`
+in print — atomic content, since Blink fragments even `break-inside:
+avoid` and `overflow: hidden` boxes inside an already-splitting
+parent (verified empirically on trees-demo item 25). Same `.ws-end`
+wrap on the lab paper sheet's finish section, the paper key's
+finished-tree section and the lab page's note section; reading/lab
+key items are `break-inside: avoid-page` in print (each is a small
+question+answer+explanation block) and the reading key's footer
+prints inside its last item. Screen layout is identical by
+construction — every wrapper is `display: contents` or margin-matched
+— and all 42 worksheet screen baselines re-verified unchanged in the
+pinned image (the only regenerated files are the 8
+`worksheet-reading(-form)-print` baselines). `pdfcheck.py` gained
+(d) prompts wholly on one page and never their page's last text and
+(e) a last page holding more than the footer/closing block — both
+pinned against real `pdftotext` fixtures extracted from the bad
+PDFs (`scripts/checkpoint/testdata/`).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(m) follow-up text.
+  - `web/src/views/worksheets/worksheets.css`,
+    `web/src/views/labs/labs.css`: the print rules.
+  - `web/src/views/worksheets/ReadingSheetView.tsx`,
+    `ReadingKeyView.tsx`, `WorksheetPage.tsx`, `KeyPage.tsx`,
+    `web/src/views/labs/LabPage.tsx`: the structural wrappers.
+  - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
+  - `web/e2e/__screenshots__/`: 8 regenerated
+    `worksheet-reading(-form)-print-*` baselines.

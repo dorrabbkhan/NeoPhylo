@@ -8,7 +8,7 @@ installed on the checkpoint host) and returns a report.md section with
 one row per PDF. report.py folds it in; the CLI is for ad-hoc runs and
 tests.
 
-For every `<set-id>-read-sheet.pdf` — the reading paper sheets — three
+For every `<set-id>-read-sheet.pdf` — the reading paper sheets — five
 rules from the v1.4.3 checkpoint findings:
 
   a. page 1 carries the first words of item 1's prompt — a whole-item
@@ -29,12 +29,24 @@ rules from the v1.4.3 checkpoint findings:
      way the sheet builds it: {a}/{b}/{c}/{set} placeholder fill, then
      the paper re-verbing of `paperText` in web/src/worksheets/
      reading.ts (the PAPER_VERBS table is ported below — keep it in
-     sync; test_pdfcheck.py pins it against the TS source).
+     sync; test_pdfcheck.py pins it against the TS source);
+  d. every item prompt lies wholly on one page and is never the
+     page's last text — a prompt could still split across the break
+     or end a page while its first figure started the next
+     (`break-after: avoid` on the question did not reach the flex
+     row). (a) and (c) normalise across pages, so this needs a
+     per-page check. Reading keys (`*-read-key.pdf`) get it too —
+     their items print the same paperText prompts followed by the
+     answer;
+  e. the last page of a sheet/key holds more than the footer line
+     and the QR/hand-in block — the closing matter used to spill
+     onto a final page holding only "Printed from NeoPhylo — …".
+     Applied to every PDF: the footer is shared.
 
 Every other PDF (lab sheets, paper sheets and keys, guide, index)
-gets rule (b) — a page ending on "Tree N" is a stranded caption
-wherever it appears. A missing pdftotext is a warning row, not a
-failure.
+gets rules (b) and (e) — a page ending on "Tree N" is a stranded
+caption wherever it appears. A missing pdftotext is a warning row,
+not a failure.
 """
 
 import csv
@@ -52,10 +64,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 
 READ_SHEET = re.compile(r"^(.+)-read-sheet\.pdf$")
+READ_KEY = re.compile(r"^(.+)-read-key\.pdf$")
 LONE_CAPTION = re.compile(r"^Tree( \d+)?$")
 SENTENCE_SPLIT = re.compile(r"([.!?]+\s+)")
 SPACE_RUN = re.compile(r"\s+")
 PAGE_BREAK = "\f"
+
+# Rule (e): text the last page may hold besides real content — the
+# print footer, the test-set hand-in line and the practice set's
+# link/QR block (heading, hint, link-note and the URL itself).
+FOOTER = re.compile(r"Printed from NeoPhylo.*")
+URL = re.compile(r"https?://\S+")
+ENDMATTER = [
+    "Hand this sheet to your instructor.",
+    "Open this set in NeoPhylo",
+    "Check your answers in the app — scan the code or follow the link:",
+    "This link is too long for a QR code — copy it from below.",
+]
 
 # web/src/worksheets/reading.ts PAPER_VERBS — first match wins.
 PAPER_VERBS = [
@@ -174,12 +199,39 @@ def load_set(set_id, repo=REPO):
     return None
 
 
+def strip_endmatter(text):
+    """The closing matter out of a normalised page text — the print
+    footer (always the last text on its page), the hand-in line, the
+    link/QR block and bare URLs."""
+    out = URL.sub("", text)
+    for s in ENDMATTER:
+        out = out.replace(s, "")
+    return FOOTER.sub("", out)
+
+
+def prompt_stranded(prompt, pages_norm):
+    """Rule (d) for one prompt → page number it fails on, or None.
+    The prompt must lie wholly on one page and not be that page's
+    last text — its first figure (or answer on a key) must follow on
+    the same page."""
+    for pnum, page in enumerate(pages_norm):
+        pos = page.find(prompt)
+        if pos == -1:
+            continue
+        tail = page[pos + len(prompt):]
+        if strip_endmatter(tail).strip() == "":
+            return pnum + 1
+        return None
+    return -1
+
+
 def check_pdf(name, pages, tsv_pages, repo=REPO):
     """One PDF → (ok, detail). `pages` is the plain pdftotext output
     split into pages, `tsv_pages` the positional lines from
     tsv_lines() — tests drive both with synthetic data, no PDF."""
     problems = []
-    match = READ_SHEET.match(name)
+    pages_norm = [normalize(p) for p in pages]
+    match = READ_SHEET.match(name) or READ_KEY.match(name)
     if match is not None:
         set_id = match.group(1)
         sheet = load_set(set_id, repo)
@@ -188,21 +240,37 @@ def check_pdf(name, pages, tsv_pages, repo=REPO):
         else:
             prompts = [normalize(paper_text(item))
                        for item in sheet["items"]]
-            # (a) page 1 carries item 1's first words.
-            head = " ".join(prompts[0].split(" ")[:FIRST_WORDS])
-            if head not in normalize(pages[0] if pages else ""):
-                problems.append("page 1 missing item 1's prompt")
-            # (c) every prompt whole in the sheet text.
-            body = normalize(" ".join(pages))
-            missing = sum(1 for p in prompts if p not in body)
-            if missing:
-                problems.append(
-                    f"{missing}/{len(prompts)} prompts split or missing")
+            if READ_SHEET.match(name):
+                # (a) page 1 carries item 1's first words.
+                head = " ".join(prompts[0].split(" ")[:FIRST_WORDS])
+                if head not in (pages_norm[0] if pages_norm else ""):
+                    problems.append("page 1 missing item 1's prompt")
+                # (c) every prompt whole in the sheet text.
+                body = normalize(" ".join(pages))
+                missing = sum(1 for p in prompts if p not in body)
+                if missing:
+                    problems.append(
+                        f"{missing}/{len(prompts)} prompts split or "
+                        "missing")
+            # (d) every prompt whole on one page, never its last text.
+            for idx, prompt in enumerate(prompts):
+                where = prompt_stranded(prompt, pages_norm)
+                if where == -1:
+                    problems.append(
+                        f"item {idx + 1} prompt split across pages")
+                elif where is not None:
+                    problems.append(
+                        f"item {idx + 1} prompt is last on page {where}")
     # (b) no page ends on a lone figure caption.
     orphans = lone_captions(tsv_pages)
     if orphans:
         problems.append(
             "lone caption last on page " + ", ".join(map(str, orphans)))
+    # (e) the last page holds more than the footer and the QR/hand-in
+    # block — a footer-only final page is a straggler.
+    last = next((p for p in reversed(pages_norm) if p), "")
+    if last and strip_endmatter(last).strip() == "":
+        problems.append("last page holds only the footer/closing block")
     return not problems, ("; ".join(problems) if problems else "clean")
 
 
@@ -243,10 +311,13 @@ def section(out, repo=REPO):
             name, pages_of(text), tsv_lines(tsv), repo)
         rows.append(f"| {'✅' if ok else '❌'} | {name} | {detail} |")
         fails += 0 if ok else 1
-    note = ("Reading sheets (`*-read-sheet.pdf`) are checked for the "
-            "item-1 prompt on page 1, every prompt whole and no page "
-            "ending on a lone `Tree N` caption; every other PDF gets "
-            "the lone-caption rule (checkpoint §21(m)/(n)).")
+    note = ("Reading sheets and keys (`*-read-sheet.pdf`, "
+            "`*-read-key.pdf`) are checked for the item-1 prompt on "
+            "page 1, every prompt whole, every prompt on one page and "
+            "never its last text, and no page ending on a lone "
+            "`Tree N` caption; every PDF gets the lone-caption rule "
+            "and a last page holding more than the footer/closing "
+            "block (checkpoint §21(m)/(n)).")
     table = "\n".join(["| | PDF | Result |", "|---|---|---|", *rows])
     return f"{head}\n\n{note}\n\n{table}\n", fails
 

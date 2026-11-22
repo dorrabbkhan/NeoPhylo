@@ -583,6 +583,26 @@ test("a reading set's gated key shows every engine answer with the authored labe
   // trees-clades-traits' two-tier item has an authored reason —
   // labelled, per the spec.
   await expect(page.getByText("authored answer").first()).toBeVisible();
+
+  // §21(m): the print footer lives inside the last item — hidden on
+  // screen — and in print every key item is one unbreakable unit, so
+  // the footer always travels with the last answer.
+  const last = page.locator(".ws-key-items .ws-item").last();
+  await expect(last.locator(".lab-print-foot")).toBeHidden();
+  const css = (loc: Locator, prop: string): Promise<string> =>
+    loc.evaluate(
+      (el, p) => getComputedStyle(el).getPropertyValue(p),
+      prop,
+    );
+  await page.emulateMedia({ media: "print" });
+  for (const item of await page.locator(".ws-key-items .ws-item").all()) {
+    expect(
+      await css(item, "break-inside"),
+      "key item is one unbreakable block",
+    ).toMatch(/^avoid/);
+  }
+  await expect(last.locator(".lab-print-foot")).toBeVisible();
+  await page.emulateMedia({ media: "screen" });
 });
 
 test("a custom reading set gets a paper sheet and key through #r=", async ({
@@ -892,9 +912,11 @@ test("form A's trait tree: mark labels clear hippo (print + screen)", async ({
 // geometricPrecision is print-only — hinted whole-pixel advances made
 // printed letter spacing uneven and split words in the PDF text. And
 // the item's PIECES, not the item, avoid page breaks: each figure
-// (caption + drawing) is one unbreakable block, the question stays
-// with the first figure and the answer block stays whole and with
-// the last figure, while a multi-figure item may itself split.
+// (caption + drawing) is one unbreakable block, the question and the
+// first figure are one structural block (the .ws-lead wrapper —
+// break-after: avoid on the question did not reach into the flex
+// row), and the answer block stays whole and with the last figure,
+// while a multi-figure item may itself split.
 test("a reading sheet prints exact text with unbreakable pieces, not items", async ({
   page,
 }) => {
@@ -908,7 +930,9 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
   const items = page.locator(".ws-read-item");
   await expect(items.first()).toBeVisible();
 
-  // Screen rendering is untouched: legibility, no print break rules.
+  // Screen rendering is untouched: legibility, no print break rules,
+  // and the structural wrappers are transparent (display: contents —
+  // .ws-end inside the tail is a block only to undo the list indent).
   expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
     /geometricprecision/i,
   );
@@ -916,6 +940,12 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
   expect(
     await css(items.first().locator(".rt-figure").first(), "break-inside"),
   ).toBe("auto");
+  expect(
+    await css(items.first().locator(".ws-lead"), "display"),
+  ).toBe("contents");
+  expect(
+    await css(items.first().locator(".ws-tail"), "display"),
+  ).toBe("contents");
 
   await page.emulateMedia({ media: "print" });
   // Chromium serializes the computed keyword lowercase.
@@ -938,8 +968,12 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
     );
   }
   expect(
-    await css(multi.locator(".ws-question"), "break-after"),
-    "question stays with the first figure",
+    await css(multi.locator(".ws-question"), "break-inside"),
+    "the prompt never splits",
+  ).toMatch(/^avoid/);
+  expect(
+    await css(multi.locator(".ws-lead"), "break-inside"),
+    "prompt + first figure are one block",
   ).toMatch(/^avoid/);
   const space = multi.locator(".ws-space, .ws-fill-line").last();
   expect(await css(space, "break-inside"), "answer block unbreakable").toMatch(
@@ -948,6 +982,24 @@ test("a reading sheet prints exact text with unbreakable pieces, not items", asy
   expect(
     await css(space, "break-before"),
     "answer block stays with the last figure",
+  ).toMatch(/^avoid/);
+
+  // The last item's tail — answer space + closing block + footer —
+  // is one unbreakable unit holding real text, so the last page
+  // never holds the footer alone. break-before is only a hint:
+  // Chromium ignores it, the structure is the guarantee.
+  const tail = items.last().locator(".ws-tail");
+  expect(
+    await css(tail, "break-inside"),
+    "last item tail is one unbreakable unit",
+  ).toMatch(/^avoid/);
+  const end = tail.locator(".ws-end");
+  expect(await css(end, "break-inside"), "closing block is one unit").toMatch(
+    /^avoid/,
+  );
+  expect(
+    await css(end, "break-before"),
+    "closing block stays with the last item",
   ).toMatch(/^avoid/);
 
   await page.emulateMedia({ media: "screen" });

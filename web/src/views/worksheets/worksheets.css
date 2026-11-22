@@ -278,9 +278,93 @@
 }
 
 /* The reading trees on the sheet — the app's own .read-trees row
- * with the item blocks kept on one page in print. */
+ * with the item blocks kept on one page in print. The question is
+ * the row's first flex item now (a full-width wrapped line), so the
+ * top margin that used to separate it from the trees comes off and
+ * the row-gap reproduces the collapsed question↔figures spacing
+ * (question margin-bottom 4 + old row margin-top 8 → 8 px). Figures
+ * never wrap among themselves on screen (flex: 1 1 0 shrinks before
+ * wrapping), so the row-gap only ever sits under the question. */
 .ws-read-trees {
-  margin: var(--space-8) 0;
+  margin: 0 0 var(--space-8);
+  row-gap: var(--space-8);
+}
+
+/* .ws-lead is transparent on screen (display: contents): the question
+ * and the first figure are flex items of the trees row exactly as if
+ * unwrapped. The question takes a full-width line; the first figure
+ * needs the share rules `.read-trees > .rt-figure` gives the rest,
+ * repeated through the wrapper since that selector only sees direct
+ * children. */
+.ws-read-trees > .ws-lead {
+  display: contents;
+}
+
+.ws-read-trees .ws-question {
+  flex: 0 0 100%;
+  margin: 0;
+  min-width: 0;
+}
+
+.ws-read-trees > .ws-lead > .rt-figure {
+  flex: 1 1 0;
+  max-width: min(100%, var(--reading-figure-max));
+}
+
+/* With the first figure nested, a two-tree item's second figure is
+ * the row's only direct-child figure — `.rt-figure:only-of-type`
+ * would misread it as a lone figure. Keep it on the shared share. */
+.ws-read-trees > .ws-lead ~ .rt-figure:only-of-type {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: min(100%, var(--reading-figure-max));
+}
+
+/* The real lone figure: a one-tree item's lead is the row's only
+ * child. */
+.ws-read-trees > .ws-lead:only-child > .rt-figure {
+  flex: 0 1 auto;
+  min-width: min(100%, var(--reading-figure-max));
+  max-width: 100%;
+}
+
+/* The hand-in / link block and the print footer: transparent on
+ * screen, one unbreakable unit in print. The reading sheet keeps it
+ * inside the last list item's .ws-tail; there it is a real block so
+ * it can sit back at the page margin (the list indents li children
+ * by --space-24) with the gap the collapsed li/list margins used to
+ * give it. */
+.ws-tail {
+  display: contents;
+}
+
+.ws-tail > .ws-end {
+  display: block;
+  margin-top: var(--space-16);
+  margin-left: calc(-1 * var(--space-24));
+}
+
+/* The closing block moved inside the last item; drop the margins
+ * that used to sit after it so the page's bottom edge is unchanged. */
+.ws-read-item:last-child {
+  margin-bottom: 0;
+}
+
+.ws-items:has(> .ws-read-item) {
+  margin-bottom: 0;
+}
+
+.ws-end {
+  display: contents;
+}
+
+@media (max-width: 600px) {
+  /* Below 600 px the trees stack — .read-trees > .rt-figure's
+   * flex:none reaches the nested first figure through the wrapper. */
+  .ws-read-trees > .ws-lead > .rt-figure,
+  .ws-read-trees > .ws-lead ~ .rt-figure:only-of-type {
+    flex: none;
+  }
 }
 
 /* ---- Instructor gate ---- */
@@ -353,38 +437,101 @@
    * page 1 holding the masthead alone), then split anyway and left
    * a figure caption alone at a page bottom. The unbreakable units
    * are the pieces instead: each figure — its caption and drawing —
-   * is one block, so a caption never separates; the question stays
-   * with the first figure, and the answer block stays whole and
-   * glued to the last figure. A short item still prints intact:
-   * every neighbour pair it has is a keep-together. */
-  .ws-read-item > .ws-question {
-    break-after: avoid-page;
+   * is one block, so a caption never separates; the prompt and its
+   * first figure are one structural block (the .ws-lead wrapper — a
+   * break-after: avoid on the question did not propagate into the
+   * flex row, so the prompt could split and end a page alone), and
+   * the answer block stays whole and glued to the last figure. A
+   * short item still prints intact: every neighbour pair it has is
+   * a keep-together. */
+  .ws-read-trees {
+    display: block;
+    margin: 0;
   }
 
-  .ws-read-item > .ws-space,
-  .ws-read-item > .ws-fill-line {
+  .ws-read-trees > .ws-lead {
+    display: block;
+    break-inside: avoid-page;
+  }
+
+  /* The prompt itself never splits either — a two-line prompt cut
+   * mid-sentence used to end one page and start the next. */
+  .ws-read-trees .ws-question {
+    break-inside: avoid-page;
+    margin: 0 0 var(--space-8);
+  }
+
+  /* Reading trees print stacked inside the A4 printable width
+   * (~180 mm ≈ 680 px — the shared @page margins): the figures stack
+   * as plain blocks (the 16 px the column flex row's gap used to add
+   * now comes from each figure's top margin), each canvas is capped
+   * so its ResizeObserver refits the drawing at paper width instead
+   * of clipping, and the screen-only controls (scroll cue,
+   * Show-as-text toggle) stay off the sheet. */
+  .ws-read-trees > .rt-figure {
+    margin-top: var(--space-16);
+  }
+
+  /* The doubled class outranks .read-trees > .rt-figure whatever the
+   * bundle order. */
+  .read-trees.ws-read-trees > .rt-figure,
+  .read-trees.ws-read-trees > .ws-lead > .rt-figure {
+    flex: none;
+    max-width: 680px;
+    break-inside: avoid-page;
+  }
+
+  .ws-read-item .ws-space,
+  .ws-read-item .ws-fill-line {
     break-inside: avoid-page;
     break-before: avoid-page;
   }
 
-  /* Reading trees print stacked inside the A4 printable width
-   * (~180 mm ≈ 680 px — the shared @page margins): the figures stack,
-   * each canvas is capped so its ResizeObserver refits the drawing
-   * at paper width instead of clipping, and the screen-only controls
-   * (scroll cue, Show-as-text toggle) stay off the sheet. */
-  .ws-read-trees {
-    flex-direction: column;
-    flex-wrap: nowrap;
+  /* The answer space — and on the last item the closing block +
+   * footer with it — is one unbreakable unit: the space always
+   * carries text, so the page the unit lands on can never hold the
+   * footer alone. break-inside: avoid is NOT enough here — Chromium
+   * fragments the block anyway when its parent li already splits —
+   * and overflow:hidden is fragmentable too. An inline-block is
+   * atomic (inline-level content cannot be fragmented), so the whole
+   * tail moves to the next page when it does not fit. width:100%
+   * keeps it spanning the item and vertical-align:top kills the
+   * strut gap an inline-level box would otherwise add. */
+  .ws-tail {
+    display: inline-block;
+    width: 100%;
+    vertical-align: top;
+    break-inside: avoid-page;
   }
 
-  /* Column direction: content height again — the row rule's zero
-   * basis would collapse the figure (checkpoint §21(k)). The doubled
-   * class outranks .read-trees > .rt-figure whatever the bundle
-   * order. */
-  .read-trees.ws-read-trees > .rt-figure {
-    flex: none;
-    max-width: 680px;
+  .ws-tail > :first-child {
+    margin-top: 0;
+  }
+
+  .ws-tail > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* The closing block (hand-in line or the link/QR section, or the
+   * lab sheet/key's final section) and the print footer travel
+   * together — the last page must never hold the footer alone. */
+  .ws-end {
+    display: block;
     break-inside: avoid-page;
+    break-before: avoid-page;
+  }
+
+  /* A key item is small (question, answer, explanation) — keep each
+   * whole so a prompt can never end a page, and so the print footer
+   * inside the last one always travels with real content. */
+  .ws-key-items .ws-item {
+    break-inside: avoid-page;
+  }
+
+  /* Print footers that moved inside the last list item sit back at
+   * the page margin (the list indents li children by --space-24). */
+  .ws-item > .lab-print-foot {
+    margin-left: calc(-1 * var(--space-24));
   }
 
   .ws-read-trees .rt-canvas {

@@ -327,6 +327,10 @@
     font-size: var(--size-xs);
     margin-top: var(--space-24);
     padding-top: var(--space-8);
+    /* A final page holding the footer alone must never happen —
+     * keep it with the end of whatever precedes it (checkpoint
+     * §21(m)). */
+    break-before: avoid-page;
   }
 
   .lab-page {
