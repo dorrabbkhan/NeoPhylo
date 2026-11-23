@@ -9721,3 +9721,50 @@ same settle `visitPage`/`visitReading` already did inline; no
 
 - **Files this session changed outside the Task 15 Files block:**
   - `docs/decisions.md`: this entry.
+
+## v1.4d Task 15 checkpoint finding — fix round 5 (PR #182 iPhone Safari Lessons menu, 2026-11-23)
+
+The owner's real-iPhone pass found the header's "Lessons" menu broken
+on iPhone Safari (~390 px) — reproduced in the pinned image on both
+the v1.4.2 deploy and this branch, so pre-existing since v1.4c. Three
+defects, three CSS causes in `web/src/index.css`:
+
+1. Squashed rows: WebKit lets `<button>` flex items shrink below
+   their content inside the capped, scrolling `.lessons-menu-list`,
+   so a summary bled into the row below. `.lessons-menu-list > *` now
+   takes `flex-shrink: 0` — every row (lesson picks and the Library /
+   Reading trees / tour action rows) keeps its natural height and the
+   list scrolls instead.
+2. Painted under the header controls: `.header-toggles` carried
+   `z-index: 40` at all times, but the raise exists only to beat an
+   open sheet's scrim (z-index 10). It moved to
+   `.app:has(> .sheet-backdrop) .header-toggles`, so an open menu
+   paints above every header control while the sheet case is
+   unchanged (the drawer scrim stays on top either way, z-index 50).
+3. Off-screen left edge: the `right: 0`, `min-width: 300px` list under
+   a mid-header button overflowed the viewport's left edge wherever
+   the header can wrap. The More menu's established v1.4b fix
+   (`position: static` on the menu so `.app-header` is the containing
+   block, list anchored to the header's left content edge, viewport-
+   capped width) now covers `.lessons-menu` too — below 1024 px and
+   in presenter mode at any width; `min-width` yields to the cap at
+   320 px so both side margins survive.
+
+The More menu and the Settings drawer were checked for the same
+three defects at 320/375/390 px in the pinned image and have none
+(the More list already anchored to the header edge and has no height
+cap; the drawer is a fixed full-height overlay at z-index 50). The
+Guides menu shares the stacking fix and already had its own anchor
+rule. New spec `web/e2e/header-menus.spec.ts` pins rows-keep-height /
+list-inside-viewport / nothing-paints-over for the Lessons and More
+menus at 320×640 and 390×844 under a coarse pointer (hasTouch, plus
+isMobile where the engine implements it — Firefox has none) on every
+browser project; it failed on the pre-fix code under WebKit and
+passes after, on WebKit (pinned image) and Chromium. No snapshot
+baseline shows an open menu, so none were regenerated.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(o).
+  - `web/src/index.css`: the three fixes.
+  - `web/e2e/header-menus.spec.ts`: the regression pin.
