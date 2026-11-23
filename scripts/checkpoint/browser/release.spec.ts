@@ -316,7 +316,12 @@ test("§13 the weak-support sample draws a weak (<50) marker", async ({
   await prime(page, "light");
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/?lab=mega-interpreting-support");
-  await page.getByRole("link", { name: "Load this lab" }).click();
+  // The "Load this lab" click navigates: let the lab page's fonts finish
+  // first, or the abort logs a Firefox console error (the §13 flake).
+  const loadLab = page.getByRole("link", { name: "Load this lab" });
+  await expect(loadLab).toBeVisible();
+  await settleFonts(page);
+  await loadLab.click();
   await waitForApp(page);
   await page.getByRole("radio", { name: "Sandbox" }).click();
   const controls = page.locator(".col-controls");
@@ -500,6 +505,8 @@ for (const lab of LABS) {
     }
     await page.emulateMedia({ media: "screen" });
 
+    // Same settle as §13: this click navigates the lab page away.
+    await settleFonts(page);
     await page.getByRole("link", { name: "Load this lab" }).click();
     await waitForApp(page);
     await expect
@@ -673,6 +680,17 @@ async function matrixTab(page: Page_): Promise<Locator_> {
   return mi;
 }
 
+/** Let the current page's in-flight font loads finish before it is
+ * left. Navigating away mid-download aborts the fetches and Firefox
+ * logs "downloadable font: download failed … status=2152398850"
+ * (NS_BINDING_ABORTED) as a console error, which watchConsole fails on
+ * — the checker's doing, not the app's (the §3 and §13 flakes). */
+async function settleFonts(page: Page_): Promise<void> {
+  await page
+    .evaluate(() => document.fonts.ready.then(() => undefined))
+    .catch(() => undefined);
+}
+
 /** A lazy route (`?worksheet`, `?key`, `?library`, `?labs`, `?guide`):
  * these mount a `.lab-page` instead of `.app`, so `visit`'s app wait
  * never fires — wait for the page root and idle network instead.
@@ -681,9 +699,7 @@ async function matrixTab(page: Page_): Promise<Locator_> {
  * logs "downloadable font: download failed … status=2152398850" (the
  * §3 flake). */
 async function visitPage(page: Page_, url: string): Promise<void> {
-  await page
-    .evaluate(() => document.fonts.ready.then(() => undefined))
-    .catch(() => undefined);
+  await settleFonts(page);
   await page.goto(url);
   await expect(page.locator(".lab-page")).toBeVisible({ timeout: 60_000 });
   await page.waitForLoadState("networkidle");
@@ -1560,9 +1576,7 @@ test("§2/§14 every reading sheet and key prints light; a PDF per id", async ({
  * Same fonts-first settle as visitPage, so a late Inter load on the
  * page being left never aborts mid-navigation. */
 async function visitReading(page: Page_, url: string): Promise<void> {
-  await page
-    .evaluate(() => document.fonts.ready.then(() => undefined))
-    .catch(() => undefined);
+  await settleFonts(page);
   await page.goto(url);
   await expect(page.locator(".read-page")).toBeVisible({ timeout: 60_000 });
   await page.waitForLoadState("networkidle");

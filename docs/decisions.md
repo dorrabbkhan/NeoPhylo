@@ -9707,3 +9707,17 @@ clean under pdfcheck.
   - `web/e2e/worksheets.spec.ts`: structural print assertions.
   - `web/e2e/__screenshots__/`: 8 regenerated
     `worksheet-reading(-form)-print-*` baselines.
+
+## v1.4d Task 15 checkpoint finding — fix round 4 (PR #182 Firefox flake, 2026-11-23)
+
+`scripts/checkpoint/browser/release.spec.ts`: the §13 test and the
+§8/§14 lab loop navigated by clicking "Load this lab" right after a raw
+`page.goto`, aborting the lab page's in-flight font loads — Firefox logs
+the NS_BINDING_ABORTED as a console error and `watchConsole` failed the
+test (the §13 flake, 2/5 runs). Both clicks now await
+`document.fonts.ready` first via the extracted `settleFonts` helper (the
+same settle `visitPage`/`visitReading` already did inline; no
+`watchConsole` ignore rule was added — a real font failure still fails).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
