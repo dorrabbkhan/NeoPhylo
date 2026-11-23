@@ -3,7 +3,7 @@
 // control also must emit exactly the `Response` kind the engine's
 // check pairs with that question — controls never compute the answer.
 
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { useState } from "react";
@@ -16,6 +16,7 @@ import type { ReadingSet } from "../../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
 import {
   effectiveResponse,
+  fillItemText,
   submittable,
   type ResponseDraft,
 } from "../../reading/state";
@@ -49,6 +50,10 @@ function view(it: Item): ReadingTreeView {
 
 // The controls are controlled — multi-step interactions need the
 // harness to feed each emitted response back in, like the page does.
+// The question element renders with it so the labelled-by-the-question
+// assertions resolve real text, like ItemView's `.read-question`.
+const QUESTION_ID = "test-question";
+
 function Harness({
   it,
   view,
@@ -62,15 +67,19 @@ function Harness({
 }) {
   const [r, setR] = useState<ResponseDraft | null>(initial);
   return (
-    <QuestionControls
-      item={it}
-      view={view}
-      response={r}
-      onResponse={(next) => {
-        setR(next);
-        spy(next);
-      }}
-    />
+    <>
+      <p id={QUESTION_ID}>{fillItemText(it)}</p>
+      <QuestionControls
+        item={it}
+        view={view}
+        response={r}
+        onResponse={(next) => {
+          setR(next);
+          spy(next);
+        }}
+        questionId={QUESTION_ID}
+      />
+    </>
   );
 }
 
@@ -287,6 +296,59 @@ describe("selection lists", () => {
     });
     fireEvent.click(getByRole("button", { name: /clear|remove/i }));
     expect(lastResponse(onResponse)).toBeNull();
+  });
+});
+
+describe("every group is labelled by the question (§21(p))", () => {
+  // A screen reader entering a group must hear the question first,
+  // then the bare instruction — "…different relationships from the
+  // others. Which one? Choose one" — never "Choose one" alone.
+  it("a radio group's name is the question plus its instruction", () => {
+    setup(item("q-clade"));
+    const group = screen.getByRole("radiogroup", {
+      name: /do gibbon and gorilla form a clade\? choose one/i,
+    });
+    expect(group).toBeTruthy();
+  });
+
+  it("a checkbox group's name is the question plus its instruction", () => {
+    setup(item("q-select"));
+    const group = screen.getByRole("group", {
+      name: /select every true statement\. tick every true statement/i,
+    });
+    expect(group).toBeTruthy();
+  });
+
+  it("the number input keeps its name and carries the question as description", () => {
+    setup(item("q-count"));
+    const input = screen.getByRole("spinbutton", { name: "Answer" });
+    expect(input.getAttribute("aria-describedby")).toBe(QUESTION_ID);
+  });
+
+  it("the order builder and selection readout group under the question", () => {
+    setup(item("q-order"));
+    const builder = screen.getByRole("group", {
+      name: /tap the lettered nodes in order/i,
+    });
+    expect(builder.classList.contains("read-order")).toBe(true);
+
+    cleanup();
+    setup(item("q-mrca"), {
+      kind: "node",
+      clade: ["chimp", "gorilla", "gibbon", "human"],
+    });
+    const sel = screen.getByRole("group", {
+      name: /tap the most recent common ancestor/i,
+    });
+    expect(sel.classList.contains("read-sel")).toBe(true);
+  });
+
+  it("the two-tier Why? group names itself question plus Why?", () => {
+    setup(item("q-two"));
+    const why = screen.getByRole("radiogroup", {
+      name: /form a clade — and why\? why\?/i,
+    });
+    expect(why).toBeTruthy();
   });
 });
 

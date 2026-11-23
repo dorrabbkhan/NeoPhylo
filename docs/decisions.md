@@ -9768,3 +9768,67 @@ baseline shows an open menu, so none were regenerated.
   - `docs/checkpoints/v1.4d-release.md`: §21(o).
   - `web/src/index.css`: the three fixes.
   - `web/e2e/header-menus.spec.ts`: the regression pin.
+## v1.4d Task 15 checkpoint finding — fix round 6 (PR #182 owner NVDA pass, 2026-11-23)
+
+The owner's NVDA pass on `?read=trees-reading-a-tree` (Tab navigation)
+found three gaps, recorded as §21(p): the question paragraph was never
+voiced when Tab entered an answer control, "Show as text" exposed the
+tree's text form without any way to reach it, and the first Check was
+silent because the verdict `role="status"` mounted together with its
+content (a live region inserted with content is never announced —
+only later text changes inside it are).
+
+- `.read-question` gets a stable id (`useId` in `ItemView`). Every
+  answer control group names itself
+  `aria-labelledby="<question id> <instruction id>"`: radio groups
+  keep a visually-hidden instruction span (`.read-sr`, the `.rt-live`
+  clip pattern) — "Choose one"/"Choose a trait"; checkbox lists gain
+  `role="group"` with "Tick every option that applies"/"Tick every
+  true statement"; the order builder and the tap-the-tree selection
+  readout group under the question alone; the two-tier "Why?" group
+  labels itself by the question plus its visible caption's id. The
+  number input keeps its "Answer" name and carries the question via
+  `aria-describedby`. The interactive tree's svg keeps its caption
+  name and is described by the question plus the description list.
+- `TreeDescription`: the toggle gets `aria-controls` to the list's
+  region; the region is named "<label> as text" and `tabIndex={-1}`;
+  opening focuses the region, closing returns focus to the toggle.
+  The svg's `aria-describedby` points at the `<ul>` id, not the
+  region — an accessible name on the referenced node would replace
+  the list text in the svg's description. Closed stays clipped:
+  browse mode still reaches the text.
+- The verdict `role="status"` (practice mode) and the editor's
+  engine-answer preview mount once and stay, so the first Check (and
+  the retry verdict, the resolved verdict and the "Show answer"
+  reveal — all content changes inside the persistent region) is
+  announced once each. The `.rt-live` selection status was already
+  persistent; `TestSummary` holds no live region. Empty status
+  wrappers are unstyled divs — zero size, no baseline changes.
+- Tests: group/input naming and `describedby` in
+  `QuestionControls.test.tsx`; status persistence, page-level group
+  name and svg description in `ReadingPage.test.tsx`; region naming,
+  `aria-controls` and focus moves in `TreeDescription.test.tsx`;
+  engine-answer status persistence in `ReadingEditor.test.tsx`; e2e
+  "Tab reaches an answer group named by the question; the verdict
+  region predates Check" in `web/e2e/reading.spec.ts` (runs on
+  chromium/firefox/webkit).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(p).
+  - `web/src/views/reading/ItemView.tsx`: question id, describedBy,
+    persistent verdict region.
+  - `web/src/views/reading/QuestionControls.tsx`,
+    `web/src/views/reading/QuestionControlsTree.tsx`: question-
+    labelled groups and inputs.
+  - `web/src/views/reading/ReadingTree.tsx`,
+    `web/src/views/reading/TreeDescription.tsx`: svg describedby,
+    named focusable region, toggle `aria-controls`.
+  - `web/src/views/reading/reading.css`: `.read-sr`.
+  - `web/src/views/editor/reading/ItemForm.tsx`: persistent
+    engine-answer status.
+  - `web/src/views/reading/QuestionControls.test.tsx`,
+    `web/src/views/reading/ReadingPage.test.tsx`,
+    `web/src/views/reading/TreeDescription.test.tsx`,
+    `web/src/views/editor/reading/ReadingEditor.test.tsx`,
+    `web/e2e/reading.spec.ts`: the §21(p) pins.

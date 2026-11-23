@@ -6,6 +6,8 @@
 // file only ever builds `Response` values; correctness is the
 // engine's `readingCheck`, never computed here.
 
+import { useId } from "react";
+
 import {
   OrderBuilder,
   SelectionList,
@@ -21,6 +23,10 @@ export interface QuestionControlsProps {
   view: ReadingTreeView;
   response: ResponseDraft | null;
   onResponse: (r: ResponseDraft | null) => void;
+  /** The question element's id — every group and input is labelled
+   *  or described by the question so a screen reader voices it on
+   *  Tab-entry, not just the bare control name (checkpoint §21(p)). */
+  questionId: string;
 }
 
 export function QuestionControls({
@@ -28,6 +34,7 @@ export function QuestionControls({
   view,
   response,
   onResponse,
+  questionId,
 }: QuestionControlsProps) {
   return (
     <div className="read-control">
@@ -37,6 +44,7 @@ export function QuestionControls({
         view={view}
         response={response}
         onResponse={onResponse}
+        questionId={questionId}
       />
     </div>
   );
@@ -47,7 +55,7 @@ interface BodyProps extends QuestionControlsProps {
 }
 
 function ControlBody(props: BodyProps) {
-  const { question: q, item, response, onResponse } = props;
+  const { question: q, item, response, onResponse, questionId } = props;
   switch (q.type) {
     case "which_differs": {
       const last = q.reference !== undefined
@@ -59,6 +67,7 @@ function ControlBody(props: BodyProps) {
           options={[...item.trees.map((_, i) => `Tree ${i + 1}`), last]}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
     }
@@ -69,6 +78,7 @@ function ControlBody(props: BodyProps) {
           options={item.trees.map((_, i) => `Tree ${i + 1}`)}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
     case "is_clade": {
@@ -82,6 +92,7 @@ function ControlBody(props: BodyProps) {
           options={options}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
     }
@@ -106,6 +117,7 @@ function ControlBody(props: BodyProps) {
                 answer: (["B", "C", "Equal"] as const)[i],
               })
             }
+            questionId={questionId}
           />
         );
       }
@@ -114,17 +126,21 @@ function ControlBody(props: BodyProps) {
     case "concept":
       return (
         <CheckList
+          label="Tick every option that applies"
           options={q.options}
           selected={response?.kind === "choices" ? response.indices : []}
           onChange={(indices) => onResponse({ kind: "choices", indices })}
+          questionId={questionId}
         />
       );
     case "select_true":
       return (
         <CheckList
+          label="Tick every true statement"
           options={q.statements.map((s) => s.text)}
           selected={response?.kind === "choices" ? response.indices : []}
           onChange={(indices) => onResponse({ kind: "choices", indices })}
+          questionId={questionId}
         />
       );
     case "count_clades":
@@ -133,6 +149,7 @@ function ControlBody(props: BodyProps) {
           value={response?.kind === "number" ? response.value : null}
           onChange={(value) => onResponse({ kind: "number", value })}
           onClear={() => onResponse(null)}
+          questionId={questionId}
         />
       );
     case "order_nodes":
@@ -155,14 +172,33 @@ function RadioList({
   options,
   selected,
   onPick,
+  questionId,
+  labelId,
 }: {
   label: string;
   options: string[];
   selected: number;
   onPick: (i: number) => void;
+  questionId: string;
+  /** A visible element already carrying the instruction text (the
+   *  two-tier "Why?") — its id is reused instead of a hidden span. */
+  labelId?: string;
 }) {
+  const genId = useId();
+  const instrId = labelId ?? genId;
   return (
-    <div role="radiogroup" aria-label={label} className="read-choices">
+    <div
+      role="radiogroup"
+      // "question … instruction" — Tab-entry voices the question
+      // first, then what to do (§21(p)).
+      aria-labelledby={`${questionId} ${instrId}`}
+      className="read-choices"
+    >
+      {labelId === undefined && (
+        <span id={instrId} className="read-sr">
+          {label}
+        </span>
+      )}
       {options.map((opt, i) => (
         <label key={i} className="read-choice">
           <input
@@ -181,14 +217,19 @@ function RadioList({
 }
 
 function CheckList({
+  label,
   options,
   selected,
   onChange,
+  questionId,
 }: {
+  label: string;
   options: string[];
   selected: number[];
   onChange: (indices: number[]) => void;
+  questionId: string;
 }) {
+  const instrId = useId();
   const toggle = (i: number) =>
     onChange(
       selected.includes(i)
@@ -196,7 +237,14 @@ function CheckList({
         : [...selected, i].sort((a, b) => a - b),
     );
   return (
-    <div className="read-choices">
+    <div
+      role="group"
+      aria-labelledby={`${questionId} ${instrId}`}
+      className="read-choices"
+    >
+      <span id={instrId} className="read-sr">
+        {label}
+      </span>
       {options.map((opt, i) => (
         <label key={i} className="read-choice">
           <input
@@ -217,10 +265,12 @@ function NumberStep({
   value,
   onChange,
   onClear,
+  questionId,
 }: {
   value: number | null;
   onChange: (v: number) => void;
   onClear: () => void;
+  questionId: string;
 }) {
   const cur = value ?? 0;
   return (
@@ -239,6 +289,9 @@ function NumberStep({
         value={value === null ? "" : value}
         placeholder="0"
         aria-label="Answer"
+        // The question rides the description so the spinbutton's
+        // name stays "Answer" for everyone else (§21(p)).
+        aria-describedby={questionId}
         onChange={(e) => {
           const v = e.target.value;
           if (v === "") {
@@ -264,7 +317,7 @@ function NumberStep({
 // --- trait asks ---------------------------------------------------------------
 
 function TraitControl(props: BodyProps) {
-  const { question: q, view, response, onResponse } = props;
+  const { question: q, view, response, onResponse, questionId } = props;
   if (q.type !== "trait") return null;
   const names = traitNames(view);
   const ask = q.ask;
@@ -279,6 +332,7 @@ function TraitControl(props: BodyProps) {
           options={names}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
     case "how_many_changes":
@@ -287,18 +341,21 @@ function TraitControl(props: BodyProps) {
           value={response?.kind === "number" ? response.value : null}
           onChange={(value) => onResponse({ kind: "number", value })}
           onClear={() => onResponse(null)}
+          questionId={questionId}
         />
       );
     case "profile": {
       const defs = new Map(view.traits.map((t) => [t.name, t]));
       return (
         <CheckList
+          label="Tick every option that applies"
           options={names.map((n) => {
             const d = defs.get(n);
             return d === undefined ? n : `${n} — ${d.derived}`;
           })}
           selected={response?.kind === "choices" ? response.indices : []}
           onChange={(indices) => onResponse({ kind: "choices", indices })}
+          questionId={questionId}
         />
       );
     }
@@ -313,6 +370,7 @@ function TraitControl(props: BodyProps) {
           ]}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
     }
@@ -323,6 +381,7 @@ function TraitControl(props: BodyProps) {
           options={["Homologous — one shared origin", "Arose independently"]}
           selected={response?.kind === "choice" ? response.index : -1}
           onPick={(index) => onResponse({ kind: "choice", index })}
+          questionId={questionId}
         />
       );
   }
@@ -336,7 +395,9 @@ function TraitControl(props: BodyProps) {
  *  radios. The untouched inner answer is the draft's `null` marker —
  *  `isComplete` keeps Check off until both parts are real. */
 function TwoTierControl(props: BodyProps) {
-  const { question: q, item, view, response, onResponse } = props;
+  const { question: q, item, view, response, onResponse, questionId } =
+    props;
+  const whyId = useId();
   if (q.type !== "two_tier") return null;
   const cur = response?.kind === "two_tier" ? response : null;
   const inner: ResponseDraft | null = cur?.first ?? null;
@@ -355,13 +416,18 @@ function TwoTierControl(props: BodyProps) {
         view={view}
         response={inner}
         onResponse={(r) => emit(r, reason)}
+        questionId={questionId}
       />
-      <p className="read-why">Why?</p>
+      <p className="read-why" id={whyId}>
+        Why?
+      </p>
       <RadioList
         label="Why?"
+        labelId={whyId}
         options={q.reasons}
         selected={reason}
         onPick={(i) => emit(inner, i)}
+        questionId={questionId}
       />
     </div>
   );

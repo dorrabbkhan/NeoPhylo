@@ -86,6 +86,11 @@ export interface ReadingTreeProps {
   onRotate: (clade: string[]) => void;
   /** Panel caption and the svg's accessible name ("Tree 1", …). */
   label: string;
+  /** Extra ids for the svg's accessible description — the item's
+   *  question when the tree is the answer control, so tabbing into
+   *  it voices the question (checkpoint §21(p)). The text
+   *  description's own id is always appended. */
+  describedBy?: string;
 }
 
 interface Size {
@@ -144,6 +149,7 @@ export function ReadingTree({
   rotatable,
   onRotate,
   label,
+  describedBy,
 }: ReadingTreeProps) {
   const [boxRef, box] = usePanelWidth();
   const reduced = useReducedMotion();
@@ -189,8 +195,12 @@ export function ReadingTree({
     return () => cancelAnimationFrame(id);
   }, [suppress]);
 
-  // Marker ids must be unique when several reading trees share a page.
-  const markerId = `rt-arrow-${useId().replace(/:/g, "")}`;
+  // Marker and description ids must be unique when several reading
+  // trees share a page.
+  const uid = useId().replace(/:/g, "");
+  const markerId = `rt-arrow-${uid}`;
+  const descRegionId = `rt-desc-${uid}`;
+  const descTextId = `rt-desc-text-${uid}`;
 
   // Fonts-ready gate, as in TreeView: measured label widths must come
   // from the bundled faces. jsdom (no document.fonts) is open at once.
@@ -377,6 +387,14 @@ export function ReadingTree({
           <svg
             role={interactive ? "tree" : "img"}
             aria-label={label}
+            // The question (interactive trees) then the text
+            // description list (every tree) — "Tree N, tree, Do the
+            // taxa…? Node S contains: …" on entry (§21(p)).
+            aria-describedby={
+              describedBy === undefined
+                ? descTextId
+                : `${describedBy} ${descTextId}`
+            }
             aria-multiselectable={
               interactive && selectable !== "none" ? true : undefined
             }
@@ -496,7 +514,12 @@ export function ReadingTree({
         <p role="status" className="rt-live">
           {announce}
         </p>
-        <TreeDescription view={derived} />
+        <TreeDescription
+          view={derived}
+          label={label}
+          regionId={descRegionId}
+          textId={descTextId}
+        />
       </div>
     </figure>
   );

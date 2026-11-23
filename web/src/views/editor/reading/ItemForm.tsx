@@ -295,14 +295,20 @@ export function ItemForm({
           {error}
         </p>
       )}
-      {answer !== null && (
-        <p className="rde-answer">
-          <strong>Answer:</strong> {answer.explanation}
-          {answer.authored && (
-            <span className="rde-authored"> (authored answer)</span>
-          )}
-        </p>
-      )}
+      {/* The engine's answer is announced like a verdict: the status
+          region exists from mount (empty div, no space) so the first
+          answer it ever fills is announced, not just later edits
+          (checkpoint §21(p)). */}
+      <div role="status" aria-label="Engine answer">
+        {answer !== null && (
+          <p className="rde-answer">
+            <strong>Answer:</strong> {answer.explanation}
+            {answer.authored && (
+              <span className="rde-authored"> (authored answer)</span>
+            )}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

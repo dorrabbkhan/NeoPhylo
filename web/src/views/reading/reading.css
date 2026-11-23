@@ -347,6 +347,23 @@
   margin-top: var(--space-12);
 }
 
+/* The answer groups' instruction half ("Choose one", "Tick every
+ * option that applies"): visually hidden but exposed — each group's
+ * aria-labelledby reads the question plus this (§21(p)). Same clip
+ * pattern as .rt-live. */
+.read-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .read-choices {
   display: flex;
   flex-direction: column;

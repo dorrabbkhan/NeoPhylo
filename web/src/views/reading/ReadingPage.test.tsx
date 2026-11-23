@@ -132,12 +132,10 @@ describe("practice mode", () => {
     expect(status.textContent).toMatch(/Not correct\./);
     expect(status.textContent).toMatch(/mammals-diff|relationships/i);
     // Retry still works after the reveal: Tree 3 → Correct. The
-    // answer edit clears `checked`, which unmounts the status div —
-    // re-query it rather than reading the detached node.
+    // status element itself persists through the answer edit (§21(p)).
     fireEvent.click(screen.getByRole("radio", { name: /tree 3/i }));
     fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
-    const status2 = screen.getByRole("status", { name: /verdict|result/i });
-    expect(status2.textContent).toMatch(/Correct\./);
+    expect(status.textContent).toMatch(/Correct\./);
   });
 
   it("Show answer after a first wrong Check reveals the explanation", async () => {
@@ -150,13 +148,12 @@ describe("practice mode", () => {
       screen.getByRole("button", { name: /show answer/i }),
     );
     expect(status.textContent).toMatch(/mammals-diff|relationships/i);
-    // Revealed stays revealed: edit + Check can't hide it again.
-    // (The edit unmounts the status div — re-query it.)
+    // Revealed stays revealed: edit + Check can't hide it again, and
+    // the status element persists through the edit (§21(p)).
     fireEvent.click(screen.getByRole("radio", { name: /tree 2/i }));
     fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
-    const status2 = screen.getByRole("status", { name: /verdict|result/i });
-    expect(status2.textContent).toMatch(/Not correct\./);
-    expect(status2.textContent).toMatch(/mammals-diff|relationships/i);
+    expect(status.textContent).toMatch(/Not correct\./);
+    expect(status.textContent).toMatch(/mammals-diff|relationships/i);
   });
 
   it("Back/Next keeps a first-wrong item's retry state", async () => {
@@ -221,6 +218,56 @@ describe("practice mode", () => {
       "chimp and kin: chimp and human are exactly the descendants of one node.",
     );
     expect(note!.textContent).not.toContain("{");
+  });
+});
+
+describe("screen-reader plumbing (§21(p))", () => {
+  it("the verdict status element exists before Check — same node after", async () => {
+    await renderPage({ id: "trees-demo" });
+    // The region mounts empty — a live region arriving WITH content
+    // is never announced, which is why the first Check used to be
+    // silent under NVDA.
+    const status = screen.getByRole("status", { name: /verdict/i });
+    expect(status.textContent).toBe("");
+    fireEvent.click(screen.getByRole("radio", { name: /tree 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^check$/i }));
+    // Same node, now carrying the first verdict.
+    expect(
+      screen.getByRole("status", { name: /verdict/i }),
+    ).toBe(status);
+    expect(status.textContent).toMatch(/Not quite — try again\./);
+  });
+
+  it("the answer group is named by the question, not just 'Choose one'", async () => {
+    await renderPage({ id: "trees-demo" });
+    expect(
+      screen.getByRole("radiogroup", {
+        name: /different relationships from the others\. which one\? choose one/i,
+      }),
+    ).toBeTruthy();
+  });
+
+  it("the svg describes itself by its text description", async () => {
+    await renderPage({ id: "trees-demo" });
+    const svg = document.querySelector(".rt-figure svg")!;
+    const ids = svg.getAttribute("aria-describedby")!.split(" ");
+    // Non-interactive (which_differs answers by radio): the
+    // description is the text list alone.
+    expect(ids).toHaveLength(1);
+    const list = document.getElementById(ids[0])!;
+    expect(list.tagName).toBe("UL");
+    expect(list.textContent).toContain("contains");
+  });
+
+  it("an interactive tree's description leads with the question", async () => {
+    await renderPage({ id: "trees-demo" });
+    nextTimes(3); // q-mrca — tap-the-tree is the answer control.
+    const svg = document.querySelector(".rt-figure svg")!;
+    const ids = svg.getAttribute("aria-describedby")!.split(" ");
+    expect(ids).toHaveLength(2);
+    expect(
+      document.getElementById(ids[0])!.textContent,
+    ).toMatch(/tap the most recent common ancestor/i);
   });
 });
 

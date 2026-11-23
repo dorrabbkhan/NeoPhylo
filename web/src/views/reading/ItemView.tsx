@@ -8,7 +8,7 @@
 // positions, so a rotation inside ReadingTree keeps the picked clade
 // selected without the page tracking orientation.
 
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 
 import { engine } from "../../engine/index";
 import { cladeKey } from "../../layout/readingGeom";
@@ -117,6 +117,10 @@ export function ItemView({
   }, [set, treeKeys]);
 
   const q = item?.question;
+  // The question element's id — every answer control is labelled by
+  // it so Tab-navigation voices the question, not just "Choose one"
+  // (owner NVDA pass, checkpoint §21(p)).
+  const questionId = useId();
   const tq = q === undefined ? undefined : tapQuestion(q);
   const pick = q === undefined ? "none" : selectableFor(q);
   const practice = set.mode === "practice";
@@ -202,7 +206,9 @@ export function ItemView({
           Question {s.index + 1} of {set.items.length}
         </p>
       </div>
-      <p className="read-question">{fillItemText(item)}</p>
+      <p className="read-question" id={questionId}>
+        {fillItemText(item)}
+      </p>
       <div className="read-trees">
         {shownTrees(item).map((t, i) => {
           const v = views.get(t.name);
@@ -230,6 +236,9 @@ export function ItemView({
               rotatable={item.rotate_tool}
               onRotate={() => {}}
               label={t.label}
+              describedBy={
+                i === 0 && pick !== "none" ? questionId : undefined
+              }
             />
           );
         })}
@@ -240,53 +249,60 @@ export function ItemView({
           view={view0}
           response={response}
           onResponse={emit}
+          questionId={questionId}
         />
       )}
-      {verdict !== null && (
-        <div
-          className="read-feedback"
-          role="status"
-          aria-label="Verdict"
-        >
-          {verdict.ok ? (
-            <>
-              <p
-                className={
-                  verdict.value.correct
-                    ? "read-verdict-good"
-                    : "read-verdict-bad"
-                }
-              >
-                {verdict.value.correct
-                  ? "Correct."
-                  : resolved
-                    ? "Not correct."
-                    : "Not quite — try again."}
-              </p>
-              {explain && (
-                <p className="read-explain">
-                  {verdict.value.explanation}
+      {/* The status region mounts once and stays: a live region
+          inserted together with its content is never announced, so
+          the verdict box swaps inside it instead — the first Check
+          voices like every later one (checkpoint §21(p)). Practice
+          mode only: test mode shows no verdict until Finish. The
+          empty div takes no space. */}
+      {practice && (
+        <div role="status" aria-label="Verdict">
+          {verdict !== null && (
+            <div className="read-feedback">
+              {verdict.ok ? (
+                <>
+                  <p
+                    className={
+                      verdict.value.correct
+                        ? "read-verdict-good"
+                        : "read-verdict-bad"
+                    }
+                  >
+                    {verdict.value.correct
+                      ? "Correct."
+                      : resolved
+                        ? "Not correct."
+                        : "Not quite — try again."}
+                  </p>
+                  {explain && (
+                    <p className="read-explain">
+                      {verdict.value.explanation}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="read-verdict-bad">
+                  {readErrorMessage(verdict.error)}
                 </p>
               )}
-            </>
-          ) : (
-            <p className="read-verdict-bad">
-              {readErrorMessage(verdict.error)}
-            </p>
-          )}
-          {explain && item.note_after !== undefined && (
-            <p className="read-note">
-              {fillPlaceholders(item.note_after, item)}
-            </p>
-          )}
-          {verdict.ok && !verdict.value.correct && !resolved && (
-            <button
-              type="button"
-              className="read-nav-btn read-show-answer"
-              onClick={() => dispatch({ type: "reveal" })}
-            >
-              Show answer
-            </button>
+              {explain && item.note_after !== undefined && (
+                <p className="read-note">
+                  {fillPlaceholders(item.note_after, item)}
+                </p>
+              )}
+              {verdict.ok && !verdict.value.correct && !resolved && (
+                <button
+                  type="button"
+                  className="read-nav-btn read-show-answer"
+                  onClick={() => dispatch({ type: "reveal" })}
+                >
+                  Show answer
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

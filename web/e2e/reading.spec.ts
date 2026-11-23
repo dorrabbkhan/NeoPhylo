@@ -765,6 +765,48 @@ test("the reading area has no serious axe violations", async ({
   expect(bad2, "with the text description open").toEqual([]);
 });
 
+// §21(p) — the owner's NVDA pass (2026-11-23) found the question
+// unvoiced on Tab, the tree text unreachable, and the first Check
+// silent. Pin the DOM contract: the radio group's accessible name
+// carries the question, and the empty verdict region exists before
+// Check so its first fill is announced.
+test("Tab reaches an answer group named by the question; the verdict region predates Check", async ({
+  page,
+}) => {
+  await gotoItem(page, 6); // q-clade — one tree, a "Choose one" radio group
+
+  // The live region mounts empty with the page — a region inserted
+  // together with its content is never announced.
+  const status = page.getByRole("status", { name: "Verdict" });
+  await expect(status).toBeAttached();
+  await expect(status).toHaveText("");
+
+  // Walk the tab order until focus lands inside the radio group —
+  // at most a couple of dozen stops (wordmark, toggles, radios).
+  const group = page.getByRole("radiogroup");
+  let inside = false;
+  for (let i = 0; i < 60 && !inside; i += 1) {
+    await page.keyboard.press("Tab");
+    inside = await page.evaluate(
+      () =>
+        document.activeElement?.closest('[role="radiogroup"]') !==
+        null,
+    );
+  }
+  expect(inside, "Tab reaches the answer radios").toBe(true);
+  // The focused control's group name is the question then the
+  // instruction — never "Choose one" alone.
+  await expect(group).toHaveAccessibleName(
+    /do gibbon and gorilla form a clade\? choose one/i,
+  );
+
+  // And the same on the second half: the first Check fills the
+  // already-mounted region.
+  await page.getByRole("radio", { name: "No — not a clade" }).press(" ");
+  await page.getByRole("button", { name: "Check" }).press("Enter");
+  await expect(status).toContainText("Not quite — try again.");
+});
+
 test("no sideways page scroll at 360 px, including the long-name tips-up figure", async ({
   page,
 }) => {
