@@ -27,7 +27,7 @@ export function ReadingKeyView({ keyModel, id }: ReadingKeyViewProps) {
         </p>
       </header>
       <ol className="ws-items ws-key-items">
-        {keyModel.items.map((item) => (
+        {keyModel.items.map((item, i) => (
           <li key={item.id} className="ws-item">
             <p className="ws-question">{item.text}</p>
             <p className="ws-answer">
@@ -40,12 +40,19 @@ export function ReadingKeyView({ keyModel, id }: ReadingKeyViewProps) {
             {item.noteAfter !== null && (
               <p className="ws-note">{item.noteAfter}</p>
             )}
+            {/* The print footer lives inside the last item: key items
+                are unbreakable in print, so the footer always travels
+                with the last answer — a final page holding the footer
+                alone can never happen (checkpoint §21(m)). Hidden on
+                screen, so this moves nothing there. */}
+            {i === keyModel.items.length - 1 && (
+              <footer className="lab-print-foot">
+                Printed from NeoPhylo — answer key for {keyModel.title}.
+              </footer>
+            )}
           </li>
         ))}
       </ol>
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — answer key for {keyModel.title}.
-      </footer>
     </>
   );
 }

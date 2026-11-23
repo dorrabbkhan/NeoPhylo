@@ -20,6 +20,9 @@ export interface TreeControlProps {
   view: ReadingTreeView;
   response: ResponseDraft | null;
   onResponse: (r: ResponseDraft | null) => void;
+  /** The question element's id — the group labels itself by the
+   *  question so Tab-entry voices it (checkpoint §21(p)). */
+  questionId: string;
 }
 
 // --- order_nodes ---------------------------------------------------------------
@@ -28,7 +31,7 @@ export interface TreeControlProps {
  *  move up/down and remove buttons (tap-in-sequence, never drag —
  *  spec §7.3). Tapping a lettered node on the tree appends too — the
  *  page wires that through the same response. */
-export function OrderBuilder({ question: q, view, response, onResponse }: TreeControlProps) {
+export function OrderBuilder({ question: q, view, response, onResponse, questionId }: TreeControlProps) {
   if (q.type !== "order_nodes") return null;
   const letters = response?.kind === "order" ? response.letters : [];
   const remaining = q.nodes.filter((l) => !letters.includes(l));
@@ -41,7 +44,11 @@ export function OrderBuilder({ question: q, view, response, onResponse }: TreeCo
       : `node ${letter} — the node joining ${joinAnd(n.clade)}`;
   };
   return (
-    <div className="read-order">
+    <div
+      className="read-order"
+      role="group"
+      aria-labelledby={questionId}
+    >
       <div className="read-order-chips">
         {remaining.map((l) => (
           <button
@@ -108,7 +115,30 @@ export function OrderBuilder({ question: q, view, response, onResponse }: TreeCo
 /** The visible list of what the student picked on the tree, with
  *  remove buttons (spec §7.3). Tips remove one at a time; a node or
  *  point selection clears back to unanswered. */
-export function SelectionList({ view, response, onResponse }: TreeControlProps) {
+export function SelectionList({ view, response, onResponse, questionId }: TreeControlProps) {
+  // The tap-the-tree selection readout is itself an answer control
+  // (its remove/clear buttons), so it groups under the question like
+  // the radio and checkbox lists (§21(p)).
+  return (
+    <div
+      className="read-sel"
+      role="group"
+      aria-labelledby={questionId}
+    >
+      <SelectionBody view={view} response={response} onResponse={onResponse} />
+    </div>
+  );
+}
+
+function SelectionBody({
+  view,
+  response,
+  onResponse,
+}: {
+  view: ReadingTreeView;
+  response: ResponseDraft | null;
+  onResponse: (r: ResponseDraft | null) => void;
+}) {
   if (response === null) {
     return (
       <p className="read-sel-empty">

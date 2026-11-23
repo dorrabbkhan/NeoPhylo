@@ -30,6 +30,8 @@ A computer-lab session that runs the PHYLIP chain first, then repeats the analys
 5. [MEGA: Interpreting bootstrap support on 16S rRNA](?lab=mega-interpreting-support)
 6. [MEGA: NJ vs UPGMA on vertebrate globins](?lab=mega-nj-vs-upgma)
 
+If MEGA twelve closes when it builds a Neighbor-Joining tree from a small matrix, its saved thread count is higher than the number of taxa — a MEGA bug, not a problem with the file. Run any sequence analysis once, set **Number of Threads** to one under **System Resource Usage**, then build the tree again — or use MEGA-CC, which is unaffected.
+
 ## What an answer key contains
 
 Every key is computed by the engine when the page renders, at the precision the page displays — the values always match what the app computes for the same exercise.
@@ -67,11 +69,13 @@ Four practice-mode sets, all intro level, in teaching order:
 - [Who is closest?](?read=trees-closest-relatives) — relatedness read from shared ancestry, not from tip proximity or resemblance.
 - [Clades and shared traits](?read=trees-clades-traits) — monophyly and trait marks, including losses.
 
+Practice-mode feedback is staged: a correct answer earns the verdict and the engine's plain-English explanation at once; a first wrong answer shows only "Not quite — try again." with nothing revealed, so the student changes the response and checks again; a second wrong answer — or pressing **Show answer** — resolves the item with the explanation and any teaching note, and a correct second answer shows them too. Back and Next move freely, and each item keeps its feedback state when the student returns to it.
+
 ### Using forms A and B
 
 [Tree reading — form A](?read=trees-form-a) and [Tree reading — form B](?read=trees-form-b) are parallel test-mode sets: the same misconception categories on different trees and taxa, so a class can sit one before teaching and the other after. Test mode shows no per-item feedback; the Finish screen gives the score with each item's explanation. Both are labelled "NeoPhylo's own questions, not a validated instrument" — see **Measuring learning** below.
 
-Both forms also print — [form A's paper worksheet](?worksheet=trees-form-a&kind=paper) with its [answer key](?key=trees-form-a&kind=paper), and [form B's worksheet](?worksheet=trees-form-b&kind=paper) with its [answer key](?key=trees-form-b&kind=paper) — for rooms without screens. Three paper caveats: the item wording is written for the screen ("Tap every tip that has…"), so read it as an instruction to mark the sheet; each sheet ends in a scan-the-code block that opens the live set — on a test-mode form that is the test itself, not an answer check, so keep the printed key for marking; and on form A's trait tree the mark labels can crowd each other in print — the on-screen set is unaffected.
+Both forms also print — [form A's paper worksheet](?worksheet=trees-form-a&kind=paper) with its [answer key](?key=trees-form-a&kind=paper), and [form B's worksheet](?worksheet=trees-form-b&kind=paper) with its [answer key](?key=trees-form-b&kind=paper) — for rooms without screens. The paper layer re-verbs the screen instructions ("Tap every tip that has…" prints as "Circle every tip that has…", "Select every true statement" as "Tick every true statement"), so the sheet reads like a paper task. A test-mode form ends in "Hand this sheet to your instructor." — no QR, no link back into the test itself — while a practice sheet keeps its scan-the-code block that opens the live set for a self-check. Keep the printed key for marking either way.
 
 ### Building a reading set in the editor
 
@@ -79,9 +83,8 @@ In the [editor](?editor), choose the **Tree reading set** mode. Give the set an 
 
 - Each stored tree takes pasted Newick — polytomies enter through Newick only; the shared draw canvas stays binary. **Edit on the canvas** loads a stored tree onto it, **Use canvas tree** stores the canvas back.
 - Annotations are made by tapping: pick the annotate tool — letter, age, mark or point — tap a clade on the preview (or a node on the canvas) and apply. Letters name nodes for items to reference, ages drive a numeric time axis, marks record trait gains and losses on branches, and points mark positions on nodes or branches; the times axis and trait display names live in the same panel.
-- Items are added by question type, and their tips, nodes and points are chosen by tapping — never by editing JSON. The engine re-checks the whole set after every change: a refusal names the item and the field, and **Save file**, **Share link** and **Preview** stay disabled until the set loads. Each item shows its engine-computed answer as you build.
+- Items are added by question type, and their tips, nodes and points are chosen by tapping — never by editing JSON. Trait-name fields (the trait a question asks about, including "has one trait, lacks another") are dropdowns offering the tree's own trait names from its marks and display names, so an item can never name a trait the tree does not know. The engine re-checks the whole set after every change: a refusal names the item and the field, and **Save file**, **Share link** and **Preview** stay disabled until the set loads. Each item shows its engine-computed answer as you build.
 - **Share link** copies a `?read=` URL that carries the set in its `#r=` fragment; **Save file** writes a `<id>.neophylo-reading.json` file; **Preview** opens exactly what the student sees; **Import a file or #r= link** takes either form back for later edits.
-- One current limit: the "has one trait, lacks another" trait question cannot be authored correctly yet — its fields capture tips where the format expects trait names — so leave that type out of sets you build.
 
 ### Measuring learning
 

@@ -298,8 +298,31 @@
 }
 
 /* A single figure wider than the column scrolls inside .rt-canvas;
- * the figure never pushes the page sideways. */
+ * the figure never pushes the page sideways. Each figure gets an
+ * equal, content-independent share of the row: a content-sized basis
+ * let the drawn width feed the next measured width, so the same item
+ * converged to different figure widths depending on how it was
+ * reached (checkpoint §21(k)). */
 .read-trees > .rt-figure {
+  flex: 1 1 0;
+  /* …but no wider than the owner-approved compact look: a lone tree
+   * used to stretch across the whole row (§21(k) follow-up). */
+  max-width: min(100%, var(--reading-figure-max));
+}
+
+/* …yet the cap must only stop a lone figure from stretching past what
+ * its drawing needs — it must never force .rt-canvas to scroll while
+ * the row still has room (2d, R1). A lone figure sizes from its own
+ * content basis instead of the zero share: floored at the compact cap
+ * and ceiled at the row, its used width lands at
+ * min(row, max(drawing, --reading-figure-max)) — a drawing narrower
+ * than the cap keeps the compact look, a wider one grows to it and a
+ * wider-than-row one still scrolls. Scoped to a lone figure: a
+ * multi-tree row allots shares under the cap anyway, and there the
+ * equal share must stay the only constraint. */
+.read-trees > .rt-figure:only-of-type {
+  flex: 0 1 auto;
+  min-width: min(100%, var(--reading-figure-max));
   max-width: 100%;
 }
 
@@ -307,16 +330,38 @@
  * matters in the column direction: a wrapping column line sizes to
  * its item's content, which would let a wide figure overflow the
  * viewport; nowrap keeps align-items:stretch clamping to the
- * container so .rt-canvas does the scrolling. */
+ * container so .rt-canvas does the scrolling. The stacked figure
+ * returns to content height (a zero basis would collapse it). */
 @media (max-width: 600px) {
   .read-trees {
     flex-direction: column;
     flex-wrap: nowrap;
   }
+
+  .read-trees > .rt-figure {
+    flex: none;
+  }
 }
 
 .read-control {
   margin-top: var(--space-12);
+}
+
+/* The answer groups' instruction half ("Choose one", "Tick every
+ * option that applies"): visually hidden but exposed — each group's
+ * aria-labelledby reads the question plus this (§21(p)). Same clip
+ * pattern as .rt-live. */
+.read-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .read-choices {
@@ -448,6 +493,10 @@
   margin: 0;
   font-size: var(--size-sm);
   color: var(--color-text-muted);
+}
+
+.read-show-answer {
+  margin-top: var(--space-8);
 }
 
 .read-nav {

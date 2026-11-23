@@ -56,4 +56,29 @@ describe("ErrorBoundary", () => {
     expect(writeText).toHaveBeenCalledWith(window.location.href);
     silence.mockRestore();
   });
+
+  it("swallows a denied clipboard's rejection", async () => {
+    const silence = vi.spyOn(console, "error").mockImplementation(() => {});
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const unhandled = vi.fn();
+    window.addEventListener("unhandledrejection", unhandled);
+    render(
+      <ErrorBoundary>
+        <Bomb />
+      </ErrorBoundary>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Copy link to this state" }),
+    );
+    expect(writeText).toHaveBeenCalledWith(window.location.href);
+    // Let the rejected promise settle before checking nothing leaked.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(unhandled).not.toHaveBeenCalled();
+    window.removeEventListener("unhandledrejection", unhandled);
+    silence.mockRestore();
+  });
 });

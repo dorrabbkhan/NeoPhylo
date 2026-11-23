@@ -296,21 +296,27 @@ export function PaperSheetView({
           first={i === 0}
         />
       ))}
-      <section aria-labelledby="ws-finish-h">
-        <h2 id="ws-finish-h">{joins.length + 2}. Finish the tree</h2>
-        <p>
-          {joins.length < run.joins.length
-            ? "Finish the tree in NeoPhylo — open the exercise and let it run the remaining joins."
-            : "Check your tree in NeoPhylo — open the exercise and let it build it."}{" "}
-          Scan the code or follow the link:
-        </p>
-        <LinkBlock link={sheet.link} />
-        <p>Sketch the tree it builds:</p>
-        <SketchBox />
-      </section>
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — worksheet for {sheet.title}.
-      </footer>
+      {/* ws-end is display:contents on screen and one unbreakable
+          block in print — the closing section and the footer travel
+          together, so a final page never holds the footer alone
+          (checkpoint §21(m)). */}
+      <div className="ws-end">
+        <section aria-labelledby="ws-finish-h">
+          <h2 id="ws-finish-h">{joins.length + 2}. Finish the tree</h2>
+          <p>
+            {joins.length < run.joins.length
+              ? "Finish the tree in NeoPhylo — open the exercise and let it run the remaining joins."
+              : "Check your tree in NeoPhylo — open the exercise and let it build it."}{" "}
+            Scan the code or follow the link:
+          </p>
+          <LinkBlock link={sheet.link} />
+          <p>Sketch the tree it builds:</p>
+          <SketchBox />
+        </section>
+        <footer className="lab-print-foot">
+          Printed from NeoPhylo — worksheet for {sheet.title}.
+        </footer>
+      </div>
     </>
   );
 }

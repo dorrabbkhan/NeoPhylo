@@ -53,6 +53,10 @@ export interface ReadingSheet {
   minutes: number | null;
   /** The `?read=`/`#r=` link printed with its QR. */
   link: string;
+  /** A `mode: "test"` set is collected and marked, not self-checked:
+   * the sheet prints "Hand this sheet to your instructor." instead
+   * of the link + QR (checkpoint §21(f)). */
+  test: boolean;
   items: ReadingSheetItem[];
 }
 
@@ -334,6 +338,76 @@ function acceptedText(
   }
 }
 
+// Paper wording (checkpoint §21(f)): the authored question text is
+// written for the screen, so a sheet or key re-verbs every
+// sentence-initial instruction through PAPER_VERBS — "Tap every tip
+// that has…" → "Circle every tip that has…" — and drops app-only
+// clauses. A sentence that starts with a screen verb the table
+// doesn't cover keeps the authored wording: a shared user set can
+// carry instructions the table never saw and must not crash the
+// sheet (round 2d, R2). Shipped content is still held to the table —
+// the corpus test asserts every built-in and coverage item reports
+// no unmappedPaperSentences, so a new instruction verb fails loudly
+// there instead of printing app wording on paper.
+
+const PAPER_VERBS: [string, string][] = [
+  [
+    "Tap the lettered nodes in order",
+    "Write the letters of the nodes in order",
+  ],
+  ["Tap every", "Circle every"],
+  ["Tap one of", "Circle one of"],
+  ["Tap the", "Circle the"],
+  ["Tap", "Circle"],
+  ["Select every true statement", "Tick every true statement"],
+  ["Select all that apply", "Tick all that apply"],
+  ["Select", "Tick"],
+  ["Rotate nodes freely", "Rotating a node changes nothing"],
+];
+
+/** Instruction verbs that can only mean the screen — a sentence
+ * starting with one and matching no table entry is unmapped. */
+const SCREEN_VERB =
+  /^(Tap|Click|Drag|Press|Select|Swipe|Hover|Rotate|Pick)\b/;
+
+/** Sentence starts: position 0 and right after ". "/"! "/"? " — the
+ * split keeps the punctuation so even-index pieces are sentences. */
+const SENTENCE_SPLIT = /([.!?]+\s+)/;
+
+/** The PAPER_VERBS mapping a sentence start maps through, if any. */
+const paperVerbFor = (piece: string) =>
+  PAPER_VERBS.find(([from]) => piece.startsWith(from));
+
+/** The sentence starts of an item's filled text that begin with a
+ * screen instruction verb PAPER_VERBS doesn't map — an empty list
+ * means every instruction prints re-verbed. Built-in content is
+ * held to it by the corpus test; a user-authored set falls back to
+ * the authored sentence instead of failing the sheet. */
+export function unmappedPaperSentences(item: Item): string[] {
+  return fillItemText(item)
+    .split(SENTENCE_SPLIT)
+    .filter(
+      (piece, idx) =>
+        idx % 2 === 0 &&
+        piece !== "" &&
+        paperVerbFor(piece) === undefined &&
+        SCREEN_VERB.test(piece),
+    );
+}
+
+/** An item's question text re-verbed for paper. A sentence starting
+ * with an instruction verb PAPER_VERBS doesn't map keeps the
+ * authored wording — see unmappedPaperSentences. */
+export function paperText(item: Item): string {
+  const parts = fillItemText(item).split(SENTENCE_SPLIT);
+  const out = parts.map((piece, idx) => {
+    if (idx % 2 === 1 || piece === "") return piece;
+    const hit = paperVerbFor(piece);
+    return hit !== undefined ? hit[1] + piece.slice(hit[0].length) : piece;
+  });
+  return out.join("").replaceAll(", or arrange the list", "");
+}
+
 /** The paper worksheet model: every item's question and answer space,
  * each shown tree in its authored style, and the set's open link for
  * the QR. Carries no answer — the space types hold only what the
@@ -343,9 +417,10 @@ export function readingSheet(set: ReadingSet, link: string): ReadingSheet {
     title: set.title,
     minutes: set.meta?.minutes ?? null,
     link,
+    test: set.mode === "test",
     items: set.items.map((item) => ({
       id: item.id,
-      text: fillItemText(item),
+      text: paperText(item),
       tips: item.tips,
       trees: sheetTrees(item),
       space: spaceFor(item.question, item, firstTree(set, item)),
@@ -365,7 +440,7 @@ export function readingKey(set: ReadingSet): Result<ReadingKey> {
     if (!k.ok) return { ok: false, error: k.error };
     items.push({
       id: item.id,
-      text: fillItemText(item),
+      text: paperText(item),
       answer: acceptedText(
         item.question,
         item,

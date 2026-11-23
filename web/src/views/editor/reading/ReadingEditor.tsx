@@ -175,7 +175,9 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
     const url = shareUrl();
     if (url === null) return;
     try {
-      void navigator.clipboard?.writeText(url);
+      void navigator.clipboard
+        ?.writeText(url)
+        ?.catch(() => undefined);
     } catch {
       // blocked clipboard — the field still shows the link
     }

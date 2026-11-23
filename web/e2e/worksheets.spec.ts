@@ -583,6 +583,26 @@ test("a reading set's gated key shows every engine answer with the authored labe
   // trees-clades-traits' two-tier item has an authored reason —
   // labelled, per the spec.
   await expect(page.getByText("authored answer").first()).toBeVisible();
+
+  // §21(m): the print footer lives inside the last item — hidden on
+  // screen — and in print every key item is one unbreakable unit, so
+  // the footer always travels with the last answer.
+  const last = page.locator(".ws-key-items .ws-item").last();
+  await expect(last.locator(".lab-print-foot")).toBeHidden();
+  const css = (loc: Locator, prop: string): Promise<string> =>
+    loc.evaluate(
+      (el, p) => getComputedStyle(el).getPropertyValue(p),
+      prop,
+    );
+  await page.emulateMedia({ media: "print" });
+  for (const item of await page.locator(".ws-key-items .ws-item").all()) {
+    expect(
+      await css(item, "break-inside"),
+      "key item is one unbreakable block",
+    ).toMatch(/^avoid/);
+  }
+  await expect(last.locator(".lab-print-foot")).toBeVisible();
+  await page.emulateMedia({ media: "screen" });
 });
 
 test("a custom reading set gets a paper sheet and key through #r=", async ({
@@ -638,6 +658,59 @@ test("a custom reading set gets a paper sheet and key through #r=", async ({
   await expect(page.locator(".ws-answer")).toHaveCount(1);
 });
 
+// Round 2d (R2): an authored instruction verb the paper table
+// doesn't cover used to throw inside paperText and crash the sheet
+// into the error page — a shared set's paper sheet now prints the
+// authored wording.
+test("a custom set's unmapped instruction verb prints as authored", async ({
+  page,
+}) => {
+  const set = {
+    schema_version: 1,
+    kind: "reading",
+    id: "e2e-shared-verb",
+    title: "Shared verb set",
+    summary: "A set carried by its link",
+    mode: "practice",
+    taxa_pool: {},
+    trees: {
+      t: {
+        newick: "((a,b),(c,d));",
+        node_letters: [],
+        marks: [],
+        traits: [],
+        points: [],
+      },
+    },
+    items: [
+      {
+        id: "q-pick",
+        text: "Pick the tips that form a clade — are {set} a clade in this tree?",
+        trees: ["t"],
+        tips: ["a", "b"],
+        rotate_tool: false,
+        question: { type: "is_clade" },
+      },
+    ],
+  };
+  const hash = `#r=${lzstring.compressToEncodedURIComponent(
+    JSON.stringify({ v: 1, set }),
+  )}`;
+
+  await page.goto(`/?worksheet=custom&kind=paper${hash}`);
+  // The sheet renders — the authored "Pick…" instruction verbatim —
+  // and never the error page.
+  await expect(
+    page.getByRole("heading", { name: "Shared verb set", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Pick the tips that form a clade — are a and b a clade in this tree?",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Worksheet not available")).toHaveCount(0);
+});
+
 test("every built-in reading set renders its paper sheet and key without console errors", async ({
   page,
 }) => {
@@ -675,6 +748,311 @@ test("every built-in reading set renders its paper sheet and key without console
     ).toBeVisible();
     expect(errors, `${id} key console`).toEqual([]);
   }
+});
+
+// §21(f): paper sheets print paper verbs, and a test-mode form is
+// collected — it carries no QR that would open the test itself.
+test("a test-mode paper sheet is handed in, with paper verbs", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-form-a&kind=paper");
+  await expect(page.locator(".ws-items")).toBeVisible();
+  await expect(
+    page.getByText("Hand this sheet to your instructor."),
+  ).toBeVisible();
+  await expect(page.locator(".ws-linkblock")).toHaveCount(0);
+  await expect(page.locator(".ws-qr")).toHaveCount(0);
+  // The authored "Tap every tip that has limbs." prints re-verbed.
+  await expect(
+    page.getByText("Circle every tip that has limbs."),
+  ).toBeVisible();
+  const body = await page.locator(".ws-items").innerText();
+  expect(body).not.toMatch(/\b[Tt]ap\b|\b[Cc]lick\b|\bSelect\b/);
+});
+
+test("a practice paper sheet keeps the check-in-app QR", async ({
+  page,
+}) => {
+  await page.goto("/?worksheet=trees-demo&kind=paper");
+  await expect(page.locator(".ws-items")).toBeVisible();
+  await expect(
+    page.getByText(/Check your answers in the app/),
+  ).toBeVisible();
+  await expect(page.locator(".ws-qr")).toBeVisible();
+  await expect(
+    page.getByText("Hand this sheet to your instructor."),
+  ).toHaveCount(0);
+});
+
+// §21(a): on form A's printed trait tree the two marks on the
+// dolphin branch used to draw "limbs echolocation" across the hippo
+// branch — touching the hippo tip dot and reaching its tip label.
+// The old check missed it twice over: it never emulated print media
+// (the print stylesheet changes the figure width), and it compared
+// raw getBBox() values — but .rt-mark-label sits in a translated
+// <g> with relative x/y, so every box it compared was in a
+// different coordinate frame and nothing ever overlapped. Assert on
+// real rendered boxes (getBoundingClientRect resolves every
+// transform) on the exact print scene — viewport 768×1024, print
+// media — and on the screen sheet at 1024.
+test("form A's trait tree: mark labels clear hippo (print + screen)", async ({
+  page,
+}) => {
+  const check = async (where: string) => {
+    const result = await page.evaluate(() => {
+      const hits: string[] = [];
+      let figs = 0;
+      const over = (a: DOMRect, b: DOMRect): boolean =>
+        a.left < b.right &&
+        a.right > b.left &&
+        a.top < b.bottom &&
+        a.bottom > b.top;
+      document
+        .querySelectorAll<SVGSVGElement>(".rt-figure svg")
+        .forEach((svg) => {
+          const labels = [...svg.querySelectorAll<SVGGraphicsElement>(
+            ".rt-mark-label",
+          )].filter(
+            (e) =>
+              e.textContent === "limbs" || e.textContent === "echolocation",
+          );
+          const hippo = [
+            ...svg.querySelectorAll<SVGGraphicsElement>(".rt-tip-label"),
+            // <text>'s textContent includes its <title> child, so a
+            // tip label reads "hippohippo" — the first text node is
+            // the drawn label itself.
+          ].find((e) => e.firstChild?.textContent === "hippo");
+          const edge = svg.querySelector<SVGGeometryElement>(
+            '.rt-edge[data-to=\'["hippo"]\']',
+          );
+          const dot = svg.querySelector<SVGCircleElement>(
+            '.rt-node[data-clade=\'["hippo"]\'] .rt-dot',
+          );
+          // Every branch except the ones the marks legitimately ride
+          // on: the dolphin tip edge carries the loss-of-limbs and
+          // echolocation marks, the big-clade edge carries the limbs
+          // gain mark.
+          const own = new Set([
+            '["dolphin"]',
+            '["camel","dolphin","frog","hippo","pig"]',
+          ]);
+          const others = [
+            ...svg.querySelectorAll<SVGGeometryElement>(".rt-edge"),
+          ].filter((e) => !own.has(e.getAttribute("data-to") ?? ""));
+          if (labels.length === 0 || !hippo || !edge || !dot) return;
+          figs += 1;
+          // "limbs", "echolocation" and "hippo" pairwise disjoint.
+          const texts = [...labels, hippo];
+          for (let i = 0; i < texts.length; i += 1) {
+            for (let j = i + 1; j < texts.length; j += 1) {
+              if (
+                over(
+                  texts[i].getBoundingClientRect(),
+                  texts[j].getBoundingClientRect(),
+                )
+              ) {
+                hits.push(
+                  `"${texts[i].textContent}" box overlaps "${texts[j].textContent}"`,
+                );
+              }
+            }
+          }
+          const db = dot.getBoundingClientRect();
+          for (const m of labels) {
+            const mb = m.getBoundingClientRect();
+            if (over(mb, db)) {
+              hits.push(`"${m.textContent}" box covers the hippo tip dot`);
+            }
+            // The label's rendered box may not cross another
+            // branch — the hippo's included. Sample every non-own
+            // path in screen space.
+            for (const e of [edge, ...others]) {
+              const ctm = e.getScreenCTM();
+              if (ctm === null) continue;
+              const len = e.getTotalLength();
+              for (let s = 0; s <= len; s += 1) {
+                const p = e.getPointAtLength(s).matrixTransform(ctm);
+                if (
+                  p.x > mb.left &&
+                  p.x < mb.right &&
+                  p.y > mb.top &&
+                  p.y < mb.bottom
+                ) {
+                  hits.push(
+                    `"${m.textContent}" box crosses the ${e.getAttribute("data-to")} branch`,
+                  );
+                  break;
+                }
+              }
+            }
+          }
+        });
+      return { hits, figs };
+    });
+    expect(result.figs, `${where}: trait figures checked`).toBeGreaterThan(0);
+    expect(result.hits, where).toEqual([]);
+  };
+
+  // The exact print scene: same route and media as the
+  // worksheet-reading-form-print visual baseline at 768×1024.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/?worksheet=trees-form-a&kind=paper");
+  await expect(page.locator(".rt-mark-label").first()).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  await check("print 768×1024");
+
+  // The screen sheet at 1024.
+  await page.emulateMedia({ media: "screen" });
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.locator(".rt-mark-label").first()).toBeVisible();
+  await check("screen 1024");
+});
+
+// §21(m)/(n): the reading sheet's print rules. text-rendering:
+// geometricPrecision is print-only — hinted whole-pixel advances made
+// printed letter spacing uneven and split words in the PDF text. And
+// the item's PIECES, not the item, avoid page breaks: each figure
+// (caption + drawing) is one unbreakable block, the question and the
+// first figure are one structural block (the .ws-lead wrapper —
+// break-after: avoid on the question did not reach into the flex
+// row), and the last figure and the answer block are one structural
+// block too (the .ws-trail wrapper — Firefox computes break-before:
+// avoid to auto, so the glue can't be a break hint), while a
+// multi-figure item may itself split.
+test("a reading sheet prints exact text with unbreakable pieces, not items", async ({
+  page,
+}) => {
+  const css = (loc: Locator, prop: string): Promise<string> =>
+    loc.evaluate(
+      (el, p) => getComputedStyle(el).getPropertyValue(p),
+      prop,
+    );
+
+  await page.goto("/?worksheet=trees-demo&kind=paper");
+  const items = page.locator(".ws-read-item");
+  await expect(items.first()).toBeVisible();
+
+  // Screen rendering is untouched: legibility, no print break rules,
+  // and the structural wrappers are transparent — .ws-lead/.ws-trail
+  // are display: contents and .ws-tail is a plain block line of the
+  // trees row (.ws-end inside it is a block only to undo the list
+  // indent).
+  expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
+    /geometricprecision/i,
+  );
+  expect(await css(items.first(), "break-inside")).toBe("auto");
+  expect(
+    await css(items.first().locator(".rt-figure").first(), "break-inside"),
+  ).toBe("auto");
+  expect(
+    await css(items.first().locator(".ws-lead"), "display"),
+  ).toBe("contents");
+  expect(
+    await css(items.first().locator(".ws-trail"), "display"),
+  ).toBe("contents");
+  expect(
+    await css(items.first().locator(".ws-tail"), "display"),
+  ).toBe("block");
+
+  await page.emulateMedia({ media: "print" });
+  // Chromium serializes the computed keyword lowercase.
+  expect(await css(page.locator("body"), "text-rendering")).toBe(
+    "geometricprecision",
+  );
+
+  // A multi-figure item (trees-demo item 1 shows three trees): the
+  // item may break — its pieces may not.
+  const figCounts = await items.evaluateAll((els) =>
+    els.map((e) => e.querySelectorAll(".rt-figure").length),
+  );
+  const mi = figCounts.findIndex((n) => n > 1);
+  expect(mi, "a multi-figure item exists").toBeGreaterThanOrEqual(0);
+  const multi = items.nth(mi);
+  expect(await css(multi, "break-inside")).not.toMatch(/^avoid/);
+  for (const fig of await multi.locator(".rt-figure").all()) {
+    expect(await css(fig, "break-inside"), "figure is one block").toMatch(
+      /^avoid/,
+    );
+  }
+  expect(
+    await css(multi.locator(".ws-question"), "break-inside"),
+    "the prompt never splits",
+  ).toMatch(/^avoid/);
+  expect(
+    await css(multi.locator(".ws-lead"), "break-inside"),
+    "prompt + first figure are one block",
+  ).toMatch(/^avoid/);
+  const space = multi.locator(".ws-space, .ws-fill-line").last();
+  expect(await css(space, "break-inside"), "answer block unbreakable").toMatch(
+    /^avoid/,
+  );
+  // The glue between the last figure and the answer block is
+  // STRUCTURAL — they share the .ws-trail wrapper, one unbreakable
+  // block in print that is display:contents on screen. Assert the
+  // structure, never a computed break-before/break-after value:
+  // Firefox can't produce one (it computes break-before: avoid to
+  // auto), while break-inside: avoid holds in every engine.
+  const trail = multi.locator(".ws-trail");
+  await expect(trail).toHaveCount(1);
+  expect(await css(trail, "display"), "trail is a real block in print").toBe(
+    "block",
+  );
+  expect(
+    await css(trail, "break-inside"),
+    "last figure + answer block are one unbreakable block",
+  ).toMatch(/^avoid/);
+  expect(
+    await multi
+      .locator(".rt-figure")
+      .last()
+      .evaluate((el) => el.parentElement?.classList.contains("ws-trail")),
+    "the item's last figure lives inside the trail",
+  ).toBe(true);
+  expect(
+    await space.evaluate((el) => el.closest(".ws-trail") !== null),
+    "the answer block lives inside the trail",
+  ).toBe(true);
+
+  // A single-figure item merges lead and trail: prompt + figure +
+  // answer are one unbreakable block.
+  const si = figCounts.findIndex((n) => n === 1);
+  expect(si, "a single-figure item exists").toBeGreaterThanOrEqual(0);
+  const single = items.nth(si).locator(".ws-lead.ws-trail");
+  await expect(single).toHaveCount(1);
+  expect(
+    await css(single, "break-inside"),
+    "single-figure item is one block",
+  ).toMatch(/^avoid/);
+  expect(
+    await single.locator("> .ws-question, > .rt-figure, > .ws-tail").count(),
+    "prompt + figure + answer share the merged block",
+  ).toBe(3);
+
+  // The last item's tail — answer space + closing block + footer —
+  // is one unbreakable unit holding real text, so the last page
+  // never holds the footer alone. The closing block's glue is
+  // structural as well: it sits inside the same atomic tail.
+  const tail = items.last().locator(".ws-tail");
+  expect(
+    await css(tail, "break-inside"),
+    "last item tail is one unbreakable unit",
+  ).toMatch(/^avoid/);
+  expect(await css(tail, "display"), "tail is atomic in print").toBe(
+    "inline-block",
+  );
+  const end = tail.locator(".ws-end");
+  expect(await css(end, "break-inside"), "closing block is one unit").toMatch(
+    /^avoid/,
+  );
+  expect(
+    await end.evaluate((el) => el.closest(".ws-trail") !== null),
+    "closing block + footer live inside the last item's trail",
+  ).toBe(true);
+
+  await page.emulateMedia({ media: "screen" });
+  expect(await css(page.locator("body"), "text-rendering")).not.toMatch(
+    /geometricprecision/i,
+  );
 });
 
 // Fix round 1 (review 4): under a coarse pointer every interactive

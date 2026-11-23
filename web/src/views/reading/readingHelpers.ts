@@ -9,10 +9,11 @@ import type { CSSProperties } from "react";
 
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
 import type { ReadingStyle } from "../../layout/readingLayout";
-import { cladeKey } from "../../layout/readingGeom";
+import { cladeKey, LETTER_R } from "../../layout/readingGeom";
 
-/** Node-letter and point-letter badge radius. */
-export const LETTER_R = 9;
+/** Node-letter and point-letter badge radius (the layout's constant,
+ * re-exported for the renderer). */
+export { LETTER_R };
 
 /** ≥40 px hit pad — a hair over, like TreeView's: WebKit quantizes
  * layout to 1/64 px, so an exact 40 renders back as 39.999 (§6.5). */

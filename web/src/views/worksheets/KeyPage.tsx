@@ -395,24 +395,30 @@ export function PaperKeyView({
           </ul>
         )}
       </section>
-      <section aria-labelledby="wk-tree-h">
-        <h2 id="wk-tree-h">
-          {(rest.length > 0 ? worked.length + 4 : worked.length + 3)}. The
-          finished tree
-        </h2>
-        <TreeView
-          tree={tree}
-          layoutKind="phylogram"
-          highlight={new Set()}
-          wrong={new Set()}
-          clampNegative={false}
-          printFit
-          title={`${sheet.title} — finished tree`}
-        />
-      </section>
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — answer key for {sheet.title}.
-      </footer>
+      {/* ws-end is display:contents on screen and one unbreakable
+          block in print — the closing section and the footer travel
+          together, so a final page never holds the footer alone
+          (checkpoint §21(m)). */}
+      <div className="ws-end">
+        <section aria-labelledby="wk-tree-h">
+          <h2 id="wk-tree-h">
+            {(rest.length > 0 ? worked.length + 4 : worked.length + 3)}. The
+            finished tree
+          </h2>
+          <TreeView
+            tree={tree}
+            layoutKind="phylogram"
+            highlight={new Set()}
+            wrong={new Set()}
+            clampNegative={false}
+            printFit
+            title={`${sheet.title} — finished tree`}
+          />
+        </section>
+        <footer className="lab-print-foot">
+          Printed from NeoPhylo — answer key for {sheet.title}.
+        </footer>
+      </div>
     </>
   );
 }

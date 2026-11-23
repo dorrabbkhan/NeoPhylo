@@ -50,7 +50,9 @@ const verdict = (page: Page) =>
   page.getByRole("status", { name: "Verdict" });
 
 /** Check, then assert the engine's verdict — the retry path keeps
- * the Check button live after a wrong answer. */
+ * the Check button live after a wrong answer. The first wrong Check
+ * on an item is the retry verdict ("Not quite — try again.") with no
+ * explanation; a second resolves the item (§21(c) feedback design). */
 async function checkExpect(
   page: Page,
   ok: boolean,
@@ -62,7 +64,7 @@ async function checkExpect(
     await expect(verdict(page)).toContainText("Correct.");
     await expect(verdict(page)).not.toContainText("Not correct");
   } else {
-    await expect(verdict(page)).toContainText("Not correct");
+    await expect(verdict(page)).toContainText("Not quite — try again");
   }
 }
 
@@ -353,7 +355,11 @@ const ITEMS: {
       async (page, how) =>
         act(
           page
-            .getByRole("radiogroup", { name: "Why?" })
+            // Exact: the item text itself ends "— and why?", so a
+            // substring match also hits the first tier's
+            // "…and why? Choose one" and .first() picks in the wrong
+            // group. The Why? group's name is exactly its caption.
+            .getByRole("radiogroup", { name: "Why?", exact: true })
             .getByRole("radio")
             .first(),
           how,
@@ -434,6 +440,249 @@ test("rotating a selected node keeps the selection on the same clade", async ({
   );
 
   await checkExpect(page, true, "mouse");
+});
+
+/* ---- practice feedback staging (§21(c)) ----------------------------------- */
+
+test("a first wrong verdict is a real retry: no explanation, Show answer resolves", async ({
+  page,
+}) => {
+  await gotoItem(page, 0); // q-differs, the odd tree is Tree 3
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  // Nothing about the answer leaks on a first wrong Check — no
+  // explanation, no note_after, and no mark of which option was right.
+  await expect(page.locator(".read-explain")).toHaveCount(0);
+  await expect(page.locator(".read-note")).toHaveCount(0);
+
+  // "Show answer" resolves the item — the engine's explanation lands.
+  await page.getByRole("button", { name: "Show answer" }).click();
+  await expect(verdict(page)).toContainText("Not correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+});
+
+test("a second wrong Check resolves the item", async ({ page }) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  // Check stays live on the unchanged response; the second wrong
+  // answer shows the engine's explanation.
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+});
+
+test("a correct first Check shows the explanation at once", async ({
+  page,
+}) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 3")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Correct.");
+  await expect(page.locator(".read-explain")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Show answer" }),
+  ).toHaveCount(0);
+});
+
+test("Back/Next keeps a first-wrong item's tried-once, not-shown state", async ({
+  page,
+}) => {
+  await gotoItem(page, 0);
+  await pickRadio("Tree 1")(page, "mouse");
+  await page.getByRole("button", { name: "Check" }).click();
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Question 2 of")).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByText("Question 1 of")).toBeVisible();
+  // Still tried once, still unshown — the retry verdict is back with
+  // its Show answer button and no explanation.
+  await expect(verdict(page)).toContainText("Not quite — try again.");
+  await expect(page.locator(".read-explain")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Show answer" }),
+  ).toBeVisible();
+});
+
+/* ---- item-change relayout (§21(j)) ----------------------------------------- */
+
+/** Running animations whose target sits inside a reading figure. */
+const runningTreeAnims = (page: Page): Promise<number> =>
+  page.evaluate(
+    () =>
+      document.getAnimations().filter((a) => {
+        const t = (a.effect as KeyframeEffect | null)?.target;
+        return (
+          a.playState === "running" &&
+          t instanceof Element &&
+          t.closest(".rt-figure svg") !== null
+        );
+      }).length,
+  );
+
+/** Every positioned group rests where its own transform puts it —
+ * the checker's readingDrift rule (translate vs getScreenCTM, ≤2 px). */
+const treeDrift = (page: Page): Promise<string[]> =>
+  page.evaluate(() => {
+    const out: string[] = [];
+    const translate = /^translate\(([-\d.eE+]+)px[,\s]+([-\d.eE+]+)px\)$/;
+    for (const svg of document.querySelectorAll<SVGSVGElement>(
+      ".rt-figure svg",
+    )) {
+      const ctm = svg.getScreenCTM();
+      if (ctm === null) continue;
+      for (const g of svg.querySelectorAll<SVGGElement>(
+        ".rt-anim, .rt-hit",
+      )) {
+        const m = translate.exec(g.style.transform);
+        if (m === null) continue;
+        const want = new DOMPoint(
+          Number(m[1]),
+          Number(m[2]),
+        ).matrixTransform(ctm);
+        const got = g.getScreenCTM();
+        if (got === null) continue;
+        const d = Math.hypot(want.x - got.e, want.y - got.f);
+        if (d > 2) {
+          out.push(
+            `${g.getAttribute("class") ?? "?"}: ${d.toFixed(1)}px off`,
+          );
+        }
+      }
+    }
+    return out;
+  });
+
+test("an item change lands the trees at their final spots — dots never slide", async ({
+  page,
+}) => {
+  // trees-reading-a-tree items 1→2 draw the same vertebrates tree in
+  // different styles — exactly the re-use case §21(j) caught mid-slide.
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  await expect(firstFig(page).locator("svg")).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  // Inside the old 300 ms window: the view change draws with the
+  // transition off, so nothing animates and every dot already rests
+  // on its node.
+  expect(
+    await runningTreeAnims(page),
+    "no running animation on an item change",
+  ).toBe(0);
+  expect(await treeDrift(page), "dots rest on their nodes").toEqual([]);
+  await expect(page.getByText("Question 2 of 7")).toBeVisible();
+});
+
+test("rotating inside an item keeps its 300 ms animation", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  await firstFig(page)
+    .getByRole("button", { name: "Rotate here" })
+    .click();
+  await expect
+    .poll(() => runningTreeAnims(page), {
+      message: "a rotation still animates the swap",
+    })
+    .toBeGreaterThan(0);
+});
+
+test("a panel resize relayouts without sliding the dots", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/?read=trees-reading-a-tree");
+  await expect(page.getByText("Question 1 of 7")).toBeVisible();
+  const svg = firstFig(page).locator("svg");
+  await expect(svg).toBeVisible();
+  const before = await svg.getAttribute("width");
+  await page.setViewportSize({ width: 480, height: 768 });
+  // Wait for the relayout to actually land — asserting before it
+  // would prove nothing.
+  await expect
+    .poll(async () => svg.getAttribute("width"))
+    .not.toBe(before);
+  expect(
+    await runningTreeAnims(page),
+    "a size-only relayout never animates",
+  ).toBe(0);
+  expect(await treeDrift(page), "dots rest on their nodes").toEqual([]);
+});
+
+/* ---- malformed links ---------------------------------------------------------- */
+
+test("a #r= fragment lz-string cannot decode refuses with the link message", async ({
+  page,
+}) => {
+  await page.goto("/#r=zzz");
+  const alert = page.getByRole("alert");
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText(
+    "the shared set could not be decompressed",
+  );
+  await expect(alert).not.toContainText(/engine/i);
+});
+
+/* ---- same-tab #r= re-routing -------------------------------------------------- */
+
+// Root picks its route once at module load, so a fragment-only
+// navigation used to leave the old page mounted: a second `#r=` link
+// opened in the same tab kept showing the first set, and `#r=` added
+// to a `?read=` URL never mounted the shared set at all (reproduced on
+// the PR #182 deploy). The hashchange watcher now reloads across a
+// `#r=` boundary so the route is picked again — checkpoint fix, owner
+// decision 2026-11-22.
+
+/** A `#r=` hash carrying a one-item set built from the demo file —
+ *  the same { v: 1, set } envelope the editor's Share button writes. */
+const sharedHash = (id: string, title: string): string =>
+  "#r=" +
+  lzstring.compressToEncodedURIComponent(
+    JSON.stringify({
+      v: 1,
+      set: { ...demoSet, id, title, items: [demoSet.items[6]] },
+    }),
+  );
+
+test("a second #r= link in the same tab re-routes to its set", async ({
+  page,
+}) => {
+  await page.goto(`/${sharedHash("shared-a", "Shared set A")}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared set A" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
+
+  // Same-document navigation: only the fragment differs, so without
+  // the watcher the first set would stay mounted.
+  await page.goto(`/${sharedHash("shared-b", "Shared set B")}`);
+  await expect(
+    page.getByRole("heading", { name: "Shared set B" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
+});
+
+test("adding #r= to a ?read= URL mounts the shared set", async ({
+  page,
+}) => {
+  await page.goto("/?read=trees-form-a");
+  await expect(
+    page.getByRole("heading", { name: "Tree reading — form A" }),
+  ).toBeVisible();
+
+  // `#r=` wins over `?read=` — the shared set's title replaces the
+  // shipped set's.
+  await page.goto(
+    `/?read=trees-form-a${sharedHash("shared-c", "Shared set C")}`,
+  );
+  await expect(
+    page.getByRole("heading", { name: "Shared set C" }),
+  ).toBeVisible();
+  await expect(page.getByText("Question 1 of 1")).toBeVisible();
 });
 
 /* ---- test mode --------------------------------------------------------------- */
@@ -518,6 +767,56 @@ test("the reading area has no serious axe violations", async ({
     (v) => v.impact === "serious" || v.impact === "critical",
   );
   expect(bad2, "with the text description open").toEqual([]);
+});
+
+// §21(p) — the owner's NVDA pass (2026-11-23) found the question
+// unvoiced on Tab, the tree text unreachable, and the first Check
+// silent. Pin the DOM contract: the radio group's accessible name
+// carries the question, and the empty verdict region exists before
+// Check so its first fill is announced.
+test("Tab reaches an answer group named by the question; the verdict region predates Check", async ({
+  page,
+}) => {
+  await gotoItem(page, 6); // q-clade — one tree, a "Choose one" radio group
+
+  // The live region mounts empty with the page — a region inserted
+  // together with its content is never announced.
+  const status = page.getByRole("status", { name: "Verdict" });
+  await expect(status).toBeAttached();
+  await expect(status).toHaveText("");
+
+  // gotoItem's Next clicks leave real focus on the button; release
+  // it so the walk starts from the page top like a fresh visit. On
+  // the BiDi-driven Firefox an injected Tab only traverses while
+  // <body> holds focus — with a focused element the press is a no-op.
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
+
+  // Walk the tab order until focus lands inside the radio group —
+  // at most a couple of dozen stops (wordmark, toggles, radios).
+  const group = page.getByRole("radiogroup");
+  let inside = false;
+  for (let i = 0; i < 60 && !inside; i += 1) {
+    await page.keyboard.press("Tab");
+    inside = await page.evaluate(
+      () =>
+        document.activeElement?.closest('[role="radiogroup"]') !==
+        null,
+    );
+  }
+  expect(inside, "Tab reaches the answer radios").toBe(true);
+  // The focused control's group name is the question then the
+  // instruction — never "Choose one" alone.
+  await expect(group).toHaveAccessibleName(
+    /do gibbon and gorilla form a clade\? choose one/i,
+  );
+
+  // And the same on the second half: the first Check fills the
+  // already-mounted region.
+  await page.getByRole("radio", { name: "No — not a clade" }).press(" ");
+  await page.getByRole("button", { name: "Check" }).press("Enter");
+  await expect(status).toContainText("Not quite — try again.");
 });
 
 test("no sideways page scroll at 360 px, including the long-name tips-up figure", async ({
@@ -671,3 +970,211 @@ test("under hasTouch: hit pads are ≥40×40 and a tip tap answers the question"
 
   await context.close();
 });
+
+/* ---- figure width independence (§21(k)) --------------------------------------- */
+
+// Session 2b: .rt-figure used to be a content-sized flex item whose
+// measured width fed ReadingTree's layout, so box.width and fig.width
+// formed a feedback loop — a figure converged to different widths
+// depending on how the item was reached. Each figure now gets an
+// equal, content-independent share of the row, so an item's figure
+// boxes depend only on the container and the tree — never on mount
+// history, navigation order or an earlier resize.
+const figBoxes = async (
+  page: Page,
+): Promise<{ w: number; h: number }[]> => {
+  const figs = page.locator(".read-trees > .rt-figure");
+  const n = await figs.count();
+  const out: { w: number; h: number }[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const b = await figs.nth(i).boundingBox();
+    expect(b, `figure ${i} has a box`).not.toBeNull();
+    out.push({ w: b!.width, h: b!.height });
+  }
+  return out;
+};
+
+const expectSameBoxes = (
+  a: { w: number; h: number }[],
+  b: { w: number; h: number }[],
+): void => {
+  expect(a.length).toBe(b.length);
+  a.forEach((fa, i) => {
+    expect(Math.abs(fa.w - b[i].w), `figure ${i} width`).toBeLessThanOrEqual(1);
+    expect(Math.abs(fa.h - b[i].h), `figure ${i} height`).toBeLessThanOrEqual(1);
+  });
+};
+
+/** Load a set and click Next `index` times. */
+async function reachItem(
+  page: Page,
+  set: string,
+  index: number,
+): Promise<void> {
+  await page.goto(`/?read=${set}`);
+  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  for (let i = 0; i < index; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(page.getByText(`Question ${index + 1} of`)).toBeVisible();
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+}
+
+for (const vp of [1280, 360]) {
+  for (const [set, idx, label] of [
+    ["cov-styles", 3, "item 4"],
+    ["trees-reading-a-tree", 1, "item 2"],
+  ] as const) {
+    test(`${set} ${label}: figure boxes are mount-order independent (${vp} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp, height: 800 });
+      await reachItem(page, set, idx);
+      const forward = await figBoxes(page);
+      // A different history: back to item 1, then forward again.
+      for (let i = 0; i < idx; i += 1) {
+        await page.getByRole("button", { name: "Back" }).click();
+      }
+      await expect(page.getByText("Question 1 of")).toBeVisible();
+      for (let i = 0; i < idx; i += 1) {
+        await page.getByRole("button", { name: "Next" }).click();
+      }
+      await expect(
+        page.locator(".read-trees > .rt-figure svg").first(),
+      ).toBeVisible();
+      expectSameBoxes(forward, await figBoxes(page));
+    });
+  }
+}
+
+test("resize to 360 and back restores the same figure boxes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await reachItem(page, "cov-styles", 3);
+  const wide = await figBoxes(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(
+    page.locator(".read-trees > .rt-figure svg").first(),
+  ).toBeVisible();
+  expectSameBoxes(wide, await figBoxes(page));
+});
+
+/* §21(k) follow-up (2b2): the equal-flex row restored determinism but
+ * let a single tree stretch across the whole row (~950 px at 1024 vs
+ * the approved ~230–550 px). --reading-figure-max caps each figure;
+ * multi-tree rows still share equally up to the cap. The test reads
+ * the token back from the DOM so it tracks the design token. */
+for (const vp of [1024, 1920]) {
+  test(`a single-tree item's figure stays within --reading-figure-max (${vp} px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: vp, height: 800 });
+    await reachItem(page, "trees-demo", 12); // q-order-nodes: one tree
+    const cap = await page.evaluate(() =>
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--reading-figure-max",
+        ),
+      ),
+    );
+    expect(Number.isFinite(cap), "--reading-figure-max is set").toBe(true);
+    const boxes = await figBoxes(page);
+    expect(boxes).toHaveLength(1);
+    expect(
+      boxes[0].w,
+      `single figure ${boxes[0].w}px exceeds the ${cap}px cap at ${vp}px`,
+    ).toBeLessThanOrEqual(cap + 1);
+  });
+}
+
+/* Round 2d (R1): the 2b2 cap only stopped a lone figure from
+ * stretching — it also forced .rt-canvas to scroll when a drawing was
+ * wider than the cap but not wider than the row (the long-name
+ * tips-up figure kept its cue at 1024 px in CI). A lone figure's
+ * width is now min(its share, max(its drawing, --reading-figure-max)),
+ * so at desktop widths a canvas may scroll only when its drawing is
+ * wider than the share the row allots it. Every item of trees-demo,
+ * cov-styles and the four lessons, at 1024 and 1920 px. */
+const FIGURE_FIT_SETS: [string, string][] = [
+  ["trees-demo", "trees-demo.json"],
+  ["cov-styles", "coverage/cov-styles.json"],
+  ["trees-reading-a-tree", "trees-reading-a-tree.json"],
+  ["trees-clades-traits", "trees-clades-traits.json"],
+  ["trees-closest-relatives", "trees-closest-relatives.json"],
+  ["trees-rotation", "trees-rotation.json"],
+];
+
+for (const vp of [1024, 1920]) {
+  test(`no canvas scrolls unless its drawing exceeds the row share (${vp} px)`, async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await page.setViewportSize({ width: vp, height: 800 });
+    for (const [id, file] of FIGURE_FIT_SETS) {
+      const items = (
+        JSON.parse(
+          readFileSync(
+            resolve("..", "exercises", "reading", file),
+            "utf8",
+          ),
+        ) as { items: unknown[] }
+      ).items.length;
+      await page.goto(`/?read=${id}`);
+      await expect(
+        page.getByText(/Question 1 of/),
+        `${id} loads`,
+      ).toBeVisible();
+      for (let i = 0; i < items; i += 1) {
+        await expect(
+          page.getByText(`Question ${i + 1} of`),
+          `${id} item ${i + 1}`,
+        ).toBeVisible();
+        await expect(
+          page.locator(".read-trees > .rt-figure svg").first(),
+          `${id} item ${i + 1} draws a tree`,
+        ).toBeVisible();
+        const bad = await page.evaluate(() => {
+          const out: string[] = [];
+          document
+            .querySelectorAll<HTMLElement>(".read-trees")
+            .forEach((row) => {
+              const gap =
+                parseFloat(getComputedStyle(row).columnGap) || 0;
+              const figs = [
+                ...row.querySelectorAll<HTMLElement>(".rt-figure"),
+              ];
+              // The equal flex share every figure gets — the row's
+              // width minus its gaps, split evenly.
+              const share =
+                (row.clientWidth - gap * (figs.length - 1)) /
+                figs.length;
+              figs.forEach((fig, j) => {
+                const c = fig.querySelector<HTMLElement>(".rt-canvas");
+                const svg = c?.querySelector("svg");
+                if (!c || !svg) return;
+                if (c.scrollWidth <= c.clientWidth + 1) return;
+                const w = svg.getBoundingClientRect().width;
+                if (w <= share + 1) {
+                  out.push(
+                    `figure ${j}: drawing ${w.toFixed(0)} px fits its ${share.toFixed(0)} px share but the canvas scrolls ${c.scrollWidth} > ${c.clientWidth}`,
+                  );
+                }
+              });
+            });
+          return out;
+        });
+        expect(bad, `${id} item ${i + 1} at ${vp} px`).toEqual([]);
+        if (i + 1 < items) {
+          await page.getByRole("button", { name: "Next" }).click();
+        }
+      }
+    }
+  });
+}

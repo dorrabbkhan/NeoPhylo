@@ -86,6 +86,11 @@ export interface ReadingTreeProps {
   onRotate: (clade: string[]) => void;
   /** Panel caption and the svg's accessible name ("Tree 1", …). */
   label: string;
+  /** Extra ids for the svg's accessible description — the item's
+   *  question when the tree is the answer control, so tabbing into
+   *  it voices the question (checkpoint §21(p)). The text
+   *  description's own id is always appended. */
+  describedBy?: string;
 }
 
 interface Size {
@@ -144,12 +149,58 @@ export function ReadingTree({
   rotatable,
   onRotate,
   label,
+  describedBy,
 }: ReadingTreeProps) {
   const [boxRef, box] = usePanelWidth();
   const reduced = useReducedMotion();
 
-  // Marker ids must be unique when several reading trees share a page.
-  const markerId = `rt-arrow-${useId().replace(/:/g, "")}`;
+  // Two kinds of draw must land at once, not glide through the
+  // rotation transition — the checkpoint's §21(j) slide: a width
+  // change (relayout, not a swap) and a new item (the parent switched
+  // trees). `prev` mirrors the inputs the last committed render drew
+  // — the view object, the style and the width; a render meeting new
+  // ones latches `suppress` (React's render-adjust pattern), which
+  // keeps this frame's transition off, and a rAF re-arms it after
+  // that frame paints — rotation inside a settled width keeps its
+  // 300 ms. The style compares by value because an item can re-use
+  // the SAME view object under another style: ItemView's `views` map
+  // is keyed by tree name, so items 1→2 of trees-reading-a-tree hand
+  // the identical view down with a different styleIndex, and only
+  // `prev.view !== view` would miss the switch (it used to be caught
+  // by the width half when the content-sized figure re-converged —
+  // the §21(k) flex basis keeps the width constant now).
+  // Suppressing beats remounting here: the figure is a flex item
+  // whose width feeds the layout, so a remount re-converges the
+  // measurement at a different width and visibly shrinks the drawing.
+  const [prev, setPrev] = useState({
+    w: 0,
+    view,
+    shape: style.shape,
+    tips: style.tips,
+  });
+  const [suppress, setSuppress] = useState(false);
+  if (
+    prev.w !== box.width ||
+    prev.view !== view ||
+    prev.shape !== style.shape ||
+    prev.tips !== style.tips
+  ) {
+    setPrev({ w: box.width, view, shape: style.shape, tips: style.tips });
+    setSuppress(true);
+  }
+  const still = reduced || suppress;
+  useEffect(() => {
+    if (!suppress) return;
+    const id = requestAnimationFrame(() => setSuppress(false));
+    return () => cancelAnimationFrame(id);
+  }, [suppress]);
+
+  // Marker and description ids must be unique when several reading
+  // trees share a page.
+  const uid = useId().replace(/:/g, "");
+  const markerId = `rt-arrow-${uid}`;
+  const descRegionId = `rt-desc-${uid}`;
+  const descTextId = `rt-desc-text-${uid}`;
 
   // Fonts-ready gate, as in TreeView: measured label widths must come
   // from the bundled faces. jsdom (no document.fonts) is open at once.
@@ -336,6 +387,14 @@ export function ReadingTree({
           <svg
             role={interactive ? "tree" : "img"}
             aria-label={label}
+            // The question (interactive trees) then the text
+            // description list (every tree) — "Tree N, tree, Do the
+            // taxa…? Node S contains: …" on entry (§21(p)).
+            aria-describedby={
+              describedBy === undefined
+                ? descTextId
+                : `${describedBy} ${descTextId}`
+            }
             aria-multiselectable={
               interactive && selectable !== "none" ? true : undefined
             }
@@ -350,7 +409,7 @@ export function ReadingTree({
               fontPx={fontPx}
               selected={selected}
               highlight={highlight}
-              reduced={reduced}
+              reduced={still}
               markerId={markerId}
             />
             {interactive &&
@@ -396,7 +455,7 @@ export function ReadingTree({
                     data-kind={nd.isTip ? "tip" : "node"}
                     data-selected={selSet.has(key) || undefined}
                     data-focus={key === effFocusKey || undefined}
-                    style={anim(nd.x, nd.y, reduced)}
+                    style={anim(nd.x, nd.y, still)}
                     onClick={
                       canPickNode(i) ? () => pick(i, "node") : undefined
                     }
@@ -424,7 +483,7 @@ export function ReadingTree({
                 style={style}
                 byKey={byKey}
                 selSet={selSet}
-                reduced={reduced}
+                reduced={still}
                 pick={pick}
               />
             )}
@@ -434,7 +493,7 @@ export function ReadingTree({
                 view={view}
                 byKey={byKey}
                 selSet={selSet}
-                reduced={reduced}
+                reduced={still}
                 pick={pick}
               />
             )}
@@ -455,7 +514,12 @@ export function ReadingTree({
         <p role="status" className="rt-live">
           {announce}
         </p>
-        <TreeDescription view={derived} />
+        <TreeDescription
+          view={derived}
+          label={label}
+          regionId={descRegionId}
+          textId={descTextId}
+        />
       </div>
     </figure>
   );

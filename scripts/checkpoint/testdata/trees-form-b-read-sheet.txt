@@ -1,0 +1,287 @@
+NeoPhylo — worksheet
+
+Tree reading — form B
+Tree reading · about 15 minutes
+
+1. On this tree, which tip is the most advanced — the most evolved?
+
+flight
+
+feathers
+
+flight
+
+s
+albatro
+s
+
+in
+duck
+
+flight
+
+pengu
+
+n
+chicke
+
+ostrich
+
+lizard
+
+Tree
+
+Tick every option that applies.
+
+No tip — every living lineage descends from the same root
+The tip whose branch left the rest of the tree first
+The tip at the end of the longest chain of splits
+2. One of these trees shows different relationships from the other two. Rotating a node
+changes nothing — which tree is it?
+Tree 1
+lizard
+flight
+feathers
+
+ostrich
+
+flight
+
+chicken
+duck
+flight
+
+penguin
+albatross
+
+ostrich
+
+n
+chicke
+
+duck
+
+albatro
+ss
+
+pengu
+in
+
+lizard
+
+Tree 2
+
+Tree 3
+lizard
+ostrich
+chicken
+penguin
+duck
+albatross
+
+Circle one.
+
+Tree 1
+Tree 2
+Tree 3
+All show the same relationships
+3. Tick every true statement. The node letters are on the first tree.
+Tree 1
+lizard
+ostrich
+
+R
+B
+
+G
+N
+A
+
+chicken
+duck
+penguin
+albatross
+
+Tree 2
+lizard
+penguin
+albatross
+duck
+chicken
+ostrich
+
+Tree 3
+lizard
+ostrich
+chicken
+penguin
+duck
+albatross
+
+Tick every option that applies.
+
+The first and second trees show the same relationships.
+Node N is older than node G.
+Node G is older than node A.
+The first and third trees show the same relationships.
+4. Circle ostrich's closest relative.
+Tree
+lizard
+flight
+
+ostrich
+
+feathers flight
+
+chicken
+duck
+flight
+
+penguin
+albatross
+
+Answer (the tip(s)):
+
+5. Is penguin more closely related to albatross or to chicken?
+Tree
+lizard
+flight
+
+ostrich
+
+feathers flight
+
+chicken
+duck
+flight
+
+penguin
+albatross
+
+Circle one.
+
+Closer to albatross
+Closer to chicken
+Equally close
+6. Is wheat more closely related to rice or to corn?
+
+corn
+
+wheat
+
+rice
+
+oak
+
+Tree
+
+Circle one.
+
+Closer to rice
+Closer to corn
+Equally close
+
+7. Do kangaroo and koala form a clade — a node plus every tip that descends from it?
+Tree
+opossum
+quoll
+kangaroo
+koala
+wombat
+
+Circle one.
+
+Yes — a clade
+No — not a clade
+8. Circle the smallest clade that contains kangaroo and koala.
+Tree
+opossum
+quoll
+kangaroo
+koala
+wombat
+
+Answer (name the clade's tips):
+9. Are the taxa that can fly monophyletic, paraphyletic or polyphyletic?
+Tree
+lizard
+flight
+
+ostrich
+
+feathers flight
+
+chicken
+duck
+flight
+
+penguin
+albatross
+
+Circle one.
+
+Monophyletic
+Paraphyletic
+Polyphyletic
+
+10. Circle every tip that has feathers but cannot fly.
+Tree
+lizard
+flight
+
+ostrich
+
+feathers flight
+
+chicken
+duck
+flight
+
+penguin
+albatross
+
+Answer (the taxa):
+11. How many clades does this tree show? Count every internal node, including the root;
+single tips are not clades.
+Tree
+opossum
+quoll
+kangaroo
+koala
+wombat
+
+Answer:
+12. Order the lettered nodes from oldest to youngest.
+Tree
+lizard
+ostrich
+
+R
+B
+
+G
+N
+A
+
+Write the letters in order, oldest first:
+
+A
+
+B
+
+G
+
+N
+
+R
+
+Hand this sheet to your instructor.
+
+chicken
+duck
+penguin
+albatross
+
+Printed from NeoPhylo — worksheet for Tree reading — form B.
+
+

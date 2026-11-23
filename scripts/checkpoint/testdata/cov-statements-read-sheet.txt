@@ -1,0 +1,252 @@
+NeoPhylo — worksheet
+
+Coverage — statements, node order and time
+Tree reading
+
+1. Tick every true statement. The node letters are on the first tree.
+Tree 1
+
+X
+P
+
+D
+E
+F
+
+Q
+Y
+
+B
+A
+D
+C
+H
+G
+F
+E
+
+B
+C
+
+R
+
+Tree 2
+
+A
+
+G
+H
+
+Tree 3
+
+H
+
+G
+
+F
+
+E
+
+D
+
+B
+
+C
+
+A
+
+Tick every option that applies.
+
+The first and second trees show the same relationships.
+A and B form a clade in the first tree but not in the third.
+E and F form a clade in the first tree but not in the third.
+The first and third trees show the same relationships.
+Node R is older than node P.
+2. Order the lettered nodes from oldest to youngest.
+Tree
+
+X
+P
+
+A
+B
+C
+D
+
+R
+
+E
+F
+
+Q
+Y
+
+G
+H
+
+Write the letters in order, oldest first:
+
+P
+
+Q
+
+R
+
+X
+
+Y
+
+3. Order the lettered nodes from oldest to youngest. The scale shows time in million
+
+years before today.
+Tree
+cow
+R
+
+hippo
+W
+
+basilosaurus
+C
+
+blue whale
+
+N
+
+60
+
+40
+
+dolphin
+20
+
+0 million years
+
+Write the letters in order, oldest first:
+
+C
+
+N
+
+R
+
+W
+
+4. Tick every true statement. The scale shows time in million years before today; node
+letters and ages are on the tree.
+Tree
+cow
+R
+
+hippo
+W
+
+basilosaurus
+C
+
+blue whale
+
+N
+
+60
+
+40
+
+dolphin
+20
+
+Tick every option that applies.
+
+The hippo lineage is at least 30 million years old.
+The hippo lineage is at least 65 million years old.
+Node W is older than 50 million years.
+Node C is older than 50 million years.
+
+0 million years
+
+5. Does this diagram show time?
+Tree
+A
+
+X
+
+B
+
+P
+
+C
+D
+
+R
+
+E
+F
+
+Q
+
+G
+
+Y
+
+H
+
+Tick every option that applies.
+
+No — it shows only branching order; it has no time component
+Yes — the tips sit on a time axis
+Yes — longer branches always mean more time
+6. This tree leaves the branching order of the squirrel, the guinea pig and the mouse–rat
+pair unresolved — a three-way split. What does that mean?
+Tree
+cat
+rabbit
+mouse
+rat
+squirrel
+guinea pig
+
+Tick every option that applies.
+
+The branching order is not resolved — the drawing cannot say which split came
+first
+The three lineages really split in a single instant
+The tree contains a mistake
+7. A dendrogram drawn from overall similarity scores groups tips that look alike. What
+
+can a phylogenetic tree claim that such a dendrogram cannot?
+Tree
+cat
+rabbit
+mouse
+rat
+squirrel
+guinea pig
+
+Tick every option that applies.
+
+It claims shared ancestry, not just similarity
+Nothing — the two diagrams mean the same thing
+It is always better at grouping by similarity
+8. Suppose a tree of parasites drawn next to this tree of their hosts had almost the same
+shape. What would that suggest?
+Tree
+cat
+rabbit
+mouse
+rat
+squirrel
+guinea pig
+
+Tick every option that applies.
+
+The parasites tended to speciate when their hosts did
+The parasites spread between hosts at random
+The hosts evolved to match their parasites
+Open this set in NeoPhylo
+
+Check your answers in the app — scan the code or follow the link:
+http://localhost:4173/?read=cov-statements
+
+Printed from NeoPhylo — worksheet for Coverage — statements, node order and time.
+
+

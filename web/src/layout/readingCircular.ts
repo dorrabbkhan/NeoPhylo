@@ -5,7 +5,9 @@
 // than the box the radius keeps its floor and the figure scrolls.
 // Leaves keep their DFS order along the arc; an internal node's angle
 // is the midpoint of its outermost children, like the leaf-axis
-// midpoint in the flat layouts.
+// midpoint in the flat layouts. An internal node's radius is the age
+// coordinate floored at its cladistic-depth slot, so a compressed
+// ancestor still sits inside its children (checkpoint §21(b)).
 
 import type { TipSide } from "../engine/generated/TipSide";
 
@@ -70,7 +72,37 @@ export function circularPlace(inp: CircularInput): CircularPlace {
 
   const ang = new Array<number>(inp.n).fill(0);
   const rad = new Array<number>(inp.n).fill(0);
-  for (let i = 0; i < inp.n; i += 1) rad[i] = inp.canon[i] * scale;
+  // Cladistic depth per node (edge count from the root). An
+  // age-compressed internal node still keeps a ring of its own: its
+  // radius is floored at its depth slot, so a deep fan can't collapse
+  // onto the centre and a shallow node's children always sit further
+  // out than it (checkpoint §21(b)).
+  const depth = new Array<number>(inp.n).fill(0);
+  let maxDepth = 0;
+  const markDepth = (id: number, d: number): void => {
+    depth[id] = d;
+    if (d > maxDepth) maxDepth = d;
+    for (const k of inp.children(id)) markDepth(k, d + 1);
+  };
+  markDepth(inp.root, 0);
+  // Resolve radii bottom-up: a floor only ever helps a node sit
+  // strictly INSIDE its shallowest descendant — a fossil tip's age
+  // ring can be shallower than its parent's depth floor, and the
+  // floor may never push the parent out to or past it.
+  const placeRad = (id: number): number => {
+    let minDesc = Infinity;
+    for (const k of inp.children(id)) {
+      minDesc = Math.min(minDesc, placeRad(k));
+    }
+    let r = inp.canon[id] * scale;
+    if (id !== inp.root && maxDepth > 0 && inp.children(id).length > 0) {
+      r = Math.max(r, (depth[id] / maxDepth) * R);
+    }
+    if (r >= minDesc) r = minDesc - Math.min(2, minDesc * 0.1 + 0.2);
+    rad[id] = Math.max(0, r);
+    return rad[id];
+  };
+  placeRad(inp.root);
   // Angles resolve bottom-up (post-order from the root): a leaf's slot
   // sets its angle, an internal node sits at the midpoint of its first
   // and last child's RESOLVED angle. Arena index order is leaves then

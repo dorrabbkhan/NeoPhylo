@@ -1,0 +1,395 @@
+NeoPhylo — worksheet
+
+Coverage — drawing styles and tree equivalence
+Tree reading
+
+1. One of these trees shows different relationships from the other two. Which one?
+Tree 1
+lemur
+galago
+tarsier
+marmoset
+aotus
+macaque
+baboon
+gibbon
+orangutan
+gorilla
+human
+chimp
+
+Tree 2
+chimp
+human
+gorilla
+orangutan
+gibbon
+baboon
+macaque
+aotus
+marmoset
+tarsier
+galago
+lemur
+
+Tree 3
+lemur
+galago
+tarsier
+marmoset
+aotus
+macaque
+baboon
+gibbon
+orangutan
+human
+gorilla
+chimp
+
+Circle one.
+
+Tree 1
+Tree 2
+Tree 3
+All show the same relationships
+2. One of these trees shows different relationships from the other two — notice the
+drawing style changes too. Which one?
+
+er
+
+tarsi
+
+marm
+oset
+
+Tree 1
+
+o
+
+g
+la
+
+ao
+tu
+s
+
+ga
+
+aque
+
+lemu
+
+r
+
+mac
+
+p
+chim
+
+babo
+
+la
+
+an
+
+goril
+
+on
+
+bb
+gi
+utan
+
+g
+oran
+
+hu
+m
+
+on
+
+mac
+
+on
+
+babo
+
+aque
+
+Tree 2
+
+n
+
+ao
+
+tu
+
+s
+
+o
+bb
+gi
+oran
+
+guta
+
+oset
+marm
+
+la
+goril
+
+tarsi
+
+n
+
+er
+
+r
+
+chim
+
+p
+
+hu
+
+go
+
+la
+
+m
+
+an
+
+ga
+lemu
+
+n
+
+guta
+
+oran
+
+hum
+an
+
+Tree 3
+
+bo
+
+go
+r il
+
+la
+
+b
+gi
+n
+
+babo
+
+p
+chim
+
+aque
+
+lemu
+
+r
+
+ga
+
+marm
+
+oset
+
+ao
+
+er
+
+tarsi
+
+o
+
+g
+la
+
+tu
+
+s
+
+mac
+
+on
+
+Circle one.
+
+Tree 1
+Tree 2
+Tree 3
+All show the same relationships
+3. One of these diagonal trees shows different relationships from the other two. Which
+
+one?
+
+Tree 2
+chimp
+human
+gorilla
+orangutan
+gibbon
+baboon
+macaque
+aotus
+marmoset
+tarsier
+galago
+lemur
+
+chimp
+
+human
+
+gorilla
+
+tan
+orangu
+
+gibbon
+
+baboo
+n
+
+ue
+macaq
+
+aotus
+
+marmo
+set
+
+tarsier
+
+galago
+
+lemur
+
+Tree 1
+
+Tree 3
+
+chimp
+
+All show the same relationships
+
+gorilla
+
+Tree 3
+
+human
+
+Tree 2
+
+an
+
+Tree 1
+
+t
+orangu
+gibbon
+n
+baboo
+
+ue
+macaq
+aotus
+set
+marmo
+tarsier
+galago
+lemur
+
+Circle one.
+
+4. Do these trees all show the same relationships, or does one differ?
+Tree 1
+lemur
+galago
+tarsier
+marmoset
+aotus
+macaque
+baboon
+gibbon
+orangutan
+gorilla
+human
+chimp
+
+lemu
+
+la
+ga
+
+m
+an
+
+r
+
+chim
+p
+
+Tree 2
+
+hu
+
+go
+
+tarsi
+er
+
+goril
+
+oset
+
+oran
+g
+
+la
+
+utan
+
+marm
+
+mac
+
+aque
+
+on
+
+ao
+
+bb
+
+tu
+s
+
+gi
+
+on
+
+babo
+
+Circle one.
+
+Tree 1
+Tree 2
+All show the same relationships
+Open this set in NeoPhylo
+
+Check your answers in the app — scan the code or follow the link:
+http://localhost:4173/?read=cov-styles
+
+Printed from NeoPhylo — worksheet for Coverage — drawing styles and tree equivalence.
+
+

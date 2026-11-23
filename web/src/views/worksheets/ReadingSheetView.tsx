@@ -4,7 +4,8 @@
 // the answer space the control type needs — options to circle or
 // tick, order slots, a number or a ruled line. Nothing here is an
 // answer: the model carries only what the student needs to write
-// one, and the set opens at its `?read=`/`#r=` link + QR.
+// one. A practice set ends at its `?read=`/`#r=` link + QR; a test
+// set is handed in, so it prints the collect line instead.
 
 import { useMemo } from "react";
 
@@ -13,6 +14,7 @@ import type { ReadingSet } from "../../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../../engine/generated/ReadingTreeView";
 import type {
   ReadingSheet,
+  ReadingSheetItem,
   SheetSpace,
 } from "../../worksheets/reading";
 import { ReadingTree } from "../reading/ReadingTree";
@@ -51,48 +53,112 @@ export function ReadingSheetView({ set, sheet }: ReadingSheetViewProps) {
         </p>
       </header>
       <ol className="ws-items">
-        {sheet.items.map((item) => (
-          <li key={item.id} className="ws-item ws-read-item">
-            <p className="ws-question">{item.text}</p>
-            <div className="read-trees ws-read-trees">
-              {item.trees.map((t) => {
-                const v = views.get(t.name);
-                if (v === undefined) {
-                  return (
-                    <p key={t.name} className="error">
-                      Tree “{t.name}” could not be drawn.
+        {sheet.items.map((item, i) => {
+          const figs = item.trees.map((t) => (
+            <SheetTree
+              key={`${t.name}-${t.label}`}
+              item={item}
+              t={t}
+              view={views.get(t.name)}
+            />
+          ));
+          // ws-tail is a full-width line of the trees row on screen
+          // and one unbreakable block in print. On the last item it
+          // wraps the answer space AND the closing block + footer:
+          // the space always carries text, so the last page can
+          // never hold the footer alone (checkpoint §21(m)).
+          const tail = (
+            <div className="ws-tail">
+              <SpaceView space={item.space} />
+              {i === sheet.items.length - 1 && (
+                <div className="ws-end">
+                  {sheet.test ? (
+                    <p className="ws-handin">
+                      Hand this sheet to your instructor.
                     </p>
-                  );
-                }
-                return (
-                  <ReadingTree
-                    key={`${t.name}-${t.label}`}
-                    view={v}
-                    style={t.style}
-                    selectable="none"
-                    selected={[]}
-                    onSelect={() => {}}
-                    highlight={item.tips}
-                    rotatable={false}
-                    onRotate={() => {}}
-                    label={t.label}
-                  />
-                );
-              })}
+                  ) : (
+                    <section aria-labelledby="ws-read-link-h">
+                      <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
+                      <p>
+                        Check your answers in the app — scan the code or
+                        follow the link:
+                      </p>
+                      <LinkBlock link={sheet.link} />
+                    </section>
+                  )}
+                  <footer className="lab-print-foot">
+                    Printed from NeoPhylo — worksheet for {sheet.title}.
+                  </footer>
+                </div>
+              )}
             </div>
-            <SpaceView space={item.space} />
-          </li>
-        ))}
+          );
+          return (
+            <li key={item.id} className="ws-item ws-read-item">
+              {/* ws-lead and ws-trail are display:contents on screen —
+                  the question is a full-width line of the trees row,
+                  the figures share it and the tail sits under them —
+                  and unbreakable blocks in print: ws-lead keeps the
+                  prompt with its first figure, ws-trail keeps the last
+                  figure with the answer block (a break hint can't —
+                  Firefox computes break-before: avoid to auto, so the
+                  glue has to be structural, checkpoint §21(m)). On a
+                  single-figure item lead and trail are one wrapper:
+                  prompt + figure + answer print as one block. */}
+              <div className="read-trees ws-read-trees">
+                {item.trees.length <= 1 ? (
+                  <div className="ws-lead ws-trail">
+                    <p className="ws-question">{item.text}</p>
+                    {figs}
+                    {tail}
+                  </div>
+                ) : (
+                  <>
+                    <div className="ws-lead">
+                      <p className="ws-question">{item.text}</p>
+                      {figs[0]}
+                    </div>
+                    {figs.slice(1, -1)}
+                    <div className="ws-trail">
+                      {figs[figs.length - 1]}
+                      {tail}
+                    </div>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ol>
-      <section aria-labelledby="ws-read-link-h">
-        <h2 id="ws-read-link-h">Open this set in NeoPhylo</h2>
-        <p>Check your answers in the app — scan the code or follow the link:</p>
-        <LinkBlock link={sheet.link} />
-      </section>
-      <footer className="lab-print-foot">
-        Printed from NeoPhylo — worksheet for {sheet.title}.
-      </footer>
     </>
+  );
+}
+
+/** One item tree — the drawn figure or the error line in its place. */
+function SheetTree({
+  item,
+  t,
+  view,
+}: {
+  item: ReadingSheetItem;
+  t: ReadingSheetItem["trees"][number];
+  view: ReadingTreeView | undefined;
+}) {
+  if (view === undefined) {
+    return <p className="error">Tree “{t.name}” could not be drawn.</p>;
+  }
+  return (
+    <ReadingTree
+      view={view}
+      style={t.style}
+      selectable="none"
+      selected={[]}
+      onSelect={() => {}}
+      highlight={item.tips}
+      rotatable={false}
+      onRotate={() => {}}
+      label={t.label}
+    />
   );
 }
 

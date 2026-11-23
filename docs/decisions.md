@@ -8973,7 +8973,10 @@ Task-10 editor.
   tap-only readouts that capture the tapped *tip* name, but the wire
   ask expects trait names — a `has_not` item cannot currently be
   authored correctly through the reading editor (the round-trip e2e
-  uses `homologous` for its trait-mark item instead).
+  uses `homologous` for its trait-mark item instead). **Fixed
+  2026-11-21 in the Task 15 checkpoint PR (§21(d), fix round 2c):**
+  every trait-name field is a select offering the item's first tree's
+  trait names; see the round-2c entry below.
 - **Fix round 1 (owner review):** `cetartiodactyls` ages re-set to
   cited estimates (R 70 / W 60 — Hassanin et al. 2012 Table 1 means;
   C 45, N 35, basilosaurus 37 — fossil literature, all in SOURCES.md
@@ -9101,3 +9104,783 @@ reading links render and resolve.
   test itself, and that mark labels can crowd on form A's printed
   trait tree. The editor's `has_not` limit is described as a current
   limit.
+
+## v1.4d Task 15: release checkpoint
+
+- **Files outside the task's Files block:**
+  - `docs/release-checkpoint.md`: the runbook is per-version — its
+    "This release" table, command examples, owner-pass steps, release
+    notes draft and the "Automation map" all still named v1.4c/v1.4.2.
+    The task's Files block covers `scripts/checkpoint/` plus "the
+    checklist's Automation map", and the Automation map lives in this
+    file; updated to v1.4d/v1.4.3 with the new §16–§23 rows rather
+    than leaving the owner a stale v1.4c runbook at release time.
+  - `docs/decisions.md`: this entry.
+- `CITATION.cff`: `version` bumped to `1.4.3` only; `date-released`
+  stays `2026-11-18` on purpose — the owner sets it on the tag day.
+- No engine, fixture, exercise-content, snapshot-baseline or product
+  `web/src` changes in this task: the checkpoint extensions live in
+  `scripts/checkpoint/browser/release.spec.ts` and are data-driven
+  from the committed reading JSON.
+- Parked for owner triage (listed in the checkpoint §21, not fixed):
+  mark-label collisions on short branches (a), cramped circular
+  layouts under ~10 tips (b), the practice-mode "try again" design
+  point (c), the editor's `has_not` authoring limit (d, still open on
+  main — `TraitAskFields` reads tip readouts while the wire ask wants
+  trait names), the `select_true` "statements 1 are true." wording
+  (e), paper-sheet "Tap…"/test-QR wording (f), and the editor mode-box
+  alignment at 1280 px (g, needs owner approval — 24 baselines). Two
+  warts found while running the new checker locally are recorded at
+  §21(h)/(i): `decompressFromEncodedURIComponent` throws on an
+  undecodable `#r=` fragment (surfaces as the generic engine-load
+  alert), and Share/copy's `void navigator.clipboard?.writeText(…)`
+  leaves an unhandled rejection when clipboard-write is denied.
+- The new checker ran end to end before this commit (the v1.4c
+  lesson): `CHECKPOINT_LOCAL=1 PLAYWRIGHT_BROWSERS_PATH=$PWD/.tmp-pw
+  scripts/checkpoint/browser.sh http://localhost:4173 /tmp/cp-v14d
+  --project=chromium` against `npm run build` + `vite preview` —
+  **99 passed / 0 failed** (all carried §1–§15 plus new §2/§4/§5
+  reading checks and §16–§20). Two first-run bugs in the new tests
+  were fixed and re-verified (a fragment-only goto reusing the stale
+  alert; the clipboard `pageerror` under plain http).
+
+## v1.4d Task 15 fix round 2a (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2a covered §21 (c) practice feedback, (e) select_true
+wording, (h) undecodable `#r=`, (i) clipboard rejections and (j)
+dots sliding on item change.
+
+- **`select_true` explanation grammar (e):** the count wording now
+  agrees — `"statement 1 is true."` for one, `"statements … are
+  true."` (unchanged `join_and`) for several, `"no statement is
+  true."` for none. Engine test
+  `select_true_explanation_matches_the_true_count` pins all three
+  strings against the same item's statement list.
+- **§7.4 practice-feedback deviation (c) — conductor's
+  recommendation, owner-approved.** The spec reads "After Check:
+  correct or not, the engine explanation, and the item's
+  `note_after`. A student can retry." — which made "try again"
+  meaningless because the explanation was already on screen. Practice
+  mode now stages it: the first wrong verdict is "Not quite — try
+  again." with no explanation, no `note_after` and no revealing
+  highlight; a second Check or the new **Show answer** button
+  resolves the item (explanation + `note_after`, Check still
+  available). Correct-first-answer behaviour, test mode and the live
+  region are unchanged. `ReadingSession` gains `attempts` and
+  `revealed` arrays (Back/Next preserves both) and `ReadingAction`
+  gains `reveal`. `docs/instructor-guide.md` gained a staged-feedback
+  paragraph.
+- **`#r=` decode throw (h):** `decodeReadingLink` wraps
+  `decompressFromEncodedURIComponent` in a `try`; an undecodable
+  fragment (`#r=zzz`) refuses with the same link-naming message the
+  invalid-JSON path uses instead of surfacing as the generic
+  engine-load alert.
+- **Clipboard rejections (i):** `.catch(() => undefined)` on all
+  three `navigator.clipboard.writeText` call sites —
+  `EditorPanel.tsx`, `ReadingEditor.tsx`, `ErrorBoundary.tsx`. The
+  share notice still shows the link; `grep` found no other call sites
+  under `web/src`.
+- **Item-change sliding (j):** `ReadingTree.tsx` draws a render whose
+  `view` prop changed — an item switch — with the transition off, so
+  elements land at final coordinates in one commit. Devin's call,
+  deviating from the prescribed index-in-key remount: `.rt-figure` is
+  a flex item sized by its own content, so `box.width` (measured) and
+  `fig.width` (drawn) form a feedback loop — a remount restarts the
+  measurement near zero and visibly converges narrower (proved by the
+  `reading-q-count-clades` baseline diffing only with the remount in).
+  Suppression produces the same student-visible outcome without the
+  relayout drift. A panel resize slid dots the same way (a width
+  change rewrites every live transform, which the CSS transition
+  animates), so `ReadingTree.tsx` also suppresses the transition on a
+  width-only relayout; rotation within a stable width still
+  animates.
+- **Files outside the task's Files block:**
+  - `web/e2e/reading-editor.spec.ts`, `web/e2e/editor.spec.ts`:
+    denied-clipboard Share tests for §21(i) — the Files block names
+    `web/e2e/reading.spec.ts` for e2e, but the two Share handlers
+    under test live on the editor pages, whose specs are these.
+  - `docs/instructor-guide.md`: the §21(c) item requires updating
+    the guide's practice-feedback text in the same PR.
+  - `docs/decisions.md`: this entry.
+
+## v1.4d Task 15 fix round 2b (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2b covered §21 (a) mark-label collisions, (b) cramped
+circular layout, (f) paper wording + test-form QR and (k) the
+figure-width feedback loop (conductor finding, fixed in this
+session). The guide's known-gaps list was re-checked against
+`exercises/reading/coverage/manifest.json` — still the same five
+deferred formats.
+
+- **Mark-label collisions (a):** `placeMarks` keeps only the labels
+  of marks sharing one branch apart. The new
+  `resolveMarkLabels` (`web/src/layout/readingMarkLabels.ts`)
+  re-places any mark label that touches a tip label, a node- or
+  point-letter badge, another mark's glyph or another mark's label:
+  a deterministic ladder of directions beside the branch (the stem's
+  mirror side first), each keeping the LABEL_GAP construction off
+  the mark's own glyph, never nearer another mark's glyph than its
+  own. Lone marks keep their established placement — a label's own
+  glyph is never counted as its obstacle (the corpus scan flagged
+  exactly that false positive, which would have moved every lone
+  label). A resolved label that escapes the figure reports the same
+  grow/shift contract `placeMarks` already used, applied to every
+  placed element.
+- **Circular layout (b) — cause found first:** every parent→child
+  edge drew an arc at the parent's radius from the parent's angle to
+  the child's; at a polytomy the outer child's arc swept through a
+  middle child's radial junction. The fix keeps the circular model
+  but draws it differently: a child's edge is only its radial spoke,
+  and an internal node's fan is one arc spanning its children's full
+  angle range, appended to that node's own edge path. Internal radii
+  are now resolved bottom-up in `readingCircular.ts`: the age
+  coordinate is floored at the cladistic-depth ring
+  (`depth/maxDepth` of the arc radius — the stated minimum step is
+  R/maxDepth) and capped just below the shallowest descendant, so an
+  age-compressed ancestor can neither collapse onto the centre nor
+  sit on or past a shallow fossil tip's ring.
+- **Paper wording + test-form QR (f):** `paperText`
+  (`web/src/worksheets/reading.ts`) re-verbs sentence-initial screen
+  instructions through a table (`Tap …` → `Circle …`, the
+  lettered-order instruction → `Write the letters of the nodes in
+  order…`, `Select every true statement` → `Tick every true
+  statement`, `Rotate nodes freely` → `Rotating a node changes
+  nothing`) and drops the app-only ", or arrange the list" clause; a
+  sentence starting with an instruction verb the table doesn't cover
+  throws, so new screen wording fails the corpus test instead of
+  printing. The app keeps the authored text. A `mode: "test"` sheet
+  prints "Hand this sheet to your instructor." instead of the
+  link + QR block (`ReadingSheet.test`; `ReadingSheetView.tsx`).
+  Devin's call: `Rotate nodes freely` is re-verbed rather than
+  dropped so the printed question still explains why the odd tree
+  can be found on paper.
+- **Figure width (k):** `.rt-figure` was a content-sized flex item
+  whose measured width fed `ReadingTree`'s `box.width`, so drawn
+  width and measured width formed a feedback loop — the same item
+  converged to different widths by mount order (session 2a's
+  transition commit already observed the loop; the conductor saw
+  `cov-styles` item 4 draw ~560 px vs ~200 px at the same viewport).
+  `.rt-figure` now takes `flex: 1 1 0` — an equal,
+  content-independent share of the row — so the figure box depends
+  only on the container and the tree; the stacked layouts (≤600 px
+  media query, worksheet print column) restore `flex: none` so
+  figures return to content height there.
+  **Follow-on the flex change exposed (fixed here):** the §21(j)
+  suppression latched on `view` identity or width change, but
+  ItemView's `views` map is keyed by tree name — two items can hand
+  the SAME view object to one ReadingTree under a different
+  `styleIndex` (trees-reading-a-tree items 1→2). The width half of
+  the latch used to catch that because the content-sized figure
+  re-converged on every item change; with a constant share it
+  didn't, and the dots slid again. `ReadingTree`'s `prev` now
+  mirrors `style.shape`/`style.tips` by value alongside `view` and
+  width, so every non-rotation relayout snaps; the e2e check "an
+  item change lands the trees at their final spots" covers it.
+- **Shared `LETTER_R`:** the node-/point-letter badge radius moved
+  to `web/src/layout/readingGeom.ts` (re-exported from
+  `readingHelpers.ts`) so the layout pass can obstacle-badge boxes
+  without importing the view layer.
+- **Files outside the task's Files block** (the Task 15 block names
+  only `docs/checkpoints/v1.4d-release.md`, `docs/roadmap.md`,
+  `CITATION.cff` and `scripts/checkpoint/`; the owner decision
+  authorises product code, tests and docs for the listed items, and
+  this entry names them):
+  - `web/src/layout/readingLayout.ts`, `web/src/layout/readingCircular.ts`,
+    `web/src/layout/readingGeom.ts`, `web/src/layout/readingMarkLabels.ts`
+    (new), `web/src/layout/readingCorpus.test.ts` (new): items (a)
+    and (b).
+  - `web/src/views/reading/readingHelpers.ts`: `LETTER_R` re-export.
+  - `web/src/views/reading/reading.css`: the §21(k) flex fix.
+  - `web/src/views/reading/ReadingTree.tsx`: the style-by-value
+    suppression follow-on in the same bullet.
+  - `web/src/worksheets/reading.ts`, `web/src/worksheets/reading.test.ts`,
+    `web/src/views/worksheets/ReadingSheetView.tsx`,
+    `web/src/views/worksheets/worksheets.css`: item (f) and the print
+    side of (k).
+  - `web/e2e/reading.spec.ts`, `web/e2e/worksheets.spec.ts`: the (a)
+    DOM check, (f) hand-in/QR pair and (k) box-stability tests.
+  - `docs/instructor-guide.md`: the §21 paragraph requires updating
+    the guide in the same PR; the paper-caveats text now describes
+    the paper re-verb, the test-form hand-in line and the practice
+    QR. The `has_not` editor limit stays — §21(d) remains deferred.
+  - `docs/decisions.md`: this entry.
+
+**2b2 (2026-11-21):** the conductor's pixel-check of round 2b found
+two required problems.
+
+- **(a) still broken on form A's printed trait tree.** The 2b
+  resolver only tested tip-label and badge boxes, so a label could
+  sit on a branch line or cover a node dot untouched — on the whale
+  tree "limbs"/"echolocation" lay on the hippo branch against its
+  tip dot. The DOM check missed it twice over: it never emulated
+  print media (the print stylesheet sets the figure width, and the
+  label moves with it), and `getBBox()` on `.rt-mark-label` returns
+  the translated `<g>`'s LOCAL frame — comparing boxes from
+  different coordinate frames, so nothing ever "overlapped".
+  `resolveMarkLabels` now also obstacles node dots, other marks'
+  glyphs and every branch chain but the mark's own at a 3 px
+  clearance (`MARK_CLEAR` in `readingGeom.ts`, `segBoxDist` in
+  `labelCollision.ts`); `readingLayout` builds the real edge
+  geometry per shape — rectangular elbow chains, diagonal segments,
+  spokes plus sampled fan arcs for circular — exposes it as
+  `edge.pts`, and resolves each mark's own branch through `find`
+  (new `mark.on` on the figure). Candidate order keeps a shared
+  branch's labels coherent: same-side at the construction distance,
+  then floated along the row's own direction (stays level, same
+  side), then anywhere, then a fine polar sweep for the
+  tips-up/down "picket fence" case where no inside spot exists
+  (the figure then grows, like placeMarks). The corpus test checks
+  dots, branch segments and figure bounds; `expectLegibleMarks`
+  asserts the exact LABEL_GAP construction only when the resolved
+  label still sits within that bound — the 3 px rule is
+  mathematically unsatisfiable inside it for dense tips-up/down
+  trees (Devin's call: clearance wins over construction distance).
+  The DOM check became "form A's trait tree: mark labels clear
+  hippo (print + screen)" — the real print scene at 768×1024 with
+  print media emulated plus the 1024 screen sheet, comparing
+  `getBoundingClientRect()`s and sampling the rendered edge paths
+  through `getScreenCTM()`.
+- **(k) over-corrected: a lone tree stretched to ~950 px.**
+  `flex: 1 1 0` made figures deterministic but content-independent
+  in both directions — a single tree grew to fill the row.
+  `READING_FIGURE_MAX = 560` (new token in
+  `web/src/design/tokens.ts`, emitted as `--reading-figure-max`)
+  caps `.read-trees > .rt-figure` at `min(100%, 560px)`; 560 sits
+  just above the ~550 px widest single-tree figure in the approved
+  Task 7/8 frames, so multi-tree rows share equally up to the cap
+  and a lone tree keeps the compact look (Devin's call: the number,
+  from the approved frames; the token mechanism was the conductor's
+  recommendation, owner-approved). New test: "a single-tree item's
+  figure stays within --reading-figure-max" at 1024 and 1920 px.
+- **New files outside the task's Files block this round:**
+  `web/src/design/tokens.ts` (the token), plus edits to
+  `web/src/layout/labelCollision.ts` (`segBoxDist`, `segsMeet`,
+  `Seg`), `readingGeom.ts` (`MARK_CLEAR`), `readingLayout.ts`
+  (`edge.pts`, `edgeChains`, dots, `mark.on`),
+  `readingMarkLabels.ts` (dot/segment obstacles, candidate order,
+  polar sweep), `readingCorpus.test.ts` (dot/segment/bounds
+  checks), `readingLayout.test.ts` (conditional gap bound),
+  `reading.css` (the cap), `reading.spec.ts` (cap test) and
+  `worksheets.spec.ts` (the rewritten DOM check).
+
+## v1.4d Task 15 fix round 2c (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2c covered §21 (d) the editor's `has_not` authoring limit,
+(g) the mode-box alignment, and the closing doc pass. With this
+session every §21 item (a)–(k) is fixed in this PR.
+
+- **`has_not` authoring (d) — conductor's recommendation,
+  owner-approved.** The ask's `has`/`lacks` fields captured tapped
+  *tip* names where the wire expects trait names. Every trait-name
+  field the item form carries is now a `TraitNameField` select
+  (`web/src/views/editor/reading/fields.tsx`) offering the item's
+  first tree's trait names in the engine's `trait_names` order —
+  trait defs first, then mark names (`traitNamesOf` in
+  `readingItems.ts`, fed by `ItemForm` from the resolved
+  `ReadingTreeView`). Covered: the ask's `trait_name` (which_have,
+  how_many_changes, ancestral_or_derived, homologous), `has`/`lacks`,
+  `is_clade`'s optional `by_trait`, and the select_true statements'
+  `trait_name`/`inner`/`outer` ("any other trait-name field"). The
+  bogus `ask-has`/`ask-lacks` tip-tap targets and their `applyPick`
+  case are removed; homologous' `x`/`y` stay tip picks — the wire
+  wants tips there. Devin's calls: the "Has trait"/"Lacks trait"
+  labels; a text-input fallback when the tree knows no traits yet;
+  an extra "(not on this tree)" option so an imported item holding
+  an unknown name still shows it instead of silently displaying the
+  placeholder; and "— none —" as `by_trait`'s empty label.
+- **Mode-box alignment (g) — conductor's recommendation,
+  owner-approved (baseline round).** `.editor-mode` now takes the
+  editor column's own box (`max-width: 1100px; margin: 0 auto`, the
+  cap `.editor-panel`/`.editor-page-head` already used), so its left
+  edge and width match the column's at 1280 and 1920 px. At 1024 and
+  768 the page is already narrower than the cap, so the box was
+  aligned before and after — nothing moved there (the new e2e
+  asserts all four widths anyway). Only `editor-default`'s two wide
+  frames changed: `editor-f84` and `editor-prompts` scroll the mode
+  box out of frame before shooting, so their baselines stayed
+  byte-identical.
+- **Doc pass:** the guide drops the `has_not` limit bullet, gains a
+  trait-dropdown clause, and corrects the staged-feedback wording
+  ("shows only"; a second *wrong* answer resolves; a correct second
+  answer shows the explanation too). The checkpoint doc gains the
+  §21(d)/(g) fix lines, a `has_not` item in the §19 owner pass, and
+  the §7.4 deviation entry, and loses the §22 `has_not` bullet and
+  the stale "nothing below is fixed" intro.
+- **Every file round 2 (sessions 2a, 2b, 2b2, 2c) changed outside
+  the Task 15 Files block** (`git diff --name-only 06e718ca..HEAD`;
+  the block names `docs/checkpoints/v1.4d-release.md`,
+  `docs/roadmap.md`, `CITATION.cff` and `scripts/checkpoint/` —
+  in-block changes are not listed):
+  - `crates/neophylo-core/src/reading/answer.rs`
+  - `crates/neophylo-core/tests/reading_answer.rs`
+  - `docs/instructor-guide.md`
+  - `docs/decisions.md` (this entry and the 2a/2b ones)
+  - `web/e2e/editor.spec.ts`
+  - `web/e2e/reading-coverage.spec.ts`
+  - `web/e2e/reading-editor.spec.ts`
+  - `web/e2e/reading.spec.ts`
+  - `web/e2e/worksheets.spec.ts`
+  - `web/e2e/__screenshots__/editor-default-1280x800-dark-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1280x800-light-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/editor-default-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/guide-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/guide-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/reading-feedback-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-feedback-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-marks-same-branch-up-360x740-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-marks-same-branch-up-360x740-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-closest-relative-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-closest-relative-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-concept-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-concept-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-count-clades-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-count-clades-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-is-clade-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-is-clade-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-mrca-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-mrca-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-order-nodes-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-order-nodes-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-place-taxon-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-place-taxon-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-select-true-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-select-true-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-smallest-clade-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-smallest-clade-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-trait-360x740-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-two-tier-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-two-tier-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-differs-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-differs-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-fits-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/reading-q-which-fits-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-form-print-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1024x768-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1024x768-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-key-print-768x1024-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-1920x1080-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-1920x1080-light-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-768x1024-dark-linux.png`
+  - `web/e2e/__screenshots__/worksheet-reading-print-768x1024-light-linux.png`
+  - `web/src/design/tokens.ts`
+  - `web/src/index.css`
+  - `web/src/layout/labelCollision.ts`
+  - `web/src/layout/readingCircular.ts`
+  - `web/src/layout/readingCorpus.test.ts` (new)
+  - `web/src/layout/readingGeom.ts`
+  - `web/src/layout/readingLayout.test.ts`
+  - `web/src/layout/readingLayout.ts`
+  - `web/src/layout/readingMarkLabels.ts` (new)
+  - `web/src/reading/state.test.ts`
+  - `web/src/reading/state.ts`
+  - `web/src/reading/url.test.ts`
+  - `web/src/reading/url.ts`
+  - `web/src/views/editor/EditorPanel.tsx`
+  - `web/src/views/editor/reading/fields.tsx`
+  - `web/src/views/editor/reading/ItemForm.tsx`
+  - `web/src/views/editor/reading/QuestionFields.tsx`
+  - `web/src/views/editor/reading/ReadingEditor.tsx`
+  - `web/src/views/editor/reading/readingItems.ts`
+  - `web/src/views/editor/reading/StatementFields.tsx`
+  - `web/src/views/editor/reading/TraitAskFields.test.tsx` (new)
+  - `web/src/views/editor/reading/TraitAskFields.tsx`
+  - `web/src/views/ErrorBoundary.test.tsx`
+  - `web/src/views/ErrorBoundary.tsx`
+  - `web/src/views/reading/ItemView.tsx`
+  - `web/src/views/reading/reading.css`
+  - `web/src/views/reading/readingHelpers.ts`
+  - `web/src/views/reading/ReadingPage.test.tsx`
+  - `web/src/views/reading/ReadingPage.tsx`
+  - `web/src/views/reading/ReadingTree.tsx`
+  - `web/src/views/worksheets/ReadingSheetView.tsx`
+  - `web/src/views/worksheets/worksheets.css`
+  - `web/src/worksheets/reading.test.ts`
+  - `web/src/worksheets/reading.ts`
+
+## v1.4d Task 15 fix round 2d (owner decision 2026-11-21: fix all §21 items before tag, follow the conductor's recommendations)
+
+Session 2d covered the two follow-ups from CI and the round-2 review:
+the lone-figure width cap forcing an unnecessary scroll (§21(k)) and
+`paperText` throwing on user-authored shared sets (§21(f)).
+
+- **Lone-figure width (R1, CI run 44927037765):** the 2b2 rule
+  `max-width: min(100%, var(--reading-figure-max))` on
+  `.read-trees > .rt-figure` capped a lone figure below its content's
+  width, so `.rt-canvas` kept scrolling — and kept `data-cue` — even
+  when the row had room (the 565 px long-name tips-up tree at 1024 px).
+  `.read-trees > .rt-figure:only-of-type` now takes a content flex
+  basis (`flex: 0 1 auto`) floored at the compact cap and ceiled at
+  the row: width = min(row, max(drawing, READING_FIGURE_MAX)) — the
+  cap still stops a figure stretching past its drawing, never forces
+  a scroll, and multi-tree rows keep their equal share under the cap.
+  Devin's call: scoping the content basis to `:only-of-type` — a
+  `min()`/`clamp()` alternative on every figure would have let
+  multi-tree rows give each figure its own max instead of the equal
+  share the row contract wants, and a `min-width: fit-content` first
+  attempt overflowed the 360 px row instead of scrolling inside the
+  canvas (the scroll-cue e2e caught it). Mount-history independence
+  is unchanged — the rule is pure CSS off the same row geometry.
+- **`paperText` on user content (R2):** the unmapped-verb throw was
+  right for shipped content but `?worksheet=custom`/`?key=custom`
+  feed author-built sets through `#r=`, where an instruction like
+  "Click…"/"Pick…" crashed the sheet into the error page. `paperText`
+  now leaves an unmapped sentence's authored wording untouched;
+  strictness moved to the corpus: `unmappedPaperSentences(item)`
+  (new export) reports every sentence start hitting a screen verb
+  the table doesn't map, and the built-in+coverage corpus test
+  asserts it is empty for every shipped item. "Pick" joined
+  `SCREEN_VERB` and the test's instruction regex.
+- **No baselines regenerated:** the full `visual` project (333
+  scenes) passed unchanged — every shot lone figure draws ≤ 560 px
+  (the only >560 px figure in the baselined sets, trees-demo item
+  24's long-name tips-up tree, is shot only at 360 px where it
+  scrolls either way), so no frame moved.
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `web/e2e/reading.spec.ts`, `web/e2e/worksheets.spec.ts`: the
+    new §21(k) sweep and §21(f) custom-set e2e.
+  - `web/src/views/reading/reading.css`
+  - `web/src/worksheets/reading.ts`, `web/src/worksheets/reading.test.ts`
+
+## v1.4d Task 15 checkpoint finding (owner decision 2026-11-22: fix the fragment-only `#r=` re-route before tag)
+
+The §16 checkpoint run found that `web/src/Root.tsx` picks its route
+once at module load, so a navigation that differed only in the
+fragment never re-routed: a student on `/#r=<set A>` opening
+`/#r=<set B>` in the same tab kept set A, and adding `#r=` to a
+`?read=` URL never mounted the shared set (reproduced on the PR #182
+deploy). The same race made the §16 corrupted-link test's
+`goto("/")` + fragment-only goto flake on WebKit. A `hashchange`
+watcher (`web/src/reading/hashWatch.ts`, installed by `main.tsx`)
+now reloads the document when a fragment change crosses a `#r=`
+boundary — one side carrying a shared set and the two fragments
+differing — and leaves every other fragment change (the
+Skip-to-content `#main-content` link) alone. The §16 corrupted-link
+cases are true cold loads again (`about:blank`, not `/`).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: new §21 item (l).
+  - `web/src/main.tsx`, `web/src/reading/hashWatch.ts` (new),
+    `web/src/reading/hashWatch.test.ts` (new).
+  - `web/e2e/reading.spec.ts`: the same-tab `#r=` re-route pair.
+  - `scripts/checkpoint/browser/release.spec.ts`: cold-load fix
+    (inside the block's `scripts/checkpoint/` entry).
+
+## v1.4d Task 15 checkpoint findings (owner decision 2026-11-22: fix the two print findings before tag)
+
+The v1.4.3 checkpoint run's `print/` PDFs showed two defects on the
+reading paper sheets (§21(m)/(n)): a whole-item `break-inside:
+avoid-page` pushed over-tall items past the header onto page 2 (blank
+page 1), then split anyway and orphaned figure captions at page
+bottoms; and Linux Chromium's hinted whole-pixel glyph advances made
+printed letter spacing uneven, splitting words in `pdftotext` ("minut
+es"). The item now breaks at piece level (figure = caption + drawing
+unbreakable, question glued to the first figure, answer block
+unbreakable and glued to the last figure) and print takes
+`text-rendering: geometricPrecision` on `:root` — screen keeps
+`optimizeLegibility`. The checkpoint gains a PDF text check
+(`scripts/checkpoint/pdfcheck.py`, folded into `report.py`): page 1
+carries item 1's prompt, every prompt is whole, and no page ends on a
+lone `Tree N` caption — positions from `pdftotext -tsv`, with the
+tail of an options run ("Circle one." → ○ Tree 1 / Tree 2) excluded
+since a last-line "Tree 2" there is an option, not a caption. The
+paper-text rebuild ports `PAPER_VERBS`/`{a,b,c,set}` filling from
+`web/src/worksheets/reading.ts` + `web/src/reading/state.ts` into
+Python; `test_pdfcheck.py` pins the table against the TS source.
+Regenerated print-only visual baselines (48 `*-print-*` files) in the
+pinned CI image; no screen baseline changed.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21 items (m)/(n), the §14
+    automated-coverage line.
+  - `web/src/index.css`, `web/src/views/worksheets/worksheets.css`:
+    the print rules.
+  - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
+  - `web/e2e/__screenshots__/`: 48 regenerated `*-print-*` baselines.
+
+Follow-up (2026-11-23): `report.py` puts its own directory on `sys.path` before `import pdfcheck` — `run.sh`'s deliberate `python3 -I` drops it — with a `ReportIsolatedTest` regression in `test_pdfcheck.py`, now wired into `check.sh` (a ci.yml step needs the owner's `workflows` permission).
+
+## v1.4d Task 15 checkpoint findings — fix round 2 (owner: "fix both in this pr", 2026-11-22)
+
+The first round's after-PDFs still showed (a) prompts splitting across
+pages or ending a page without their first figure — Chromium never
+honoured `break-after: avoid` into the `.ws-read-trees` flex row —
+and (b) `trees-form-b` ending on a footer-only page. The keep-together
+is now structural: `.ws-lead` wraps prompt + first figure
+(`display: contents` on screen, unbreakable block in print) and the
+prompt itself gets `break-inside: avoid-page`. The footer/closing
+block can't strand because the last item's `.ws-tail` wraps its
+answer space + `.ws-end` (closing + footer) into one `inline-block`
+in print — atomic content, since Blink fragments even `break-inside:
+avoid` and `overflow: hidden` boxes inside an already-splitting
+parent (verified empirically on trees-demo item 25). Same `.ws-end`
+wrap on the lab paper sheet's finish section, the paper key's
+finished-tree section and the lab page's note section; reading/lab
+key items are `break-inside: avoid-page` in print (each is a small
+question+answer+explanation block) and the reading key's footer
+prints inside its last item. Screen layout is identical by
+construction — every wrapper is `display: contents` or margin-matched
+— and all 42 worksheet screen baselines re-verified unchanged in the
+pinned image (the only regenerated files are the 8
+`worksheet-reading(-form)-print` baselines). `pdfcheck.py` gained
+(d) prompts wholly on one page and never their page's last text and
+(e) a last page holding more than the footer/closing block — both
+pinned against real `pdftotext` fixtures extracted from the bad
+PDFs (`scripts/checkpoint/testdata/`).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(m) follow-up text.
+  - `web/src/views/worksheets/worksheets.css`,
+    `web/src/views/labs/labs.css`: the print rules.
+  - `web/src/views/worksheets/ReadingSheetView.tsx`,
+    `ReadingKeyView.tsx`, `WorksheetPage.tsx`, `KeyPage.tsx`,
+    `web/src/views/labs/LabPage.tsx`: the structural wrappers.
+  - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
+  - `web/e2e/__screenshots__/`: 8 regenerated
+    `worksheet-reading(-form)-print-*` baselines.
+
+## v1.4d Task 15 checkpoint findings — fix round 3 (PR #182 firefox e2e, 2026-11-22)
+
+PR CI's firefox shard failed the print e2e: `break-before: avoid`
+computes to `auto` in Firefox (no `avoid` value), so the answer
+block's glue to the last figure only held in Chromium — a real gap
+for teachers printing from Firefox, not just a test issue. The glue
+is now structural like `.ws-lead`'s: `.ws-trail` wraps each item's
+last figure together with its `.ws-tail` (the answer space, and on
+the last item the closing block + footer) — `display: contents` on
+screen, `display: block; break-inside: avoid-page` in print. On a
+single-figure item lead and trail merge (`.ws-lead.ws-trail`): prompt
++ figure + answer are one block. `break-before: avoid-page` stays as
+a harmless extra; nothing depends on it. The e2e asserts the
+structure (the last figure and the answer block share `.ws-trail`,
+which keeps a `break-inside` starting with `avoid` in print), never
+a computed `break-before`/`break-after` Firefox cannot produce — it
+passes on Chromium and Firefox locally, plus a print-media DOM check
+in Firefox on the cov-styles and trees-form-a sheets. `.ws-tail`
+became a real flex line of the trees row on screen (the trail must
+hold it), with the margins that used to collapse through it
+re-pointed so the layout is pixel-identical — all 42 worksheet
+screen baselines re-verified unchanged in the pinned image; the only
+regenerated files are the 8 `worksheet-reading(-form)-print`
+baselines. All 24 reading sheet/key PDFs were regenerated and are
+clean under pdfcheck.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(m) follow-up text.
+  - `web/src/views/worksheets/worksheets.css`: the `.ws-trail`/screen
+    tail rules.
+  - `web/src/views/worksheets/ReadingSheetView.tsx`: the `.ws-trail`
+    wrapper.
+  - `web/e2e/worksheets.spec.ts`: structural print assertions.
+  - `web/e2e/__screenshots__/`: 8 regenerated
+    `worksheet-reading(-form)-print-*` baselines.
+
+## v1.4d Task 15 checkpoint finding — fix round 4 (PR #182 Firefox flake, 2026-11-23)
+
+`scripts/checkpoint/browser/release.spec.ts`: the §13 test and the
+§8/§14 lab loop navigated by clicking "Load this lab" right after a raw
+`page.goto`, aborting the lab page's in-flight font loads — Firefox logs
+the NS_BINDING_ABORTED as a console error and `watchConsole` failed the
+test (the §13 flake, 2/5 runs). Both clicks now await
+`document.fonts.ready` first via the extracted `settleFonts` helper (the
+same settle `visitPage`/`visitReading` already did inline; no
+`watchConsole` ignore rule was added — a real font failure still fails).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+
+## v1.4d Task 15 checkpoint finding — fix round 5 (PR #182 iPhone Safari Lessons menu, 2026-11-23)
+
+The owner's real-iPhone pass found the header's "Lessons" menu broken
+on iPhone Safari (~390 px) — reproduced in the pinned image on both
+the v1.4.2 deploy and this branch, so pre-existing since v1.4c. Three
+defects, three CSS causes in `web/src/index.css`:
+
+1. Squashed rows: WebKit lets `<button>` flex items shrink below
+   their content inside the capped, scrolling `.lessons-menu-list`,
+   so a summary bled into the row below. `.lessons-menu-list > *` now
+   takes `flex-shrink: 0` — every row (lesson picks and the Library /
+   Reading trees / tour action rows) keeps its natural height and the
+   list scrolls instead.
+2. Painted under the header controls: `.header-toggles` carried
+   `z-index: 40` at all times, but the raise exists only to beat an
+   open sheet's scrim (z-index 10). It moved to
+   `.app:has(> .sheet-backdrop) .header-toggles`, so an open menu
+   paints above every header control while the sheet case is
+   unchanged (the drawer scrim stays on top either way, z-index 50).
+3. Off-screen left edge: the `right: 0`, `min-width: 300px` list under
+   a mid-header button overflowed the viewport's left edge wherever
+   the header can wrap. The More menu's established v1.4b fix
+   (`position: static` on the menu so `.app-header` is the containing
+   block, list anchored to the header's left content edge, viewport-
+   capped width) now covers `.lessons-menu` too — below 1024 px and
+   in presenter mode at any width; `min-width` yields to the cap at
+   320 px so both side margins survive.
+
+The More menu and the Settings drawer were checked for the same
+three defects at 320/375/390 px in the pinned image and have none
+(the More list already anchored to the header edge and has no height
+cap; the drawer is a fixed full-height overlay at z-index 50). The
+Guides menu shares the stacking fix and already had its own anchor
+rule. New spec `web/e2e/header-menus.spec.ts` pins rows-keep-height /
+list-inside-viewport / nothing-paints-over for the Lessons and More
+menus at 320×640 and 390×844 under a coarse pointer (hasTouch, plus
+isMobile where the engine implements it — Firefox has none) on every
+browser project; it failed on the pre-fix code under WebKit and
+passes after, on WebKit (pinned image) and Chromium. No snapshot
+baseline shows an open menu, so none were regenerated.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(o).
+  - `web/src/index.css`: the three fixes.
+  - `web/e2e/header-menus.spec.ts`: the regression pin.
+## v1.4d Task 15 checkpoint finding — fix round 6 (PR #182 owner NVDA pass, 2026-11-23)
+
+The owner's NVDA pass on `?read=trees-reading-a-tree` (Tab navigation)
+found three gaps, recorded as §21(p): the question paragraph was never
+voiced when Tab entered an answer control, "Show as text" exposed the
+tree's text form without any way to reach it, and the first Check was
+silent because the verdict `role="status"` mounted together with its
+content (a live region inserted with content is never announced —
+only later text changes inside it are).
+
+- `.read-question` gets a stable id (`useId` in `ItemView`). Every
+  answer control group names itself
+  `aria-labelledby="<question id> <instruction id>"`: radio groups
+  keep a visually-hidden instruction span (`.read-sr`, the `.rt-live`
+  clip pattern) — "Choose one"/"Choose a trait"; checkbox lists gain
+  `role="group"` with "Tick every option that applies"/"Tick every
+  true statement"; the order builder and the tap-the-tree selection
+  readout group under the question alone; the two-tier "Why?" group
+  is the exception — see fix round 7 below: it is named by its
+  caption alone and described by the question. The
+  number input keeps its "Answer" name and carries the question via
+  `aria-describedby`. The interactive tree's svg keeps its caption
+  name and is described by the question plus the description list.
+- `TreeDescription`: the toggle gets `aria-controls` to the list's
+  region; the region is named "<label> as text" and `tabIndex={-1}`;
+  opening focuses the region, closing returns focus to the toggle.
+  The svg's `aria-describedby` points at the `<ul>` id, not the
+  region — an accessible name on the referenced node would replace
+  the list text in the svg's description. Closed stays clipped:
+  browse mode still reaches the text.
+- The verdict `role="status"` (practice mode) and the editor's
+  engine-answer preview mount once and stay, so the first Check (and
+  the retry verdict, the resolved verdict and the "Show answer"
+  reveal — all content changes inside the persistent region) is
+  announced once each. The `.rt-live` selection status was already
+  persistent; `TestSummary` holds no live region. Empty status
+  wrappers are unstyled divs — zero size, no baseline changes.
+- Tests: group/input naming and `describedby` in
+  `QuestionControls.test.tsx`; status persistence, page-level group
+  name and svg description in `ReadingPage.test.tsx`; region naming,
+  `aria-controls` and focus moves in `TreeDescription.test.tsx`;
+  engine-answer status persistence in `ReadingEditor.test.tsx`; e2e
+  "Tab reaches an answer group named by the question; the verdict
+  region predates Check" in `web/e2e/reading.spec.ts` (runs on
+  chromium/firefox/webkit).
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/checkpoints/v1.4d-release.md`: §21(p).
+  - `web/src/views/reading/ItemView.tsx`: question id, describedBy,
+    persistent verdict region.
+  - `web/src/views/reading/QuestionControls.tsx`,
+    `web/src/views/reading/QuestionControlsTree.tsx`: question-
+    labelled groups and inputs.
+  - `web/src/views/reading/ReadingTree.tsx`,
+    `web/src/views/reading/TreeDescription.tsx`: svg describedby,
+    named focusable region, toggle `aria-controls`.
+  - `web/src/views/reading/reading.css`: `.read-sr`.
+  - `web/src/views/editor/reading/ItemForm.tsx`: persistent
+    engine-answer status.
+  - `web/src/views/reading/QuestionControls.test.tsx`,
+    `web/src/views/reading/ReadingPage.test.tsx`,
+    `web/src/views/reading/TreeDescription.test.tsx`,
+    `web/src/views/editor/reading/ReadingEditor.test.tsx`,
+    `web/e2e/reading.spec.ts`: the §21(p) pins.
+
+## v1.4d Task 15 checkpoint finding — fix round 7 (PR #182 two-tier name collision, 2026-11-23)
+
+The round-6 naming scheme broke e2e on CI (chromium + firefox,
+"q-two: wrong then right verdict"): a two-tier item's question text
+itself ends "— and why?", so the first tier's name "…and why?
+Choose one" already contains a "why?" substring, and the Why? tier's
+"…and why? Why?" matched the same `name: "Why?"` locator — `.first()`
+picked a first-tier radio, the reason was never answered and Check
+stayed disabled.
+
+- The two-tier "Why?" group is now named by its visible caption
+  alone (`aria-labelledby=<caption id>`) and carries the question
+  via `aria-describedby` — the name is exactly "Why?", the
+  screen-reader experience is unchanged (description is voiced on
+  entry like the name was). Every other group keeps
+  `aria-labelledby="<question> <instruction>"`.
+- `web/e2e/reading.spec.ts` targets the group with
+  `{ name: "Why?", exact: true }`: the product names are now right,
+  but the item text itself still ends "— and why?", so a substring
+  match would keep hitting the first tier.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`, `docs/checkpoints/v1.4d-release.md`: this
+    entry and the §21(p) mechanism note.
+  - `web/src/views/reading/QuestionControls.tsx`: the `RadioList`
+    `labelId` branch.
+  - `web/src/views/reading/QuestionControls.test.tsx`: the naming
+    pin.
+  - `web/e2e/reading.spec.ts`: the exact-name locator.
+
+## v1.4d Task 15 checkpoint finding — fix round 8 (owner command 2026-11-23: "add the MEGA thread-count tip to §22 and the instructor guide")
+
+Docs only, no product code: §22 of `v1.4d-release.md` records the
+owner-verified MEGA 12.1.4 GUI crash — *Phylogeny → Construct/Test
+Neighbor-Joining Tree* on a distance matrix with fewer taxa than
+MEGA's saved "Number of Threads" closes the GUI, the dialog itself
+can't change the count, and MEGA-CC is unaffected (a MEGA bug, not
+NeoPhylo's) — and `docs/instructor-guide.md` carries the
+teacher-facing workaround after the 3-hour lab plan ("MEGA twelve"
+spelled out to keep the guide's no-data-digits rule). The paragraph
+lengthens the guide page, so the six `guide-*` snapshot baselines
+were regenerated in the pinned image — no other baseline changed.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/instructor-guide.md`: the MEGA thread-count tip.
+  - `web/e2e/__screenshots__/guide-768x1024-{light,dark}-linux.png`,
+    `guide-1024x768-{light,dark}-linux.png`,
+    `guide-1920x1080-{light,dark}-linux.png`: regenerated for the
+    longer guide page.

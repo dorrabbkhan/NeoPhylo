@@ -1332,3 +1332,59 @@ test("a pasted matrix commits and saves as schema 5", async ({
   expect(file.data.lower).toEqual([0.2, 0.3, 0.4, 0.5, 0.6, 0.7]);
   expect(file.analysis).toEqual({ method: "NJ" });
 });
+
+test("a denied clipboard still shows the share link, with no unhandled rejection", async ({
+  page,
+}) => {
+  // §21(i): a rejected writeText promise (denied clipboard-write,
+  // plain-http origins) must be swallowed by the handler's own catch —
+  // the share notice still shows the link and no pageerror escapes.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.clipboard, "writeText", {
+      value: () => Promise.reject(new Error("clipboard-write denied")),
+      configurable: true,
+    });
+  });
+  await page.goto("/?editor");
+  await page.getByRole("button", { name: "Share link" }).click();
+  const url = await page
+    .getByRole("textbox", { name: "Share link URL" })
+    .inputValue();
+  expect(url).toContain("#x=");
+  // Give a leaked rejection a beat to surface before asserting none.
+  await page.waitForTimeout(100);
+  expect(errors).toEqual([]);
+});
+
+// §21(g): the "What are you making?" mode box took the page's full
+// padded row while .editor-panel capped at 1100 px centred — at wide
+// viewports the box's left edge sat 66 px left of the column it heads.
+// It now shares the column's box.
+test("the mode box shares the editor column's left edge and width", async ({
+  page,
+}) => {
+  for (const width of [768, 1024, 1280, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?editor");
+    await expect(
+      page.getByRole("group", { name: "What are you making?" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("application", { name: "Tree canvas" }),
+    ).toBeVisible();
+    const mode = await page.locator(".editor-mode").boundingBox();
+    const column = await page.locator(".editor-panel").boundingBox();
+    expect(mode, `.editor-mode box at ${width}`).not.toBeNull();
+    expect(column, `.editor-panel box at ${width}`).not.toBeNull();
+    expect(
+      Math.abs(mode!.x - column!.x),
+      `mode box left edge matches the column at ${width}`,
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(mode!.width - column!.width),
+      `mode box width matches the column at ${width}`,
+    ).toBeLessThanOrEqual(1);
+  }
+});

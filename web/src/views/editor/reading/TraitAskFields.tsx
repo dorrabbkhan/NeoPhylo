@@ -1,10 +1,11 @@
 // The trait-question ask editor (v1.4d plan Task 10, spec §7.5): the
-// ask kind plus its typed fields — the tip/clade fields are tap-set
-// readouts (the item preview feeds them), names are plain text.
+// ask kind plus its typed fields — tips are tap-set readouts (the item
+// preview feeds them), trait names are picked from the tree's own
+// trait list so the wire always carries a name the engine knows.
 
 import type { TraitAsk } from "../../../engine/generated/TraitAsk";
 
-import { Field, PickedField, Text } from "./fields";
+import { Field, PickedField, TraitNameField } from "./fields";
 
 const ASK_KINDS: { value: TraitAsk["kind"]; label: string }[] = [
   { value: "which_have", label: "Which tips have the trait" },
@@ -54,9 +55,13 @@ function TipField({
 
 export function TraitAskFields({
   ask,
+  traitNames,
   onChange,
 }: {
   ask: TraitAsk;
+  /** The item's first tree's trait names — every trait field the ask
+   *  carries must name one of these. */
+  traitNames: string[];
   onChange: (a: TraitAsk) => void;
 }) {
   return (
@@ -74,9 +79,10 @@ export function TraitAskFields({
         </select>
       </Field>
       {"trait_name" in ask && (
-        <Text
+        <TraitNameField
           label="Trait name"
           value={ask.trait_name}
+          traitNames={traitNames}
           onChange={(trait_name) => onChange({ ...ask, trait_name })}
         />
       )}
@@ -96,14 +102,16 @@ export function TraitAskFields({
       )}
       {ask.kind === "has_not" && (
         <>
-          <TipField
-            label="Tip that has"
+          <TraitNameField
+            label="Has trait"
             value={ask.has}
+            traitNames={traitNames}
             onChange={(has) => onChange({ ...ask, has })}
           />
-          <TipField
-            label="Tip that lacks"
+          <TraitNameField
+            label="Lacks trait"
             value={ask.lacks}
+            traitNames={traitNames}
             onChange={(lacks) => onChange({ ...ask, lacks })}
           />
         </>

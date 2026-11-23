@@ -54,7 +54,16 @@ export function decodeReadingLink(href: string): Result<ReadingSet> {
   if (start < 0) {
     return linkError("this link carries no reading set");
   }
-  const json = decompressFromEncodedURIComponent(href.slice(start + 3));
+  // A fragment lz-string cannot decode at all throws inside
+  // decompressFromEncodedURIComponent (e.g. `#r=zzz`) — refuse it with
+  // the same link message as the empty/undecodable paths, never the
+  // generic engine-load alert (checkpoint §21(h)).
+  let json: string | null;
+  try {
+    json = decompressFromEncodedURIComponent(href.slice(start + 3));
+  } catch {
+    json = null;
+  }
   if (json === null || json === "") {
     return linkError("the shared set could not be decompressed");
   }

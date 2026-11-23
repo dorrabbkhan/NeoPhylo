@@ -26,6 +26,10 @@ esac
 # the directory itself.
 node --test "scripts/conductor/*.test.ts"
 
+# Checkpoint scripts (pdfcheck unit tests + the report.py `python3 -I`
+# regression); stdlib only, no PDFs needed.
+python3 -I scripts/checkpoint/test_pdfcheck.py
+
 if [ "$mode" = "quick" ]; then
   scripts/ci/fixture-guard.sh
   scripts/ci/quick.sh

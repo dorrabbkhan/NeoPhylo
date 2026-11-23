@@ -117,6 +117,16 @@ const ORDER_TARGET: PickTarget = {
   selectable: "node",
 };
 
+/** The trait names a resolved tree knows — trait defs first, then the
+ *  names its marks introduce, in the engine's `trait_names` order. */
+export function traitNamesOf(view: ReadingTreeView): string[] {
+  const names = view.traits.map((t) => t.name);
+  for (const m of view.marks) {
+    if (!names.includes(m.trait)) names.push(m.trait);
+  }
+  return names;
+}
+
 function askTargets(ask: TraitAsk): PickTarget[] {
   switch (ask.kind) {
     case "which_shared":
@@ -126,11 +136,6 @@ function askTargets(ask: TraitAsk): PickTarget[] {
     case "profile":
     case "ancestral_or_derived":
       return [{ id: "ask-tip", label: "the tip", selectable: "tips" }];
-    case "has_not":
-      return [
-        { id: "ask-has", label: "the tip that has", selectable: "tips" },
-        { id: "ask-lacks", label: "the tip that lacks", selectable: "tips" },
-      ];
     case "homologous":
       return [
         { id: "ask-x", label: "tip x", selectable: "tips" },
@@ -222,13 +227,6 @@ function applyToQuestion(
         case "ancestral_or_derived":
           return target === "ask-tip" && tip !== undefined
             ? { ...q, ask: { ...ask, tip } }
-            : q;
-        case "has_not":
-          if (target === "ask-has" && tip !== undefined) {
-            return { ...q, ask: { ...ask, has: tip } };
-          }
-          return target === "ask-lacks" && tip !== undefined
-            ? { ...q, ask: { ...ask, lacks: tip } }
             : q;
         case "homologous":
           if (target === "ask-x" && tip !== undefined) {

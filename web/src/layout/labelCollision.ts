@@ -40,6 +40,82 @@ export interface Seg {
 
 const EPS = 1e-9;
 
+const cross = (
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+): number => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+
+/** Point-to-segment distance. */
+function pointSeg(px: number, py: number, s: Seg): number {
+  const dx = s.x2 - s.x1;
+  const dy = s.y2 - s.y1;
+  const rr = dx * dx + dy * dy;
+  const t =
+    rr < EPS
+      ? 0
+      : Math.max(0, Math.min(1, ((px - s.x1) * dx + (py - s.y1) * dy) / rr));
+  return Math.hypot(s.x1 + t * dx - px, s.y1 + t * dy - py);
+}
+
+/** True when segments share ANY point — a proper crossing, an
+ * endpoint touch or a collinear run. Unlike segHits this keeps
+ * endpoint touches (a distance function must report 0 there). */
+export function segsMeet(a: Seg, b: Seg): boolean {
+  const d1 = cross(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1);
+  const d2 = cross(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2);
+  const d3 = cross(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1);
+  const d4 = cross(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2);
+  if (
+    ((d1 > EPS && d2 < -EPS) || (d1 < -EPS && d2 > EPS)) &&
+    ((d3 > EPS && d4 < -EPS) || (d3 < -EPS && d4 > EPS))
+  ) {
+    return true;
+  }
+  const onSeg = (s: Seg, px: number, py: number): boolean =>
+    Math.abs(cross(s.x1, s.y1, s.x2, s.y2, px, py)) < 1e-6 &&
+    Math.min(s.x1, s.x2) - 1e-6 <= px &&
+    px <= Math.max(s.x1, s.x2) + 1e-6 &&
+    Math.min(s.y1, s.y2) - 1e-6 <= py &&
+    py <= Math.max(s.y1, s.y2) + 1e-6;
+  return (
+    onSeg(a, b.x1, b.y1) ||
+    onSeg(a, b.x2, b.y2) ||
+    onSeg(b, a.x1, a.y1) ||
+    onSeg(b, a.x2, a.y2)
+  );
+}
+
+/** Minimum distance between a segment and an AABB — 0 when they
+ * touch or the segment lies inside the box. The mark-label resolver
+ * and its corpus test keep label boxes this far off every branch the
+ * label does not belong to (checkpoint §21(a)). */
+export function segBoxDist(s: Seg, b: LabelBox): number {
+  const inside = (x: number, y: number): boolean =>
+    x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
+  if (inside(s.x1, s.y1) || inside(s.x2, s.y2)) return 0;
+  let d = Infinity;
+  for (const e of [
+    { x1: b.minX, y1: b.minY, x2: b.maxX, y2: b.minY },
+    { x1: b.maxX, y1: b.minY, x2: b.maxX, y2: b.maxY },
+    { x1: b.maxX, y1: b.maxY, x2: b.minX, y2: b.maxY },
+    { x1: b.minX, y1: b.maxY, x2: b.minX, y2: b.minY },
+  ] as const) {
+    if (segsMeet(s, e)) return 0;
+    d = Math.min(
+      d,
+      pointSeg(s.x1, s.y1, e),
+      pointSeg(s.x2, s.y2, e),
+      pointSeg(e.x1, e.y1, s),
+      pointSeg(e.x2, e.y2, s),
+    );
+  }
+  return d;
+}
+
 /**
  * True when segment a shares more than its (x2, y2) endpoint with
  * segment b — a proper crossing, a grazing touch at an interior point,

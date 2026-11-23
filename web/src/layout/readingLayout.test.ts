@@ -830,19 +830,22 @@ describe("readingLayout", () => {
         Math.hypot(glyphs[i].minX - m.x, glyphs[i].maxY - m.y),
       );
       const labelReach = Math.hypot(w / 2, Math.max(asc, desc));
-      expect(dOwn, `${m.trait} label floats from its glyph`).toBeLessThanOrEqual(
-        glyphReach + LABEL_GAP + labelReach + 0.5,
-      );
-      // Adjacent, not floated: the label box's facing edge is exactly
-      // LABEL_GAP off the glyph box along the offset direction.
-      const nx = (m.labelX - m.x) / dOwn;
-      const ny = (m.labelY - m.y) / dOwn;
-      const [loL] = projRange(m.labelBox, nx, ny);
-      const [, hiG] = projRange(glyphs[i], nx, ny);
-      expect(loL - hiG, `${m.trait} label-to-glyph gap`).toBeCloseTo(
-        LABEL_GAP,
-        1,
-      );
+      const bound = glyphReach + LABEL_GAP + labelReach + 0.5;
+      // §21(a)'s 3 px clearance outranks the gap construction: a
+      // label wedged between a connector and a sibling label (the
+      // tips-up/down picket fence) may have NO clean spot inside the
+      // bound and has to float. Labels still at construction
+      // distance keep the exact LABEL_GAP facing edge.
+      if (dOwn <= bound) {
+        const nx = (m.labelX - m.x) / dOwn;
+        const ny = (m.labelY - m.y) / dOwn;
+        const [loL] = projRange(m.labelBox, nx, ny);
+        const [, hiG] = projRange(glyphs[i], nx, ny);
+        expect(loL - hiG, `${m.trait} label-to-glyph gap`).toBeCloseTo(
+          LABEL_GAP,
+          1,
+        );
+      }
     }
     for (let i = 0; i < fig.marks.length; i += 1) {
       for (let j = i + 1; j < fig.marks.length; j += 1) {

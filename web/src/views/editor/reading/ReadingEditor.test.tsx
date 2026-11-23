@@ -133,6 +133,38 @@ describe("ReadingEditor", () => {
     } satisfies object);
   });
 
+  it("keeps the engine-answer status mounted from the start (§21(p))", () => {
+    renderEditor();
+    fillSetBasics();
+    const slot = treeSlot("t1");
+    fireEvent.change(
+      within(slot).getByRole("textbox", { name: "Newick" }),
+      { target: { value: NEWICK } },
+    );
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "New item type" }),
+      { target: { value: "mrca" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+    const item = itemSection("Item q1");
+    // The region exists before any answer could — a live region
+    // arriving with its content is never announced.
+    const status = within(item).getByRole("status", {
+      name: "Engine answer",
+    });
+    fireEvent.change(
+      within(item).getByRole("textbox", { name: "Question text" }),
+      { target: { value: "Tap the MRCA of {set}." } },
+    );
+    tapClade(item, ["a"]);
+    tapClade(item, ["b"]);
+    // Same node, now carrying the first engine answer.
+    expect(
+      within(item).getByRole("status", { name: "Engine answer" }),
+    ).toBe(status);
+    expect(status.textContent).toMatch(/most recent common ancestor/);
+  });
+
   it("shows an item's InvalidReading message beside it and disables Share", () => {
     renderEditor();
     fillSetBasics();
