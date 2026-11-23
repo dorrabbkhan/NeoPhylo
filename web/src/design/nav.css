@@ -74,9 +74,12 @@
   opacity: 0;
   overflow: hidden;
   white-space: nowrap;
+  /* opacity snaps rather than fading: a mid-fade frame would paint
+   * partially transparent text — a transient sub-4.5:1 contrast frame
+   * axe legitimately flags (theme.spec dark-theme violation, WebKit).
+   * The max-width slide alone carries the reveal. */
   transition:
     max-width 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 200ms,
     margin 250ms;
 }
 

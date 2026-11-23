@@ -9990,6 +9990,15 @@ were regenerated in the pinned image — no other baseline changed.
   coarse-pointer tap activates immediately; a ≥500 ms hold shows the
   label and swallows the following click/context-menu (conductor's
   call, §16.3).
+- **Label reveal is a pure clip-slide — no opacity fade:** the label's
+  `opacity` snaps 0→1 while `max-width` animates. A fading frame paints
+  partially transparent text — WebKit's axe run in
+  `theme.spec.ts` ("axe is clean in both themes") caught a transient
+  `color-contrast` violation on the pressed Dark-mode toggle's
+  mid-fade label; opacity-snapping removes the sub-4.5:1 frame
+  entirely rather than teaching the test to wait the race out.
+  header-label-expanded's baselines were regenerated and came out
+  byte-identical — the settled end state is unchanged.
 - **Test files the plan named but did not create as separate files:**
   `NavTray.test.tsx` and `Icon.test.tsx` are not separate files — the
   per-breakpoint destination/action matrix the step text describes lives
@@ -10038,9 +10047,9 @@ were regenerated in the pinned image — no other baseline changed.
   - `visualScenes.ts` — three new scenes appended:
     `header-label-expanded`, `header-menu-open`, `phone-sheet-open`
     (360×740). `header-label-expanded` polls the label's settled end
-    state (opacity 1 + width > 10) rather than a fixed sleep; all other
-    frames settle via the existing `animations: "disabled"` +
-    `settleFrame`.
+    state (computed `max-width` reaches the 140 px target) rather than
+    a fixed sleep; all other frames settle via the existing
+    `animations: "disabled"` + `settleFrame`.
 - **Files outside the Files block:**
   - `web/src/main.tsx` — imports `design/nav.css` (after index.css so the
     tray overrides win at equal specificity).
@@ -10051,6 +10060,13 @@ were regenerated in the pinned image — no other baseline changed.
     `web/e2e/sheets.spec.ts` — outside the block's named spec list; each
     change is listed above and only re-pins the moved navigation paths
     or fixes the scroll/nav races the new header exposed.
+  - `web/e2e/theme.spec.ts` — the two axe-after-toggle tests now wait
+    for the toggle's 120 ms `background-color` transition to finish
+    (`getAnimations` → `playState === "finished"`) before analyzing:
+    WebKit's axe samples mid-transition colors and reported the new
+    tray label — and an untouched pair-panel button — as low contrast.
+    The assertions are unchanged; the sampled state is the settled
+    theme the test always meant to check.
   - `docs/decisions.md` — this entry.
 - **Not done on purpose:** `presenter.spec.ts` and `a11y.spec.ts` were in
   the modify list but needed no edits — presenter-hides-Settings and the

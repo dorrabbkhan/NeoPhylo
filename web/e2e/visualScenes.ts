@@ -1622,17 +1622,15 @@ export const SCENES: {
       const item = page.getByRole("button", { name: "Dark mode" });
       await item.hover();
       // The 250 ms label slide must have landed before the frame —
-      // poll for the settled end state (opacity 1, nonzero box)
-      // rather than trusting a sleep or a mid-slide width.
+      // poll for the settled end state (computed max-width reaches the
+      // 140 px target only when the transition completes) rather than
+      // trusting a sleep or a mid-slide width.
       const label = item.locator(".nav-item-label");
       await expect
         .poll(async () =>
-          label.evaluate((el) => {
-            const cs = getComputedStyle(el);
-            return (
-              cs.opacity === "1" && el.getBoundingClientRect().width > 10
-            );
-          }),
+          label.evaluate(
+            (el) => getComputedStyle(el).maxWidth === "140px",
+          ),
         )
         .toBe(true);
       await settleFrame(page);
