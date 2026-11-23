@@ -1,10 +1,10 @@
-// The phone menu sheet (v1.5 Task 2, spec §16.3 — mockup M1): below
-// 768 px the header is wordmark + title + the mode pill + one Menu
-// button, and this sheet carries every destination and action the
-// phone header and the More menu offered (the Lessons list, the two
-// guides, Labs, Library, Reading trees, Settings, the tour,
-// Licenses, Source code and Help) plus the Dark/Presenter toggles.
-// The mode pill stays in the header (M1) — no Mode row here.
+// The phone menu sheet (v1.5 Task 2, spec §16.3 — mockup M2): below
+// 768 px the header is wordmark + title + one Menu button, and this
+// sheet carries every destination and action the phone header and
+// the More menu offered (the Lessons list, the two guides, Labs,
+// Library, Reading trees, Settings, the tour, Licenses, Source code
+// and Help) plus the Lesson | Sandbox switch (the header pill's same
+// radiogroup, a row like Dark mode) and the Dark/Presenter toggles.
 //
 // Modal contract: focus moves in on open, Tab cycles inside, Escape
 // or the ✕ button closes and the Sheet puts focus back on the Menu
@@ -20,7 +20,7 @@ import type { Dispatch } from "react";
 import { REPO_URL } from "../../config";
 import type { ThemeName } from "../../design/tokens";
 import { LESSONS } from "../../lessons/catalog";
-import type { Action } from "../../state/session";
+import type { Action, Session } from "../../state/session";
 import { Sheet } from "../Sheet";
 
 import { Icon } from "./Icon";
@@ -36,6 +36,9 @@ export interface PhoneMenuSheetProps {
   onOpenMegaHelp: () => void;
   onOpenLibrary?: () => void;
   onOpenReading?: () => void;
+  /** Lesson|Sandbox — the Mode row's checked side (§16.3, M2). */
+  source: Session["source"];
+  onSelectMode: (mode: Session["source"]) => void;
   theme: ThemeName;
   presenter: boolean;
   dispatch: Dispatch<Action>;
@@ -135,6 +138,8 @@ function Body({
   onOpenMegaHelp,
   onOpenLibrary,
   onOpenReading,
+  source,
+  onSelectMode,
   theme,
   presenter,
   dispatch,
@@ -238,9 +243,14 @@ function Body({
             <Tile icon="code" label="Source code" href={REPO_URL} />
             <Tile icon="help" label="Help" href={`${REPO_URL}#readme`} />
           </div>
-          {/* No Mode row: mockup M1 keeps Lesson | Sandbox in the
-              header at this width — the sheet must not duplicate the
-              only mode-switch path. */}
+          {/* M2: the mode switch's only <768 home is this row — the
+              same radiogroup semantics the ≥768 header pill uses. */}
+          <SegRow
+            label="Mode"
+            options={["Lesson", "Sandbox"]}
+            checked={source === "lesson" ? 0 : 1}
+            onPick={(i) => onSelectMode(i === 0 ? "lesson" : "sandbox")}
+          />
           <SegRow
             label="Dark mode"
             options={["Off", "On"]}

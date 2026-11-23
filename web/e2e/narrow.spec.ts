@@ -85,6 +85,25 @@ async function checkHeaderControls(
   }
 }
 
+/** The <768 mode switch is the phone sheet's Mode row (v1.5 Task 2,
+ * §16.3 mockup M2): open the sheet, flip the side, close again. The
+ * row is a control, not a destination — the sheet stays open until
+ * dismissed, so a follow-up tile pick still works after the switch. */
+async function switchMode(
+  page: import("@playwright/test").Page,
+  mode: "Lesson" | "Sandbox",
+): Promise<void> {
+  await page.getByRole("button", { name: "Menu" }).click();
+  const sheet = page.getByRole("dialog", { name: "Menu" });
+  const radio = sheet
+    .getByRole("radiogroup", { name: "Mode" })
+    .getByRole("radio", { name: mode });
+  await radio.click();
+  await expect(radio).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+}
+
 /** (b): the document itself never scrolls sideways. */
 async function expectNoSidewaysScroll(
   page: import("@playwright/test").Page,
@@ -105,7 +124,17 @@ test("375×812: the Lesson view's header controls fit and the page never scrolls
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await expect(page.getByRole("radio", { name: "Lesson" })).toBeChecked();
+  // The checked mode reads from the sheet's Mode row at this width
+  // (v1.5 Task 2, §16.3 mockup M2).
+  await page.getByRole("button", { name: "Menu" }).click();
+  const sheet = page.getByRole("dialog", { name: "Menu" });
+  await expect(
+    sheet
+      .getByRole("radiogroup", { name: "Mode" })
+      .getByRole("radio", { name: "Lesson" }),
+  ).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
   await checkHeaderControls(page, "the Lesson view");
   await expectNoSidewaysScroll(page, NARROW.w, "the Lesson view");
 });
@@ -115,8 +144,7 @@ test("375×812: the Sandbox view's header controls fit and the page never scroll
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await page.getByRole("radio", { name: "Sandbox" }).click();
-  await expect(page.getByRole("radio", { name: "Sandbox" })).toBeChecked();
+  await switchMode(page, "Sandbox");
   await checkHeaderControls(page, "the Sandbox view");
   await expectNoSidewaysScroll(page, NARROW.w, "the Sandbox view");
   // Below the wide breakpoint the sandbox controls — the gap-
@@ -222,7 +250,7 @@ test("375×812 coarse pointer: every matrix control is ≥40×40 and the page ne
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await page.getByRole("radio", { name: "Sandbox" }).click();
+  await switchMode(page, "Sandbox");
   // At 375 px the import panel sits in the Settings drawer, opened
   // through the phone sheet (v1.5 Task 2, §16.3).
   await page.getByRole("button", { name: "Menu" }).click();

@@ -9960,12 +9960,21 @@ were regenerated in the pinned image — no other baseline changed.
   `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md`; conductor's
   calls in `docs/conductor/notes/v1.5/task2.md` (authoritative where the
   plan file's text differs).
-- **Compact layout is M1, not the plan file's "M2":** task2.md pins the
-  Lesson/Sandbox pill in the header immediately before the Menu button
-  and forbids a mode switch inside the sheet — the plan file's mockup
-  reference (`nav-mobile-r1.html`) predates that decision. The sheet
-  therefore carries every destination and the Dark/Presenter controls
-  but no second mode pill.
+- **Compact layout is M2, as spec §16.3 and the plan's Step 4 say:**
+  the <768 header is wordmark, title and one Menu button only; the
+  sheet carries every destination, the **Lesson | Sandbox** Mode row
+  (the ≥768 pill's same `radiogroup` semantics) and the Dark/Presenter
+  rows. task2.md never pinned M1 — the earlier "M1 per task2.md" entry
+  was a misread, corrected in fix round 1 by moving the switch into
+  the sheet (`PhoneMenuSheet` gained `source`/`onSelectMode` props for
+  the Mode row; `Header` no longer renders a pill at compact).
+- **`--color-surface-2`, not `--color-surface2`:** nav.css named the
+  token with `tokens.ts`'s camel key instead of the generated kebab
+  property (fix round 1) — the tray, Menu button and every sheet
+  surface silently painted transparent. The sheet panel also gained
+  an explicit `background: var(--color-bg)` so nothing from the page
+  reads through it; header-nav.spec.ts now asserts these surfaces'
+  computed backgrounds are never `rgba(0, 0, 0, 0)`.
 - **1024–1279 More contents (the conductor's-call overflow):** Labs,
   Reading trees and the two guides (PHYLIP/MEGA) move behind a "medium"
   `MoreMenu` variant; Lessons, Library, Settings and the toggles stay
@@ -10009,9 +10018,9 @@ were regenerated in the pinned image — no other baseline changed.
     Labs/Reading-links-at-≥1280 and unsaved-work click-routing tests are
     kept word-for-word in intent; "Guides at ≥1024" was split into
     "guides behind More at 1024–1279, behind the Menu sheet <768" (the
-    medium variant owns them now); added compact-mode M1 structure
-    (pill + Menu), sheet open/close, in-sheet Lessons list and tile
-    activation coverage.
+    medium variant owns them now); added compact-mode M2 structure
+    (Menu only — no header pill), sheet open/close, the sheet's Mode
+    row switching, in-sheet Lessons list and tile activation coverage.
   - `MoreMenu.test.tsx` — added the "medium" variant's four-item
     inventory (the two guides, Labs, Reading trees — nothing else) so a
     stray item can't reappear at 1024–1279.
@@ -10023,7 +10032,10 @@ were regenerated in the pinned image — no other baseline changed.
   - `narrow.spec.ts` — <768 paths that used to reach Settings, the
     matrix import and Reading trees through header chips now enter via
     Menu → tile → same destination; assertions on the destination are
-    unchanged.
+    unchanged. The two 375 px mode-switch paths (Lesson-view check,
+    Sandbox-view and the coarse-pointer matrix case) flip the sheet's
+    Mode row instead of a header pill (fix round 1, M2) — same checked
+    radio assertion, one open closer.
   - `sheets.spec.ts` — the 1024 "Guides list inside the viewport" case
     now opens More (Guides moved behind it at 1024–1279); the 375 px
     More-list case was dropped as superseded by header-menus' phone-

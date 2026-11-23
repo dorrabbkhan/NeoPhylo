@@ -16,7 +16,8 @@
 //   narrow  768–1023  the More menu carries the same nine secondary
 //                 items as today; Settings stays a direct button.
 //   compact <768   wordmark, title and one Menu button — the
-//                 PhoneMenuSheet holds everything (§16.3).
+//                 PhoneMenuSheet holds everything, mode switch
+//                 included (§16.3, mockup M2).
 //
 // Preserved contracts (v1.3–v1.4d): the skip link is the page's first
 // focusable element; "Take the tour" reopens from the Lessons menu's
@@ -123,35 +124,13 @@ export function Header({
       )}
       {compact ? (
         <>
-          {/* §16.3 + mockup M1 (the mockup's pick): the pill stays in
-              the phone header — far right, just before Menu — so the
-              mode flip is always one tap; the sheet mirrors it only
-              for completeness and is not needed (single path kept:
-              the pill). The Menu button is a nav-item (icon + clipped
-              label) so its name and 44 px target match the rest of
-              the header. */}
-          {/* The cluster keeps the pill and Menu together on one line
-              and pushes both to the header's right end; if the phone
-              header ever wraps they land on row two as a unit. */}
+          {/* §16.3 + mockup M2: the phone header is only wordmark,
+              title and Menu — the Lesson | Sandbox switch lives in
+              the sheet as a row like Dark mode. The Menu button is a
+              nav-item (icon + clipped label) so its name and 44 px
+              target match the rest of the header. The cluster's auto
+              margin pushes it right. */}
           <div className="nav-cluster">
-            <div className="mode-switch" role="radiogroup" aria-label="Mode">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={source === "lesson"}
-                onClick={() => onSelectMode("lesson")}
-              >
-                Lesson
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={source === "sandbox"}
-                onClick={() => onSelectMode("sandbox")}
-              >
-                Sandbox
-              </button>
-            </div>
             <NavItem
               icon={phoneMenu ? "close" : "menu"}
               label="Menu"
@@ -170,6 +149,8 @@ export function Header({
             onOpenMegaHelp={onOpenMegaHelp}
             onOpenLibrary={onOpenLibrary}
             onOpenReading={onOpenReading}
+            source={source}
+            onSelectMode={onSelectMode}
             theme={theme}
             presenter={presenter}
             dispatch={dispatch}

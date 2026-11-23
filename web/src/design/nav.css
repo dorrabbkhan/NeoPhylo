@@ -1,5 +1,5 @@
 /* Header navigation (v1.5 Task 2, spec §16.2–§16.3 — mockup style B
- * + phone variant M1 in docs/superpowers/specs/
+ * + phone variant M2 in docs/superpowers/specs/
  * 2026-11-23-v1.5-nav-mockups/). Imported by main.tsx AFTER index.css
  * so equal-specificity overrides here win.
  *
@@ -28,7 +28,7 @@
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4);
-  background: var(--color-surface2);
+  background: var(--color-surface-2);
   border-radius: var(--radius-lg);
 }
 
@@ -143,8 +143,8 @@
 }
 
 /* ---- compact header (< 768 px, §16.3) ---------------------------
- * The phone header is wordmark · title · mode pill · Menu (mockup
- * M1: the pill stays, one tap to flip). */
+ * The phone header is wordmark · title · Menu (mockup M2): the
+ * mode switch lives in the sheet as a row like Dark mode. */
 
 /* The Menu button is icon-only — 44 px square, the name lives on the
  * clipped label and the long-press tooltip. */
@@ -153,7 +153,7 @@
   height: 44px;
   padding: 0;
   justify-content: center;
-  background: var(--color-surface2);
+  background: var(--color-surface-2);
 }
 
 .nav-menu-button:hover,
@@ -170,21 +170,13 @@
   margin-left: 0;
 }
 
-/* On the phone the mode pill is the header's third element — a
- * compact seg (≥ 40 px touch height, 12 px text floor). The cluster's
- * own auto margin pushes it and the Menu button right. The header
- * NEVER wraps at this width (mockup M1 is a single row): the generic
- * <1024 wrap rule is overridden and the title's ellipsis takes the
- * squeeze instead. */
+/* The cluster's own auto margin pushes the Menu button right. The
+ * header NEVER wraps at this width (mockup M2 is a single row): the
+ * generic <1024 wrap rule is overridden and the title's ellipsis
+ * takes the squeeze instead. */
 @media (width < 768px) {
   .app-header {
     flex-wrap: nowrap;
-  }
-
-  .app-header .mode-switch button {
-    padding: var(--space-8) var(--space-12);
-    font-size: var(--size-xs);
-    min-height: 40px;
   }
 }
 
@@ -200,6 +192,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-16);
+  /* Opaque — the generic sheet sections carry their own backgrounds;
+   * a transparent panel let the scrim-dimmed page (and the header
+   * under it) read through the tiles. */
+  background: var(--color-bg);
 }
 
 .phone-sheet-head {
@@ -226,7 +222,7 @@
   min-height: 44px;
   border: 0;
   border-radius: var(--radius-md);
-  background: var(--color-surface2);
+  background: var(--color-surface-2);
   color: var(--color-text);
   font: inherit;
   font-size: var(--size-sm);
@@ -286,7 +282,7 @@
   padding: var(--space-16) var(--space-4);
   border: 0;
   border-radius: var(--radius-lg);
-  background: var(--color-surface2);
+  background: var(--color-surface-2);
   color: var(--color-text);
   font: inherit;
   font-size: var(--size-xs);
@@ -310,8 +306,9 @@
   color: var(--color-accent-contrast);
 }
 
-/* The Dark/Presenter rows: a label and the same two-option
- * radiogroup the header's mode pill uses. */
+/* The Mode/Dark/Presenter rows: a label and the same two-option
+ * radiogroup the header's mode pill uses (a compact seg — 12 px text
+ * floor, ≥ 40 px fine-pointer height). */
 .phone-sheet-row {
   display: flex;
   align-items: center;
@@ -321,6 +318,12 @@
   padding: 0 var(--space-4);
   font-size: var(--size-sm);
   color: var(--color-text);
+}
+
+.phone-sheet .mode-switch button {
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--size-xs);
+  min-height: 40px;
 }
 
 @media (pointer: coarse) {
@@ -350,7 +353,7 @@
   padding: var(--space-12) var(--space-16);
   border: 0;
   border-radius: var(--radius-md);
-  background: var(--color-surface2);
+  background: var(--color-surface-2);
   color: var(--color-text);
   font: inherit;
   text-align: left;
@@ -386,9 +389,15 @@
 /* ---- touch ------------------------------------------------------
  * Mockup style B: on a coarse pointer the tray items grow to the
  * tablet's 44 px targets — the phone sheet's tiles and rows keep
- * their own 44 px minimums above. */
+ * their own 44 px minimums above. The header's mode pill is a header
+ * target too (§16.3): its radios get the same 44 px floor. */
 @media (pointer: coarse) {
   .nav-item {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .app-header .mode-switch button {
     min-width: 44px;
     min-height: 44px;
   }

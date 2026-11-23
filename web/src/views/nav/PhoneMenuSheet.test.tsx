@@ -1,9 +1,10 @@
-// PhoneMenuSheet (v1.5 Task 2, spec §16.3 — mockup M1): the <768 px
+// PhoneMenuSheet (v1.5 Task 2, spec §16.3 — mockup M2): the <768 px
 // menu. These tests pin the dialog contract (role, name, focus trap,
 // Esc, focus restore — all inherited from Sheet), the tile inventory
 // (every destination and action the phone header + the More menu
 // offered), the in-sheet Lessons/Guides sub-lists with their Back
-// control, and the activate-and-close tile rule.
+// control, the Mode row (the <768 mode switch), and the
+// activate-and-close tile rule.
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +23,7 @@ function setup(overrides: Partial<PhoneMenuSheetProps> = {}) {
   const onOpenMegaHelp = vi.fn();
   const onOpenLibrary = vi.fn();
   const onOpenReading = vi.fn();
+  const onSelectMode = vi.fn();
   const dispatch = vi.fn();
   render(
     <>
@@ -35,6 +37,8 @@ function setup(overrides: Partial<PhoneMenuSheetProps> = {}) {
         onOpenMegaHelp={onOpenMegaHelp}
         onOpenLibrary={onOpenLibrary}
         onOpenReading={onOpenReading}
+        source="lesson"
+        onSelectMode={onSelectMode}
         theme="light"
         presenter={false}
         dispatch={dispatch}
@@ -49,6 +53,7 @@ function setup(overrides: Partial<PhoneMenuSheetProps> = {}) {
     onOpenMegaHelp,
     onOpenLibrary,
     onOpenReading,
+    onSelectMode,
     dispatch,
   };
 }
@@ -188,6 +193,33 @@ describe("PhoneMenuSheet — the in-sheet sub-lists (conductor's call)", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: "Menu" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Guides" })).toBeTruthy();
+  });
+});
+
+describe("PhoneMenuSheet — the Mode row (M2)", () => {
+  it("mirrors the source prop on the same radiogroup semantics as the header pill", () => {
+    setup({ source: "sandbox" });
+    const mode = screen.getByRole("radiogroup", { name: "Mode" });
+    const sandbox = Array.from(mode.querySelectorAll("button")).find(
+      (b) => b.textContent === "Sandbox",
+    )!;
+    const lesson = Array.from(mode.querySelectorAll("button")).find(
+      (b) => b.textContent === "Lesson",
+    )!;
+    expect(sandbox.getAttribute("aria-checked")).toBe("true");
+    expect(lesson.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("picking a side calls onSelectMode without closing — a control, not a destination", () => {
+    const { onSelectMode, onClose } = setup();
+    const mode = screen.getByRole("radiogroup", { name: "Mode" });
+    const sandbox = Array.from(mode.querySelectorAll("button")).find(
+      (b) => b.textContent === "Sandbox",
+    )!;
+    fireEvent.click(sandbox);
+    expect(onSelectMode).toHaveBeenCalledWith("sandbox");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Menu" })).toBeTruthy();
   });
 });
 

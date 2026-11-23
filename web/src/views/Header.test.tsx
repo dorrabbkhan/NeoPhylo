@@ -1,11 +1,11 @@
 // Header tests — v1.5 Task 2 (spec §16.2–§16.3, mockup style B + phone
-// variant M1). The old text-heavy header is gone: ≥ 768 carries the
+// variant M2). The old text-heavy header is gone: ≥ 768 carries the
 // icon tray and the Lesson|Sandbox pill at the right end; < 768 is
-// wordmark · title · mode pill · one Menu button opening the phone
-// sheet. These tests pin the per-breakpoint inventory, the preserved
-// destinations, and the §6.7 tour homes — every assertion that used
-// to target the old chips has an equivalent here (see
-// docs/decisions.md "v1.5 Task 2").
+// wordmark · title · one Menu button opening the phone sheet, which
+// carries the mode switch as a row. These tests pin the per-breakpoint
+// inventory, the preserved destinations, and the §6.7 tour homes —
+// every assertion that used to target the old chips has an equivalent
+// here (see docs/decisions.md "v1.5 Task 2").
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -83,17 +83,13 @@ describe("Header — the icon tray and the mode pill (§16.2, R1)", () => {
     }
   });
 
-  it("keeps the mode pill at compact too (M1 — one tap to flip), before the Menu button", () => {
+  it("shows no mode pill at compact (M2 — the sheet's Mode row owns it); the header is wordmark, title and Menu", () => {
     setup("compact");
     const header = screen.getByRole("banner");
-    expect(screen.getByRole("radiogroup", { name: "Mode" })).toBeTruthy();
+    // M2: no mode switch in the phone header at all — not even a
+    // hidden one; the sheet's Mode row is the only <768 switch.
+    expect(screen.queryByRole("radiogroup", { name: "Mode" })).toBeNull();
     const menu = screen.getByRole("button", { name: "Menu" });
-    // Mockup M1: the pill sits just before Menu at the right end.
-    expect(
-      menu.compareDocumentPosition(
-        screen.getByRole("radiogroup", { name: "Mode" }),
-      ) & Node.DOCUMENT_POSITION_PRECEDING,
-    ).toBeTruthy();
     expect(header.contains(menu)).toBe(true);
   });
 });
@@ -194,7 +190,7 @@ describe("Header — Reading trees link (v1.4d Task 9, spec §7.1)", () => {
   });
 });
 
-describe("Header — compact phone sheet (§16.3, M1)", () => {
+describe("Header — compact phone sheet (§16.3, M2)", () => {
   it("shows one Menu button (dialog trigger) and no tray at <768", () => {
     setup("compact");
     const menu = screen.getByRole("button", { name: "Menu" });
@@ -296,6 +292,43 @@ describe("Header — compact phone sheet (§16.3, M1)", () => {
       screen.getByRole("button", { name: "Take the tour" }),
     );
     expect(dispatched).toContainEqual({ type: "tourStart" });
+  });
+
+  it("the sheet's Mode row is the compact mode switch — flipping it calls onSelectMode and the sheet stays open", () => {
+    const onSelectMode = vi.fn();
+    render(
+      <Header
+        title="Lesson"
+        toast={null}
+        source="lesson"
+        onSelectMode={onSelectMode}
+        currentLessonId={null}
+        onPickLesson={() => {}}
+        onOpenPhylipHelp={() => {}}
+        onOpenMegaHelp={() => {}}
+        onOpenLibrary={() => {}}
+        onOpenReading={() => {}}
+        theme="light"
+        presenter={false}
+        dispatch={() => {}}
+        breakpoint="compact"
+        drawerOpen={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const sheet = screen.getByRole("dialog", { name: "Menu" });
+    const mode = Array.from(
+      sheet.querySelectorAll('[role="radiogroup"]'),
+    ).find((el) => el.getAttribute("aria-label") === "Mode")!;
+    expect(mode).toBeTruthy();
+    const sandbox = Array.from(mode.querySelectorAll("button")).find(
+      (b) => b.textContent === "Sandbox",
+    )!;
+    expect(sandbox.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(sandbox);
+    expect(onSelectMode).toHaveBeenCalledWith("sandbox");
+    // A control, not a destination: the sheet stays open.
+    expect(screen.getByRole("dialog", { name: "Menu" })).toBeTruthy();
   });
 });
 
