@@ -180,8 +180,12 @@ function RadioList({
   selected: number;
   onPick: (i: number) => void;
   questionId: string;
-  /** A visible element already carrying the instruction text (the
-   *  two-tier "Why?") — its id is reused instead of a hidden span. */
+  /** A visible element already carrying the caption text (the
+   *  two-tier "Why?") names the group alone and the question moves
+   *  to the description instead of the name: a two-tier question
+   *  ends "— and why?", so "…and why? Why?" on the second tier
+   *  against "…and why? Choose one" on the first made a substring
+   *  "Why?" name lookup land in the wrong group (§21(p)). */
   labelId?: string;
 }) {
   const genId = useId();
@@ -190,8 +194,12 @@ function RadioList({
     <div
       role="radiogroup"
       // "question … instruction" — Tab-entry voices the question
-      // first, then what to do (§21(p)).
-      aria-labelledby={`${questionId} ${instrId}`}
+      // first, then what to do (§21(p)). A visible caption is the
+      // whole name; the question rides the description.
+      aria-labelledby={
+        labelId === undefined ? `${questionId} ${instrId}` : instrId
+      }
+      aria-describedby={labelId === undefined ? undefined : questionId}
       className="read-choices"
     >
       {labelId === undefined && (

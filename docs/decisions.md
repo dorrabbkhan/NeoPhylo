@@ -9786,7 +9786,8 @@ only later text changes inside it are).
   `role="group"` with "Tick every option that applies"/"Tick every
   true statement"; the order builder and the tap-the-tree selection
   readout group under the question alone; the two-tier "Why?" group
-  labels itself by the question plus its visible caption's id. The
+  is the exception — see fix round 7 below: it is named by its
+  caption alone and described by the question. The
   number input keeps its "Answer" name and carries the question via
   `aria-describedby`. The interactive tree's svg keeps its caption
   name and is described by the question plus the description list.
@@ -9832,3 +9833,33 @@ only later text changes inside it are).
     `web/src/views/reading/TreeDescription.test.tsx`,
     `web/src/views/editor/reading/ReadingEditor.test.tsx`,
     `web/e2e/reading.spec.ts`: the §21(p) pins.
+
+## v1.4d Task 15 checkpoint finding — fix round 7 (PR #182 two-tier name collision, 2026-11-23)
+
+The round-6 naming scheme broke e2e on CI (chromium + firefox,
+"q-two: wrong then right verdict"): a two-tier item's question text
+itself ends "— and why?", so the first tier's name "…and why?
+Choose one" already contains a "why?" substring, and the Why? tier's
+"…and why? Why?" matched the same `name: "Why?"` locator — `.first()`
+picked a first-tier radio, the reason was never answered and Check
+stayed disabled.
+
+- The two-tier "Why?" group is now named by its visible caption
+  alone (`aria-labelledby=<caption id>`) and carries the question
+  via `aria-describedby` — the name is exactly "Why?", the
+  screen-reader experience is unchanged (description is voiced on
+  entry like the name was). Every other group keeps
+  `aria-labelledby="<question> <instruction>"`.
+- `web/e2e/reading.spec.ts` targets the group with
+  `{ name: "Why?", exact: true }`: the product names are now right,
+  but the item text itself still ends "— and why?", so a substring
+  match would keep hitting the first tier.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`, `docs/checkpoints/v1.4d-release.md`: this
+    entry and the §21(p) mechanism note.
+  - `web/src/views/reading/QuestionControls.tsx`: the `RadioList`
+    `labelId` branch.
+  - `web/src/views/reading/QuestionControls.test.tsx`: the naming
+    pin.
+  - `web/e2e/reading.spec.ts`: the exact-name locator.

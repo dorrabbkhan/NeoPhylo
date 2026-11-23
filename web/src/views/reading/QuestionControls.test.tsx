@@ -343,12 +343,22 @@ describe("every group is labelled by the question (§21(p))", () => {
     expect(sel.classList.contains("read-sel")).toBe(true);
   });
 
-  it("the two-tier Why? group names itself question plus Why?", () => {
+  it("the two-tier Why? group is named by its caption alone", () => {
     setup(item("q-two"));
-    const why = screen.getByRole("radiogroup", {
-      name: /form a clade — and why\? why\?/i,
-    });
-    expect(why).toBeTruthy();
+    // Exactly "Why?" — the question text itself ends "— and why?",
+    // so a question-plus-caption name ("…and why? Why?") left a
+    // substring "Why?" lookup matching BOTH tiers and a pick landed
+    // on a first-tier radio (the e2e q-two regression). The question
+    // rides the description instead.
+    const why = screen.getByRole("radiogroup", { name: "Why?" });
+    expect(why.getAttribute("aria-describedby")).toBe(QUESTION_ID);
+    // …while the first tier still names itself question +
+    // instruction.
+    expect(
+      screen.getByRole("radiogroup", {
+        name: /form a clade — and why\? choose one/i,
+      }),
+    ).toBeTruthy();
   });
 });
 

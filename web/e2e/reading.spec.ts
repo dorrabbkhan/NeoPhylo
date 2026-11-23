@@ -355,7 +355,11 @@ const ITEMS: {
       async (page, how) =>
         act(
           page
-            .getByRole("radiogroup", { name: "Why?" })
+            // Exact: the item text itself ends "— and why?", so a
+            // substring match also hits the first tier's
+            // "…and why? Choose one" and .first() picks in the wrong
+            // group. The Why? group's name is exactly its caption.
+            .getByRole("radiogroup", { name: "Why?", exact: true })
             .getByRole("radio")
             .first(),
           how,
@@ -780,6 +784,14 @@ test("Tab reaches an answer group named by the question; the verdict region pred
   const status = page.getByRole("status", { name: "Verdict" });
   await expect(status).toBeAttached();
   await expect(status).toHaveText("");
+
+  // gotoItem's Next clicks leave real focus on the button; release
+  // it so the walk starts from the page top like a fresh visit. On
+  // the BiDi-driven Firefox an injected Tab only traverses while
+  // <body> holds focus — with a focused element the press is a no-op.
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
 
   // Walk the tab order until focus lands inside the radio group —
   // at most a couple of dozen stops (wordmark, toggles, radios).
