@@ -1,0 +1,132 @@
+<style>
+  .np { --bg:#fff; --surface:#fafaf9; --surface2:#f4f3ec; --border:#e5e4e7; --fg:#241f2e; --muted:#6b6375;
+        --accent:#aa3bff; --accent-text:#6d28d9; --accent-bg:rgba(170,59,255,.10);
+        font-family: Inter, system-ui, sans-serif; color: var(--fg); background: var(--bg);
+        border:1px solid var(--border); border-radius:12px; overflow:hidden; position:relative; }
+  .np.dark { --bg:#16171d; --surface:#1c1d24; --surface2:#1f2028; --border:#2e303a; --fg:#e5e7eb; --muted:#9ca3af;
+        --accent:#c084fc; --accent-text:#c084fc; --accent-bg:rgba(192,132,252,.15); }
+  .np svg.i { width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .np .logo { display:flex; align-items:center; gap:8px; font-weight:600; font-size:18px; }
+  .np .logo svg { width:26px; height:26px; color:var(--accent); }
+  .np .title { font-weight:600; font-size:16px; white-space:nowrap; }
+  .np .canvas { padding:16px; color:var(--muted); font-size:13px; }
+  .np .fake { height:90px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+  .topB { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--border); }
+  .tools { display:flex; gap:4px; margin-left:auto; padding:4px; background:var(--surface2); border-radius:14px; }
+  .tools a { display:flex; align-items:center; height:36px; padding:0 8px; border-radius:10px; color:var(--fg); text-decoration:none;
+       font-size:14px; white-space:nowrap; transition: background .15s, color .15s; }
+  .tools a span { max-width:0; opacity:0; overflow:hidden; transition: max-width .25s cubic-bezier(.2,.8,.2,1), opacity .2s, margin .25s; }
+  .tools a:hover, .tools a:focus-visible { background:var(--bg); color:var(--accent-text); box-shadow:0 2px 8px rgba(0,0,0,.10); outline:none; }
+  .tools a:hover span, .tools a:focus-visible span, .tools a.on span { max-width:130px; opacity:1; margin-left:8px; }
+  .tools a.on { background:var(--accent-bg); color:var(--accent-text); font-weight:600; }
+  .tools .div { width:1px; background:var(--border); margin:6px 2px; }
+
+  /* mode switch variants */
+  .titlebox { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .tabs { display:flex; gap:14px; font-size:13px; }
+  .tabs button { all:unset; cursor:pointer; color:var(--muted); padding-bottom:2px; border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--accent-text); font-weight:600; border-color:var(--accent); }
+  .chip { display:flex; background:var(--surface2); border-radius:999px; padding:2px; font-size:12px; }
+  .chip button { all:unset; cursor:pointer; padding:2px 10px; border-radius:999px; color:var(--muted); }
+  .chip button.on { background:var(--bg); color:var(--accent-text); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.12); }
+  .row { display:flex; align-items:center; gap:10px; }
+
+  /* touch */
+  .devices { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; margin-top:12px; }
+  .tablet { width:560px; }
+  .tablet .tools a { height:44px; padding:0 10px; }
+  .tablet .tools a span { max-width:0; margin:0; }
+  .tablet .tools a.on span { max-width:130px; opacity:1; margin-left:8px; }
+  .phone { width:300px; height:520px; }
+  .phone .bar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border); }
+  .phone .menubtn { all:unset; margin-left:auto; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--surface2); cursor:pointer; }
+  .sheet { position:absolute; inset:61px 0 0 0; background:var(--bg); padding:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-content:start;
+           box-shadow:0 -1px 0 var(--border); }
+  .sheet a { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 4px; border-radius:14px; background:var(--surface2);
+             color:var(--fg); text-decoration:none; font-size:13px; font-weight:500; }
+  .sheet a svg.i { width:26px; height:26px; }
+  .sheet a.on { background:var(--accent-bg); color:var(--accent-text); }
+  .sheet .wide { grid-column: span 3; flex-direction:row; justify-content:center; padding:10px; }
+  .note { font-size:13px; color:#6b6375; max-width:560px; }
+  .press { display:inline-block; }
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="logo" viewBox="0 0 64 64"><path d="M32 56 18 36 10 14M18 36 26 14M32 56 46 36 38 14M46 36 54 14" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><g fill="currentColor"><circle cx="32" cy="56" r="5.5"/><circle cx="18" cy="36" r="4.5"/><circle cx="46" cy="36" r="4.5"/><circle cx="10" cy="14" r="4.5"/><circle cx="26" cy="14" r="4.5"/><circle cx="38" cy="14" r="4.5"/><circle cx="54" cy="14" r="4.5"/></g></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="lessons" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7M8 11h5"/></symbol>
+  <symbol id="sandbox" viewBox="0 0 24 24"><path d="M3 17l4-4 3 3 7-7 4 4M3 21h18"/></symbol>
+  <symbol id="library" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="labs" viewBox="0 0 24 24"><path d="M8 3h8M9 3v5l-4 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-4-9V3"/><circle cx="10" cy="15" r="1"/><circle cx="14" cy="17" r="1"/></symbol>
+  <symbol id="tree" viewBox="0 0 24 24"><path d="M12 21v-6M12 15l-6-5M12 15l6-5M6 10V4M6 10l-3-3M18 10V4M18 10l3-3"/><circle cx="12" cy="21" r="1.2"/></symbol>
+  <symbol id="editor" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+  <symbol id="guides" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="present" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/></symbol>
+  <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<style>.seg{display:flex;background:var(--surface2);border-radius:999px;padding:3px}
+.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:999px;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--bg);color:var(--accent-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg.accent button.on{background:var(--accent);color:#fff;box-shadow:none}
+.np.dark .seg.accent button.on{color:#16171d}
+.tools.nomargin{margin-left:auto}
+</style><style>
+.phone{width:360px;height:640px}
+.phone .bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)}
+.phone .bar .title{font-size:15px;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.phone .seg button{padding:8px 11px;font-size:13px;min-height:28px}
+.menubtn{all:unset;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--surface2);cursor:pointer;flex:none}
+.sheet{position:absolute;inset:61px 0 0 0;background:var(--bg);padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:start;border-top:1px solid var(--border);z-index:3}
+.sheet[hidden]{display:none}
+.sheet a{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 4px;border-radius:14px;background:var(--surface2);color:var(--fg);text-decoration:none;font-size:13px;font-weight:500}
+.sheet a svg.i{width:26px;height:26px}
+.sheet a.on{background:var(--accent-bg);color:var(--accent-text)}
+.sheet .full{grid-column:span 3;display:flex;justify-content:space-between;align-items:center;padding:6px 4px;font-size:14px}
+.sheet .full .seg{flex:none}
+.step{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;padding:8px 10px;border-top:1px solid var(--border);background:var(--surface);font-size:13px}
+.step button{all:unset;border:1px solid var(--border);border-radius:8px;padding:9px 12px;background:var(--bg)}
+.tree{padding:14px;font-size:13px;color:var(--muted)}
+.tree svg{width:100%;height:220px}
+.devs{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;margin-top:14px}
+.cap{font-size:13px;color:#6b6375;max-width:360px;margin-top:8px}
+</style><h2>Mobile (360 px phone) with R1</h2>
+<p class="subtitle">Tap the menu button in each phone to open and close its sheet. The question is where Lesson | Sandbox lives on a phone, where the header has room for about 3 things.</p>
+<button class="mock-button" onclick="document.querySelectorAll('.np').forEach(e=>e.classList.toggle('dark'))">Toggle dark theme</button>
+<div class="options devs" style="flex-direction:row"><div class="option" data-choice="M1" onclick="toggleSelect(this)" style="flex:0 0 auto"><div class="letter">M1</div><div class="content"><h3>Switch stays in the header</h3><p style="max-width:360px">Same as desktop: far right, just before the menu. Always visible, one tap to flip; the title gets short (“Cytochrome c: a…”).</p>
+<div class="np phone" onclick="event.stopPropagation()">
+<div class="bar"><div class="logo"><svg><use href="#logo"/></svg></div><div class="title">Cytochrome c: a real protein tree</div><div class="seg"><button class="on">Lesson</button><button>Sandbox</button></div>
+<button class="menubtn" aria-label="Menu" onclick="const s=this.closest('.phone').querySelector('.sheet');s.toggleAttribute('hidden');this.querySelector('use').setAttribute('href',s.hidden?'#menu':'#close')"><svg class="i"><use href="#menu"/></svg></button></div>
+<div class="sheet" hidden>
+<a href="#"><svg class="i"><use href="#home"/></svg>Home</a>
+<a href="#" class="on"><svg class="i"><use href="#lessons"/></svg>Lessons</a>
+<a href="#"><svg class="i"><use href="#library"/></svg>Library</a>
+<a href="#"><svg class="i"><use href="#labs"/></svg>Labs</a>
+<a href="#"><svg class="i"><use href="#tree"/></svg>Reading</a>
+<a href="#"><svg class="i"><use href="#guides"/></svg>Guides</a>
+
+<div class="full"><span>Dark mode</span><div class="seg"><button>Off</button><button class="on">On</button></div></div>
+</div>
+<div class="tree"><svg viewBox="0 0 300 220" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 110V30h90M20 110v80h40M60 190v-30h60M60 190v20h60M110 30V15h150M110 30v30h120M120 160v-15h110M120 160v15h130"/><g fill="currentColor" stroke="none" font-size="13" font-family="Inter"><text x="264" y="19">wheat</text><text x="234" y="64">yeast</text><text x="234" y="149">human</text><text x="254" y="179">horse</text><text x="124" y="214">chicken</text></g></svg>
+<div style="border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--fg)">Step 6 of 6 — the tree is complete, and it matches the accepted classification…</div></div>
+<div class="step"><button>◀ Previous</button><button>Next ▶</button><span style="margin-left:auto">6 / 6</span></div>
+</div></div></div><div class="option" data-choice="M2" onclick="toggleSelect(this)" style="flex:0 0 auto"><div class="letter">M2</div><div class="content"><h3>Switch moves into the menu sheet</h3><p style="max-width:360px">Header is just logo, full title, menu. Switching mode takes two taps; the current mode is less visible.</p>
+<div class="np phone" onclick="event.stopPropagation()">
+<div class="bar"><div class="logo"><svg><use href="#logo"/></svg></div><div class="title">Cytochrome c: a real protein tree</div>
+<button class="menubtn" aria-label="Menu" onclick="const s=this.closest('.phone').querySelector('.sheet');s.toggleAttribute('hidden');this.querySelector('use').setAttribute('href',s.hidden?'#menu':'#close')"><svg class="i"><use href="#close"/></svg></button></div>
+<div class="sheet">
+<a href="#"><svg class="i"><use href="#home"/></svg>Home</a>
+<a href="#" class="on"><svg class="i"><use href="#lessons"/></svg>Lessons</a>
+<a href="#"><svg class="i"><use href="#library"/></svg>Library</a>
+<a href="#"><svg class="i"><use href="#labs"/></svg>Labs</a>
+<a href="#"><svg class="i"><use href="#tree"/></svg>Reading</a>
+<a href="#"><svg class="i"><use href="#guides"/></svg>Guides</a>
+<div class="full"><span>Mode</span><div class="seg"><button class="on">Lesson</button><button>Sandbox</button></div></div>
+<div class="full"><span>Dark mode</span><div class="seg"><button>Off</button><button class="on">On</button></div></div>
+</div>
+<div class="tree"><svg viewBox="0 0 300 220" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 110V30h90M20 110v80h40M60 190v-30h60M60 190v20h60M110 30V15h150M110 30v30h120M120 160v-15h110M120 160v15h130"/><g fill="currentColor" stroke="none" font-size="13" font-family="Inter"><text x="264" y="19">wheat</text><text x="234" y="64">yeast</text><text x="234" y="149">human</text><text x="254" y="179">horse</text><text x="124" y="214">chicken</text></g></svg>
+<div style="border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--fg)">Step 6 of 6 — the tree is complete, and it matches the accepted classification…</div></div>
+<div class="step"><button>◀ Previous</button><button>Next ▶</button><span style="margin-left:auto">6 / 6</span></div>
+</div></div></div></div><p class="subtitle" style="margin-top:14px">Both: 44 px touch targets, the Previous/Next bar stays at the bottom, the sheet closes on any tile tap, Escape, or the ✕. The sheet is a proper dialog for screen readers. My pick: <b>M1</b> — students flip between lesson and sandbox often, and a hidden mode causes “where did my lesson go?” confusion.</p>

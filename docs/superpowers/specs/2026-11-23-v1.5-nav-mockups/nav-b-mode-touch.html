@@ -1,0 +1,162 @@
+<style>
+  .np { --bg:#fff; --surface:#fafaf9; --surface2:#f4f3ec; --border:#e5e4e7; --fg:#241f2e; --muted:#6b6375;
+        --accent:#aa3bff; --accent-text:#6d28d9; --accent-bg:rgba(170,59,255,.10);
+        font-family: Inter, system-ui, sans-serif; color: var(--fg); background: var(--bg);
+        border:1px solid var(--border); border-radius:12px; overflow:hidden; position:relative; }
+  .np.dark { --bg:#16171d; --surface:#1c1d24; --surface2:#1f2028; --border:#2e303a; --fg:#e5e7eb; --muted:#9ca3af;
+        --accent:#c084fc; --accent-text:#c084fc; --accent-bg:rgba(192,132,252,.15); }
+  .np svg.i { width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .np .logo { display:flex; align-items:center; gap:8px; font-weight:600; font-size:18px; }
+  .np .logo svg { width:26px; height:26px; color:var(--accent); }
+  .np .title { font-weight:600; font-size:16px; white-space:nowrap; }
+  .np .canvas { padding:16px; color:var(--muted); font-size:13px; }
+  .np .fake { height:90px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+  .topB { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--border); }
+  .tools { display:flex; gap:4px; margin-left:auto; padding:4px; background:var(--surface2); border-radius:14px; }
+  .tools a { display:flex; align-items:center; height:36px; padding:0 8px; border-radius:10px; color:var(--fg); text-decoration:none;
+       font-size:14px; white-space:nowrap; transition: background .15s, color .15s; }
+  .tools a span { max-width:0; opacity:0; overflow:hidden; transition: max-width .25s cubic-bezier(.2,.8,.2,1), opacity .2s, margin .25s; }
+  .tools a:hover, .tools a:focus-visible { background:var(--bg); color:var(--accent-text); box-shadow:0 2px 8px rgba(0,0,0,.10); outline:none; }
+  .tools a:hover span, .tools a:focus-visible span, .tools a.on span { max-width:130px; opacity:1; margin-left:8px; }
+  .tools a.on { background:var(--accent-bg); color:var(--accent-text); font-weight:600; }
+  .tools .div { width:1px; background:var(--border); margin:6px 2px; }
+
+  /* mode switch variants */
+  .titlebox { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .tabs { display:flex; gap:14px; font-size:13px; }
+  .tabs button { all:unset; cursor:pointer; color:var(--muted); padding-bottom:2px; border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--accent-text); font-weight:600; border-color:var(--accent); }
+  .chip { display:flex; background:var(--surface2); border-radius:999px; padding:2px; font-size:12px; }
+  .chip button { all:unset; cursor:pointer; padding:2px 10px; border-radius:999px; color:var(--muted); }
+  .chip button.on { background:var(--bg); color:var(--accent-text); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.12); }
+  .row { display:flex; align-items:center; gap:10px; }
+
+  /* touch */
+  .devices { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; margin-top:12px; }
+  .tablet { width:560px; }
+  .tablet .tools a { height:44px; padding:0 10px; }
+  .tablet .tools a span { max-width:0; margin:0; }
+  .tablet .tools a.on span { max-width:130px; opacity:1; margin-left:8px; }
+  .phone { width:300px; height:520px; }
+  .phone .bar { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border); }
+  .phone .menubtn { all:unset; margin-left:auto; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--surface2); cursor:pointer; }
+  .sheet { position:absolute; inset:61px 0 0 0; background:var(--bg); padding:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-content:start;
+           box-shadow:0 -1px 0 var(--border); }
+  .sheet a { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 4px; border-radius:14px; background:var(--surface2);
+             color:var(--fg); text-decoration:none; font-size:13px; font-weight:500; }
+  .sheet a svg.i { width:26px; height:26px; }
+  .sheet a.on { background:var(--accent-bg); color:var(--accent-text); }
+  .sheet .wide { grid-column: span 3; flex-direction:row; justify-content:center; padding:10px; }
+  .note { font-size:13px; color:#6b6375; max-width:560px; }
+  .press { display:inline-block; }
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="logo" viewBox="0 0 64 64"><path d="M32 56 18 36 10 14M18 36 26 14M32 56 46 36 38 14M46 36 54 14" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><g fill="currentColor"><circle cx="32" cy="56" r="5.5"/><circle cx="18" cy="36" r="4.5"/><circle cx="46" cy="36" r="4.5"/><circle cx="10" cy="14" r="4.5"/><circle cx="26" cy="14" r="4.5"/><circle cx="38" cy="14" r="4.5"/><circle cx="54" cy="14" r="4.5"/></g></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="lessons" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7M8 11h5"/></symbol>
+  <symbol id="sandbox" viewBox="0 0 24 24"><path d="M3 17l4-4 3 3 7-7 4 4M3 21h18"/></symbol>
+  <symbol id="library" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="labs" viewBox="0 0 24 24"><path d="M8 3h8M9 3v5l-4 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-4-9V3"/><circle cx="10" cy="15" r="1"/><circle cx="14" cy="17" r="1"/></symbol>
+  <symbol id="tree" viewBox="0 0 24 24"><path d="M12 21v-6M12 15l-6-5M12 15l6-5M6 10V4M6 10l-3-3M18 10V4M18 10l3-3"/><circle cx="12" cy="21" r="1.2"/></symbol>
+  <symbol id="editor" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+  <symbol id="guides" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="present" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/></symbol>
+  <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<h2>1 · Where does Lesson | Sandbox go?</h2>
+<p class="subtitle">It switches what you're looking at (the guided lesson or free play with the same data), so it belongs with the title, not with the site navigation. Hover the tray to check it still feels like B.</p>
+<button class="mock-button" onclick="document.querySelectorAll('.np').forEach(e=>e.classList.toggle('dark'))">Toggle dark theme</button>
+
+<div class="options" style="margin-top:12px">
+  <div class="option" data-choice="b1" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content" style="width:100%">
+      <h3>Tabs under the title</h3>
+      <p>The title's own tabs, like a document with two views. No floating pill; the header reads left to right: brand, what you're on, where to go. My pick.</p>
+      <div class="np" onclick="event.stopPropagation()">
+        <div class="topB"><div class="logo"><svg><use href="#logo"/></svg>NeoPhylo</div>
+          <div class="titlebox"><div class="title">Cytochrome c: a real protein tree</div>
+            <div class="tabs"><button class="on">Lesson</button><button>Sandbox</button></div></div>
+          <nav class="tools">
+            <a href="#"><svg class="i"><use href="#home"/></svg><span>Home</span></a>
+            <a href="#" class="on"><svg class="i"><use href="#lessons"/></svg><span>Lessons</span></a>
+            <a href="#"><svg class="i"><use href="#library"/></svg><span>Library</span></a>
+            <a href="#"><svg class="i"><use href="#labs"/></svg><span>Labs</span></a>
+            <a href="#"><svg class="i"><use href="#tree"/></svg><span>Reading trees</span></a>
+            <a href="#"><svg class="i"><use href="#guides"/></svg><span>Guides</span></a>
+            <span class="div"></span>
+            <a href="#"><svg class="i"><use href="#moon"/></svg><span>Dark mode</span></a>
+            <a href="#"><svg class="i"><use href="#present"/></svg><span>Presenter</span></a>
+          </nav></div>
+        <div class="canvas"><div class="fake">lesson canvas</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="b2" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content" style="width:100%">
+      <h3>Small switch right after the title</h3>
+      <p>A compact pill glued to the end of the title, so it reads as "this lesson, in this mode". One line high; the pill is smaller than today's.</p>
+      <div class="np" onclick="event.stopPropagation()">
+        <div class="topB"><div class="logo"><svg><use href="#logo"/></svg>NeoPhylo</div>
+          <div class="row"><div class="title">Cytochrome c: a real protein tree</div>
+            <div class="chip"><button class="on">Lesson</button><button>Sandbox</button></div></div>
+          <nav class="tools">
+            <a href="#"><svg class="i"><use href="#home"/></svg><span>Home</span></a>
+            <a href="#" class="on"><svg class="i"><use href="#lessons"/></svg><span>Lessons</span></a>
+            <a href="#"><svg class="i"><use href="#library"/></svg><span>Library</span></a>
+            <a href="#"><svg class="i"><use href="#labs"/></svg><span>Labs</span></a>
+            <a href="#"><svg class="i"><use href="#tree"/></svg><span>Reading trees</span></a>
+            <a href="#"><svg class="i"><use href="#guides"/></svg><span>Guides</span></a>
+            <span class="div"></span>
+            <a href="#"><svg class="i"><use href="#moon"/></svg><span>Dark mode</span></a>
+            <a href="#"><svg class="i"><use href="#present"/></svg><span>Presenter</span></a>
+          </nav></div>
+        <div class="canvas"><div class="fake">lesson canvas</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 style="margin-top:28px">2 · How B behaves on touch screens</h2>
+<p class="subtitle">Touch has no hover, so nothing may depend on it. The rule: a tap always goes somewhere — it never just reveals a label.</p>
+<div class="devices">
+  <div>
+    <div class="np tablet">
+      <div class="topB"><div class="logo"><svg><use href="#logo"/></svg></div>
+        <div class="titlebox"><div class="title" style="font-size:14px">Cytochrome c</div>
+          <div class="tabs"><button class="on">Lesson</button><button>Sandbox</button></div></div>
+        <nav class="tools">
+          <a href="#" class="on"><svg class="i"><use href="#lessons"/></svg><span>Lessons</span></a>
+          <a href="#"><svg class="i"><use href="#library"/></svg><span>Library</span></a>
+          <a href="#"><svg class="i"><use href="#tree"/></svg><span>Reading</span></a>
+          <a href="#"><svg class="i"><use href="#menu"/></svg><span>More</span></a>
+        </nav></div>
+      <div class="canvas"><div class="fake">lesson canvas</div></div>
+    </div>
+    <p class="note"><b>Tablet / touch laptop (768–1279 px, or any touch screen):</b> the current page keeps its label; other icons are 44 px targets with a name read by screen readers. Fewer icons fit, so the rest go behind "More", as today. A long-press shows the name as a tooltip.</p>
+  </div>
+  <div>
+    <div class="np phone">
+      <div class="bar"><div class="logo"><svg><use href="#logo"/></svg></div><div class="title" style="font-size:14px">Cytochrome c</div>
+        <button class="menubtn" onclick="this.closest('.phone').querySelector('.sheet').toggleAttribute('hidden')"><svg class="i"><use href="#close"/></svg></button></div>
+      <div class="sheet">
+        <a href="#"><svg class="i"><use href="#home"/></svg>Home</a>
+        <a href="#" class="on"><svg class="i"><use href="#lessons"/></svg>Lessons</a>
+        <a href="#"><svg class="i"><use href="#library"/></svg>Library</a>
+        <a href="#"><svg class="i"><use href="#labs"/></svg>Labs</a>
+        <a href="#"><svg class="i"><use href="#tree"/></svg>Reading</a>
+        <a href="#"><svg class="i"><use href="#guides"/></svg>Guides</a>
+        <a href="#" class="wide"><svg class="i"><use href="#lessons"/></svg>Lesson</a>
+        <a href="#" class="wide" style="grid-column:span 3"><svg class="i"><use href="#sandbox"/></svg>Sandbox</a>
+        <a href="#" class="wide"><svg class="i"><use href="#moon"/></svg>Dark mode</a>
+      </div>
+      <div class="canvas"><div class="fake" style="height:300px">lesson canvas</div></div>
+    </div>
+    <p class="note" style="max-width:300px"><b>Phone (&lt; 768 px):</b> one menu button opens a sheet of big labelled tiles (tap the ✕ to see the page behind). No bottom tab bar: the lesson's Previous / Next bar already lives at the bottom.</p>
+  </div>
+</div>
