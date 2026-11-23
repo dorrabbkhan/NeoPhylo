@@ -7,7 +7,9 @@ per-PDF verdict. Drives check_pdf with synthetic text; no PDFs needed.
 """
 
 import os
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -274,6 +276,25 @@ class LastPageTest(unittest.TestCase):
             fixture_pages("trees-form-b-read-sheet.txt"), {})
         self.assertFalse(ok)
         self.assertIn("last page holds only", detail)
+
+
+class ReportIsolatedTest(unittest.TestCase):
+    """run.sh invokes report.py as `python3 -I`; isolated mode drops
+    the script's own directory from sys.path, so its `import pdfcheck`
+    must survive -I (2026-11-23 checkpoint run regression)."""
+
+    def test_report_runs_under_dash_I(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        with tempfile.TemporaryDirectory() as out:
+            proc = subprocess.run(
+                [sys.executable, "-I",
+                 os.path.join(here, "report.py"), out, "--title", "t"],
+                capture_output=True, text=True, timeout=60)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertTrue(
+                os.path.exists(os.path.join(out, "report.md")))
+            self.assertTrue(
+                os.path.exists(os.path.join(out, "gallery.html")))
 
 
 if __name__ == "__main__":

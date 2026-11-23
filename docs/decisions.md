@@ -9629,6 +9629,8 @@ pinned CI image; no screen baseline changed.
   - `web/e2e/worksheets.spec.ts`: the print-rules e2e.
   - `web/e2e/__screenshots__/`: 48 regenerated `*-print-*` baselines.
 
+Follow-up (2026-11-23): `report.py` puts its own directory on `sys.path` before `import pdfcheck` — `run.sh`'s deliberate `python3 -I` drops it — with a `ReportIsolatedTest` regression in `test_pdfcheck.py`, now wired into `check.sh` (a ci.yml step needs the owner's `workflows` permission).
+
 ## v1.4d Task 15 checkpoint findings — fix round 2 (owner: "fix both in this pr", 2026-11-22)
 
 The first round's after-PDFs still showed (a) prompts splitting across
