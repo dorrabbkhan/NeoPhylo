@@ -2,8 +2,9 @@
 // highlight the stepper, the trees, the matrix and the Concept/Math
 // toggle; once per device via neophylo.tourSeen, suppressed by
 // lesson-step and #x= links, reopenable at every width (owner
-// decision B: the Lessons menu's last item at ≥ 1280, the Settings
-// drawer at 1024–1279, More → "Take the tour" below 1024), and once
+// decision B, extended by v1.5 Task 2: the Lessons menu's last item
+// at ≥ 1280, the Settings drawer at 1024–1279, More → "Take the
+// tour" at 768–1023, the phone sheet's tile below 768), and once
 // per page session when storage is blocked (Review Focus 3).
 //
 // Every other spec gets neophylo.tourSeen from the project-level
@@ -222,12 +223,35 @@ test("More → Take the tour reopens it", async ({ page }) => {
   );
 });
 
+// Below 768 the reopen path is the phone sheet's tile (v1.5 Task 2,
+// §16.3): Menu → "Take the tour" — the sheet closes and the tour
+// opens at step 1.
+test("360×740: Menu → Take the tour reopens it", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/");
+  await waitForApp(page);
+  await tour(page).getByRole("button", { name: "Skip" }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page
+    .getByRole("dialog", { name: "Menu" })
+    .getByRole("button", { name: "Take the tour" })
+    .click();
+  await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
+  await expect(tour(page)).toBeVisible();
+  await expect(page.locator(".tour")).toHaveAttribute(
+    "data-tour-target",
+    ".stepper",
+  );
+});
+
 // Task 12 round 3 (§6.7, owner decision B, 2026-10-24): a reopen path
-// at every width — and the header itself identical to main's. The
-// round-2 header button wrapped the controls to two rows at exactly
-// 1280 on the longer lesson titles, so at ≥ 1280 "Take the tour" is
-// now the LAST item of the Lessons menu. At 1024–1279 the Settings
-// drawer holds the item; below 1024 the More-menu test above stands.
+// at every width — and the header stays one row at ≥1024 (v1.5 Task
+// 2's tray keeps that contract; below 1024 it wraps like main's).
+// The round-2 header button wrapped the controls to two rows at
+// exactly 1280 on the longer lesson titles, so at ≥ 1280 "Take the
+// tour" is now the LAST item of the Lessons menu. At 1024–1279 the
+// Settings drawer holds the item; at 768–1023 the More-menu test
+// above stands, and below 768 the phone-sheet tile.
 test("1280×720: Lessons → Take the tour reopens it after Skip, focus in the card", async ({
   page,
 }) => {
@@ -266,14 +290,16 @@ test("1280×720: Lessons → Take the tour reopens it after Skip, focus in the c
 // v1.3 fixes: the title now truncates with an ellipsis instead of
 // wrapping the row — protein-models' 95.4 px two-row header at 1280
 // and every 1024 wrap are gone — so every lesson pins the single-row
-// height measured in the pinned image (54.2 px at both widths).
+// height measured in the pinned image. v1.5 Task 2's tray is 65.0 px
+// (36 px items + the tray's padding under the header's 10 px sides)
+// at both 1024 and 1280, remeasured in the pinned image.
 const HEADER_HEIGHT: Record<string, number> = {
-  "nj-basics": 54.2,
-  "upgma-fails": 54.2,
-  saturation: 54.2,
-  "bootstrap-basics": 54.2,
-  "protein-models": 54.2,
-  "cytochrome-c": 54.2,
+  "nj-basics": 65.0,
+  "upgma-fails": 65.0,
+  saturation: 65.0,
+  "bootstrap-basics": 65.0,
+  "protein-models": 65.0,
+  "cytochrome-c": 65.0,
 };
 for (const [width, height] of [
   [1280, 720],

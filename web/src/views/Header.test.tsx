@@ -1,9 +1,11 @@
-// Header "Take the tour" entry (v1.3 plan Task 12 round 3, spec §6.7,
-// owner decision B): the header itself never carries a tour control —
-// the round-2 header button wrapped the row at 1280 on the longer
-// lesson titles. ≥ 1280 reopens through the Lessons menu's last item,
-// 1024–1279 through the Settings drawer item, below 1024 through the
-// More menu — one reopen path per width.
+// Header tests — v1.5 Task 2 (spec §16.2–§16.3, mockup style B + phone
+// variant M1). The old text-heavy header is gone: ≥ 768 carries the
+// icon tray and the Lesson|Sandbox pill at the right end; < 768 is
+// wordmark · title · mode pill · one Menu button opening the phone
+// sheet. These tests pin the per-breakpoint inventory, the preserved
+// destinations, and the §6.7 tour homes — every assertion that used
+// to target the old chips has an equivalent here (see
+// docs/decisions.md "v1.5 Task 2").
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +36,7 @@ function setup(
       onPickLesson={() => {}}
       onOpenPhylipHelp={() => {}}
       onOpenMegaHelp={() => {}}
+      onOpenLibrary={() => {}}
       onOpenReading={onOpenReading}
       theme="light"
       presenter={presenter}
@@ -64,29 +67,75 @@ describe("Header — Take the tour (§6.7)", () => {
   });
 });
 
-describe("Header — Guides menu and Labs link (v1.4b Task 12, owner decision)", () => {
-  it("shows a Guides menu button at and above 1024, never the bare help buttons", () => {
-    for (const bp of ["wide", "medium"] as const) {
+describe("Header — the icon tray and the mode pill (§16.2, R1)", () => {
+  it("carries the tray navigation landmark and the mode pill at every ≥768 breakpoint", () => {
+    for (const bp of ["wide", "medium", "narrow"] as const) {
       cleanup();
       setup(bp);
       expect(
-        screen.getByRole("button", { name: "Guides" }),
+        screen.getByRole("navigation", { name: "Header navigation" }),
       ).toBeTruthy();
       expect(
-        screen.queryByRole("button", { name: "Coming from PHYLIP?" }),
-      ).toBeNull();
-      expect(
-        screen.queryByRole("button", { name: "Coming from MEGA?" }),
-      ).toBeNull();
+        screen.getByRole("radiogroup", { name: "Mode" }),
+      ).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Lesson" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Sandbox" })).toBeTruthy();
     }
   });
 
-  it("shows no Guides button below 1024 — the More menu owns the guides there", () => {
-    for (const bp of ["narrow", "compact"] as const) {
+  it("keeps the mode pill at compact too (M1 — one tap to flip), before the Menu button", () => {
+    setup("compact");
+    const header = screen.getByRole("banner");
+    expect(screen.getByRole("radiogroup", { name: "Mode" })).toBeTruthy();
+    const menu = screen.getByRole("button", { name: "Menu" });
+    // Mockup M1: the pill sits just before Menu at the right end.
+    expect(
+      menu.compareDocumentPosition(
+        screen.getByRole("radiogroup", { name: "Mode" }),
+      ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(header.contains(menu)).toBe(true);
+  });
+});
+
+describe("Header — Guides menu and Labs link (v1.4b Task 12, owner decision; §16.2 overflow)", () => {
+  it("shows a Guides menu button at the wide breakpoint, never the bare help buttons", () => {
+    setup("wide");
+    expect(
+      screen.getByRole("button", { name: "Guides" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Coming from PHYLIP?" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Coming from MEGA?" }),
+    ).toBeNull();
+  });
+
+  it("below 1280 the guides live behind More (medium keeps its Library pick); below 768 behind the Menu sheet", () => {
+    for (const bp of ["medium", "narrow", "compact"] as const) {
       cleanup();
       setup(bp);
-      expect(screen.queryByRole("button", { name: "Guides" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Guides" }),
+      ).toBeNull();
     }
+    cleanup();
+    setup("medium");
+    expect(screen.getByRole("button", { name: "More" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Library" })).toBeTruthy();
+    cleanup();
+    setup("narrow");
+    expect(screen.getByRole("button", { name: "More" })).toBeTruthy();
+    // Library is not a narrow tray pick — the More menu owns it there.
+    expect(
+      screen.queryByRole("button", { name: "Library" }),
+    ).toBeNull();
+    cleanup();
+    setup("compact");
+    expect(
+      screen.queryByRole("button", { name: "More" }),
+    ).toBeNull();
   });
 
   it('shows the renamed "Labs" link only at the wide breakpoint', () => {
@@ -142,6 +191,111 @@ describe("Header — Reading trees link (v1.4d Task 9, spec §7.1)", () => {
     fireEvent(link, click);
     expect(onOpenReading).not.toHaveBeenCalled();
     expect(click.defaultPrevented).toBe(false);
+  });
+});
+
+describe("Header — compact phone sheet (§16.3, M1)", () => {
+  it("shows one Menu button (dialog trigger) and no tray at <768", () => {
+    setup("compact");
+    const menu = screen.getByRole("button", { name: "Menu" });
+    expect(menu.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(menu.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.queryByRole("navigation", { name: "Header navigation" }),
+    ).toBeNull();
+  });
+
+  it("the Menu button opens the sheet dialog; Esc closes it", () => {
+    setup("compact");
+    const menu = screen.getByRole("button", { name: "Menu" });
+    // jsdom's click doesn't move focus — a real tap focuses first.
+    menu.focus();
+    fireEvent.click(menu);
+    const dialog = screen.getByRole("dialog", { name: "Menu" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(menu.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(menu.getAttribute("aria-expanded")).toBe("false");
+    // The Sheet's contract: focus returns to the opener.
+    expect(document.activeElement).toBe(menu);
+  });
+
+  it("the sheet's Lessons tile opens the in-sheet lesson list; Back returns", () => {
+    const onPickLesson = vi.fn();
+    const dispatched: Action[] = [];
+    render(
+      <Header
+        title="Lesson"
+        toast={null}
+        source="lesson"
+        onSelectMode={() => {}}
+        currentLessonId={null}
+        onPickLesson={onPickLesson}
+        onOpenPhylipHelp={() => {}}
+        onOpenMegaHelp={() => {}}
+        onOpenLibrary={() => {}}
+        onOpenReading={() => {}}
+        theme="light"
+        presenter={false}
+        dispatch={(a) => dispatched.push(a)}
+        breakpoint="compact"
+        drawerOpen={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Lessons" }),
+    );
+    // The sub-list names every built-in lesson; the Back control shows.
+    expect(
+      screen.getByRole("button", { name: "Back" }),
+    ).toBeTruthy();
+    const picks = screen
+      .getByRole("dialog")
+      .querySelectorAll(".phone-sheet-pick");
+    expect(picks.length).toBeGreaterThan(1);
+    // Menu → Lessons → lesson: the pick activates and closes.
+    fireEvent.click(picks[0]);
+    expect(onPickLesson).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a tile activates its action and closes the sheet; Settings stays a tile outside presenter mode", () => {
+    const onOpenLibrary = vi.fn();
+    const dispatched: Action[] = [];
+    render(
+      <Header
+        title="Lesson"
+        toast={null}
+        source="lesson"
+        onSelectMode={() => {}}
+        currentLessonId={null}
+        onPickLesson={() => {}}
+        onOpenPhylipHelp={() => {}}
+        onOpenMegaHelp={() => {}}
+        onOpenLibrary={onOpenLibrary}
+        theme="light"
+        presenter={false}
+        dispatch={(a) => dispatched.push(a)}
+        breakpoint="compact"
+        drawerOpen={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // The Settings tile and the tour tile are the <768 homes.
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(dispatched).toContainEqual({ type: "setDrawer", open: true });
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Take the tour" }),
+    );
+    expect(dispatched).toContainEqual({ type: "tourStart" });
   });
 });
 

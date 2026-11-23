@@ -1153,7 +1153,7 @@ for (const vp of [
   { w: 1024, h: 768 },
   { w: 768, h: 1024 },
 ]) {
-  test(`both guides are reachable at ${vp.w} px (${vp.w < 1024 ? "More menu" : "Guides menu"})`, async ({
+  test(`both guides are reachable at ${vp.w} px (${vp.w < 1280 ? "More menu" : "Guides menu"})`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: vp.w, height: vp.h });
@@ -1161,7 +1161,10 @@ for (const vp of [
     await waitForApp(page);
 
     const openMenu = async () => {
-      if (vp.w < 1024) {
+      // v1.5 Task 2 (§16.2): the Guides tray menu exists only at
+      // ≥1280 — at 1024–1279 the guides ride in the compact More
+      // menu like the <1024 overflow.
+      if (vp.w < 1280) {
         await page.getByRole("button", { name: "More" }).click();
       } else {
         await page.getByRole("button", { name: "Guides" }).click();

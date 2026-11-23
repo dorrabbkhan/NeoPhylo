@@ -1,7 +1,9 @@
-// Header-menu mobile regression pin (v1.4d Task 15 fix round — owner
+// Phone-sheet mobile regression pin (v1.4d Task 15 fix round — owner
 // iPhone Safari checkpoint finding on PR #182, reproduced in the
 // pinned image on both the v1.4.2 deploy and this branch, so
-// pre-existing on main): at iPhone widths the open Lessons menu
+// pre-existing on main; re-pinned on the phone sheet by v1.5 Task 2,
+// which moved all <768 px navigation into the sheet): at iPhone
+// widths the open Lessons list
 //   (a) squashed its rows — WebKit lets <button> flex items shrink
 //       below their content inside the capped, scrolling list, so a
 //       summary bled into the next row;
@@ -10,10 +12,9 @@
 //   (c) painted under the header's second-row theme/presenter toggles
 //       — their z-index 40 (meant to beat an open sheet's scrim)
 //       applied at all times, over the list's z-index 10.
-// The More menu is checked for the same three defects at the same
-// widths (it already anchored to the header's left edge below 1024,
-// has no height cap and no overlapping control — it stays green
-// before and after the fix, pinning the contract).
+// The phone sheet's tile grid is checked for the same three defects
+// at the same widths — it is the <768 px surface for every
+// destination the More menu used to carry (§16.3).
 //
 // Sizes are the report's: 320×640 (the smallest supported width) and
 // 390×844 (the iPhone 12–14 CSS viewport). hasTouch sets the coarse
@@ -114,28 +115,27 @@ for (const { w, h } of SIZES) {
   test.describe(`${w}×${h}`, () => {
     test.use({ viewport: { width: w, height: h } });
 
-    test("the open Lessons menu keeps its rows, stays on screen and paints on top", async ({
+    test("the phone sheet's Lessons list keeps its rows, stays on screen and paints on top", async ({
       page,
     }) => {
       await page.goto("/");
       await waitForApp(page);
+      await page.getByRole("button", { name: "Menu" }).click();
       await page.getByRole("button", { name: "Lessons" }).click();
-      const list = page.locator(".lessons-menu-list");
+      const list = page.locator(".phone-sheet-list");
       await expect(list).toBeVisible();
-      await checkMenu(list, "Lessons menu");
+      await checkMenu(list, "Lessons list");
     });
 
-    test("the open More menu keeps its rows, stays on screen and paints on top", async ({
+    test("the phone sheet's tile grid keeps its rows, stays on screen and paints on top", async ({
       page,
     }) => {
       await page.goto("/");
       await waitForApp(page);
-      const button = page.getByRole("button", { name: "More", exact: true });
-      if ((await button.count()) === 0) return; // the menu only exists below 1024 px
-      await button.click();
-      const list = page.locator(".more-menu-list");
+      await page.getByRole("button", { name: "Menu" }).click();
+      const list = page.locator(".phone-sheet-tiles");
       await expect(list).toBeVisible();
-      await checkMenu(list, "More menu");
+      await checkMenu(list, "phone sheet tiles");
     });
   });
 }

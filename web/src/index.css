@@ -64,6 +64,10 @@ p {
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* One column capped at the container — never content-sized — so a
+   * nowrap header (v1.5 Task 2, <768 px) shrinks its title instead of
+   * blowing the document out sideways. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .app-loading {
@@ -230,22 +234,8 @@ p {
   position: relative;
 }
 
-.lessons-menu > button {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: var(--size-sm);
-  cursor: pointer;
-}
-
-.lessons-menu > button:hover,
-.lessons-menu > button:focus-visible,
-.lessons-menu > button[aria-expanded="true"] {
-  border-color: var(--color-accent-border);
-}
+/* The Lessons trigger is a nav tray item since v1.5 Task 2 (§16.2);
+ * its styling lives in design/nav.css. */
 
 .lessons-menu-list {
   position: absolute;
@@ -1523,32 +1513,8 @@ button:disabled {
   z-index: 40;
 }
 
-.theme-toggle,
-.presenter-toggle {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: var(--size-sm);
-  cursor: pointer;
-}
-
-.theme-toggle:hover,
-.theme-toggle:focus-visible,
-.presenter-toggle:hover,
-.presenter-toggle:focus-visible {
-  border-color: var(--color-accent-border);
-}
-
-.theme-toggle[aria-pressed="true"],
-.presenter-toggle[aria-pressed="true"] {
-  background: var(--color-accent-bg);
-  border-color: var(--color-accent-border);
-  color: var(--color-accent-contrast);
-  font-weight: 600;
-}
+/* The theme/presenter toggles are nav tray items since v1.5 Task 2
+ * (§16.2) — their styling lives in design/nav.css. */
 
 /* Below 1024 a content sheet covers the whole viewport, and its
  * padding-top: 52px (above) reserves a strip for these toggles. The
@@ -1592,37 +1558,9 @@ button:disabled {
 
 /* ---- "Coming from PHYLIP?" help (v1.1 spec §5.5, Task 13) ---- */
 
-.phylip-help-open,
-.labs-link,
-.reading-link {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  padding: 4px 10px;
-  font-size: var(--size-sm);
-  cursor: pointer;
-}
-
-/* The "PHYLIP labs" header entry is a link, not a button — it shares
- * the chip styling above (v1.4 Task 11, spec §6.5). The "Reading
- * trees" link is the same chip on the filtered-library target
- * (v1.4d Task 9, spec §7.1). */
-a.labs-link,
-a.reading-link {
-  align-items: center;
-  display: inline-flex;
-  text-decoration: none;
-}
-
-.phylip-help-open:hover,
-.phylip-help-open:focus-visible,
-.labs-link:hover,
-.labs-link:focus-visible,
-.reading-link:hover,
-.reading-link:focus-visible {
-  border-color: var(--color-accent-border);
-}
+/* The header's Labs / Reading trees entries are nav tray items since
+ * v1.5 Task 2 (§16.2); their styling lives in design/nav.css. The
+ * Settings drawer's own "PHYLIP labs" link keeps its chip below. */
 
 /* The Settings drawer's own "Take the tour" item (§6.7, Task 12):
  * the 1024–1279 reopen path, full-width at the foot of the drawer in
@@ -2009,49 +1947,12 @@ a.reading-link {
   top: 8px;
 }
 
-/* The Settings button and the More button match the header's other
- * secondary controls (the theme toggle / PHYLIP-help look). */
-.drawer-toggle,
-.more-menu > button {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: var(--size-sm);
-  cursor: pointer;
-}
-
-.drawer-toggle:hover,
-.drawer-toggle:focus-visible,
-.more-menu > button:hover,
-.more-menu > button:focus-visible {
-  border-color: var(--color-accent-border);
-}
-
+/* The Settings, More and Guides triggers are nav tray items since
+ * v1.5 Task 2 (§16.2) — their styling lives in design/nav.css. The
+ * roots stay positioned: the dropdown lists anchor to them. */
 .more-menu,
 .guides-menu {
   position: relative;
-}
-
-/* v1.4b Task 12 (owner decision): the "Guides" button and list reuse
- * the More menu's styling — same chip trigger, same dropdown. */
-.guides-menu > button {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: var(--size-sm);
-  cursor: pointer;
-}
-
-.guides-menu > button:hover,
-.guides-menu > button:focus-visible,
-.guides-menu > button[aria-expanded="true"] {
-  border-color: var(--color-accent-border);
 }
 
 /* The More menu list drops below its button, right-aligned like the
@@ -2199,17 +2100,6 @@ a.reading-link {
   }
 
   .export-theme-match {
-    min-height: 40px;
-  }
-
-  /* v1.4 Task 11 fix: the header's "PHYLIP labs" entry and its
-   * Settings-drawer mirror are links, so the button/rule selectors
-   * above miss them — same ≥40×40 floor (the More-menu item is a
-   * [role="menuitem"], already covered). The "Reading trees" link is
-   * the same kind of chip (v1.4d Task 9). */
-  a.labs-link,
-  a.reading-link {
-    min-width: 40px;
     min-height: 40px;
   }
 

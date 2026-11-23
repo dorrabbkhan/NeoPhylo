@@ -9952,3 +9952,106 @@ were regenerated in the pinned image — no other baseline changed.
     Tasks 6, 7, 9 and 12 set to `Sonnet`; test renamed `.test.ts`; Task 1
     row and steps retitled).
   - `docs/decisions.md` — this entry.
+
+## v1.5 Task 2: header and navigation redesign
+
+- **Spec:** `docs/superpowers/specs/2026-10-15-neophylo-design.md`
+  §16.2–16.3, §16.5, §1 criterion 8; plan
+  `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md`; conductor's
+  calls in `docs/conductor/notes/v1.5/task2.md` (authoritative where the
+  plan file's text differs).
+- **Compact layout is M1, not the plan file's "M2":** task2.md pins the
+  Lesson/Sandbox pill in the header immediately before the Menu button
+  and forbids a mode switch inside the sheet — the plan file's mockup
+  reference (`nav-mobile-r1.html`) predates that decision. The sheet
+  therefore carries every destination and the Dark/Presenter controls
+  but no second mode pill.
+- **1024–1279 More contents (the conductor's-call overflow):** Labs,
+  Reading trees and the two guides (PHYLIP/MEGA) move behind a "medium"
+  `MoreMenu` variant; Lessons, Library, Settings and the toggles stay
+  direct. Every destination at ≥768 keeps the same activation count it
+  had on main (guides were a 2-activation menu path on main at
+  1024–1279 too; Library drops to one activation — "at most today's
+  number" allows fewer). Below 768 the sheet's Menu→tile→item flow is
+  the path task2.md spells out verbatim.
+- **`.app` gained `grid-template-columns: minmax(0, 1fr)`** (index.css):
+  the compact header is `flex-wrap: nowrap` so the title ellipsizes, and
+  an `auto` grid column sized to content blew the document out to ~545 px
+  sideways scroll at ≤390. The pinned column caps every row at the
+  container width.
+- **Icons:** Lucide 0.469.0 (ISC) glyphs where one fits, hand-drawn
+  same-style symbols for the rest, all in the one static sprite
+  `web/public/icons/ui.svg` (25 `<symbol>`s, 24 px grid, 1.8 stroke,
+  round caps, `currentColor`, no fills). Lucide's ISC notice added to
+  `THIRD_PARTY_NOTICES.md`; the generated Licenses page picks it up on
+  the next `npm run build` (no generator edit needed). `icons.svg`
+  deleted per the task.
+- **Long-press tooltip:** pointer events + one 500 ms timer only —
+  coarse-pointer tap activates immediately; a ≥500 ms hold shows the
+  label and swallows the following click/context-menu (conductor's
+  call, §16.3).
+- **Test files the plan named but did not create as separate files:**
+  `NavTray.test.tsx` and `Icon.test.tsx` are not separate files — the
+  per-breakpoint destination/action matrix the step text describes lives
+  in `Header.test.tsx` (the tray is only rendered through Header), and
+  Icon is covered through NavItem's render assertions.
+- **Rewritten old-header tests (intent kept, structure re-pinned):**
+  - `Header.test.tsx` — the tour-button absence, Guides-at-≥1280-only,
+    Labs/Reading-links-at-≥1280 and unsaved-work click-routing tests are
+    kept word-for-word in intent; "Guides at ≥1024" was split into
+    "guides behind More at 1024–1279, behind the Menu sheet <768" (the
+    medium variant owns them now); added compact-mode M1 structure
+    (pill + Menu), sheet open/close, in-sheet Lessons list and tile
+    activation coverage.
+  - `MoreMenu.test.tsx` — added the "medium" variant's four-item
+    inventory (the two guides, Labs, Reading trees — nothing else) so a
+    stray item can't reappear at 1024–1279.
+  - `header-menus.spec.ts` — the iPhone-Safari regression pin was
+    re-pointed from the old <768 dropdown lists to the phone sheet: same
+    three checks (rows keep content height, list inside the viewport
+    with ≥8 px margins, nothing paints over an item) on the in-sheet
+    Lessons list and the tile grid at 320×640 and 390×844.
+  - `narrow.spec.ts` — <768 paths that used to reach Settings, the
+    matrix import and Reading trees through header chips now enter via
+    Menu → tile → same destination; assertions on the destination are
+    unchanged.
+  - `sheets.spec.ts` — the 1024 "Guides list inside the viewport" case
+    now opens More (Guides moved behind it at 1024–1279); the 375 px
+    More-list case was dropped as superseded by header-menus' phone-
+    sheet checks (same surfaces, new structure).
+  - `tour.spec.ts` — `HEADER_HEIGHT` updated to the measured 65 px (the
+    tray header is one row at ≥1024); the compact reopen path is
+    Menu → Take the tour (was More → Take the tour); comments re-stated.
+  - `labs.spec.ts` — the guides-opening helper opens More below 1280,
+    the Guides button at ≥1280 (was: Guides button at ≥1024).
+  - `layout.spec.ts` — the header-controls count pin was updated to the
+    new inventories (7 at ≥1280, 8 at 1024–1279, 7 at 768–1023; links
+    checked separately); the click-every-control loop now detects
+    navigation with waitForURL + a load-state settle instead of trusting
+    `page.url()` read timing (Library/Sandbox navigate via
+    `location.assign` — the old goBack approach landed on about:blank
+    after a round trip), and restores a toggle it clicked (Presenter
+    mode hides Settings, which shifted the remaining indices);
+    `revealByPageScroll`'s minimal-delta scroll now rounds to an integer
+    px toward visibility — WebKit truncates fractional scrollTop, which
+    wedged a 0.27 px remainder at 640×400×2 forever.
+  - `visualScenes.ts` — three new scenes appended:
+    `header-label-expanded`, `header-menu-open`, `phone-sheet-open`
+    (360×740). `header-label-expanded` polls the label's settled end
+    state (opacity 1 + width > 10) rather than a fixed sleep; all other
+    frames settle via the existing `animations: "disabled"` +
+    `settleFrame`.
+- **Files outside the Files block:**
+  - `web/src/main.tsx` — imports `design/nav.css` (after index.css so the
+    tray overrides win at equal specificity).
+  - `web/src/views/Header.test.tsx`, `web/src/views/MoreMenu.test.tsx` —
+    the block lists the components but not their test files; both were
+    rewritten/extended per Step 5.
+  - `web/e2e/labs.spec.ts`, `web/e2e/layout.spec.ts`,
+    `web/e2e/sheets.spec.ts` — outside the block's named spec list; each
+    change is listed above and only re-pins the moved navigation paths
+    or fixes the scroll/nav races the new header exposed.
+  - `docs/decisions.md` — this entry.
+- **Not done on purpose:** `presenter.spec.ts` and `a11y.spec.ts` were in
+  the modify list but needed no edits — presenter-hides-Settings and the
+  axe coverage hold under the new structure unchanged.

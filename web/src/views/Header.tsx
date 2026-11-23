@@ -1,19 +1,32 @@
-// App header (v1.3 spec §6.3): the skip link, wordmark, lesson title,
-// the link-restore toast, the Lesson|Sandbox mode switch, the Lessons
-// menu, the Guides menu, the theme toggle and the presenter toggle.
-// Task 10: a "Skip to content" link is the page's first focusable
-// element; below 1280 px the Settings button opens the controls drawer
-// (§6.4); below 1024 px both guides, Labs, Licenses, Source code and
-// Help live in the More menu (§6.3). v1.4b Task 12 (owner decision,
-// 2026-11-02): the "Coming from PHYLIP?" button became the two-item
-// "Guides" menu and the labs link was renamed "Labs".
-// Task 11 (§6.6): presenter mode hides the Settings button — the
-// controls are unreachable by design — while the two toggles stay.
-// Task 12 round 3 (§6.7, owner decision B, 2026-10-24): "Take the
-// tour" reopens from the Lessons menu's last item at ≥ 1280, from the
-// Settings drawer at 1024–1279 and from the More menu below 1024 —
-// one reopen path per width, and the header itself is back to main's.
+// App header (v1.5 Task 2, spec §16.2–§16.3 — mockup style B + mode
+// variant R1): wordmark · current title · the icon tray · the Lesson |
+// Sandbox pill at the right end. Tray items are icon-only at rest —
+// the label stays in the DOM and expands on hover/focus — and the
+// current page's item keeps its label and an accent tint.
+//
+// Breakpoints (spec §16.2):
+//   wide   ≥1280  Lessons, Library, Labs, Reading trees, Guides, then
+//                 the view controls — no More menu, no Settings button
+//                 (the controls column is on screen).
+//   medium 1024–1279  Library stays a direct pick; Labs, Reading trees
+//                 and the two guides move into a compact More menu —
+//                 every destination keeps today's activation count
+//                 (conductor's call, recorded in docs/decisions.md).
+//                 Settings and the tour keep their drawer homes.
+//   narrow  768–1023  the More menu carries the same nine secondary
+//                 items as today; Settings stays a direct button.
+//   compact <768   wordmark, title and one Menu button — the
+//                 PhoneMenuSheet holds everything (§16.3).
+//
+// Preserved contracts (v1.3–v1.4d): the skip link is the page's first
+// focusable element; "Take the tour" reopens from the Lessons menu's
+// last item at ≥1280, the Settings drawer at 1024–1279 and below that
+// the phone sheet's tile (§6.7 owner decision B); presenter mode hides
+// the Settings entry; the header toggles park above content sheets'
+// scrim; the Reading trees link routes a plain click through
+// onOpenReading so the unsaved-work question still runs.
 
+import { useState } from "react";
 import type { Dispatch } from "react";
 
 import type { Breakpoint } from "../design/breakpoints";
@@ -25,6 +38,9 @@ import { GuidesMenu, MoreMenu } from "./MoreMenu";
 import { PresenterToggle } from "./PresenterToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { Wordmark } from "./Wordmark";
+import { NavItem } from "./nav/NavItem";
+import { NavDivider, NavTray } from "./nav/NavTray";
+import { PhoneMenuSheet } from "./nav/PhoneMenuSheet";
 
 export interface HeaderProps {
   title: string;
@@ -75,8 +91,12 @@ export function Header({
   breakpoint,
   drawerOpen,
 }: HeaderProps) {
-  const belowWide = breakpoint !== "wide";
-  const belowMedium = breakpoint === "narrow" || breakpoint === "compact";
+  const wide = breakpoint === "wide";
+  const medium = breakpoint === "medium";
+  const narrow = breakpoint === "narrow";
+  const compact = breakpoint === "compact";
+  const belowWide = !wide;
+  const [phoneMenu, setPhoneMenu] = useState(false);
   return (
     <header className="app-header">
       <a
@@ -101,121 +121,184 @@ export function Header({
           {toast}
         </p>
       )}
-      <div className="mode-switch" role="radiogroup" aria-label="Mode">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={source === "lesson"}
-          onClick={() => onSelectMode("lesson")}
-        >
-          Lesson
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={source === "sandbox"}
-          onClick={() => onSelectMode("sandbox")}
-        >
-          Sandbox
-        </button>
-      </div>
-      {/* §6.7 (owner decision B, Task 12 round 3): the tour's ≥ 1280
-          reopen path is the Lessons menu's last item — a header button
-          here wrapped the row to two lines at 1280 on the longer
-          lesson titles (round 2). Below 1280 the Settings drawer and
-          the More menu own the item instead. */}
-      <LessonsMenu
-        currentId={currentLessonId}
-        onPick={onPickLesson}
-        onOpenLibrary={onOpenLibrary}
-        onOpenReading={onOpenReading}
-        onTakeTour={
-          belowWide ? undefined : () => dispatch({ type: "tourStart" })
-        }
-      />
-      {belowWide && !presenter && (
-        <button
-          type="button"
-          className="drawer-toggle"
-          aria-expanded={drawerOpen}
-          aria-controls="settings-drawer"
-          onClick={() =>
-            dispatch({ type: "setDrawer", open: !drawerOpen })
-          }
-        >
-          Settings
-        </button>
+      {compact ? (
+        <>
+          {/* §16.3 + mockup M1 (the mockup's pick): the pill stays in
+              the phone header — far right, just before Menu — so the
+              mode flip is always one tap; the sheet mirrors it only
+              for completeness and is not needed (single path kept:
+              the pill). The Menu button is a nav-item (icon + clipped
+              label) so its name and 44 px target match the rest of
+              the header. */}
+          {/* The cluster keeps the pill and Menu together on one line
+              and pushes both to the header's right end; if the phone
+              header ever wraps they land on row two as a unit. */}
+          <div className="nav-cluster">
+            <div className="mode-switch" role="radiogroup" aria-label="Mode">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={source === "lesson"}
+                onClick={() => onSelectMode("lesson")}
+              >
+                Lesson
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={source === "sandbox"}
+                onClick={() => onSelectMode("sandbox")}
+              >
+                Sandbox
+              </button>
+            </div>
+            <NavItem
+              icon={phoneMenu ? "close" : "menu"}
+              label="Menu"
+              className="nav-menu-button"
+              hasPopup="dialog"
+              expanded={phoneMenu}
+              onActivate={() => setPhoneMenu((v) => !v)}
+            />
+          </div>
+          <PhoneMenuSheet
+            open={phoneMenu}
+            onClose={() => setPhoneMenu(false)}
+            currentLessonId={currentLessonId}
+            onPickLesson={onPickLesson}
+            onOpenPhylipHelp={onOpenPhylipHelp}
+            onOpenMegaHelp={onOpenMegaHelp}
+            onOpenLibrary={onOpenLibrary}
+            onOpenReading={onOpenReading}
+            theme={theme}
+            presenter={presenter}
+            dispatch={dispatch}
+          />
+        </>
+      ) : (
+        <>
+          {/* Tray + pill ride in one right-aligned cluster so a
+              wrap (narrow, long title, the pinned current label)
+              lands them on row two together instead of scattering. */}
+          <div className="nav-cluster">
+            <NavTray>
+            {/* §6.7 (owner decision B): the tour's ≥1280 reopen path is
+                the Lessons menu's last item; below that the drawer and
+                the phone sheet's tile own it. */}
+            <LessonsMenu
+              currentId={currentLessonId}
+              onPick={onPickLesson}
+              onOpenLibrary={onOpenLibrary}
+              onOpenReading={onOpenReading}
+              onTakeTour={
+                belowWide ? undefined : () => dispatch({ type: "tourStart" })
+              }
+            />
+            {/* §16.2 overflow: Library keeps its direct pick at medium
+                (the umbrella page for labs + reading); Labs, Reading
+                trees and the guides move to the compact More there. */}
+            {!narrow && onOpenLibrary !== undefined && (
+              <NavItem
+                icon="library"
+                label="Library"
+                onActivate={onOpenLibrary}
+              />
+            )}
+            {wide && (
+              <NavItem
+                icon="labs"
+                label="Labs"
+                href="?labs"
+                className="labs-link"
+              />
+            )}
+            {/* The reading area's header entry (v1.4d Task 9, §7.1): a
+                link to the library's Tree reading filter. A plain
+                primary click routes through onOpenReading so the
+                unsaved-work question runs exactly like the menus';
+                the href stays for modified clicks (open in a new tab). */}
+            {wide && (
+              <NavItem
+                icon="reading"
+                label="Reading trees"
+                href="?library&type=reading"
+                className="reading-link"
+                onClick={(event) => {
+                  if (
+                    onOpenReading !== undefined &&
+                    event.button === 0 &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.shiftKey &&
+                    !event.altKey
+                  ) {
+                    event.preventDefault();
+                    onOpenReading();
+                  }
+                }}
+              />
+            )}
+            {wide && (
+              <GuidesMenu
+                onOpenPhylipHelp={onOpenPhylipHelp}
+                onOpenMegaHelp={onOpenMegaHelp}
+              />
+            )}
+            {(medium || narrow) && (
+              <MoreMenu
+                variant={narrow ? "narrow" : "medium"}
+                onOpenPhylipHelp={onOpenPhylipHelp}
+                onOpenMegaHelp={onOpenMegaHelp}
+                onOpenLibrary={onOpenLibrary}
+                onOpenReading={onOpenReading}
+                onTakeTour={() => dispatch({ type: "tourStart" })}
+              />
+            )}
+            <NavDivider />
+            {/* The toggles come last in the destination group: the
+                presenter switch hides the Settings item, so nothing it
+                can remove sits after it (the header-controls layout
+                test clicks every control in order). */}
+            <div className="header-toggles">
+              <ThemeToggle theme={theme} dispatch={dispatch} />
+              <PresenterToggle presenter={presenter} dispatch={dispatch} />
+            </div>
+            {belowWide && !presenter && (
+              <NavItem
+                icon="settings"
+                label="Settings"
+                className="drawer-toggle"
+                expanded={drawerOpen}
+                controls="settings-drawer"
+                onActivate={() =>
+                  dispatch({ type: "setDrawer", open: !drawerOpen })
+                }
+              />
+            )}
+          </NavTray>
+            {/* R1: today's quiet Lesson|Sandbox pill moved to the right
+                end of the header — same radiogroup semantics. */}
+            <div className="mode-switch" role="radiogroup" aria-label="Mode">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={source === "lesson"}
+                onClick={() => onSelectMode("lesson")}
+              >
+                Lesson
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={source === "sandbox"}
+                onClick={() => onSelectMode("sandbox")}
+              >
+                Sandbox
+              </button>
+            </div>
+          </div>
+        </>
       )}
-      {/* The lab index (v1.4 Task 11, spec §6.5): a link, not a
-          button — the e2e header-controls count pins buttons only.
-          Direct only at ≥ 1280: at 1024–1279 the row already over-
-          flows ~27 px with it, so the Settings drawer holds it there
-          and the More menu owns it below 1024 — the same one-path-
-          per-width pattern as "Take the tour" (§6.7). */}
-      {!belowWide && (
-        <a className="labs-link" href="?labs">
-          Labs
-        </a>
-      )}
-      {/* The reading area's header entry (v1.4d Task 9, spec §7.1):
-          a link to the library's Tree reading filter, direct only at
-          ≥ 1280 like the Labs chip — its ~114 px of fixed width pushes
-          the header's min-content past the 1024 row the same way
-          "PHYLIP labs" did before its owner decision (measured 1050 vs
-          1024 in the pinned image). Below 1280 the More menu's item
-          (< 1024) and the Lessons menu's action row carry the same
-          target. A plain primary click routes through onOpenReading,
-          so the link asks "Leave your unsaved work?" exactly like the
-          menus' items and the Library entry (fix round 1); the href
-          stays for modified clicks (open in a new tab). */}
-      {!belowWide && (
-        <a
-          className="reading-link"
-          href="?library&type=reading"
-          onClick={(event) => {
-            if (
-              onOpenReading !== undefined &&
-              event.button === 0 &&
-              !event.metaKey &&
-              !event.ctrlKey &&
-              !event.shiftKey &&
-              !event.altKey
-            ) {
-              event.preventDefault();
-              onOpenReading();
-            }
-          }}
-        >
-          Reading trees
-        </a>
-      )}
-      {/* v1.4b Task 12 (owner decision, 2026-11-02): the two guides
-          live behind one "Guides" menu-button where the bare "Coming
-          from PHYLIP?" button sat; below 1024 the More menu carries
-          both items. */}
-      {!belowMedium && (
-        <GuidesMenu
-          onOpenPhylipHelp={onOpenPhylipHelp}
-          onOpenMegaHelp={onOpenMegaHelp}
-        />
-      )}
-      {belowMedium && (
-        <MoreMenu
-          onOpenPhylipHelp={onOpenPhylipHelp}
-          onOpenMegaHelp={onOpenMegaHelp}
-          onOpenLibrary={onOpenLibrary}
-          onOpenReading={onOpenReading}
-          onTakeTour={() => dispatch({ type: "tourStart" })}
-        />
-      )}
-      {/* The toggles come last in DOM order: the presenter switch hides
-          the Settings button, so nothing it can remove sits after it
-          (the header-controls layout test clicks every button in
-          order). */}
-      <div className="header-toggles">
-        <ThemeToggle theme={theme} dispatch={dispatch} />
-        <PresenterToggle presenter={presenter} dispatch={dispatch} />
-      </div>
     </header>
   );
 }

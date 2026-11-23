@@ -1609,4 +1609,58 @@ export const SCENES: {
       ).toBeLessThanOrEqual(cbox!.x + cbox!.width + 0.5);
     },
   },
+  /* ---- v1.5 Task 2 (§16.2–§16.3): the icon tray and phone sheet.
+     header-label-expanded pins the hover/focus slide on a tray item;
+     header-menu-open the open Lessons dropdown; phone-sheet-open the
+     compact width's whole navigation surface — every frame in both
+     themes, the slide fully settled before the shot. */
+  {
+    name: "header-label-expanded",
+    setup: async (page) => {
+      await page.goto("/?lesson=nj-basics");
+      await waitForApp(page);
+      const item = page.getByRole("button", { name: "Dark mode" });
+      await item.hover();
+      // The 250 ms label slide must have landed before the frame —
+      // poll for the settled end state (opacity 1, nonzero box)
+      // rather than trusting a sleep or a mid-slide width.
+      const label = item.locator(".nav-item-label");
+      await expect
+        .poll(async () =>
+          label.evaluate((el) => {
+            const cs = getComputedStyle(el);
+            return (
+              cs.opacity === "1" && el.getBoundingClientRect().width > 10
+            );
+          }),
+        )
+        .toBe(true);
+      await settleFrame(page);
+    },
+  },
+  {
+    name: "header-menu-open",
+    setup: async (page) => {
+      await page.goto("/?lesson=nj-basics");
+      await waitForApp(page);
+      await page.getByRole("button", { name: "Lessons" }).click();
+      await expect(
+        page.getByRole("menu", { name: "Lessons" }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    name: "phone-sheet-open",
+    viewports: [{ w: 360, h: 740 }],
+    setup: async (page) => {
+      await page.goto("/?lesson=nj-basics");
+      await waitForApp(page);
+      await page.getByRole("button", { name: "Menu" }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Menu" }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
 ];

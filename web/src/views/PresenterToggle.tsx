@@ -6,10 +6,13 @@
 // device-local neophylo.presenter pref (design/presenter.ts) — never
 // to shared links. It parks with the theme toggle in the sheets'
 // reserved strip below 1024 px (same real-input path as PR #74).
+// v1.5 Task 2: a nav tray item.
 
 import type { Dispatch } from "react";
 
 import type { Action } from "../state/session";
+
+import { NavItem } from "./nav/NavItem";
 
 export interface PresenterToggleProps {
   presenter: boolean;
@@ -21,15 +24,14 @@ export function PresenterToggle({
   dispatch,
 }: PresenterToggleProps) {
   return (
-    <button
-      type="button"
+    <NavItem
+      icon="presenter"
+      label="Presenter mode"
       className="presenter-toggle"
-      aria-pressed={presenter}
-      onClick={() =>
+      pressed={presenter}
+      onActivate={() =>
         dispatch({ type: "setPresenter", presenter: !presenter })
       }
-    >
-      Presenter mode
-    </button>
+    />
   );
 }

@@ -18,6 +18,9 @@ import type { KeyboardEvent } from "react";
 
 import { REPO_URL } from "../config";
 
+import { NavItem } from "./nav/NavItem";
+import type { IconName } from "./nav/Icon";
+
 interface Item {
   label: string;
   /** Link items navigate; an item without `href` runs `action`. */
@@ -28,13 +31,15 @@ interface Item {
 interface MenuButtonProps {
   /** The button text — also the menu's aria-label. */
   label: string;
+  /** The trigger's tray glyph (v1.5 Task 2). */
+  icon: IconName;
   /** The root's class (".more-menu", ".guides-menu"); the list gets
    * "-list" appended. */
   className: string;
   items: Item[];
 }
 
-function MenuButton({ label, className, items }: MenuButtonProps) {
+function MenuButton({ label, icon, className, items }: MenuButtonProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -127,16 +132,15 @@ function MenuButton({ label, className, items }: MenuButtonProps) {
 
   return (
     <div className={className} ref={rootRef}>
-      <button
-        type="button"
-        ref={buttonRef}
-        aria-haspopup="menu"
-        aria-expanded={open}
+      <NavItem
+        icon={icon}
+        label={label}
+        elementRef={buttonRef}
+        hasPopup="menu"
+        expanded={open}
         onClick={() => (open ? closeMenu(false) : openAt(0))}
         onKeyDown={onButtonKeyDown}
-      >
-        {label}
-      </button>
+      />
       {open && (
         <div
           className={`${className}-list`}
@@ -179,7 +183,10 @@ export interface MoreMenuProps {
   onOpenPhylipHelp: () => void;
   /** Opens the "Coming from MEGA?" guide (v1.4b Task 12). */
   onOpenMegaHelp: () => void;
-  /** Reopens the first-visit tour (spec §6.7). */
+  /** Reopens the first-visit tour (spec §6.7). Required by the
+   * "narrow" variant — its only reopen path below 1024; the
+   * "medium" variant never renders it (the Settings drawer owns the
+   * 1024–1279 path). */
   onTakeTour: () => void;
   /** Opens the library (v1.4c Task 12, spec §7.1) — an action like the
    * guide items: the caller owns the unsaved-work question. */
@@ -188,6 +195,12 @@ export interface MoreMenuProps {
    * — the header link's < 1024 px path, an action like the Library
    * item it follows. */
   onOpenReading?: () => void;
+  /** "narrow" is the < 1024 menu: all nine secondary items. "medium"
+   * (v1.5 Task 2, spec §16.2 overflow — conductor's call) carries only
+   * the tray destinations that left the 1024–1279 tray: the two
+   * guides, Labs and Reading trees; Library keeps its direct tray
+   * pick, the tour and the footer items keep their old homes. */
+  variant?: "narrow" | "medium";
 }
 
 export function MoreMenu({
@@ -196,42 +209,42 @@ export function MoreMenu({
   onTakeTour,
   onOpenLibrary,
   onOpenReading,
+  variant = "narrow",
 }: MoreMenuProps) {
-  return (
-    <MenuButton
-      label="More"
-      className="more-menu"
-      items={[
-        { label: "Coming from PHYLIP?", action: onOpenPhylipHelp },
-        { label: "Coming from MEGA?", action: onOpenMegaHelp },
-        // §6.5 lab-index link (the owner's "Labs" rename, 2026-11-02):
-        // the <1024 px path — the header link's mirror.
-        { label: "Labs", href: "?labs" },
-        // §7.1 (v1.4c Task 12): the library lives beside the lab index
-        // it absorbed; an action so the unsaved-work question can run
-        // before the page change.
-        ...(onOpenLibrary !== undefined
-          ? [{ label: "Library", action: onOpenLibrary }]
-          : []),
-        // §7.1 (v1.4d Task 9): the header link's < 1024 px path — the
-        // same filtered-library target, through the same action so the
-        // unsaved-work question runs identically.
-        ...(onOpenReading !== undefined
-          ? [{ label: "Reading trees", action: onOpenReading }]
-          : []),
-        // §6.7: the tour's only reopen path.
-        { label: "Take the tour", action: onTakeTour },
-        {
-          label: "Licenses",
-          href: `${import.meta.env.BASE_URL}licenses.html`,
-        },
-        { label: "Source code", href: REPO_URL },
-        // No in-app help page exists (§6.3); the project's published
-        // docs are the README.
-        { label: "Help", href: `${REPO_URL}#readme` },
-      ]}
-    />
-  );
+  const items: Item[] = [
+    { label: "Coming from PHYLIP?", action: onOpenPhylipHelp },
+    { label: "Coming from MEGA?", action: onOpenMegaHelp },
+    // §6.5 lab-index link (the owner's "Labs" rename, 2026-11-02):
+    // the <1024 px path — the header link's mirror.
+    { label: "Labs", href: "?labs" },
+    // §7.1 (v1.4c Task 12): the library lives beside the lab index it
+    // absorbed; an action so the unsaved-work question can run before
+    // the page change. Below 1024 only — at 1024–1279 Library is the
+    // tray's direct pick instead (v1.5 Task 2).
+    ...(variant === "narrow" && onOpenLibrary !== undefined
+      ? [{ label: "Library", action: onOpenLibrary }]
+      : []),
+    // §7.1 (v1.4d Task 9): the same filtered-library target, through
+    // the same action so the unsaved-work question runs identically.
+    ...(onOpenReading !== undefined
+      ? [{ label: "Reading trees", action: onOpenReading }]
+      : []),
+  ];
+  if (variant === "narrow") {
+    items.push(
+      // §6.7: the tour's only reopen path below 1024.
+      { label: "Take the tour", action: onTakeTour },
+      {
+        label: "Licenses",
+        href: `${import.meta.env.BASE_URL}licenses.html`,
+      },
+      { label: "Source code", href: REPO_URL },
+      // No in-app help page exists (§6.3); the project's published
+      // docs are the README.
+      { label: "Help", href: `${REPO_URL}#readme` },
+    );
+  }
+  return <MenuButton label="More" icon="more" className="more-menu" items={items} />;
 }
 
 export interface GuidesMenuProps {
@@ -251,6 +264,7 @@ export function GuidesMenu({
   return (
     <MenuButton
       label="Guides"
+      icon="guides"
       className="guides-menu"
       items={[
         { label: "Coming from PHYLIP?", action: onOpenPhylipHelp },
