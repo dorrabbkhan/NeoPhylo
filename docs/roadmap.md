@@ -3,9 +3,10 @@
 **Status:** v1.0, v1.1 (protein support, PHYLIP I/O), **v1.2 (bootstrap, consensus, reference
 rooting)**, **v1.3 (design system and polish)**, **v1.4 (instructor kit and PHYLIP lab packs)**,
 **v1.4b (MEGA companion and data library)**, **v1.4c (matrix input, lesson library and
-worksheets)** and **v1.4d (tree reading, moved forward from v1.6)** released or releasing;
-**next: v1.5** (instructor-run labs, exercise authoring and basic grading — the "Early-adopter
-pilots" milestone below). Last revised 2026-11-21 at the v1.4d release checkpoint.
+worksheets)** and **v1.4d (tree reading, moved forward from v1.6)** released;
+**next: v1.5** (navigation redesign, then instructor-run labs, exercise authoring and basic grading —
+the "Early-adopter pilots" milestone below), then **v1.6** (landing page and adoption kit). Last
+revised 2026-11-23 after the v1.4d release (market update `docs/market/2026-11-23-market-update.md`).
 
 **Positioning, two modes:**
 - **PHYLIP labs: a standalone replacement.** NeoPhylo runs the classic PHYLIP teaching workflows
@@ -21,16 +22,29 @@ reading only. MEGA stays central to teaching (it now ships MEGA-GPT), while no P
 2024–2026 was found: the MEGA companion outranks PHYLIP completeness, and new PHYLIP parity work is
 taken only when a pilot asks for it.
 
+**Market update (2026-11-23):** the gap is still open. New since 11-18: PhyloGPU (a desktop NJ/UPGMA
+viewer that names teaching as a use; no step views, lessons or grading) and MEGA 12.1's native macOS
+and Linux builds (MEGA gets easier to install on student Macs; Chromebooks and locked lab machines are
+still unserved, so the companion role grows). The accessibility report matters to more schools than
+assumed: besides the DOJ date for public universities (2027-04-26), HHS's Section 504 rule covers
+every college receiving HHS funds, private ones included (2027-05-11), and institutions answer for the
+tools they choose.
+
 Each version is one spec → plan → agent cycle. Every version ships with at least one lesson and the
 same validation discipline: an independent oracle, property tests and fuzzing.
 
-**Observed pace (recalibrated 2026-11-18 from merge history):** v1.1 3 days (14 PRs), v1.2 3 days
+**Observed pace (recalibrated 2026-11-23 from merge history):** v1.1 3 days (14 PRs), v1.2 3 days
 (16), v1.3 4 days (19), v1.4 2 days (22), v1.4b 17 days (20; external MEGA oracle work and owner
-rulings), v1.4c about 5 days including a 7-round release checkpoint (9 task PRs). The agents are not
-the bottleneck; owner reviews, owner-gated content, outside tools and hand checks are. Sizes now mean:
-**S** ≈ 2–4 days, **M** ≈ 4–8 days, **L** ≈ 1–3 weeks of calendar time at the current owner
-availability. Versions heavy in owner-reviewed content or outside oracles sit at the top of their
-range.
+rulings), v1.4c 4 days including a 7-round release checkpoint (11 PRs), v1.4d 5 days (11 PRs; sized
+L, "1.5–2 weeks"). The agents are not the bottleneck; owner reviews, owner-gated content, outside
+tools and hand checks are. Sizes now mean: **S** ≈ 1–2 days, **M** ≈ 2–4 days, **L** ≈ 4–7 days of
+calendar time at the current owner availability. Versions heavy in owner-reviewed content or outside
+oracles sit at the top of their range.
+
+**Development now outruns feedback (owner, 2026-11-23).** At this pace v1.7–v2.0 would all ship
+before any instructor used the app. So after v1.6 the order is: adoption work first, v1.7 and v1.8 at
+a steady pace (about one every two weeks, so the changelog keeps moving), and **v1.9 and v2.0 wait for
+the first pilot's feedback**, which may reorder them.
 
 | Milestone | After | Meaning |
 |---|---|---|
@@ -40,7 +54,7 @@ range.
 
 ---
 
-## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.5, with tree reading as v1.4d)
+## Phase 1: Complete the common lab and make it adoptable (v1.2–v1.6, with tree reading as v1.4d)
 
 ### v1.2 Bootstrap, consensus and reference rooting (L) · *done*
 - Bootstrap with visible resampling, support on the original tree, strict/majority/extended consensus,
@@ -115,7 +129,7 @@ range.
 - Fetch by accession moved to v1.9 (owner, 2026-11-14): fetched sequences are unaligned, so fetch is
   only useful once alignment exists.
 
-### v1.4d Tree reading (L, ≈ 1.5–2 weeks) · *moved before v1.5 (owner, 2026-11-18)*
+### v1.4d Tree reading (L, ≈ 1.5–2 weeks) · *done (5 days); moved before v1.5 (owner, 2026-11-18)*
 - Reading trees before building them, addressing documented "tree thinking" misconceptions:
   - rotating branches doesn't change relationships
   - the order of tips doesn't mean "more evolved"
@@ -132,7 +146,15 @@ range.
   auto-grade, and research favours reading trees before building them; outreach after v1.5 can then
   reach intro-biology instructors from day one.
 
-### v1.5 Classroom delivery and assessment (L, ≈ 2–3 weeks) · 🟡 EARLY-ADOPTER PILOT POINT
+### v1.5 Navigation redesign, classroom delivery and assessment (L, ≈ 1.5 weeks) · 🟡 EARLY-ADOPTER PILOT POINT
+- **Milestone 1 (owner, 2026-11-23): navigation redesign and a UI polish pass**, first, so the new
+  assignment and Grade pages are built in the new style and the accessibility audit covers the final
+  UI. Header: one rounded icon tray whose labels expand on hover and keyboard focus (the current page
+  always labelled); Lesson | Sandbox moves to the right end of the header as a quiet pill; touch screens
+  get 44 px targets with the current page labelled and the rest under More; phones get one menu button
+  opening a sheet of labelled tiles, with the mode switch inside it. Then the same style for the lesson
+  stepper bar, the side-panel buttons and buttons and menus throughout. Two PRs (header, then polish), each with its owner baseline round.
+  Mockups: `docs/superpowers/specs/2026-11-23-v1.5-nav-mockups/`.
 - Embed mode (iframe-friendly) for LMS pages; presenter mode; an offline "lab pack" download.
 - **Basic assessment, no accounts:**
   - randomized per-student variants from one assignment link (each student a different seed)
@@ -156,19 +178,35 @@ range.
 - **Accessibility conformance for adoption:** a WCAG 2.1 AA self-audit (the existing axe checks plus a
   manual keyboard and screen-reader pass over every view, including embed mode) and a published
   Accessibility Conformance Report (VPAT). US public universities must meet WCAG 2.1 AA under ADA
-  Title II by 2027-04-26 and review embedded/LTI tools before use, so any pilot after that date needs it.
+  Title II by 2027-04-26, and colleges receiving HHS funds, private ones included, by 2027-05-11
+  (Section 504); they review embedded/LTI tools before use, so any pilot after those dates needs it.
   The independent audit stays in v3.2.
 
 > **🟡 After v1.5:** an instructor can replace a full distance-plus-bootstrap lab or a tree-reading
-> session, author their own exercises, give each student their own variant, and bulk-grade the class. Serious outreach should already
-> be running by now (it starts during v1.2).
+> session, author their own exercises, give each student their own variant, and bulk-grade the class.
+
+### v1.6 Landing page and adoption kit (M, ≈ 3–4 days) · *fills the empty v1.6 slot (owner, 2026-11-23)*
+Turns an interested instructor into a running course; built after v1.5 so every claim describes
+something that exists.
+- **Landing page at `/`** (mockup: `docs/superpowers/specs/2026-11-23-v1.5-nav-mockups/landing-v1.html`):
+  hero with an animated NJ join, a proof strip (checked against PHYLIP, MEGA and R; offline; WCAG 2.1
+  AA; open source), three feature cards, lesson cards, a "For instructors" band, "Understand it here.
+  Do it in MEGA.", footer. Light and dark themes from the design tokens. A separate lightweight page
+  with no app code or engine (fast, readable by search engines, outside the initial-JS budget); the app
+  moves behind it and every existing link (`?labs`, `#x=`, `#r=`, `#a=`, lesson links) still opens the
+  app unchanged.
+- **What's new** page built from `CHANGELOG.md` (started in v1.5), so the project visibly moves.
+- **Demo video** recorded from the app by script, so it can be re-recorded each release.
+- **Cite NeoPhylo** (`CITATION.cff`), a **JOSE paper draft** and a **CourseSource/QUBES lesson draft**
+  (submitted after a pilot supplies classroom data).
 
 ---
 
 ## Phase 2: Reach the whole intro course (v1.7–v2.0)
 
-The v1.6 slot is empty: tree interpretation moved before v1.5 as v1.4d (owner, 2026-11-18). Later
-versions keep their numbers so earlier specs and decisions that cite them stay correct.
+Tree interpretation moved before v1.5 as v1.4d (owner, 2026-11-18); the freed v1.6 slot holds the
+landing page and adoption kit (Phase 1, owner 2026-11-23). Later versions keep their numbers so earlier
+specs and decisions that cite them stay correct. v1.9 and v2.0 wait for the first pilot's feedback.
 
 ### v1.7 Model breadth (M)
 - DNA: Tamura-Nei, LogDet (F84 and PHYLIP-style Kimura already arrive in v1.4). Protein: PAM (DCMut)
@@ -265,7 +303,8 @@ results; notebook export (Jupyter/R Markdown).
 
 | When | Track |
 |---|---|
-| After v1.5 (owner, 2026-11-18) | Outreach starts once v1.5 ships (instructor-ready). Two audiences from the start: MEGA and bioinformatics/molecular-evolution instructors (distance labs), and intro-biology instructors (tree reading, v1.4d). Before mass emails, run three instructor think-alouds: usability is untested. |
+| From about 2027-01-05 (owner, 2026-11-23) | Outreach emails start after v1.6, when instructors finalize spring syllabi; a single spring lab can still be added until about mid-February. Two audiences from the start: MEGA and bioinformatics/molecular-evolution instructors (distance labs), and intro-biology instructors (tree reading, v1.4d). Goal for spring 2027: at least one course actively using NeoPhylo. |
+| First pilots | No think-alouds before outreach (owner, 2026-11-23: not feasible in December); instead each early pilot's onboarding call is a think-aloud — watch the instructor set up their first assignment and fix what they trip on. |
 | — | Outreach: lab-handout search (`protdist`, `neighbor`, `seqboot`, `consense`, and MEGA labs), personalized emails with each lab's data loaded, about 10 per week; one phylogeneticist reviewer |
 | When outreach starts | First 2–3 pilots |
 | After the first pilot | **Submit one lesson to CourseSource/QUBES** with the pilot's classroom data |
@@ -273,13 +312,13 @@ results; notebook export (Jupyter/R Markdown).
 | After v2.0 | *BAMBED* paper with classroom data; conference demos (evolution or biochem education meetings) |
 | Before v3.0 | Letters of intent from 3 departments, or don't build the paid tier |
 
-Overall horizon (recalibrated 2026-11-18 from the observed pace; was 9–13 months to v2.0):
-- **v1.4d** about early December 2026; **v1.5** (instructor-ready, outreach starts) about late December
-  2026. First outreach emails land best in early January, while instructors finalize spring syllabi;
-  the first pilots are spring-semester courses.
-- **v1.7–v2.0** (powerhouse) about February–March 2027, if outreach and pilot support take no more
-  than a third of the owner's time.
-- **v2.1–v2.7** about mid-2027; v3.x only after letters of intent.
-- The VPAT (v1.5) lands well before the ADA Title II date of 2027-04-26.
+Overall horizon (recalibrated 2026-11-23 from the observed pace):
+- **v1.5** about 2026-12-05 to 12-08; **v1.6** mid-December 2026. Outreach emails from about
+  2027-01-05; first pilot labs February–April 2027 (spring semester).
+- **v1.7, v1.8** January–February 2027 at about one every two weeks. **v1.9, v2.0** (powerhouse) after
+  the first pilot's feedback, about spring 2027; driven by that feedback, not by a date.
+- **v2.1–v2.7** about mid-to-late 2027; v3.x only after letters of intent.
+- The VPAT (v1.5) lands well before the ADA Title II date (2027-04-26) and the HHS Section 504 date
+  (2027-05-11).
 These assume the current owner availability; outreach, pilot support and paper writing will compete
 for the same hours. **Re-plan after every pilot:** real classroom feedback outranks this list.
