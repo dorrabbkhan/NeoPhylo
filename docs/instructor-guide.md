@@ -30,6 +30,8 @@ A computer-lab session that runs the PHYLIP chain first, then repeats the analys
 5. [MEGA: Interpreting bootstrap support on 16S rRNA](?lab=mega-interpreting-support)
 6. [MEGA: NJ vs UPGMA on vertebrate globins](?lab=mega-nj-vs-upgma)
 
+If MEGA twelve closes when it builds a Neighbor-Joining tree from a small matrix, its saved thread count is higher than the number of taxa — a MEGA bug, not a problem with the file. Run any sequence analysis once, set **Number of Threads** to one under **System Resource Usage**, then build the tree again — or use MEGA-CC, which is unaffected.
+
 ## What an answer key contains
 
 Every key is computed by the engine when the page renders, at the precision the page displays — the values always match what the app computes for the same exercise.

@@ -9863,3 +9863,24 @@ stayed disabled.
   - `web/src/views/reading/QuestionControls.test.tsx`: the naming
     pin.
   - `web/e2e/reading.spec.ts`: the exact-name locator.
+
+## v1.4d Task 15 checkpoint finding — fix round 8 (owner command 2026-11-23: "add the MEGA thread-count tip to §22 and the instructor guide")
+
+Docs only, no product code: §22 of `v1.4d-release.md` records the
+owner-verified MEGA 12.1.4 GUI crash — *Phylogeny → Construct/Test
+Neighbor-Joining Tree* on a distance matrix with fewer taxa than
+MEGA's saved "Number of Threads" closes the GUI, the dialog itself
+can't change the count, and MEGA-CC is unaffected (a MEGA bug, not
+NeoPhylo's) — and `docs/instructor-guide.md` carries the
+teacher-facing workaround after the 3-hour lab plan ("MEGA twelve"
+spelled out to keep the guide's no-data-digits rule). The paragraph
+lengthens the guide page, so the six `guide-*` snapshot baselines
+were regenerated in the pinned image — no other baseline changed.
+
+- **Files this session changed outside the Task 15 Files block:**
+  - `docs/decisions.md`: this entry.
+  - `docs/instructor-guide.md`: the MEGA thread-count tip.
+  - `web/e2e/__screenshots__/guide-768x1024-{light,dark}-linux.png`,
+    `guide-1024x768-{light,dark}-linux.png`,
+    `guide-1920x1080-{light,dark}-linux.png`: regenerated for the
+    longer guide page.
