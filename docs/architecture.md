@@ -122,6 +122,22 @@ component, and serves a lazy-loaded reading area at `?read=<id>` (built-in
 sets in `exercises/reading/`) and `#r=` (shared, lz-compressed like `#x=`);
 the library lists them under `TypeKey` `"reading"`.
 
+### `assess` — assignments, variants and grading (v1.5)
+
+An **assignment** (`.neophylo-assignment.json`) wraps existing content — a
+built-in lesson, lab or reading set, or an editor exercise — with declared
+premises and 1–15 gradable tasks. The `assess/` module in `neophylo-core`
+(`hash`, `assignment`, `premise`, `variant`, `task`, `precision`, `code`,
+`grade`) runs the whole chain: `hash(assignment id, normalised student id)`
+seeds a **variant** of the content that must satisfy the premises (a retry
+loop, `fell_back` when none hold); each task's accepted **answer** is
+computed from that variant; the student's attempts pack into an `NP1-`
+completion **code**; and `grade` re-derives the variant from the id inside
+the code and scores it. Everything is deterministic across native, wasm and
+every browser. The web side adds the `#a=` student flow, an assignment
+builder in the editor, and the lazy-loaded `?grade` page that grades a
+whole class from an LMS CSV without anything leaving the browser.
+
 ## Determinism rules
 
 Shared links embed a seed and replay the whole pipeline, so results must be

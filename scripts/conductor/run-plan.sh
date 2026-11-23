@@ -51,65 +51,22 @@ cd "$ROOT"
 TOOLS="$HERE/headless-tools.txt"
 POLL_S="${RUN_PLAN_POLL_S:-300}"
 
-# --- the Task Index table as "id<TAB>model<TAB>has-conductor" per row ---
-# Columns are located by header name, so extra columns (Gate, Depends on,
-# …) can sit anywhere. The id column is "#" when the table has one, else
-# "Task".
-parse_index() {
-  awk '
-    /^##[[:space:]]+Task Index/ { inix=1; next }
-    inix && /^[[:space:]]*\|/ {
-      n = split($0, f, "|")
-      if (!hdr) {
-        for (i = 1; i <= n; i++) {
-          h = f[i]; gsub(/^[ \t]+|[ \t]+$/, "", h)
-          if (h == "#") cid = i
-          if (h == "Task") ctask = i
-          if (h == "Conductor") cmod = i
-        }
-        if (!cid) cid = ctask
-        hdr = 1; next
-      }
-      id = f[cid]; gsub(/^[ \t]+|[ \t]+$/, "", id)
-      if (id ~ /^-+$/) next
-      mod = cmod ? f[cmod] : ""
-      gsub(/^[ \t]+|[ \t]+$/, "", mod)
-      printf "%s\t%s\t%s\n", id, mod, (cmod ? 1 : 0)
-      next
-    }
-    inix && hdr { exit }
-  ' "$1"
-}
+# The Task Index parser (parse_index) and plan resolution (resolve_plan)
+# are shared with `plan-index.sh devin` — they live in plan-index.sh so
+# the table's columns are located by header name in exactly one place.
+# Rows are id<TAB>conductor<TAB>has-conductor<TAB>devin; run-plan.sh only
+# reads the first three fields.
+# shellcheck disable=SC1091
+source "$HERE/plan-index.sh"
 
 # --- resolve the plan file (PLAN_FILE override, else the *neophylo-<VER>-*
 #     plan whose Task Index contains both ids) ---
-if [ -n "${PLAN_FILE:-}" ]; then
-  PLAN="$PLAN_FILE"
-  [ -f "$PLAN" ] || { echo "run-plan.sh: PLAN_FILE $PLAN does not exist" >&2; exit 2; }
-else
-  PLAN=""
-  shopt -s nullglob
-  for f in "$ROOT"/docs/superpowers/plans/*neophylo-"$VER"-*.md; do
-    ids="$(parse_index "$f" | cut -f1)"
-    if grep -qx "$FROM" <<<"$ids" && grep -qx "$TO" <<<"$ids"; then
-      if [ -n "$PLAN" ]; then
-        echo "run-plan.sh: tasks $FROM and $TO appear in the Task Index of more than one plan ($PLAN, $f)" >&2
-        exit 2
-      fi
-      PLAN="$f"
-    fi
-  done
-  shopt -u nullglob
-  if [ -z "$PLAN" ]; then
-    echo "run-plan.sh: no plan under docs/superpowers/plans/*neophylo-$VER-*.md has both $FROM and $TO in its Task Index" >&2
-    exit 2
-  fi
-fi
+PLAN="$(resolve_plan "$VER" "$FROM" "$TO")" || exit 2
 [ -f "$TOOLS" ] || { echo "run-plan.sh: $TOOLS missing" >&2; exit 2; }
 
 mapfile -t INDEX < <(parse_index "$PLAN")
 [ "${#INDEX[@]}" -gt 0 ] || { echo "run-plan.sh: no Task Index table in $PLAN" >&2; exit 2; }
-HASCOL="${INDEX[0]##*$'\t'}"
+HASCOL="$(printf '%s' "${INDEX[0]}" | cut -f3)"
 
 IDS=(); MODS=()
 for row in "${INDEX[@]}"; do

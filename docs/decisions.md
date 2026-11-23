@@ -9884,3 +9884,71 @@ were regenerated in the pinned image — no other baseline changed.
     `guide-1024x768-{light,dark}-linux.png`,
     `guide-1920x1080-{light,dark}-linux.png`: regenerated for the
     longer guide page.
+
+## v1.5 Task 1: skills map, decisions, architecture, CHANGELOG, Devin model column
+
+- **Spec:** `docs/superpowers/specs/2026-11-18-neophylo-v1.5-classroom-assessment-design.md`
+  (revised and approved 2026-11-23); plan
+  `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md`; market update
+  `docs/market/2026-11-23-market-update.md`.
+- **Roadmap changes (owner, 2026-11-23):** the **v1.6** slot — left empty when
+  tree reading moved forward as v1.4d — is filled by the **landing page and
+  adoption kit**; the **navigation redesign and UI polish pass is v1.5
+  milestone 1**, so the new assignment and Grade pages are built in the new
+  style and the accessibility audit covers the final UI; development now
+  outruns feedback, so **v1.9 and v2.0 wait for the first pilot's feedback**
+  (they may be reordered by it); **outreach emails start from about
+  2027-01-05** (after v1.6, when instructors finalize spring syllabi); **no
+  think-alouds before outreach** (not feasible in December — each early
+  pilot's onboarding call serves as one instead).
+- **Devin model column:** the plan's Task Index gained a fifth column,
+  **Devin**, the model passed to `devin --model` for that task's task, review
+  and fix sessions — `swe-2-max` for every v1.5 task (SWE-2 is free and
+  unlimited on the owner's plan). `scripts/conductor/plan-index.sh devin
+  <version> <task>` prints it (empty when the plan has no Devin column);
+  `devin.sh` passes `--model "$DEVIN_MODEL"` when `DEVIN_MODEL` is set, else
+  the plan's value, else nothing — an explicit env wins, which is how the
+  conductor's one-time Opus fallback (`claude-opus-5-5-high`, counting toward
+  the two-round limit and recorded in the status comment) works.
+- **Devin is only ever the worker, never the conductor (owner, 2026-11-23):**
+  the owner rescoped Task 1 before it ran — Claude conducts every v1.5 task
+  (`Opus`/`Sonnet` per the Task Index's Conductor column; `Devin` stays an
+  invalid Conductor value and `run-plan.sh` exits 2 on it). The
+  Devin-conductor design the plan originally carried (the `neophylo-conduct`
+  skill, the `Devin` Conductor value, the `/pixel-check` visual hand-off and
+  the fallback rerun, and the post-merge spike) was dropped before
+  implementation: its declared "accepted risk" — one model family writing,
+  reviewing and judging the same code — is a risk the owner chose not to
+  take, so conducting stays with Claude on every task while SWE-2 does the
+  task, review and fix work. The plan file was edited in this PR to match.
+- **Decided in this plan:** see the plan's "Decided in this plan" list —
+  FNV-1a 64-bit written out in `assess/hash.rs` (variant seed, retry seeds,
+  `content_hash`, the 20-bit assignment fingerprint; pinned by
+  known-answer tests); CRC-16/CCITT-FALSE appended as 4 base32 symbols
+  detects any single changed code symbol; code text `NP1-` + Crockford
+  base32 grouped by 5, versions first; module layout
+  `assess/{mod,hash,assignment,premise,variant,task,precision,code,grade}.rs`
+  with `NeoError::InvalidAssignment` and `NeoError::InvalidCode`;
+  `assess/precision.rs` holds the display-precision table exported to TS
+  (round half away from zero); `GENERATOR_VERSION: u8 = 1` with golden
+  variants in `crates/neophylo-core/tests/assess_golden/` (owner gate on
+  change); routes `#a=` (lz-compressed like `#x=`/`#r=`), `?grade`, `?embed`
+  (also set when `window.top !== window.self`), extension
+  `.neophylo-assignment.json`, storage prefixes `neophylo:a:` and
+  `neophylo:draft:`; one ~20-symbol outline icon sprite at
+  `web/public/icons/ui.svg` (drawn for NeoPhylo or Lucide/ISC, which would
+  be listed in THIRD_PARTY_NOTICES and the Licenses page;
+  `web/public/icons.svg` deleted); `CHANGELOG.md` at the repo root in
+  Keep-a-Changelog format, `## [Unreleased]` for v1.5.
+- **Deviations from the plan's text:**
+  - The new test is `scripts/conductor/plan-index.test.ts`, not
+    `plan-index.test.mjs`: the existing `node --test
+    "scripts/conductor/*.test.ts"` line in `scripts/check.sh` and CI picks
+    it up unchanged (owner direction; `.github/workflows/` is also outside
+    the app's push permissions, so no CI edit was possible anyway).
+- **Files outside the Files block:**
+  - `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md` — edited to
+    match the owner's rescope (Devin conductor removed; Conductor column of
+    Tasks 6, 7, 9 and 12 set to `Sonnet`; test renamed `.test.ts`; Task 1
+    row and steps retitled).
+  - `docs/decisions.md` — this entry.
