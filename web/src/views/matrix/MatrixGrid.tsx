@@ -364,6 +364,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
       <div className="matrix-grid-actions">
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={addTaxon}
           disabled={names.length >= GRID_MAX_TAXA}
         >
@@ -383,6 +384,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
           </select>
           <button
             type="button"
+            className="btn btn-secondary"
             disabled={names.length <= GRID_MIN_TAXA}
             onClick={removeSelected}
           >
@@ -391,7 +393,7 @@ export function MatrixGrid({ value, onChange }: MatrixGridProps) {
         </span>
         <button
           type="button"
-          className="primary"
+          className="btn btn-primary"
           disabled={!ready}
           aria-describedby={ready ? undefined : statusId}
           onClick={build}

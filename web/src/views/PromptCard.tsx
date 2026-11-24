@@ -106,7 +106,7 @@ export function PromptCard({
       {answered && prompt.reveal_pair !== null && onShowPair !== undefined && (
         <button
           type="button"
-          className="prompt-show-pair"
+          className="prompt-show-pair btn btn-ghost"
           onClick={() => onShowPair(prompt.reveal_pair as [string, string])}
         >
           Show {prompt.reveal_pair[0]} vs {prompt.reveal_pair[1]}
@@ -137,7 +137,7 @@ export function PromptCard({
       {onContinue !== undefined && (
         <button
           type="button"
-          className="prompt-continue"
+          className="prompt-continue btn btn-primary"
           onClick={onContinue}
         >
           Continue

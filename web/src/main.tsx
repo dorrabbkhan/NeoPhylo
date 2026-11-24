@@ -4,6 +4,10 @@ import "./index.css";
 // v1.5 Task 2 (§16.2): the header navigation tray + phone sheet —
 // imported after index.css so its equal-specificity overrides win.
 import "./design/nav.css";
+// v1.5 Task 3 (§16.4): the four-variant button system — imported after
+// index.css so its equal-specificity rules win over the generic
+// button rule, like nav.css above.
+import "./design/buttons.css";
 import { BootstrapClient, bootstrapClient } from "./engine/bootstrapClient";
 import { engine } from "./engine";
 import { watchReadingLinks } from "./reading/hashWatch";

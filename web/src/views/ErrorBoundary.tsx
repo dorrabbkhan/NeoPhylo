@@ -36,7 +36,11 @@ export class ErrorBoundary extends Component<Props, State> {
           include it in a bug report — it captures the lesson, data and
           settings you were looking at.
         </p>
-        <button type="button" onClick={this.copyLink}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={this.copyLink}
+        >
           Copy link to this state
         </button>
       </div>

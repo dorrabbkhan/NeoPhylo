@@ -10,8 +10,9 @@
 // (visualScenes.ts), which settles fonts and scroll positions.
 
 import { test, expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
-import { SCENES } from "./visualScenes";
+import { SCENES, parkPointer } from "./visualScenes";
 
 const VIEWPORTS = [
   { w: 1920, h: 1080 },
@@ -63,6 +64,16 @@ for (const scene of SCENES) {
         // editor preview opens the exercise in a new tab (v1.4 Task
         // 10); that popup is the frame, not the editor page.
         const target = (await scene.setup(page)) ?? page;
+        // Fix round 1: the frame is the rest state — park the pointer
+        // off any interactive element so a setup's last click can't
+        // leave a hover lift/tint in the baseline.
+        if (scene.keepHover !== true) {
+          const shotPage: Page =
+            typeof (target as Locator).page === "function"
+              ? (target as Locator).page()
+              : (target as Page);
+          await parkPointer(shotPage);
+        }
         await expect(target).toHaveScreenshot(
           `${scene.name}-${vp.w}x${vp.h}-${theme}.png`,
           {

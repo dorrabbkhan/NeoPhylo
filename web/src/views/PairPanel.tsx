@@ -37,6 +37,7 @@ import { LikelihoodCurve } from "./LikelihoodCurve";
 import { MathLine } from "./MathLine";
 import { ModeToggle } from "./ModeToggle";
 import { Sheet } from "./Sheet";
+import { Icon } from "./nav/Icon";
 
 export interface PairPanelProps {
   /** The protein alignment the pair was picked from. */
@@ -113,11 +114,11 @@ export function PairPanel({
           <ModeToggle mode={mode} dispatch={dispatch} />
           <button
             type="button"
-            className="close"
+            className="close btn btn-icon"
             aria-label="Close pair details"
             onClick={onClose}
           >
-            ×
+            <Icon name="close" />
           </button>
         </header>
 

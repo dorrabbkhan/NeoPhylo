@@ -16,6 +16,7 @@ import { useEffect, useRef } from "react";
 
 import type { DistanceInput } from "../../engine/generated/DistanceInput";
 import { Sheet } from "../Sheet";
+import { Icon } from "../nav/Icon";
 
 import { MatrixGrid } from "./MatrixGrid";
 
@@ -69,11 +70,11 @@ export function MatrixGridSheet({
           <h2 id="matrix-sheet-title">Distance matrix</h2>
           <button
             type="button"
-            className="close"
+            className="close btn btn-icon"
             aria-label="Close the matrix grid"
             onClick={onClose}
           >
-            ×
+            <Icon name="close" />
           </button>
         </header>
         <MatrixGrid value={value} onChange={onChange} />

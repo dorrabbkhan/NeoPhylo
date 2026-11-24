@@ -57,6 +57,7 @@ import { errorMessage } from "../../explain/errors";
 import { listLabs, loadLab } from "../../labs/registry";
 import type { LabSummary } from "../../labs/registry";
 import { LabPickList } from "../labs/LabIndex";
+import { Icon } from "../nav/Icon";
 import { Sheet } from "../Sheet";
 
 import { BranchTable } from "./BranchTable";
@@ -406,17 +407,33 @@ export function EditorPanel({ model }: EditorPanelProps) {
         the exercise.
       </p>
       <div className="editor-actions">
-        <button type="button" onClick={onSave} disabled={!canSave}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onSave}
+          disabled={!canSave}
+        >
           Save file
         </button>
-        <button type="button" onClick={onShare} disabled={!canSave}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onShare}
+          disabled={!canSave}
+        >
           Share link
         </button>
-        <button type="button" onClick={onPreview} disabled={!canSave}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onPreview}
+          disabled={!canSave}
+        >
           Preview
         </button>
         <button
           type="button"
+          className="btn btn-secondary"
           aria-haspopup="dialog"
           onClick={() => {
             setPendingLab(null);
@@ -436,6 +453,7 @@ export function EditorPanel({ model }: EditorPanelProps) {
         </label>
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() => onImport(importText)}
           disabled={importText.trim() === ""}
         >
@@ -454,7 +472,10 @@ export function EditorPanel({ model }: EditorPanelProps) {
             aria-label="Import an exercise file"
             onChange={onImportFile}
           />
-          <label htmlFor="editor-import-file" className="import-file-btn">
+          <label
+            htmlFor="editor-import-file"
+            className="import-file-btn btn btn-secondary"
+          >
             Import file…
           </label>
           {importFileName !== null && (
@@ -495,10 +516,18 @@ export function EditorPanel({ model }: EditorPanelProps) {
         <DrawCanvas model={model} />
         {compact ? (
           <div className="editor-view-buttons">
-            <button type="button" onClick={() => setSheet("newick")}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setSheet("newick")}
+            >
               Newick tree
             </button>
-            <button type="button" onClick={() => setSheet("table")}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setSheet("table")}
+            >
               Branch lengths
             </button>
           </div>
@@ -545,11 +574,11 @@ export function EditorPanel({ model }: EditorPanelProps) {
             <h2 id="editor-sheet-newick-title">Newick tree</h2>
             <button
               type="button"
-              className="close"
+              className="close btn btn-icon"
               aria-label="Close the Newick tree view"
               onClick={() => setSheet(null)}
             >
-              ×
+              <Icon name="close" />
             </button>
           </header>
           <NewickView
@@ -568,11 +597,11 @@ export function EditorPanel({ model }: EditorPanelProps) {
             <h2 id="editor-sheet-table-title">Branch lengths</h2>
             <button
               type="button"
-              className="close"
+              className="close btn btn-icon"
               aria-label="Close the branch-length table"
               onClick={() => setSheet(null)}
             >
-              ×
+              <Icon name="close" />
             </button>
           </header>
           <BranchTable
@@ -594,14 +623,14 @@ export function EditorPanel({ model }: EditorPanelProps) {
             <h2 id="lab-picker-title">Labs</h2>
             <button
               type="button"
-              className="close"
+              className="close btn btn-icon"
               aria-label="Close the labs list"
               onClick={() => {
                 setLabSheet(false);
                 setPendingLab(null);
               }}
             >
-              ×
+              <Icon name="close" />
             </button>
           </header>
           {pendingLab !== null ? (
@@ -614,12 +643,14 @@ export function EditorPanel({ model }: EditorPanelProps) {
               <div className="lab-confirm-actions">
                 <button
                   type="button"
+                  className="btn btn-primary"
                   onClick={() => doLoadLab(pendingLab.id)}
                 >
                   Replace my work
                 </button>
                 <button
                   type="button"
+                  className="btn btn-secondary"
                   onClick={() => setPendingLab(null)}
                 >
                   Keep my work

@@ -310,6 +310,7 @@ export function Controls({
         />
         <button
           type="button"
+          className="btn btn-secondary"
           disabled={simDisabled || isLocked("sim.seed")}
           title={simTitle("sim.seed")}
           onClick={() =>

@@ -63,7 +63,9 @@ export function NewLeafForm({ onSubmit, onCancel }: NewLeafFormProps) {
         onChange={(e) => setName(e.target.value)}
         onKeyDown={onKeyDown}
       />
-      <button type="submit">Add leaf</button>
+      <button type="submit" className="btn btn-primary">
+        Add leaf
+      </button>
     </form>
   );
 }

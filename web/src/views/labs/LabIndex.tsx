@@ -54,7 +54,11 @@ export function LabPickList({
               {lab.chain.join(" → ")}
             </span>
           </span>
-          <button type="button" onClick={() => onLoadLab(lab)}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => onLoadLab(lab)}
+          >
             Load this lab
           </button>
         </li>

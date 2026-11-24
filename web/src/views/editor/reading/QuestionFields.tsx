@@ -205,7 +205,7 @@ export function QuestionFields({
               </label>
               <button
                 type="button"
-                className="rde-chip-x"
+                className="rde-chip-x btn btn-ghost"
                 onClick={() =>
                   onChange({
                     ...q,
@@ -222,6 +222,7 @@ export function QuestionFields({
           ))}
           <button
             type="button"
+            className="btn btn-secondary"
             onClick={() => onChange({ ...q, options: [...q.options, ""] })}
           >
             Add option
@@ -285,7 +286,7 @@ export function QuestionFields({
               </label>
               <button
                 type="button"
-                className="rde-chip-x"
+                className="rde-chip-x btn btn-ghost"
                 onClick={() =>
                   onChange({
                     ...q,
@@ -305,6 +306,7 @@ export function QuestionFields({
           ))}
           <button
             type="button"
+            className="btn btn-secondary"
             onClick={() => onChange({ ...q, reasons: [...q.reasons, ""] })}
           >
             Add reason

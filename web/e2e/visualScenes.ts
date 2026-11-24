@@ -86,6 +86,45 @@ export async function settleFrame(page: Page): Promise<void> {
   });
 }
 
+/** Baselines show the rest state (v1.5 Task 3 fix round 1): the mouse
+ * stays where a setup's last click left it, and .btn's hover lift and
+ * tint ride the real pointer — editor-prompts' "Add note" went into
+ * its frame lifted and tinted that way. Park the pointer on the first
+ * scanned point elementFromPoint reports as non-interactive and
+ * outside the header; a scene whose frame IS a hover state
+ * (header-label-expanded) sets `keepHover` so the spec skips this. */
+export async function parkPointer(page: Page): Promise<void> {
+  const spot = await page.evaluate(() => {
+    const INTERACTIVE =
+      'a[href], button, input, select, textarea, summary,' +
+      ' [role="button"], [role="link"], [role="menuitem"],' +
+      ' [role="menuitemradio"], [role="tab"], [role="radio"],' +
+      ' [role="switch"], [role="option"], [contenteditable="true"]';
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const xs = [0.02, 0.5, 0.98].map((f) =>
+      Math.max(0, Math.min(w - 1, Math.round(w * f))),
+    );
+    const ys = [0.5, 0.75, 0.25].map((f) =>
+      Math.max(0, Math.min(h - 1, Math.round(h * f))),
+    );
+    for (const y of ys) {
+      for (const x of xs) {
+        const el = document.elementFromPoint(x, y);
+        if (
+          el !== null &&
+          el.closest("header") === null &&
+          el.closest(INTERACTIVE) === null
+        ) {
+          return [x, y];
+        }
+      }
+    }
+    return null;
+  });
+  if (spot !== null) await page.mouse.move(spot[0], spot[1]);
+}
+
 /** Run `fn` against the controls: the wide layout's column directly,
  * or — below 1280 px (Task 10, spec §6.4) — the Settings drawer the
  * header button opens, closed again afterwards so the scene's frame
@@ -342,6 +381,10 @@ export const SCENES: {
   /** Shoot the whole scrollable page, not just the viewport (the lab
    * print scene — the handout and PHYLIP note run below the fold). */
   fullPage?: boolean;
+  /** The frame IS a hover state — skip the spec's parkPointer before
+   * the shot (header-label-expanded pins the tray item's label slide;
+   * parking would collapse it back to rest). */
+  keepHover?: boolean;
 }[] = [
   {
     // Rooted on the reference's outgroup (the default view).
@@ -1616,6 +1659,9 @@ export const SCENES: {
      themes, the slide fully settled before the shot. */
   {
     name: "header-label-expanded",
+    // The recorded frame is the hover-expanded tray label — parking
+    // the pointer would collapse the slide the scene exists to pin.
+    keepHover: true,
     setup: async (page) => {
       await page.goto("/?lesson=nj-basics");
       await waitForApp(page);

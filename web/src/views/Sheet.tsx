@@ -33,8 +33,11 @@ export interface SheetProps {
   children: ReactNode;
 }
 
+// `a[href]`, not bare `[href]`: the sprite's <use href="ui.svg#id"> also
+// carries the attribute and is unfocusable — picking it left focus
+// outside the dialog and killed Esc (v1.5 Task 3 icons in buttons).
 const FOCUSABLE =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export function Sheet({
   className,

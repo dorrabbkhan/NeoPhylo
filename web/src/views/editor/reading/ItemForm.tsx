@@ -128,7 +128,7 @@ export function ItemForm({
         </label>
         <button
           type="button"
-          className="rde-chip-x"
+          className="rde-chip-x btn btn-ghost"
           aria-label={`Remove item ${item.id}`}
           onClick={onRemove}
         >

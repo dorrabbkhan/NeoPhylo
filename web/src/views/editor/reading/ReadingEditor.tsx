@@ -367,7 +367,7 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
             onEditCanvas={() => editOnCanvas(i)}
           />
         ))}
-        <button type="button" onClick={addTree}>
+        <button type="button" className="btn btn-secondary" onClick={addTree}>
           Add tree
         </button>
       </section>
@@ -389,7 +389,11 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
               ))}
             </select>
           </label>
-          <button type="button" onClick={addItem}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={addItem}
+          >
             Add item
           </button>
         </div>

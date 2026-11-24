@@ -149,7 +149,7 @@ export function PickedField({
     <p className="rde-picked">
       <span className="rde-picked-label">{label}:</span> {text}
       {value !== undefined && (
-        <button type="button" className="rde-chip-x" onClick={onClear}>
+        <button type="button" className="rde-chip-x btn btn-ghost" onClick={onClear}>
           Clear
         </button>
       )}

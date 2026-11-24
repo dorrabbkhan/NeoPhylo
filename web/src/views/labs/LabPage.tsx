@@ -134,18 +134,22 @@ function LabContent({ lab }: { lab: LabExercise }) {
         </p>
       </header>
       <div className="lab-controls">
-        <a className="lab-load" href={appHref}>
+        <a className="lab-load btn btn-primary" href={appHref}>
           Load this lab
         </a>
         {lab.shipped && (
           <a
-            className="lab-file"
+            className="lab-file btn btn-secondary"
             href={`${import.meta.env.BASE_URL}exercises/labs/${encodeURIComponent(lab.fileName)}`}
           >
             Exercise file
           </a>
         )}
-        <button type="button" onClick={() => window.print()}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => window.print()}
+        >
           Print handout
         </button>
       </div>
