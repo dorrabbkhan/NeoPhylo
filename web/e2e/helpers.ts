@@ -11,9 +11,12 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Wait until the app has loaded a lesson (session !== null renders .app). */
+/** Wait until the app has loaded a lesson (session !== null renders .app).
+ * The 30 s covers a cold dev server — the pinned container compiles the
+ * route's modules on first hit, which can outlast the 5 s expect
+ * default on a slow host. */
 export async function waitForApp(page: Page): Promise<void> {
-  await expect(page.locator(".app")).toBeVisible();
+  await expect(page.locator(".app")).toBeVisible({ timeout: 30_000 });
 }
 
 /** Wait until an ACTIVATED service worker exists (precache complete).

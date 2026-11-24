@@ -10083,3 +10083,73 @@ were regenerated in the pinned image — no other baseline changed.
 - **Not done on purpose:** `presenter.spec.ts` and `a11y.spec.ts` were in
   the modify list but needed no edits — presenter-hides-Settings and the
   axe coverage hold under the new structure unchanged.
+
+## v1.5 Task 3: UI polish pass
+
+- **Spec:** `docs/superpowers/specs/2026-11-18-neophylo-v1.5-classroom-assessment-design.md`
+  §16.4–16.5; plan `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md`;
+  conductor's calls in `docs/conductor/notes/v1.5/task3.md` (authoritative
+  where the plan file's text differs).
+- **What counts as a "button" for the four-class sweep (conductor's call,
+  verbatim):** `<button>` elements and `<a>` elements styled as buttons.
+  Excluded — they keep their own component styling, and must still use
+  tokens and a visible focus ring — elements with `role` `menuitem`,
+  `menuitemradio`, `tab`, `radio`, `switch` or `option`, form
+  inputs/sliders, and links that read as text links. The rule is encoded
+  as the named constant `SWEPT_BUTTON` in `web/e2e/polish.spec.ts`, and
+  controls that read as text links carry the marker class `.text-link`
+  (`.guide-link`, `.revisit`), which the selector excludes.
+- **The header, tray, More/Lessons menus, mode pill and phone sheet stay
+  Task 2's (owner-approved):** the sweep's `OUT_OF_SCOPE` selector skips
+  `.app-header` and `.phone-sheet` descendants. The pair panel and
+  replicate panel are likewise outside this pass's reach (`.pair-panel`
+  — unless it is one of the two guide sheets, which reuse that class —
+  and `.replicate-panel`); their sheet chrome still adopts the classes
+  so every sheet's close button and nav share the one look.
+- **Variants used:** `btn-primary` for each group's forward action
+  (Import, the confirm's requested action, the stepper's Play, the
+  prompt's Continue, the tour's Next); `btn-secondary` for the bordered
+  default; `btn-ghost` for quiet affordances (dataset rows, prompt
+  Show pair, replicate nav, tour Back/Skip); `btn-icon` for the square
+  36 px sheet-close buttons. Added glyphs come only from the existing
+  `ui.svg` sprite (prev/play/pause/next, download, close, labs, back)
+  and are `aria-hidden` beside unchanged label text.
+- **Controls column:** "How sure are we?" and "Export" keep their
+  existing `<h2>` wording and become equal-width stacked groups
+  (`.bootstrap-actions`, `.export-buttons` → column flex, stretch);
+  polish.spec.ts asserts widths equal within 1 px and no mid-word
+  label wraps at 1024/1280/1920.
+- **Token rule enforced in CI:** `design/buttonsCss.test.ts` fails on
+  any `var(--…)` in the touched stylesheets that `tokens.ts` does not
+  define (the `--color-surface2` regression from Task 2). Deeper
+  hover/active shades use `color-mix()` on `--color-accent`, the
+  allowed derivation — no new colours, no font changes.
+- **Motion:** hover lift is `translateY(-1px)` over 120 ms; the
+  `prefers-reduced-motion: reduce` block repeats the `:not(:disabled)`
+  guards so its `transform: none`/`transition-duration: 0s` beats the
+  live-state rules on specificity.
+- **Files outside the Files block:**
+  - `web/src/design/buttonsCss.test.ts` — the conductor's-call token
+    unit test (the task's Create list names only the two files above).
+  - `web/src/main.tsx` — imports `design/buttons.css` after index.css so
+    equal-specificity rules win, the Task-2 nav.css pattern.
+  - `web/src/views/App.tsx` — hosts the reroot toggle and the
+    leave-for-library confirm's buttons; both are swept surfaces.
+  - `web/src/views/{AlphabetBadge,ExplanationPanel,ImportPanel,
+    ModeToggle,PromptCard,TeachingNotices,ErrorBoundary}.tsx` — buttons
+    on the swept `?lesson`/sandbox surfaces (the block names the
+    stepper alone; the sweep covers every page-content button).
+    `ImportPanel` is a controls-column section; `ModeToggle`'s radios
+    are sweep-excluded but keep the token styling.
+  - `web/src/views/{PairPanel,ReplicatePanel,PhylipHelp}.tsx` — sheet
+    chrome: `×` → sprite `close` icon buttons, replicate nav to
+    `btn-ghost`, the PHYLIP guide's text links marked. PhylipHelp is a
+    guide sheet — in reach under "guides" though the block names only
+    MegaHelp.
+  - `web/src/views/matrix/**` — the matrix session's controls column
+    and its sheets, swept on `?lesson` matrix sessions and the grid
+    dialog.
+  - `web/e2e/helpers.ts` — `waitForApp`'s visibility timeout raised to
+    30 s: a cold dev server in the pinned container compiles the
+    route's modules on first hit and can outlast the 5 s default.
+  - `docs/decisions.md` — this entry.
