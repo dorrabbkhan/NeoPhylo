@@ -145,6 +145,28 @@ test("sweep: sandbox, the dataset sheet and its confirm", async ({
   await expect(sheet).toBeVisible();
   await expectSweep(page, "dataset sheet");
 
+  // Fix round 1: the rows are list items, not centred buttons — every
+  // row's title sits at the row's content-box left edge (±2 px).
+  const rows = sheet.locator(".dataset-open");
+  const deltas = await rows.evaluateAll((els) =>
+    els.map((el) => {
+      const cs = getComputedStyle(el);
+      const contentLeft =
+        el.getBoundingClientRect().left +
+        parseFloat(cs.borderLeftWidth) +
+        parseFloat(cs.paddingLeft);
+      const titleLeft =
+        el
+          .querySelector(".dataset-title")
+          ?.getBoundingClientRect().left ?? Number.NaN;
+      return Math.abs(titleLeft - contentLeft);
+    }),
+  );
+  expect(deltas.length, "the sheet listed dataset rows").toBeGreaterThan(0);
+  for (const d of deltas) {
+    expect(d, "dataset row title at the content-box left").toBeLessThanOrEqual(2);
+  }
+
   // With imported data the pick asks before replacing — the confirm's
   // two buttons are swept too.
   await sheet.locator(".dataset-open").first().click();

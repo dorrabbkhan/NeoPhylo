@@ -10158,3 +10158,28 @@ were regenerated in the pinned image — no other baseline changed.
     disabled button as the "first focusable" — focus never entered the
     replicate sheet and Esc could not close it.
   - `docs/decisions.md` — this entry.
+
+**Fix round 1 (PR #186):**
+
+- `web/public/icons/ui.svg` — Task 2 drew the sprite and the Files
+  block does not name it, but the `next` symbol shipped broken
+  (`m9 18 6-6 6-6`, a straight diagonal — visible as a "/" slash in
+  the stepper, replicate panel and tour once this task stamped it);
+  corrected to the mirror of `prev`, `m9 18 6-6-6-6`.
+- `web/src/design/sprite.test.ts` — new unit test pinning the `prev`
+  and `next` path data exactly.
+- `web/e2e/visualScenes.ts`, `web/e2e/visual.spec.ts` — baselines must
+  show the rest state: `parkPointer` moves the mouse to a scanned
+  non-interactive, non-header point before every shot (the
+  editor-prompts baseline had captured "Add note" lifted on hover);
+  `header-label-expanded` carries `keepHover` because its frame IS the
+  tray item's hover slide.
+- `web/src/index.css` — `.dataset-list .dataset-open` gains
+  `align-items/justify-content: flex-start` and `text-align: start`:
+  the rows are list items, not centred buttons (the title, size line
+  and description had centred under `.btn`'s centering). DatasetSheet
+  is a named Modify file; its row rule lives in index.css.
+- Assertions added to `web/e2e/polish.spec.ts` (a Create file): the
+  open dataset sheet asserts each row's title `getBoundingClientRect()
+  .left` equals the row's content-box left within 2 px. No existing
+  assertion was removed or rewritten.
