@@ -16,9 +16,9 @@
 //! - `predict_branch` answers with the least-supported grouping of
 //!   the variant's own seeded bootstrap run — the run the app shows
 //!   (`bootstrap_batch_filtered` under the exercise's analysis, the
-//!   variant's seed, ≤ 200 replicates). A pick is correct when its
-//!   support is within 5 points of the weakest grouping's — the same
-//!   rule the lesson verdict applies
+//!   seed and replicates in `content.bootstrap`, ≤ 200 replicates).
+//!   A pick is correct when its support is within 5 points of the
+//!   weakest grouping's — the same rule the lesson verdict applies
 //!   (`web/src/views/App.tsx:1114-1117`).
 
 use std::collections::{BTreeMap, HashMap};
@@ -612,15 +612,21 @@ fn branch_run(variant: &Variant) -> Result<BranchRun, NeoError> {
     };
     let aln = exercise_alignment(ex)?;
     let filter = ex.analysis.site_filter.unwrap_or(SiteFilter::Pairwise);
-    // Spec §5.6: bootstrap tasks fix the settings — the exercise's own
-    // replicates, capped at 200, and the variant's seed.
-    let replicates = ex.bootstrap.map(|b| b.replicates).unwrap_or(100).min(200);
+    // Spec §5.6: bootstrap tasks fix the settings — replicates and
+    // seed come from the variant content's own `bootstrap` block (the
+    // single source the app's panel reads — never `variant.seed`); a
+    // variant without one falls back to the app's defaults
+    // (`web/src/state/bootstrap.ts`: 100 replicates, seed 1).
+    let (replicates, seed) = ex
+        .bootstrap
+        .map(|b| (b.replicates.min(200), b.seed))
+        .unwrap_or((100, 1));
     let tally = bootstrap_batch_filtered(
         &aln,
         ex.analysis.correction,
         ex.analysis.method,
         filter,
-        variant.seed,
+        seed,
         0,
         replicates,
     )?;

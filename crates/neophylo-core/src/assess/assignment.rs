@@ -43,17 +43,22 @@ impl Content {
 }
 
 /// The variant one student works (spec §5.2): the transformed
-/// content, the attempt seed it grew from — also the bootstrap seed
-/// `predict_branch` tasks rerun — the retry attempt that satisfied
-/// every premise (0 = the seed itself), and whether all retries
-/// failed so the base is served. `retry` is always in `0..=50`.
+/// content — carrying the per-student `bootstrap` block on an
+/// exercise with an alignment — the JS-safe bootstrap seed, the retry
+/// attempt that satisfied every premise (0 = the seed itself), and
+/// whether all retries failed so the base is served. `retry` is
+/// always in `0..=50`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Variant {
     pub content: Content,
-    /// The attempt seed used — the variant's bootstrap seed. `seed`
-    /// itself on retry 0, a `retry_seed` otherwise, the student seed
-    /// again when `fell_back`.
+    /// The variant's bootstrap seed: the attempt seed masked to
+    /// `sim::MAX_SEED` (2^53 − 1) so it survives the JS `number`
+    /// round trip — `seed & MAX_SEED` on retry 0, a masked
+    /// `retry_seed` otherwise, the masked student seed again when
+    /// `fell_back`. `content.bootstrap.seed` carries the same value
+    /// on an exercise with an alignment; `predict_branch` reads the
+    /// block, never this field.
     #[ts(type = "number")]
     pub seed: u64,
     pub retry: u8,

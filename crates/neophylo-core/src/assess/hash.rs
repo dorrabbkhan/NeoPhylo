@@ -23,8 +23,10 @@ pub fn fnv1a64(bytes: &[u8]) -> u64 {
 }
 
 /// The unit separator joining assignment id and student id in the
-/// variant-seed recipe — a byte that can never appear inside either
-/// string, so the pair hashes unambiguously.
+/// variant-seed recipe. `normalise_id` does not strip control
+/// characters, but no id a student can type carries `\x1f`, so the
+/// pair hashes unambiguously in practice; a crafted id that did
+/// contain the byte would only change its own seed.
 const SEP: u8 = 0x1f;
 
 /// How a student id string is normalised before hashing. The default

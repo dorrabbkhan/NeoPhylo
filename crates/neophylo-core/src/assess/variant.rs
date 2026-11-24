@@ -9,9 +9,10 @@
 //!   tree's tips are relabelled by a seeded permutation of the
 //!   exercise's own taxon names and the tree is rotated.
 //! - `Matrix` with `reference.kind == "true"` — *derived*: a seeded
-//!   random tree on the same taxa, its additive (patristic) matrix
-//!   rounded to the author's decimals (see [`author_decimals`]); the
-//!   generated tree becomes the true reference.
+//!   random tree on the same taxa whose branch lengths are rounded to
+//!   the author's decimals (see [`author_decimals`]); the variant's
+//!   matrix is that tree's exact path-length matrix and the generated
+//!   tree becomes the true reference.
 //! - `Matrix` without a true reference, `Embedded` data and labs —
 //!   *fixed*: data is unchanged; only the bootstrap seed comes from
 //!   the variant.
@@ -23,6 +24,12 @@
 //! `Variant.retry` records the attempt used (0 = the seed itself); a
 //! `fell_back` variant carries the base content with `retry = 0`. A
 //! premise that cannot apply is `InvalidAssignment`, not a retry.
+//!
+//! The bootstrap seed is the attempt seed masked to
+//! [`sim::MAX_SEED`](crate::sim::MAX_SEED) (2^53 − 1) so it survives a
+//! JS `number` round trip; every served variant carries it — on the
+//! content's `bootstrap` block for an exercise with an alignment
+//! (spec §5.6), and as `Variant.seed` always.
 
 use rand_chacha::ChaCha8Rng;
 use rand_core::{RngCore, SeedableRng};
@@ -34,7 +41,7 @@ use crate::assess::hash::{retry_seed, sub_seed};
 use crate::assess::premise::{premises_hold, Premise};
 use crate::dist::{compute_filtered, DistanceMatrix};
 use crate::error::NeoError;
-use crate::exercise::{Exercise, ExerciseData, Reference, ReferenceKind};
+use crate::exercise::{Exercise, ExerciseBootstrap, ExerciseData, Reference, ReferenceKind};
 use crate::matrix_input::{additive_matrix, DistanceInput};
 use crate::newick::{parse_newick, write_newick};
 use crate::reading;
@@ -60,8 +67,8 @@ pub fn make_variant(
 ) -> Result<Variant, NeoError> {
     if !vary {
         return Ok(Variant {
-            content: base.clone(),
-            seed,
+            content: with_bootstrap(base.clone(), seed & MAX_SEED),
+            seed: seed & MAX_SEED,
             retry: 0,
             fell_back: false,
         });
@@ -76,8 +83,8 @@ pub fn make_variant(
         match premises_hold(&candidate, premises) {
             Ok(true) => {
                 return Ok(Variant {
-                    content: candidate,
-                    seed: s,
+                    content: with_bootstrap(candidate, s & MAX_SEED),
+                    seed: s & MAX_SEED,
                     retry: attempt,
                     fell_back: false,
                 })
@@ -92,11 +99,36 @@ pub fn make_variant(
         }
     }
     Ok(Variant {
-        content: base.clone(),
-        seed,
+        content: with_bootstrap(base.clone(), seed & MAX_SEED),
+        seed: seed & MAX_SEED,
         retry: 0,
         fell_back: true,
     })
+}
+
+/// The per-student bootstrap block a served variant carries (spec
+/// §5.6): on an exercise with an alignment (`Simulated`, `Embedded` —
+/// labs included) `content.bootstrap` is set to the base's replicates
+/// (default 100) capped at 200 and `bootstrap_seed` — already masked
+/// to [`MAX_SEED`] by the caller. The block is the single source
+/// `predict_branch` and the app's panel both read. Matrix exercises
+/// and reading sets carry no bootstrap block.
+fn with_bootstrap(content: Content, bootstrap_seed: u64) -> Content {
+    let Content::Exercise(ex) = &content else {
+        return content;
+    };
+    if !matches!(
+        ex.data,
+        ExerciseData::Simulated { .. } | ExerciseData::Embedded { .. }
+    ) {
+        return content;
+    }
+    let mut ex = ex.clone();
+    ex.bootstrap = Some(ExerciseBootstrap {
+        replicates: ex.bootstrap.map_or(100, |b| b.replicates).min(200),
+        seed: bootstrap_seed,
+    });
+    Content::Exercise(ex)
 }
 
 /// The content transform for one attempt seed.
@@ -182,9 +214,11 @@ fn transform_simulated(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
 }
 
 /// A matrix exercise derived from a tree (§5.2): a seeded random
-/// binary tree on the exercise's own taxa, its additive matrix
-/// rounded to the author's decimals, and the generated tree as the
-/// new true reference.
+/// binary tree on the exercise's own taxa with branch lengths rounded
+/// to the author's decimals, its *exact* path-length matrix — so the
+/// served matrix is additive and the lesson note "every distance is
+/// the exact path between two tips of that tree" stays true — and the
+/// generated tree as the new true reference.
 fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
     let ExerciseData::Matrix {
         names,
@@ -197,9 +231,9 @@ fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoErr
             msg: "transform_derived_matrix called on non-matrix data".to_string(),
         });
     };
-    let tree = random_tree(names, sub_seed(seed, "tree"));
     let d = author_decimals(lower);
-    let input = additive_matrix(&tree, Some(d))?;
+    let tree = random_tree(names, sub_seed(seed, "tree"), d);
+    let input = additive_matrix(&tree, None)?;
     let mut out = ex.clone();
     out.data = ExerciseData::Matrix {
         names: input.names,
@@ -216,8 +250,10 @@ fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoErr
 /// The decimals the authored matrix carries: the smallest `d` in
 /// `0..=6` that leaves every `lower` value unchanged when rounded to
 /// `d` places (the author's own rounding — spec §5.2 "rounded as the
-/// author set"). Rounding uses the same `libm` round `additive_matrix`
-/// applies.
+/// author set"). A derived variant rounds every generated branch
+/// length to `d`, so both the reference newick and the path lengths
+/// carry the author's decimals. Rounding uses the same `libm` round
+/// `additive_matrix` applies.
 fn author_decimals(lower: &[f64]) -> u8 {
     'outer: for d in 0..=6u8 {
         let scale = libm::pow(10.0, f64::from(d));
@@ -232,11 +268,15 @@ fn author_decimals(lower: &[f64]) -> u8 {
 }
 
 /// A seeded random rooted binary tree over `names` (permuted onto the
-/// leaves) with branch lengths uniform in `[1, 10)`. Draws are
+/// leaves) with branch lengths uniform in `[1, 10)`, each rounded to
+/// `decimals` places and floored at `10^-decimals` so no length is
+/// zero. Rounded lengths make the tree's path-length matrix exactly
+/// additive at the author's decimals — the matrix is computed with
+/// `additive_matrix(&tree, None)`, never re-rounded. Draws are
 /// consumed in a fixed order — a name shuffle, then per join the two
 /// members and their two lengths — so a seed always yields the same
 /// tree.
-fn random_tree(names: &[String], seed: u64) -> Tree {
+fn random_tree(names: &[String], seed: u64, decimals: u8) -> Tree {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let mut perm = names.to_vec();
     for i in (1..perm.len()).rev() {
@@ -248,8 +288,11 @@ fn random_tree(names: &[String], seed: u64) -> Tree {
         .iter()
         .map(|n| tree.add_node(Some(n.clone())))
         .collect();
-    let len =
-        |rng: &mut ChaCha8Rng| 1.0 + 9.0 * (rng.next_u64() as f64) / 18_446_744_073_709_551_616.0;
+    let scale = libm::pow(10.0, f64::from(decimals));
+    let len = |rng: &mut ChaCha8Rng| {
+        let raw = 1.0 + 9.0 * (rng.next_u64() as f64) / 18_446_744_073_709_551_616.0;
+        (libm::round(raw * scale) / scale).max(1.0 / scale)
+    };
     while active.len() > 1 {
         let i = (rng.next_u64() % active.len() as u64) as usize;
         let mut j = (rng.next_u64() % (active.len() as u64 - 1)) as usize;
