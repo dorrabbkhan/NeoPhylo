@@ -10152,4 +10152,9 @@ were regenerated in the pinned image — no other baseline changed.
   - `web/e2e/helpers.ts` — `waitForApp`'s visibility timeout raised to
     30 s: a cold dev server in the pinned container compiles the
     route's modules on first hit and can outlast the 5 s default.
+  - `web/src/views/Sheet.tsx` — one selector character, `a[href]` for
+    the old bare `[href]` in `FOCUSABLE`: icons put `<use href>` inside
+    buttons, and the bare selector picked the unfocusable `<use>` of a
+    disabled button as the "first focusable" — focus never entered the
+    replicate sheet and Esc could not close it.
   - `docs/decisions.md` — this entry.

@@ -20,7 +20,12 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { readStep, waitForApp } from "./helpers";
+import {
+  answerPredictPrompt,
+  readStep,
+  stepToEnd,
+  waitForApp,
+} from "./helpers";
 
 import { contrastRatio } from "../src/design/contrast";
 
@@ -126,6 +131,15 @@ test("sweep: sandbox, the dataset sheet and its confirm", async ({
   ).toBeVisible();
   await expectSweep(page, "sandbox");
 
+  // The replace confirm only exists while the sandbox holds data —
+  // import a sample first (the empty state unmounts once it lands).
+  await page
+    .getByRole("button", { name: "Weak-support example (DNA)" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Weak-support example (DNA)" }),
+  ).toHaveCount(0);
+
   await page.getByRole("button", { name: "Open dataset…" }).click();
   const sheet = page.getByRole("dialog", { name: "Open dataset" });
   await expect(sheet).toBeVisible();
@@ -184,8 +198,9 @@ test("sweep: the matrix grid sheet in the sandbox", async ({ page }) => {
 });
 
 test("sweep: the editor page and its sheets", async ({ page }) => {
-  // Below 1280 the Newick/branch views open as sheets (compact).
-  await page.setViewportSize({ width: 1024, height: 800 });
+  // Below 1024 (narrow/compact) the Newick/branch views leave the grid
+  // and open as full-screen sheets — at 1024 exactly they stay inline.
+  await page.setViewportSize({ width: 768, height: 800 });
   await page.goto("/?editor");
   await expect(page.locator(".editor-panel")).toBeVisible();
   await expectSweep(page, "?editor");
@@ -265,6 +280,11 @@ test("stepper buttons carry icon + text and keep their shortcuts", async ({
     expect((await b.innerText()).trim().length).toBeGreaterThan(0);
   }
 
+  // nj-basics' join-1 predict_pair prompt gates position 0 — arrows do
+  // nothing until it is answered. body.press focuses <body> first, so
+  // the keys reach the global handler rather than the matrix grid's
+  // cell navigation (which preventDefaults arrows on a focused cell).
+  await answerPredictPrompt(page);
   const before = await readStep(page);
   await page.locator("body").press("ArrowRight");
   await expect.poll(async () => (await readStep(page)).k).toBe(before.k + 1);
@@ -386,6 +406,9 @@ for (const { w, scope } of WIDTHS) {
     await page.setViewportSize({ width: w, height: 800 });
     await page.goto("/?lesson=nj-basics");
     await waitForApp(page);
+    // The bootstrap panel only exists at the final step (atFinal &&
+    // inferred && aligned) — step there before looking for its group.
+    await stepToEnd(page);
     if (scope === ".settings-drawer") {
       await page.getByRole("button", { name: "Settings" }).click();
       await expect(
