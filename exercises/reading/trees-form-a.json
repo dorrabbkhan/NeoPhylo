@@ -13,6 +13,7 @@
     "level": "intro",
     "prepares_for": []
   },
+  "premises": ["reading_valid"],
   "mode": "test",
   "taxa_pool": {
     "felids": ["cheetah", "puma", "lion", "tiger", "leopard", "jaguar"],

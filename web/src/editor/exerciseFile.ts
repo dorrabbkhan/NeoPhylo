@@ -83,6 +83,7 @@ const EXERCISE_KEYS = new Set([
   "prompts",
   "bootstrap",
   "meta",
+  "premises",
   "true_tree",
   "sim",
 ]);
@@ -194,11 +195,11 @@ function needsSchema4(a: Exercise["analysis"]): boolean {
 function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   const ex = state.exercise;
   const file: Record<string, unknown> = {
-    // A matrix exercise or a `meta` block needs schema 5 (v1.4c
-    // Task 5); a v4 field needs 4; anything else writes today's
-    // version (3).
+    // A matrix exercise, a `meta` block or a `premises` list needs
+    // schema 5 (v1.4c Task 5, v1.5 Task 4); a v4 field needs 4;
+    // anything else writes today's version (3).
     schema_version:
-      ex.data.kind === "matrix" || ex.meta != null
+      ex.data.kind === "matrix" || ex.meta != null || (ex.premises?.length ?? 0) > 0
         ? 5
         : needsSchema4(ex.analysis)
           ? 4
@@ -236,6 +237,10 @@ function exerciseToFile(state: ExerciseState): Record<string, unknown> {
   // `meta` is v5-only lesson metadata; the wire shape is the file
   // shape (v1.4c Task 5).
   if (ex.meta != null) file.meta = ex.meta;
+  // `premises` is v5-only variant premises; the engine omits the key
+  // when empty, so the file does too (v1.5 Task 4).
+  if (ex.premises != null && ex.premises.length > 0)
+    file.premises = ex.premises;
   // `summary` is required by the schema but not part of Exercise (a
   // display field the engine ignores): keep the imported one, else fall
   // back to the title so a bare { exercise } still produces a valid file.

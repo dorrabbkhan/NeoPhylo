@@ -127,6 +127,20 @@ export function errorMessage(e: NeoError, format?: "meg"): ErrorMessage {
         body: `The text can be read two ways and the engine won't guess. Answer ${question}, then import again.`,
       };
     }
+    case "InvalidAssignment":
+      // v1.5 spec §5.4: a graded task or premise can't apply to the
+      // variant — `field` names what refused, `msg` why.
+      return {
+        title: "This task can't be built for that variant",
+        body: `Field "${e.field}": ${e.msg}.`,
+      };
+    case "InvalidCode":
+      // v1.5 spec §5.4: a completion code fails to decode — `reason`
+      // names which check it failed.
+      return {
+        title: "That completion code isn't valid",
+        body: `${e.reason}. Check the code was copied in full.`,
+      };
     case "ModelAlphabetMismatch": {
       // The named model belongs to the other alphabet (v1.1 spec §3.4).
       const modelAlphabet = e.alphabet === "protein" ? "DNA" : "protein";

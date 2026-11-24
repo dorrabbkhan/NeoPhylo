@@ -19,6 +19,7 @@ import type { NodeAge } from "../../../engine/generated/NodeAge";
 import type { NodeId } from "../../../engine/generated/NodeId";
 import type { NodeLetter } from "../../../engine/generated/NodeLetter";
 import type { Point } from "../../../engine/generated/Point";
+import type { Premise } from "../../../engine/generated/Premise";
 import type { ReadingMode } from "../../../engine/generated/ReadingMode";
 import type { ReadingSet } from "../../../engine/generated/ReadingSet";
 import type { ReadingTreeView } from "../../../engine/generated/ReadingTreeView";
@@ -53,6 +54,8 @@ export interface ReadingDraft {
   mode: ReadingMode;
   /** Carried verbatim from an import (never edited here). */
   meta?: ExerciseMeta;
+  /** v1.5 Task 4: variant premises — carried verbatim like `meta`. */
+  premises?: Premise[];
   taxa_pool: Record<string, string[]>;
   trees: TreeDraft[];
   items: Item[];
@@ -111,6 +114,9 @@ export function buildWireSet(d: ReadingDraft): Record<string, unknown> {
     title: d.title,
     summary: d.summary,
     ...(d.meta !== undefined ? { meta: d.meta } : {}),
+    ...(d.premises !== undefined && d.premises.length > 0
+      ? { premises: d.premises }
+      : {}),
     mode: d.mode,
     taxa_pool: d.taxa_pool,
     trees,
@@ -148,6 +154,9 @@ export function draftFromSet(set: ReadingSet): ReadingDraft {
     summary: set.summary,
     mode: set.mode,
     ...(set.meta !== undefined ? { meta: set.meta } : {}),
+    ...(set.premises !== undefined && set.premises.length > 0
+      ? { premises: set.premises }
+      : {}),
     taxa_pool: set.taxa_pool,
     trees: trees.length > 0 ? trees : [emptyTreeDraft("t1")],
     items: set.items,

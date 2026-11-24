@@ -12,6 +12,7 @@
     "level": "intro",
     "prepares_for": ["mega-nj-vs-upgma"]
   },
+  "premises": ["nj_recovers_true_tree", "upgma_differs_from_nj"],
   "alphabet": "dna",
   "data": {
     "kind": "matrix",

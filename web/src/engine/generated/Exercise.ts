@@ -4,6 +4,7 @@ import type { Analysis } from "./Analysis";
 import type { ExerciseBootstrap } from "./ExerciseBootstrap";
 import type { ExerciseData } from "./ExerciseData";
 import type { ExerciseMeta } from "./ExerciseMeta";
+import type { Premise } from "./Premise";
 import type { Prompt } from "./Prompt";
 import type { Reference } from "./Reference";
 
@@ -25,4 +26,12 @@ bootstrap: ExerciseBootstrap | null,
  * only; `None` is omitted from the wire shape so earlier files
  * serialize unchanged.
  */
-meta?: ExerciseMeta, };
+meta?: ExerciseMeta, 
+/**
+ * v1.5 spec §5.2: machine-checkable premises an assignment
+ * variant must satisfy (e.g. `tie_free`). Optional; absent means
+ * `[]`, and the empty list is omitted from the wire shape so
+ * files that never declared it serialize unchanged. Schema 5
+ * only, presence-aware like `meta`.
+ */
+premises?: Array<Premise>, };

@@ -404,6 +404,8 @@ export interface PreservedFields {
    * open-and-save keeps objectives/minutes/level byte-identical;
    * the hand-steps input only ever touches `hand_steps`. */
   meta: Exercise["meta"];
+  /** v1.5 Task 4: variant premises ride through verbatim like `meta`. */
+  premises: Exercise["premises"];
 }
 
 export const EMPTY_PRESERVED: PreservedFields = {
@@ -411,6 +413,7 @@ export const EMPTY_PRESERVED: PreservedFields = {
   locked: [],
   bootstrap: null,
   meta: undefined,
+  premises: undefined,
 };
 
 export const EMPTY_CONTEXT: DraftContext = {
@@ -426,6 +429,8 @@ export function preservedFieldNames(p: PreservedFields): string[] {
   if (p.locked.length > 0) names.push("locked controls");
   if (p.bootstrap !== null) names.push("bootstrap");
   if (p.meta !== undefined) names.push("meta");
+  if (p.premises !== undefined && p.premises.length > 0)
+    names.push("premises");
   return names;
 }
 
@@ -467,10 +472,13 @@ export function buildExerciseState(
   }
   const atStep = bootstrapStep(tree, s.method);
   const handSteps = parseDecimal(s.handSteps);
-  // Schema 5 the moment the file carries any v5 field — matrix data
-  // or a meta block — else the pre-v1.4c rule (v1.4b Task 11).
+  // Schema 5 the moment the file carries any v5 field — matrix data,
+  // a meta block or premises — else the pre-v1.4c rule (v1.4b Task 11,
+  // v1.5 Task 4).
   const schemaVersion =
-    s.dataMode === "matrix" || preserved.meta !== undefined
+    s.dataMode === "matrix" ||
+    preserved.meta !== undefined ||
+    (preserved.premises !== undefined && preserved.premises.length > 0)
       ? 5
       : s.model === "Poisson" || s.siteFilter !== null
         ? 4
@@ -518,6 +526,8 @@ export function buildExerciseState(
       delete exercise.meta.hand_steps;
     }
   }
+  if (preserved.premises !== undefined && preserved.premises.length > 0)
+    exercise.premises = preserved.premises;
   const fileExtras: Record<string, unknown> = { ...extras };
   // `summary` is required by the schema and lives outside Exercise —
   // keep it in fileExtras like an imported file's would be.
@@ -571,6 +581,7 @@ export function settingsFromExercise(
         locked: ex.locked,
         bootstrap: ex.bootstrap,
         meta: ex.meta,
+        premises: ex.premises,
       },
     };
   }
@@ -672,6 +683,7 @@ export function settingsFromExercise(
       locked: ex.locked,
       bootstrap: ex.bootstrap,
       meta: ex.meta,
+      premises: ex.premises,
     },
   };
 }

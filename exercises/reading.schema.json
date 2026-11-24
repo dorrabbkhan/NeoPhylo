@@ -26,6 +26,20 @@
         }
       ]
     },
+    "premises": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "tie_free",
+          "closest_pair_not_first",
+          "upgma_differs_from_nj",
+          "nj_recovers_true_tree",
+          "reading_valid"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "v1.5 spec 5.2: machine-checkable premises an assignment variant must satisfy; reading sets declare \"reading_valid\"."
+    },
     "mode": { "enum": ["practice", "test"], "default": "practice" },
     "taxa_pool": {
       "type": "object",

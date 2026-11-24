@@ -204,6 +204,7 @@ pub fn load_reading_set(json: &str) -> Result<ReadingSet, NeoError> {
         title: take(&mut obj, "title", true, "", "title")?.unwrap_or_default(),
         summary: take(&mut obj, "summary", true, "", "summary")?.unwrap_or_default(),
         meta: take(&mut obj, "meta", false, "", "meta")?,
+        premises: take(&mut obj, "premises", false, "", "premises")?.unwrap_or_default(),
         mode: take(&mut obj, "mode", false, "", "mode")?.unwrap_or_default(),
         taxa_pool: take(&mut obj, "taxa_pool", false, "", "taxa_pool")?.unwrap_or_default(),
         trees: BTreeMap::new(),
@@ -217,6 +218,19 @@ pub fn load_reading_set(json: &str) -> Result<ReadingSet, NeoError> {
     }
     if set.kind != "reading" {
         return Err(invalid("kind", "expected \"reading\""));
+    }
+    // serde accepts repeated premise names; the wire rule is unique
+    // (same as the exercise loader's `premises_file`).
+    {
+        let mut seen = std::collections::HashSet::new();
+        for p in &set.premises {
+            if !seen.insert(*p) {
+                return Err(invalid(
+                    "premises",
+                    format!("duplicate premise '{}'", p.name()),
+                ));
+            }
+        }
     }
     // Pools must be disjoint and duplicate-free: relabelling maps each
     // pool's names through a permutation of the pool, so a name in two
