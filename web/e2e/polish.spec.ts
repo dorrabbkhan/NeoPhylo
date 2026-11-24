@@ -320,6 +320,21 @@ for (const theme of ["light", "dark"] as const) {
     await page.reload();
     await waitForApp(page);
 
+    // Focusable .btn total, computed once: visible (nonzero box) and
+    // not disabled — the tab-order target the loop can actually reach.
+    // Counting every DOM .btn (the disabled "Previous step" included)
+    // would never be reached by Tab, so the loop would spin to its cap.
+    const total = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".btn")].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return (
+          r.width > 0 &&
+          r.height > 0 &&
+          !(el as HTMLButtonElement).disabled
+        );
+      }).length,
+    );
+
     // Real Tab navigation — :focus-visible applies identically on all
     // engines. Each newly focused .btn gets its ring measured once.
     const checked = new Set<number>();
@@ -374,7 +389,6 @@ for (const theme of ["light", "dark"] as const) {
         ).toBeGreaterThanOrEqual(3);
       }
       await page.keyboard.press("Tab");
-      const total = await page.locator(".btn").count();
       if (checked.size >= Math.min(total, 30)) break;
     }
     expect(checked.size).toBeGreaterThan(0);
