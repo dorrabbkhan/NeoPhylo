@@ -127,7 +127,7 @@ export function Stepper({
         onClick={onPlayToggle}
       >
         <Icon name={playing ? "pause" : "play"} />
-        {playing ? "Pause" : "Play"}
+        {playing ? "pause" : "play"}
       </button>
       <button
         type="button"
