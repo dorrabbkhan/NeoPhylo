@@ -427,11 +427,12 @@ test("below 1024 the More menu holds the secondary items and works by keyboard",
 // must stay fully on screen wherever the button sits. The lesson per
 // row is chosen so the wrap really does land the button on a left edge
 // at that viewport (a short title leaves it mid-row and the old
-// right-aligned list would still pass).
+// right-aligned list would still pass). The 375 px row moved to
+// header-menus.spec.ts: below 768 the open surface is the phone sheet
+// (v1.5 Task 2, §16.3) and its tile grid gets the same checks there.
 for (const vp of [
   { w: 768, h: 1024, menu: "More", path: "/?lesson=cytochrome-c" },
-  { w: 375, h: 812, menu: "More", path: "/?lesson=upgma-fails" },
-  { w: 1024, h: 768, menu: "Guides", path: "/?lesson=nj-basics" },
+  { w: 1024, h: 768, menu: "More", path: "/?lesson=nj-basics" },
   { w: 1366, h: 900, menu: "Guides", path: "/?lesson=nj-basics" },
 ] as const) {
   test(`the open ${vp.menu} menu list stays inside the viewport at ${vp.w}×${vp.h}`, async ({

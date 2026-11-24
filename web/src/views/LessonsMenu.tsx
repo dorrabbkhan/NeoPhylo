@@ -32,6 +32,8 @@ import type { KeyboardEvent } from "react";
 
 import { LESSONS } from "../lessons/catalog";
 
+import { NavItem } from "./nav/NavItem";
+
 export interface LessonsMenuProps {
   /** The built-in lesson currently loaded, or null for a custom
    * exercise (a `#x=` link or a prop-driven test exercise). */
@@ -183,16 +185,19 @@ export function LessonsMenu({ currentId, onPick, onOpenLibrary, onOpenReading, o
 
   return (
     <div className="lessons-menu" ref={rootRef}>
-      <button
-        type="button"
-        ref={buttonRef}
-        aria-haspopup="menu"
-        aria-expanded={open}
+      {/* v1.5 Task 2: a tray item — the label is always the accessible
+          name; a loaded built-in lesson marks it current (pinned label
+          + tint, §16.2). */}
+      <NavItem
+        icon="lessons"
+        label="Lessons"
+        current={currentId !== null}
+        elementRef={buttonRef}
+        hasPopup="menu"
+        expanded={open}
         onClick={() => (open ? closeMenu(false) : openMenu())}
         onKeyDown={onButtonKeyDown}
-      >
-        Lessons
-      </button>
+      />
       {open && (
         <div
           className="lessons-menu-list"

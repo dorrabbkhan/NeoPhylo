@@ -151,3 +151,47 @@ describe("MoreMenu — Reading trees item (v1.4d Task 9)", () => {
     ).toBeNull();
   });
 });
+
+// v1.5 Task 2 (spec §16.2 overflow — conductor's call): the "medium"
+// variant serves 1024–1279, where Library keeps its direct tray pick
+// and the tour/footer items keep their old homes — the menu carries
+// only the destinations that left the tray.
+describe("MoreMenu — medium variant (v1.5 Task 2)", () => {
+  function setupMedium() {
+    const onOpenReading = vi.fn();
+    const utils = render(
+      <MoreMenu
+        variant="medium"
+        onOpenPhylipHelp={vi.fn()}
+        onOpenMegaHelp={vi.fn()}
+        onTakeTour={vi.fn()}
+        onOpenLibrary={vi.fn()}
+        onOpenReading={onOpenReading}
+      />,
+    );
+    return { ...utils, onOpenReading };
+  }
+
+  it("lists only the guides, Labs and Reading trees — never Library, the tour or the footer items", () => {
+    const { getByRole } = setupMedium();
+    fireEvent.click(getByRole("button", { name: "More" }));
+    const labels = Array.from(
+      getByRole("menu", { name: "More" }).querySelectorAll(
+        '[role="menuitem"]',
+      ),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual([
+      "Coming from PHYLIP?",
+      "Coming from MEGA?",
+      "Labs",
+      "Reading trees",
+    ]);
+  });
+
+  it("runs onOpenReading like the narrow variant — same activation count as the drawer path", () => {
+    const { getByRole, onOpenReading } = setupMedium();
+    fireEvent.click(getByRole("button", { name: "More" }));
+    fireEvent.click(getByRole("menuitem", { name: "Reading trees" }));
+    expect(onOpenReading).toHaveBeenCalledTimes(1);
+  });
+});

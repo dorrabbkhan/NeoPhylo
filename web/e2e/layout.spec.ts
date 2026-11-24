@@ -81,8 +81,11 @@ async function revealByPageScroll(loc: Locator): Promise<void> {
       ) {
         return true;
       }
-      // Minimal scroll: reveal the out-of-view edge, no overshoot.
-      const delta = r.top < 0 ? r.top : r.bottom - window.innerHeight;
+      // Minimal scroll: reveal the out-of-view edge, no overshoot —
+      // rounded to an integer px toward visibility because WebKit
+      // truncates fractional scrollTop, which would otherwise wedge a
+      // sub-pixel remainder forever (v1.5 Task 2 fix).
+      const delta = r.top < 0 ? Math.floor(r.top) : Math.ceil(r.bottom - window.innerHeight);
       let sc = el.parentElement;
       while (sc !== null) {
         if (sc.classList.contains("tree-canvas")) {
@@ -415,18 +418,22 @@ for (const vp of VIEWPORTS) {
 
       const controls = page.locator(".app-header button");
       const count = await controls.count();
-      // Wordmark, title and toast are not controls. At wide the
-      // buttons are the mode switch pair, the Lessons menu, "Coming
-      // from PHYLIP?" and the "Dark mode"/"Presenter mode" toggles.
-      // Below 1280 the Settings button joins; below 1024 "Coming
-      // from PHYLIP?" leaves for the More menu. (Task 12's "Take the
-      // tour" lives inside the Lessons menu at ≥ 1280 — owner
-      // decision B — never as a header button.)
-      expect(count, "the header's buttons").toBe(vp.w >= 1280 ? 6 : 7);
+      // Wordmark, title and toast are not controls. v1.5 Task 2
+      // (§16.2): the tray's buttons plus the mode pill pair — wide (7):
+      // Lessons, Library, Guides, Dark mode, Presenter mode, Lesson,
+      // Sandbox; medium (8): More and Settings join and the guides
+      // move behind More; narrow (7): no direct Library pick — its
+      // More item owns it. Labs and Reading trees are links at wide,
+      // checked separately below; "Take the tour" still lives inside
+      // the Lessons menu there (owner decision B).
+      expect(count, "the header's buttons").toBe(
+        vp.w >= 1280 ? 7 : vp.w >= 1024 ? 8 : 7,
+      );
       await expect(
         page.getByRole("button", { name: "Dark mode" }),
       ).toBeVisible();
 
+      const appUrl = page.url();
       for (let i = 0; i < count; i += 1) {
         const control = controls.nth(i);
         const box = await control.boundingBox();
@@ -443,9 +450,74 @@ for (const vp of VIEWPORTS) {
         ).toBeLessThanOrEqual(vp.h + 0.5);
         // A real Playwright click — actionability checks reject covered
         // or off-screen targets. Anything the click opens (a menu, the
-        // PHYLIP help dialog) is dismissed before the next control.
+        // PHYLIP help dialog) is dismissed before the next control;
+        // the destination buttons (Library) navigate, so the run
+        // returns to the app for the rest of the header.
+        const pressed = await control.getAttribute("aria-pressed");
+        // Start listening before the click: the Library and Sandbox
+        // picks navigate with location.assign, so url() read after
+        // the click can still see the pre-commit URL on a slow engine.
+        const watchNav = page
+          .waitForURL((u) => u.href !== appUrl, { timeout: 1500 })
+          .then(() => true)
+          .catch(() => false);
         await control.click();
         await page.keyboard.press("Escape");
+        let navigated = await watchNav;
+        if (!navigated) {
+          // A slow commit may still be in flight — settle it before
+          // deciding (load events fire on these real navigations).
+          await page.waitForLoadState("load").catch(() => {});
+          navigated = page.url() !== appUrl;
+        }
+        if (navigated) {
+          // Return to the app — goto, not goBack: the picks push their
+          // own history entries, so the stack after a round trip is
+          // not reliable.
+          await page.goto(appUrl);
+          await waitForApp(page);
+        } else if (pressed !== null) {
+          // A toggle (Dark/Presenter mode): restore it — presenter
+          // mode hides Settings, which would shift the remaining
+          // indices mid-loop.
+          const again = controls.nth(i);
+          if ((await again.getAttribute("aria-pressed")) !== pressed) {
+            await again.click();
+          }
+        }
+      }
+
+      // The tray's link items (Labs, Reading trees at ≥1280) take the
+      // same box + real-click check — a click navigates, so each ends
+      // back at the app URL. a.nav-item skips the skip link.
+      const links = page.locator(".app-header a.nav-item");
+      const linkCount = await links.count();
+      expect(linkCount, "the header's nav links").toBe(
+        vp.w >= 1280 ? 2 : 0,
+      );
+      for (let i = 0; i < linkCount; i += 1) {
+        const link = links.nth(i);
+        const box = await link.boundingBox();
+        expect(box, `header link ${i} has a bounding box`).not.toBeNull();
+        expect(box!.x, `header link ${i} inside left edge`).toBeGreaterThanOrEqual(-0.5);
+        expect(
+          box!.x + box!.width,
+          `header link ${i} inside right edge`,
+        ).toBeLessThanOrEqual(vp.w + 0.5);
+        const watchNav = page
+          .waitForURL((u) => u.href !== appUrl, { timeout: 1500 })
+          .then(() => true)
+          .catch(() => false);
+        await link.click();
+        let navigated = await watchNav;
+        if (!navigated) {
+          await page.waitForLoadState("load").catch(() => {});
+          navigated = page.url() !== appUrl;
+        }
+        if (navigated) {
+          await page.goto(appUrl);
+          await waitForApp(page);
+        }
       }
     });
   }

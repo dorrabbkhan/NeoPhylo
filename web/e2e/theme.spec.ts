@@ -33,6 +33,19 @@ const dataTheme = (page: Page) =>
 const toggle = (page: Page) =>
   page.getByRole("button", { name: "Dark mode" });
 
+/** Wait out the 120 ms button tint transition a theme switch starts —
+ * axe reads a mid-transition background as a contrast failure on
+ * WebKit, and that frame is not the state under test. */
+async function settleThemeToggle(page: Page) {
+  await expect
+    .poll(async () =>
+      toggle(page).evaluate((el) =>
+        el.getAnimations().every((a) => a.playState === "finished"),
+      ),
+    )
+    .toBe(true);
+}
+
 async function expectNoSeriousViolations(
   page: Page,
   where: string,
@@ -173,6 +186,7 @@ test("axe is clean in both themes", async ({ page }) => {
   await expectNoSeriousViolations(page, "light theme");
   await toggle(page).click();
   expect(await dataTheme(page)).toBe("dark");
+  await settleThemeToggle(page);
   await expectNoSeriousViolations(page, "dark theme");
 });
 
@@ -199,6 +213,7 @@ test("axe is clean on the open pair panel in both themes", async ({
   // Task 10: the toggle stays a real click target above the scrim.
   await toggle(page).click();
   expect(await dataTheme(page)).toBe("dark");
+  await settleThemeToggle(page);
   await expectNoSeriousViolations(
     page,
     "pair panel (dark theme)",

@@ -1,6 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+// v1.5 Task 2 (§16.2): the header navigation tray + phone sheet —
+// imported after index.css so its equal-specificity overrides win.
+import "./design/nav.css";
 import { BootstrapClient, bootstrapClient } from "./engine/bootstrapClient";
 import { engine } from "./engine";
 import { watchReadingLinks } from "./reading/hashWatch";

@@ -1,0 +1,404 @@
+/* Header navigation (v1.5 Task 2, spec §16.2–§16.3 — mockup style B
+ * + phone variant M2 in docs/superpowers/specs/
+ * 2026-11-23-v1.5-nav-mockups/). Imported by main.tsx AFTER index.css
+ * so equal-specificity overrides here win.
+ *
+ * The tray: one rounded container; items are icon-only at rest and
+ * the label — always in the DOM, so it is always the accessible
+ * name — expands on :hover/:focus-visible (250 ms slide, zeroed by
+ * the reduced-motion rule in index.css). The current page's item is
+ * pinned open with an accent tint ([aria-current]).
+ * Touch (conductor's call): a tap activates; a ≥500 ms press shows
+ * the name as a tooltip instead — NavItem owns that timer. */
+
+/* ---- tray ------------------------------------------------------ */
+
+/* The right-hand group — tray and mode pill at ≥768, pill and Menu
+ * below — rides as one flex item: pushed right, kept together when
+ * the header wraps, and one gap unit between its parts. */
+.nav-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+.nav-tray {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-lg);
+}
+
+/* The rule between the where-to-go items and the view controls. */
+.nav-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: var(--space-4) var(--space-4);
+  background: var(--color-border);
+}
+
+/* ---- tray item -------------------------------------------------- */
+
+.nav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--size-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nav-item-icon,
+.ui-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* The label: clipped, never display:none — assistive tech always
+ * reads it; it slides open on hover/focus or stays open on the
+ * current item. */
+.nav-item-label {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  /* opacity snaps rather than fading: a mid-fade frame would paint
+   * partially transparent text — a transient sub-4.5:1 contrast frame
+   * axe legitimately flags (theme.spec dark-theme violation, WebKit).
+   * The max-width slide alone carries the reveal. */
+  transition:
+    max-width 250ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin 250ms;
+}
+
+.nav-item:hover .nav-item-label,
+.nav-item:focus-visible .nav-item-label,
+.nav-item[aria-current="page"] .nav-item-label {
+  max-width: 140px;
+  opacity: 1;
+  margin-left: var(--space-8);
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+  background: var(--color-bg);
+  color: var(--color-accent-contrast);
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* The current page's pick (§16.2): pinned label + accent tint —
+ * the same cue the mode switch's checked option uses. */
+.nav-item[aria-current="page"] {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+}
+
+/* Toggle items (theme, presenter) keep the old pressed cue. */
+.nav-item[aria-pressed="true"] {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
+}
+
+/* An open menu/drawer's trigger reads as active. */
+.nav-item[aria-expanded="true"] {
+  background: var(--color-bg);
+  color: var(--color-accent-contrast);
+}
+
+/* The long-press name tooltip (§16.3, conductor's call): a small
+ * label under the item while the press holds — no activation. */
+.nav-item-tip {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--size-xs);
+  font-weight: 400;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---- compact header (< 768 px, §16.3) ---------------------------
+ * The phone header is wordmark · title · Menu (mockup M2): the
+ * mode switch lives in the sheet as a row like Dark mode. */
+
+/* The Menu button is icon-only — 44 px square, the name lives on the
+ * clipped label and the long-press tooltip. */
+.nav-menu-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  background: var(--color-surface-2);
+}
+
+.nav-menu-button:hover,
+.nav-menu-button:focus-visible,
+.nav-menu-button[aria-expanded="true"] {
+  background: var(--color-accent-bg);
+}
+
+/* Its label never slides open (icon-only by design). */
+.nav-menu-button:hover .nav-item-label,
+.nav-menu-button:focus-visible .nav-item-label {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+}
+
+/* The cluster's own auto margin pushes the Menu button right. The
+ * header NEVER wraps at this width (mockup M2 is a single row): the
+ * generic <1024 wrap rule is overridden and the title's ellipsis
+ * takes the squeeze instead. */
+@media (width < 768px) {
+  .app-header {
+    flex-wrap: nowrap;
+  }
+}
+
+/* ---- phone menu sheet (§16.3) -----------------------------------
+ * A full-screen dialog at < 768: a head row (Back / title / close),
+ * a 3-column grid of big labelled tiles, then the Dark/Presenter
+ * rows. The generic <1024 sheet rule reserves a 52 px top strip for
+ * the parked header toggles — the phone header has none, so the
+ * sheet owns its whole height. */
+
+.sheet-backdrop > section.phone-sheet {
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  /* Opaque — the generic sheet sections carry their own backgrounds;
+   * a transparent panel let the scrim-dimmed page (and the header
+   * under it) read through the tiles. */
+  background: var(--color-bg);
+}
+
+.phone-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  flex: none;
+}
+
+.phone-sheet-head h2 {
+  margin: 0;
+  font-size: var(--size-lg);
+  color: var(--color-text-h);
+}
+
+.phone-sheet-back,
+.phone-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.phone-sheet-back {
+  padding: 0 var(--space-12);
+}
+
+/* Balances the head when no Back shows — the title stays centered. */
+.phone-sheet-spacer {
+  min-width: 44px;
+}
+
+.phone-sheet-back:hover,
+.phone-sheet-back:focus-visible,
+.phone-sheet-close:hover,
+.phone-sheet-close:focus-visible {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
+  outline: none;
+}
+
+.phone-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  overflow-y: auto;
+}
+
+/* The body is a capped, scrolling flex column: every child keeps its
+ * content height (WebKit shrinks flex items below content otherwise). */
+.phone-sheet-body > * {
+  flex-shrink: 0;
+}
+
+.phone-sheet-icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.phone-sheet-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-12);
+}
+
+.phone-sheet-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 44px;
+  padding: var(--space-16) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--size-xs);
+  font-weight: 500;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.phone-sheet-tile:hover,
+.phone-sheet-tile:focus-visible {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
+  outline: none;
+}
+
+/* The current destination keeps the tray's accent cue. */
+.phone-sheet-tile[aria-current="page"],
+.phone-sheet-tile.phone-sheet-current {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-contrast);
+}
+
+/* The Mode/Dark/Presenter rows: a label and the same two-option
+ * radiogroup the header's mode pill uses (a compact seg — 12 px text
+ * floor, ≥ 40 px fine-pointer height). */
+.phone-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  font-size: var(--size-sm);
+  color: var(--color-text);
+}
+
+.phone-sheet .mode-switch button {
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--size-xs);
+  min-height: 40px;
+}
+
+@media (pointer: coarse) {
+  .phone-sheet .mode-switch button {
+    min-height: 44px;
+  }
+}
+
+/* The in-sheet Lessons/Guides lists: full-width picks, same surface
+ * language as the tiles. */
+.phone-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  overflow-y: auto;
+}
+
+.phone-sheet-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* The capped list scrolls; WebKit would otherwise shrink these
+   * buttons below their content (the v1.4d iPhone finding this file's
+   * regression spec pins). */
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: var(--space-12) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phone-sheet-pick:hover,
+.phone-sheet-pick:focus-visible {
+  background: var(--color-accent-bg);
+  outline: none;
+}
+
+.phone-sheet-pick[aria-current="page"] {
+  background: var(--color-accent-bg);
+}
+
+.phone-sheet-pick[aria-current="page"] .phone-sheet-pick-title::after {
+  content: " — current";
+  font-weight: 400;
+  color: var(--color-accent-contrast);
+}
+
+.phone-sheet-pick-title {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.phone-sheet-pick-summary {
+  font-size: var(--size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- touch ------------------------------------------------------
+ * Mockup style B: on a coarse pointer the tray items grow to the
+ * tablet's 44 px targets — the phone sheet's tiles and rows keep
+ * their own 44 px minimums above. The header's mode pill is a header
+ * target too (§16.3): its radios get the same 44 px floor. */
+@media (pointer: coarse) {
+  .nav-item {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .app-header .mode-switch button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

@@ -85,6 +85,25 @@ async function checkHeaderControls(
   }
 }
 
+/** The <768 mode switch is the phone sheet's Mode row (v1.5 Task 2,
+ * §16.3 mockup M2): open the sheet, flip the side, close again. The
+ * row is a control, not a destination — the sheet stays open until
+ * dismissed, so a follow-up tile pick still works after the switch. */
+async function switchMode(
+  page: import("@playwright/test").Page,
+  mode: "Lesson" | "Sandbox",
+): Promise<void> {
+  await page.getByRole("button", { name: "Menu" }).click();
+  const sheet = page.getByRole("dialog", { name: "Menu" });
+  const radio = sheet
+    .getByRole("radiogroup", { name: "Mode" })
+    .getByRole("radio", { name: mode });
+  await radio.click();
+  await expect(radio).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+}
+
 /** (b): the document itself never scrolls sideways. */
 async function expectNoSidewaysScroll(
   page: import("@playwright/test").Page,
@@ -105,7 +124,17 @@ test("375×812: the Lesson view's header controls fit and the page never scrolls
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await expect(page.getByRole("radio", { name: "Lesson" })).toBeChecked();
+  // The checked mode reads from the sheet's Mode row at this width
+  // (v1.5 Task 2, §16.3 mockup M2).
+  await page.getByRole("button", { name: "Menu" }).click();
+  const sheet = page.getByRole("dialog", { name: "Menu" });
+  await expect(
+    sheet
+      .getByRole("radiogroup", { name: "Mode" })
+      .getByRole("radio", { name: "Lesson" }),
+  ).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
   await checkHeaderControls(page, "the Lesson view");
   await expectNoSidewaysScroll(page, NARROW.w, "the Lesson view");
 });
@@ -115,19 +144,15 @@ test("375×812: the Sandbox view's header controls fit and the page never scroll
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await page.getByRole("radio", { name: "Sandbox" }).click();
-  await expect(page.getByRole("radio", { name: "Sandbox" })).toBeChecked();
+  await switchMode(page, "Sandbox");
   await checkHeaderControls(page, "the Sandbox view");
   await expectNoSidewaysScroll(page, NARROW.w, "the Sandbox view");
   // Below the wide breakpoint the sandbox controls — the gap-
-  // treatment radios included — live in the Settings drawer (§6.4),
-  // so the header's toggle has to open it before the swap check.
-  const settingsToggle = page.getByRole("button", {
-    name: "Settings",
-    exact: true,
-  });
-  await settingsToggle.click();
-  await expect(settingsToggle).toHaveAttribute("aria-expanded", "true");
+  // treatment radios included — live in the Settings drawer (§6.4);
+  // at 375 px its opener is the phone sheet's Settings tile (v1.5
+  // Task 2, §16.3).
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
   // The sandbox-only gap control confirms the view swapped.
   await expect(
     page.getByRole("radio", { name: "Pairwise deletion" }),
@@ -225,8 +250,10 @@ test("375×812 coarse pointer: every matrix control is ≥40×40 and the page ne
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await page.getByRole("radio", { name: "Sandbox" }).click();
-  // At 375 px the import panel sits in the Settings drawer.
+  await switchMode(page, "Sandbox");
+  // At 375 px the import panel sits in the Settings drawer, opened
+  // through the phone sheet (v1.5 Task 2, §16.3).
+  await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
   const dlg = page.getByRole("dialog", { name: "Settings" });
   await dlg.getByRole("tab", { name: "Distance matrix" }).click();
@@ -370,21 +397,23 @@ test("320x640: the reading area never scrolls sideways", async ({
   await expectNoSidewaysScroll(page, 320, "the reading area at 320 px");
 });
 
-/* ---- v1.4d Task 9: the header's Reading trees entry below 1024 px ---- */
+/* ---- v1.4d Task 9: the header's Reading trees entry below 1024 px ----
+ * (v1.5 Task 2, §16.3: at <768 px the phone sheet's tile is the entry;
+ * at 768–1023 the More-menu item still is.) */
 
-test("375x812: the More menu's Reading trees item fits and opens the filtered library", async ({
+test("375x812: the phone sheet's Reading trees tile fits and opens the filtered library", async ({
   page,
 }) => {
   await page.goto("/");
   await waitForApp(page);
-  await page.getByRole("button", { name: "More" }).click();
-  const item = page.getByRole("menuitem", { name: "Reading trees" });
+  await page.getByRole("button", { name: "Menu" }).click();
+  const item = page.getByRole("button", { name: "Reading trees" });
   await expect(item).toBeVisible();
   const box = await item.boundingBox();
-  expect(box, "the More menu's Reading trees item has a box").not.toBeNull();
+  expect(box, "the phone sheet's Reading trees tile has a box").not.toBeNull();
   expect(box!.width).toBeGreaterThanOrEqual(39.95);
   expect(box!.height).toBeGreaterThanOrEqual(39.95);
-  await expectNoSidewaysScroll(page, NARROW.w, "the open More menu");
+  await expectNoSidewaysScroll(page, NARROW.w, "the open phone sheet");
   await item.click();
   await expect(page).toHaveURL(/\?library&type=reading/);
   await expect(
