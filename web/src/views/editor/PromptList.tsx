@@ -144,6 +144,7 @@ export function PromptList({ prompts, taxa, onChange }: PromptListProps) {
             <div className="prompt-actions">
               <button
                 type="button"
+                className="btn btn-icon"
                 aria-label={`Move prompt ${i + 1} up`}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
@@ -152,6 +153,7 @@ export function PromptList({ prompts, taxa, onChange }: PromptListProps) {
               </button>
               <button
                 type="button"
+                className="btn btn-icon"
                 aria-label={`Move prompt ${i + 1} down`}
                 disabled={i === prompts.length - 1}
                 onClick={() => move(i, 1)}
@@ -160,6 +162,7 @@ export function PromptList({ prompts, taxa, onChange }: PromptListProps) {
               </button>
               <button
                 type="button"
+                className="btn btn-ghost"
                 aria-label={`Remove prompt ${i + 1}`}
                 onClick={() => onChange(prompts.filter((_, k) => k !== i))}
               >
@@ -271,6 +274,7 @@ export function PromptList({ prompts, taxa, onChange }: PromptListProps) {
       <div className="prompt-add-row">
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() =>
             onChange([...prompts, newPrompt("predict_pair", 1)])
           }
@@ -279,12 +283,14 @@ export function PromptList({ prompts, taxa, onChange }: PromptListProps) {
         </button>
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() => onChange([...prompts, newPrompt("note", 1)])}
         >
           Add note
         </button>
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() =>
             onChange([...prompts, newPrompt("predict_branch", 1)])
           }

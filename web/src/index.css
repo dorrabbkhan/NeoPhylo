@@ -1575,15 +1575,9 @@ button:disabled {
  * header chip (.labs-link), full-width at the drawer's foot like
  * the tour item. */
 .settings-drawer-labs {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  display: block;
+  width: 100%;
   font-size: var(--size-sm);
   margin-top: var(--space-16);
-  padding: 8px 10px;
-  text-align: center;
-  text-decoration: none;
 }
 
 .settings-drawer-labs:hover,
@@ -1710,8 +1704,15 @@ button:disabled {
   color: var(--color-danger);
 }
 
-.bootstrap-panel .bootstrap-actions {
+/* v1.5 Task 3 (§16.4): the controls column's two button groups —
+ * "How sure are we?" and "Export" — stack their buttons so every
+ * button in a group takes the group's full width (equal widths at
+ * every breakpoint, the conductor's call). */
+.bootstrap-panel .bootstrap-actions,
+.export-menu .export-buttons {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   margin: 8px 0;
 }
@@ -3021,7 +3022,10 @@ button,
   padding: 10px;
 }
 
-.dataset-open {
+/* v1.5 Task 3: the row carries `btn btn-ghost` for the sweep and the
+ * hover affordance, but keeps its borderless, text-left row layout —
+ * the extra class lifts this rule above `.btn.btn-ghost`. */
+.dataset-list .dataset-open {
   flex: 1;
   display: flex;
   flex-direction: column;

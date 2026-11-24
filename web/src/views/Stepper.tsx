@@ -16,6 +16,7 @@ import { useEffect } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { ReferenceKind } from "../engine/generated/ReferenceKind";
+import { Icon } from "./nav/Icon";
 
 export interface StepperProps {
   /** Current step, 0..max. */
@@ -110,27 +111,33 @@ export function Stepper({
     <div className="stepper" role="group" aria-label="Trace stepper">
       <button
         type="button"
+        className="btn btn-secondary"
         aria-label="Previous step"
         disabled={step <= 0 || gated}
         onClick={() => onStep(step - 1)}
       >
-        ◀ Previous
+        <Icon name="prev" />
+        Previous
       </button>
       <button
         type="button"
+        className="btn btn-primary"
         aria-label={playing ? "Pause" : "Play"}
         disabled={gated}
         onClick={onPlayToggle}
       >
-        {playing ? "⏸ pause" : "⏵ play"}
+        <Icon name={playing ? "pause" : "play"} />
+        {playing ? "Pause" : "Play"}
       </button>
       <button
         type="button"
+        className="btn btn-secondary"
         aria-label="Next step"
         disabled={step >= max || gated}
         onClick={() => onStep(step + 1)}
       >
-        Next ▶
+        Next
+        <Icon name="next" />
       </button>
       <input
         type="range"

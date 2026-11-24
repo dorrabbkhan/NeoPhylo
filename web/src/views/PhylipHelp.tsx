@@ -8,6 +8,7 @@
 // same pattern as PairPanel).
 
 import { Sheet } from "./Sheet";
+import { Icon } from "./nav/Icon";
 
 export interface PhylipHelpProps {
   onClose: () => void;
@@ -27,11 +28,11 @@ export function PhylipHelp({ onClose, onOpenMegaHelp }: PhylipHelpProps) {
         <h2 id="phylip-help-title">Coming from PHYLIP?</h2>
         <button
           type="button"
-          className="close"
+          className="close btn btn-icon"
           aria-label="Close PHYLIP help"
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
       </header>
       <ul className="phylip-help-map">
@@ -68,7 +69,7 @@ export function PhylipHelp({ onClose, onOpenMegaHelp }: PhylipHelpProps) {
             Working in MEGA?{" "}
             <button
               type="button"
-              className="guide-link"
+              className="guide-link text-link"
               onClick={onOpenMegaHelp}
             >
               Coming from MEGA?

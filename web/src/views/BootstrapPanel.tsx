@@ -195,6 +195,7 @@ export function BootstrapPanel({
         {b.support !== null && (
           <button
             type="button"
+            className="btn btn-secondary"
             // Disabled while a job is active: the worker's one-job slot
             // is busy, and a detail job must never cancel a run.
             disabled={active}
@@ -206,6 +207,7 @@ export function BootstrapPanel({
         {b.status === "confirming" && (
           <button
             type="button"
+            className="btn btn-primary"
             disabled={b.jobId === null}
             onClick={() =>
               b.jobId !== null &&
@@ -218,6 +220,7 @@ export function BootstrapPanel({
         {active ? (
           <button
             type="button"
+            className="btn btn-secondary"
             onClick={() => dispatch({ type: "bootstrapCancelRequested" })}
           >
             Cancel
@@ -225,6 +228,7 @@ export function BootstrapPanel({
         ) : (
           <button
             type="button"
+            className="btn btn-primary"
             disabled={
             groupings === 0 || session.alignment === null || runGated
           }

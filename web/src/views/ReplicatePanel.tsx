@@ -29,6 +29,7 @@ import type { Method } from "../engine/generated/Method";
 import type { ReplicateDetail } from "../engine/generated/ReplicateDetail";
 import type { Tree } from "../engine/generated/Tree";
 import { errorMessage } from "../explain/errors";
+import { Icon } from "./nav/Icon";
 
 import { leafLabelSets, sameSet } from "./stepEmphasis";
 import { Sheet } from "./Sheet";
@@ -245,25 +246,29 @@ export function ReplicatePanel({
           <div className="replicate-nav">
             <button
               type="button"
+              className="btn btn-ghost"
               disabled={index <= 0}
               onClick={() => navigate(index - 1)}
             >
+              <Icon name="prev" />
               Previous
             </button>
             <button
               type="button"
+              className="btn btn-ghost"
               disabled={index >= total - 1}
               onClick={() => navigate(index + 1)}
             >
               Next
+              <Icon name="next" />
             </button>
             <button
               type="button"
-              className="close"
+              className="close btn btn-icon"
               aria-label="Close replicate view"
               onClick={onClose}
             >
-              ×
+              <Icon name="close" />
             </button>
           </div>
         </header>

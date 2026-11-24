@@ -13,6 +13,7 @@ import type { Dispatch, KeyboardEvent, ReactNode } from "react";
 import { markTourSeen } from "../design/tour";
 import { TOUR_STEP_COUNT } from "../state/ui";
 import type { Action } from "../state/session";
+import { Icon } from "./nav/Icon";
 
 interface TourStep {
   /** CSS selector of the element the step highlights. */
@@ -202,17 +203,19 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
         <div className="tour-actions">
           <button
             type="button"
+            className="btn btn-ghost"
             disabled={step === 0}
             onClick={() => dispatch({ type: "tourBack" })}
           >
+            <Icon name="back" />
             Back
           </button>
-          <button type="button" onClick={end}>
+          <button type="button" className="btn btn-ghost" onClick={end}>
             Skip
           </button>
           <button
             type="button"
-            className="tour-next"
+            className="btn btn-primary"
             onClick={() =>
               step + 1 < TOUR_STEP_COUNT
                 ? dispatch({ type: "tourNext" })
@@ -220,6 +223,7 @@ export function Tour({ step, dispatch }: TourProps): ReactNode {
             }
           >
             Next
+            <Icon name="next" />
           </button>
         </div>
       </div>

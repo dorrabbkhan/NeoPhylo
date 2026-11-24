@@ -141,7 +141,7 @@ export function MatrixData({
         <div>
           <button
             type="button"
-            className="primary"
+            className="btn btn-primary"
             disabled={paste.text.trim() === ""}
             onClick={paste.importText}
           >
@@ -161,6 +161,7 @@ export function MatrixData({
               <button
                 key={label}
                 type="button"
+                className="btn btn-secondary"
                 onClick={() => paste.answer(paste.question!, a)}
               >
                 {label}
@@ -176,7 +177,11 @@ export function MatrixData({
           aria-label="Asymmetric matrix"
         >
           <div className="matrix-answers">
-            <button type="button" onClick={paste.useLower}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={paste.useLower}
+            >
               Use the lower triangle
             </button>
           </div>
@@ -197,6 +202,7 @@ export function MatrixData({
       <div className="settings-row matrix-derive-row">
         <button
           type="button"
+          className="btn btn-secondary"
           ref={openButtonRef}
           onClick={() => {
             setGridMounted(true);
@@ -206,7 +212,7 @@ export function MatrixData({
         >
           Type a matrix…
         </button>
-        <button type="button" onClick={derive}>
+        <button type="button" className="btn btn-secondary" onClick={derive}>
           Derive from the drawn tree
         </button>
         <label className="field matrix-round">

@@ -414,10 +414,18 @@ export function ImportPanel({
           {!hasImportedData(session) && (
             <EmptyState text="Paste or upload sequences, or try a sample:">
               <div className="empty-actions">
-                <button type="button" onClick={() => void onCytochromeC()}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void onCytochromeC()}
+                >
                   Cytochrome c (protein)
                 </button>
-                <button type="button" onClick={() => void onWeakSupport()}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void onWeakSupport()}
+                >
                   Weak-support example (DNA)
                 </button>
               </div>
@@ -433,7 +441,11 @@ export function ImportPanel({
             />
           </label>
           <div className="import-actions">
-            <button type="button" onClick={() => importText(text)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => importText(text)}
+            >
               Import
             </button>
             <label className="field import-file">
@@ -448,7 +460,11 @@ export function ImportPanel({
                 }}
               />
             </label>
-            <button type="button" onClick={onOpenDatasets}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onOpenDatasets}
+            >
               Open dataset…
             </button>
           </div>
@@ -488,6 +504,7 @@ export function ImportPanel({
         <p className="phylip-note" role="status">
           <button
             type="button"
+            className="btn btn-secondary"
             onClick={() => {
               importMatrixText(asym.text, "Phylip", true, asym.name);
             }}
@@ -510,6 +527,7 @@ export function ImportPanel({
       )}
       <button
         type="button"
+        className="btn btn-secondary"
         onClick={() => {
           if (
             hasImportedData(session) &&

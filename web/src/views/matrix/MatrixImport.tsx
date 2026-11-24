@@ -133,7 +133,7 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
         <div>
           <button
             type="button"
-            className="primary"
+            className="btn btn-primary"
             disabled={text.trim() === ""}
             onClick={importText}
           >
@@ -149,6 +149,7 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
               <button
                 key={label}
                 type="button"
+                className="btn btn-secondary"
                 onClick={() => answer(question, a)}
               >
                 {label}
@@ -160,7 +161,11 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
       {offerLower && (
         <div className="matrix-question" role="group" aria-label="Asymmetric matrix">
           <div className="matrix-answers">
-            <button type="button" onClick={useLower}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={useLower}
+            >
               Use the lower triangle
             </button>
           </div>
@@ -187,7 +192,7 @@ export function MatrixImport({ session, dispatch }: MatrixImportProps) {
         <>
           <button
             type="button"
-            className="matrix-open-grid"
+            className="matrix-open-grid btn btn-secondary"
             ref={openButtonRef}
             onClick={openGrid}
           >

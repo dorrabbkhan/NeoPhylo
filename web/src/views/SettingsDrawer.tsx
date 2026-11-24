@@ -8,6 +8,7 @@
 import type { ReactNode } from "react";
 
 import { Sheet } from "./Sheet";
+import { Icon } from "./nav/Icon";
 
 export interface SettingsDrawerProps {
   onClose: () => void;
@@ -43,28 +44,30 @@ export function SettingsDrawer({
         <h2 id="settings-drawer-title">Settings</h2>
         <button
           type="button"
-          className="close"
+          className="close btn btn-icon"
           aria-label="Close settings"
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
       </header>
       {children}
       {labsHref !== undefined && (
-        <a className="settings-drawer-labs" href={labsHref}>
+        <a className="settings-drawer-labs btn btn-secondary" href={labsHref}>
+          <Icon name="labs" />
           Labs
         </a>
       )}
       {onTakeTour !== undefined && (
         <button
           type="button"
-          className="settings-drawer-tour"
+          className="settings-drawer-tour btn btn-secondary"
           onClick={() => {
             onClose();
             onTakeTour();
           }}
         >
+          <Icon name="tour" />
           Take the tour
         </button>
       )}

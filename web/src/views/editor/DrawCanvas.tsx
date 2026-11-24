@@ -380,7 +380,7 @@ export function DrawCanvas({ model, onNodeTap }: DrawCanvasProps) {
       <div className="new-leaf-row">
         <button
           type="button"
-          className="new-leaf-btn"
+          className="new-leaf-btn btn btn-secondary"
           aria-label="New leaf"
           aria-expanded={newLeafOpen}
           aria-controls="new-leaf-form"

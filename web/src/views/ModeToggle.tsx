@@ -17,6 +17,7 @@ export function ModeToggle({ mode, dispatch }: ModeToggleProps) {
     <div className="mode-toggle" role="group" aria-label="Explanation mode">
       <button
         type="button"
+        className="btn btn-secondary"
         aria-pressed={mode === "concept"}
         onClick={() => dispatch({ type: "setMode", mode: "concept" })}
       >
@@ -24,6 +25,7 @@ export function ModeToggle({ mode, dispatch }: ModeToggleProps) {
       </button>
       <button
         type="button"
+        className="btn btn-secondary"
         aria-pressed={mode === "math"}
         onClick={() => dispatch({ type: "setMode", mode: "math" })}
       >

@@ -1,0 +1,194 @@
+/* The four-variant button system (v1.5 Task 3, spec §16.4): every
+ * on-screen button is `.btn` plus exactly one of
+ * btn-primary | btn-secondary | btn-ghost | btn-icon; `.btn-touch` is
+ * the manual touch-size modifier. States ride :hover / :active /
+ * :focus-visible / :disabled and [aria-disabled="true"]. Every colour
+ * is a tokens.ts variable (design/buttonsCss.test.ts fails on a
+ * dangling var(--…)); the hover/active shades deeper than the accent
+ * tints come from color-mix() on the accent token, the conductor's
+ * allowed derivation. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 32px;
+  padding: var(--space-4) var(--space-12);
+  font: inherit;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+/* An icon inside a label button keeps its size and never grows — the
+ * text owns the width (stepper, tour, export rows). */
+.btn .ui-icon {
+  flex: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+/* The hover lift — at most 1 px in 120 ms, never on a disabled
+ * control (spec §16.4, conductor's call). */
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(0);
+}
+
+/* Disabled: reduced emphasis comes from the shared `button:disabled`
+ * opacity rule; here the refusal cursor and no hover lift (the
+ * :not(:disabled) guards above) — the same for aria-disabled, whose
+ * element keeps :enabled. */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+/* ---- variants ---------------------------------------------------- */
+
+/* Primary — the group's forward action: filled accent tint, accent
+ * border, accent-contrast text (the palette's accent-fill pattern).
+ * One per group: Run bootstrap, Import, the confirm's requested
+ * action, the stepper's Play. */
+.btn-primary {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.btn-primary:active:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* Secondary — the bordered default: surface fill, neutral border,
+ * heading-ink text, accent tint on hover. */
+.btn-secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-h);
+}
+.btn-secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+}
+.btn-secondary:active:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-color: var(--color-accent-border);
+}
+
+/* Ghost — borderless until the accent-tint hover; for the quiet
+ * affordance actions and composite rows. */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-accent-contrast);
+}
+.btn-ghost:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-accent-bg);
+}
+.btn-ghost:active:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+/* Icon — the square 36 × 36 icon-only button (sheet closes); the
+ * sprite glyph centres inside. */
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.btn-icon:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-contrast);
+}
+.btn-icon:active:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-color: var(--color-accent-border);
+}
+.btn-icon .ui-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* The sweep's "reads as a text link" exclusion (conductor's call,
+ * decisions.md "v1.5 Task 3"): buttons that are styled as inline
+ * links — no box, underline, accent ink — keep this marker class
+ * instead of a .btn variant. */
+.text-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent-contrast);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.text-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+@media (pointer: coarse) {
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Touch (§6.5): a 40 px floor for every restyled target under a
+ * coarse pointer — icon buttons to the plan's 44 px; `.btn-touch`
+ * marks a manually enlarged control. */
+@media (pointer: coarse) {
+  .btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.btn-touch {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Reduced motion (§6.10): no transform, no transition — play still
+ * steps (it is interval-driven, not animated). */
+@media (prefers-reduced-motion: reduce) {
+  /* The :not() guards repeat verbatim — each one adds specificity, so
+   * the plain :hover form would lose to the live-state rules above. */
+  .btn,
+  .btn:hover:not(:disabled):not([aria-disabled="true"]),
+  .btn:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: none;
+    transition-duration: 0s;
+  }
+}

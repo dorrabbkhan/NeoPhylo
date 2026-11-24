@@ -26,6 +26,7 @@ import type {
 } from "../library/registry";
 
 import { Sheet } from "./Sheet";
+import { Icon } from "./nav/Icon";
 
 export interface DatasetSheetProps {
   /** True while the sandbox holds user data — picking a dataset then
@@ -105,11 +106,11 @@ export function DatasetSheet({
         <h2 id="dataset-sheet-title">Open dataset</h2>
         <button
           type="button"
-          className="close"
+          className="close btn btn-icon"
           aria-label="Close the dataset sheet"
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
       </header>
       {indexError !== null && (
@@ -133,10 +134,18 @@ export function DatasetSheet({
             sandbox — your current alignment and tree will be lost.
           </p>
           <div className="lab-confirm-actions">
-            <button type="button" onClick={() => pick(pending)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => pick(pending)}
+            >
               Replace my work
             </button>
-            <button type="button" onClick={() => setPending(null)}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setPending(null)}
+            >
               Keep my work
             </button>
           </div>
@@ -150,7 +159,7 @@ export function DatasetSheet({
                 <li className="dataset-row" key={d.id}>
                   <button
                     type="button"
-                    className="dataset-open"
+                    className="dataset-open btn btn-ghost"
                     disabled={busy}
                     onClick={() => pick(d)}
                   >

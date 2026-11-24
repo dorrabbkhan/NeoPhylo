@@ -9,6 +9,7 @@
 
 import { errorMessage } from "../../explain/errors";
 import { download } from "../../export/download";
+import { Icon } from "../nav/Icon";
 import type { DistanceInput } from "../../engine/generated/DistanceInput";
 import type { DistanceMatrix } from "../../engine/generated/DistanceMatrix";
 import type { Method } from "../../engine/generated/Method";
@@ -96,23 +97,29 @@ export function MatrixExportItems({
           alignment .meg, no consensus (v1.4c spec §6.3). */}
       <button
         type="button"
+        className="btn btn-secondary"
         disabled={matrixInput === null}
         onClick={() => void onMatrixR()}
       >
+        <Icon name="download" />
         R script
       </button>
       <button
         type="button"
+        className="btn btn-secondary"
         disabled={matrix === null}
         onClick={() => void onMatrixPhylip()}
       >
+        <Icon name="download" />
         Matrix (PHYLIP)
       </button>
       <button
         type="button"
+        className="btn btn-secondary"
         disabled={matrixInput === null}
         onClick={() => void onMegMatrix()}
       >
+        <Icon name="download" />
         Matrix (.meg)
       </button>
     </>

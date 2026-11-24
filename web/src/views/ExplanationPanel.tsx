@@ -83,7 +83,11 @@ export function ExplanationPanel({
         )}
       </div>
       {revisit !== null && (
-        <button type="button" className="revisit" onClick={revisit.onShow}>
+        <button
+          type="button"
+          className="revisit text-link"
+          onClick={revisit.onShow}
+        >
           Revisit: {revisit.pair[0]} vs {revisit.pair[1]}
         </button>
       )}

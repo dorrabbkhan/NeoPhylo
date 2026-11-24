@@ -179,7 +179,7 @@ export function StatementsEditor({
           />
           <button
             type="button"
-            className="rde-chip-x"
+            className="rde-chip-x btn btn-ghost"
             onClick={() => onChange(statements.filter((_, j) => j !== i))}
           >
             Remove statement
@@ -188,6 +188,7 @@ export function StatementsEditor({
       ))}
       <button
         type="button"
+        className="btn btn-secondary"
         onClick={() =>
           onChange([...statements, newStatement("is_clade")])
         }

@@ -46,6 +46,7 @@ export function AlphabetBadge({
         alignmentOrigin !== "matrix" && (
           <button
             type="button"
+            className="btn btn-secondary"
             onClick={() => dispatch({ type: "setAlphabet", alphabet: other })}
           >
             Treat as {other === "protein" ? "protein" : "DNA"}

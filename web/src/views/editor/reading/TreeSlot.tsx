@@ -58,15 +58,23 @@ export function TreeSlot({
             }
           />
         </label>
-        <button type="button" onClick={onTakeCanvas}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onTakeCanvas}
+        >
           Use canvas tree
         </button>
-        <button type="button" onClick={onEditCanvas}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onEditCanvas}
+        >
           Edit on the canvas
         </button>
         <button
           type="button"
-          className="rde-chip-x"
+          className="rde-chip-x btn btn-ghost"
           aria-label={`Remove tree ${tree.name}`}
           onClick={onRemove}
         >

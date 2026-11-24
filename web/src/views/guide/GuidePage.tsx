@@ -147,7 +147,11 @@ export function GuidePage() {
         <p className="lab-print-head">NeoPhylo — instructor guide</p>
         <h1>{title}</h1>
         <div className="lab-controls">
-          <button type="button" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => window.print()}
+          >
             Print guide
           </button>
         </div>

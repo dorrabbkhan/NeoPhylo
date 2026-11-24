@@ -20,6 +20,7 @@ import type { Method } from "../engine/generated/Method";
 import type { ThemeName } from "../design/tokens";
 import type { Tree } from "../engine/generated/Tree";
 import type { ExportSvgOptions } from "../export/svg";
+import { Icon } from "./nav/Icon";
 
 export interface ExportMenuProps {
   /** The tree the user sees: support labels and reference rooting
@@ -303,19 +304,29 @@ export function ExportMenu({
       <div className="export-buttons">
         <button
           type="button"
+          className="btn btn-secondary"
           disabled={tree === null}
           onClick={() => void onSvg()}
         >
+          <Icon name="download" />
           {treeLabel("SVG")}
         </button>
         <button
           type="button"
+          className="btn btn-secondary"
           disabled={tree === null || busy}
           onClick={() => void onPng()}
         >
+          <Icon name="download" />
           {busy ? "PNG…" : treeLabel("PNG")}
         </button>
-        <button type="button" disabled={tree === null} onClick={onNewick}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={tree === null}
+          onClick={onNewick}
+        >
+          <Icon name="download" />
           {treeLabel("Newick")}
         </button>
         {matrixSession ? (
@@ -336,32 +347,40 @@ export function ExportMenu({
           <>
             <button
               type="button"
+              className="btn btn-secondary"
               disabled={consensusTree === null}
               onClick={onConsensus}
             >
+              <Icon name="download" />
               {viewSuffix === null
                 ? "Consensus (Newick)"
                 : `Consensus (Newick, ${viewSuffix})`}
             </button>
             <button
               type="button"
+              className="btn btn-secondary"
               disabled={alignment === null}
               onClick={() => void onR()}
             >
+              <Icon name="download" />
               R script
             </button>
             <button
               type="button"
+              className="btn btn-secondary"
               disabled={matrix === null}
               onClick={() => void onPhylip()}
             >
+              <Icon name="download" />
               Distance matrix (PHYLIP)
             </button>
             <button
               type="button"
+              className="btn btn-secondary"
               disabled={alignment === null}
               onClick={() => void onMeg()}
             >
+              <Icon name="download" />
               Alignment (.meg)
             </button>
           </>

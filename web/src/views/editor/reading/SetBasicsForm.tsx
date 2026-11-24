@@ -48,13 +48,28 @@ export function SetBasicsForm({
   return (
     <>
       <div className="editor-actions">
-        <button type="button" onClick={onSave} disabled={!canAct}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onSave}
+          disabled={!canAct}
+        >
           Save file
         </button>
-        <button type="button" onClick={onShare} disabled={!canAct}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onShare}
+          disabled={!canAct}
+        >
           Share link
         </button>
-        <button type="button" onClick={onPreview} disabled={!canAct}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onPreview}
+          disabled={!canAct}
+        >
           Preview
         </button>
         <label className="field import-field">
@@ -68,6 +83,7 @@ export function SetBasicsForm({
         </label>
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={onImport}
           disabled={importText.trim() === ""}
         >
@@ -85,7 +101,10 @@ export function SetBasicsForm({
             aria-label="Import a reading-set file"
             onChange={onImportFile}
           />
-          <label htmlFor="reading-import-file" className="import-file-btn">
+          <label
+            htmlFor="reading-import-file"
+            className="import-file-btn btn btn-secondary"
+          >
             Import file…
           </label>
           {importFileName !== null && (

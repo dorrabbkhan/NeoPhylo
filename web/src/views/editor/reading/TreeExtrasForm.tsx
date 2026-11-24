@@ -182,6 +182,7 @@ export function TreeExtrasForm({
           )}
           <button
             type="button"
+            className="btn btn-secondary"
             disabled={!canApply}
             onClick={apply}
           >
@@ -283,7 +284,7 @@ export function TreeExtrasForm({
             Node letter {l.letter} on {l.on.join(", ")}
             <button
               type="button"
-              className="rde-chip-x"
+              className="rde-chip-x btn btn-ghost"
               aria-label={`Remove letter ${l.letter}`}
               onClick={() =>
                 onChange({
@@ -303,7 +304,7 @@ export function TreeExtrasForm({
             Age {a.age} on {a.on.join(", ")}
             <button
               type="button"
-              className="rde-chip-x"
+              className="rde-chip-x btn btn-ghost"
               aria-label={`Remove age ${a.age} on ${a.on.join(", ")}`}
               onClick={() =>
                 typeof tree.times === "object" &&
@@ -325,7 +326,7 @@ export function TreeExtrasForm({
             {m.trait} {m.change} on the branch to {m.on.join(", ")}
             <button
               type="button"
-              className="rde-chip-x"
+              className="rde-chip-x btn btn-ghost"
               aria-label={`Remove ${m.trait} ${m.change} mark ${i + 1}`}
               onClick={() =>
                 onChange({
@@ -343,7 +344,7 @@ export function TreeExtrasForm({
             Point {p.letter} on the {p.at} at {p.on.join(", ")}
             <button
               type="button"
-              className="rde-chip-x"
+              className="rde-chip-x btn btn-ghost"
               aria-label={`Remove point ${p.letter}`}
               onClick={() =>
                 onChange({

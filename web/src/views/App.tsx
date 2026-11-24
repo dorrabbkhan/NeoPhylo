@@ -1265,7 +1265,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         // pressed state says which view is on (pressed =
                         // rooted like the reference). Checkpoint 11.
                         aria-pressed={session.rerootDisplay}
-                        className="reroot-toggle"
+                        className="reroot-toggle btn btn-secondary"
                         onClick={() =>
                           dispatch({ type: "toggleRerootDisplay" })
                         }
@@ -1386,11 +1386,16 @@ export function App({ exercise }: { exercise?: Exercise }) {
             <div className="lab-confirm-actions">
               <button
                 type="button"
+                className="btn btn-primary"
                 onClick={() => window.location.assign(libraryAsk)}
               >
                 Leave and open the library
               </button>
-              <button type="button" onClick={() => setLibraryAsk(null)}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setLibraryAsk(null)}
+              >
                 Keep my work
               </button>
             </div>

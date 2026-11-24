@@ -49,7 +49,7 @@ export function TraitDefsForm({
           </label>
           <button
             type="button"
-            className="rde-chip-x"
+            className="rde-chip-x btn btn-ghost"
             aria-label={`Remove trait ${t.name || i + 1}`}
             onClick={() => onChange(traits.filter((_, j) => j !== i))}
           >
@@ -59,6 +59,7 @@ export function TraitDefsForm({
       ))}
       <button
         type="button"
+        className="btn btn-secondary"
         onClick={() =>
           onChange([...traits, { name: "", ancestral: "", derived: "" }])
         }

@@ -139,6 +139,7 @@ function SaturationPanel({
           <>
             <button
               type="button"
+              className="btn btn-secondary"
               onClick={() => {
                 setFixTried("length");
                 dispatch({
@@ -156,6 +157,7 @@ function SaturationPanel({
             </button>
             <button
               type="button"
+              className="btn btn-secondary"
               onClick={() => {
                 setFixTried("scale");
                 dispatch({
@@ -170,6 +172,7 @@ function SaturationPanel({
         )}
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() =>
             dispatch({
               type: "setAnalysis",
