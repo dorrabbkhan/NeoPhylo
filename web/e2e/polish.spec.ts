@@ -214,6 +214,9 @@ test("sweep: the editor page and its sheets", async ({ page }) => {
     .getByRole("button", { name: "Close the Newick tree view" })
     .click();
 
+  // The lab load only asks over a dirty draft — a clean editor loads
+  // straight through. One typed character in Title dirties it.
+  await page.getByLabel("Title").fill("x");
   await page.getByRole("button", { name: "Labs" }).click();
   const labs = page.getByRole("dialog", { name: "Labs" });
   await expect(labs).toBeVisible();
@@ -281,21 +284,24 @@ test("stepper buttons carry icon + text and keep their shortcuts", async ({
   }
 
   // nj-basics' join-1 predict_pair prompt gates position 0 — arrows do
-  // nothing until it is answered. body.press focuses <body> first, so
-  // the keys reach the global handler rather than the matrix grid's
-  // cell navigation (which preventDefaults arrows on a focused cell).
+  // nothing until it is answered. The pick leaves focus on the matrix
+  // cell, whose own arrow navigation preventDefaults the key; blur it
+  // so the global handler sees the arrows (and Space) on <body>.
   await answerPredictPrompt(page);
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
   const before = await readStep(page);
-  await page.locator("body").press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
   await expect.poll(async () => (await readStep(page)).k).toBe(before.k + 1);
-  await page.locator("body").press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
   await expect.poll(async () => (await readStep(page)).k).toBe(before.k);
 
   // Space toggles play: the button's accessible name flips to Pause
   // and back.
-  await page.locator("body").press(" ");
+  await page.keyboard.press(" ");
   await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
-  await page.locator("body").press(" ");
+  await page.keyboard.press(" ");
   await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 });
 
