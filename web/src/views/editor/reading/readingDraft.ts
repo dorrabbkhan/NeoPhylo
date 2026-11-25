@@ -163,6 +163,57 @@ export function draftFromSet(set: ReadingSet): ReadingDraft {
   };
 }
 
+/**
+ * The stored `neophylo:draft:reading` payload back into a draft
+ * (v1.5 Task 7, spec §9.1): a shape check plus normalization — a
+ * tree missing an extras array gets the empty list, an empty tree
+ * list gets the starter slot. `null` for anything that isn't a
+ * draft at all; the engine's `loadReadingSet` still owns validity.
+ */
+export function storedDraft(d: unknown): ReadingDraft | null {
+  if (typeof d !== "object" || d === null) return null;
+  const o = d as Record<string, unknown>;
+  if (
+    typeof o.id !== "string" ||
+    typeof o.title !== "string" ||
+    typeof o.summary !== "string" ||
+    typeof o.mode !== "string" ||
+    typeof o.taxa_pool !== "object" ||
+    o.taxa_pool === null ||
+    !Array.isArray(o.trees) ||
+    !Array.isArray(o.items)
+  ) {
+    return null;
+  }
+  const trees: TreeDraft[] = [];
+  for (const t of o.trees) {
+    if (typeof t !== "object" || t === null) return null;
+    const tr = t as Record<string, unknown>;
+    if (typeof tr.name !== "string" || typeof tr.newick !== "string") {
+      return null;
+    }
+    trees.push({
+      ...emptyTreeDraft(tr.name),
+      ...tr,
+      name: tr.name,
+      newick: tr.newick,
+    } as TreeDraft);
+  }
+  return {
+    id: o.id,
+    title: o.title,
+    summary: o.summary,
+    mode: o.mode as ReadingMode,
+    ...(o.meta !== undefined ? { meta: o.meta as ExerciseMeta } : {}),
+    ...(Array.isArray(o.premises)
+      ? { premises: o.premises as Premise[] }
+      : {}),
+    taxa_pool: o.taxa_pool as Record<string, string[]>,
+    trees: trees.length > 0 ? trees : [emptyTreeDraft("t1")],
+    items: o.items as Item[],
+  };
+}
+
 /** The probe set's single tree key (and its one item's id). */
 const PROBE_TREE = "the_tree";
 

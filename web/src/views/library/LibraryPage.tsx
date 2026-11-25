@@ -148,6 +148,13 @@ function Card({
       </div>
     );
   const actions = cardActions(item, paper);
+  // v1.5 Task 7 (spec §6): every card offers the assignment builder —
+  // content cards seed it with their own id; a dataset opens the
+  // builder for the instructor to pick content.
+  const assignHref =
+    ds !== undefined
+      ? "?editor&assign"
+      : `?editor&assign=${encodeURIComponent(item.id)}`;
   return (
     <li
       className={lab !== undefined ? "lab-card lib-card" : "lib-card"}
@@ -228,6 +235,7 @@ function Card({
             {a.label}
           </a>
         ))}
+        <a href={assignHref}>Make an assignment</a>
       </p>
     </li>
   );

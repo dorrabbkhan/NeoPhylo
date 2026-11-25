@@ -698,6 +698,55 @@ test("the Lessons menu's Reading trees item asks over unsaved work and opens the
   ).toBeVisible();
 });
 
+// v1.5 Task 7 (spec §6): every card kind's "Make an assignment" link
+// is a plain <a> — the Global Constraint's ≥40×40 floor under
+// (pointer: coarse) applies to it like the other card actions.
+test("under (pointer: coarse) every card kind's Make an assignment link is ≥40×40", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  });
+  const page = await context.newPage();
+  await page.goto("/?library");
+  await allCards(page);
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+
+  for (const kind of ["lessons", "phylip", "mega", "reading", "datasets"]) {
+    const link = page
+      .locator(`.lib-card[data-kind="${kind}"]`)
+      .first()
+      .getByRole("link", { name: "Make an assignment" });
+    await expect(link, `${kind}: the card carries the link`).toHaveCount(1);
+    const box = await link.boundingBox();
+    expect(box, `${kind}: the link has a box`).not.toBeNull();
+    // The same 0.05 unit-conversion tolerance labs.spec.ts uses —
+    // Gecko reports a 40 px box as 39.99998.
+    expect(
+      box!.width,
+      `${kind}: "Make an assignment" ≥40 px wide (${box!.width}×${box!.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box!.height,
+      `${kind}: "Make an assignment" ≥40 px tall (${box!.width}×${box!.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+  await context.close();
+});
+
 test("the header's Reading trees link asks over unsaved work like the menus; a clean sandbox navigates directly", async ({
   page,
 }) => {

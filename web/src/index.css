@@ -2558,11 +2558,19 @@ button,
 }
 
 /* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
- * Constraints): the editor's text fields and its "Back to NeoPhylo"
- * link get the same floor as its buttons. */
+ * Constraints): the editor's text fields, selects and its "Back to
+ * NeoPhylo" link get the same floor as its buttons; the "What are you
+ * making?" fieldset sits above .editor-panel so its radios get their
+ * own rule. */
 @media (pointer: coarse) {
   .editor-panel input,
+  .editor-panel select,
   .editor-panel textarea {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .editor-mode input[type="radio"] {
     min-height: 40px;
     min-width: 40px;
   }
@@ -3277,4 +3285,97 @@ button,
   display: flex;
   align-items: baseline;
   gap: var(--space-8);
+}
+
+/* ---- Assignment builder (v1.5 Task 7, spec §6) ---- */
+
+/* Prompt checkboxes and the chosen-task list — each row pairs its
+ * label with the engine's base-variant answer. */
+.builder-prompts,
+.builder-tasks {
+  list-style: none;
+  margin: var(--space-8) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.builder-prompts li,
+.builder-task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.builder-prompts label,
+.builder-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.builder-answer {
+  color: var(--color-text-muted);
+  font-size: var(--size-xs);
+}
+
+/* The numeric-task picker — step, quantity and role selects in a row. */
+.builder-numeric {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-16);
+  margin: var(--space-8) 0;
+}
+
+.builder-task input[type="number"] {
+  width: 64px;
+  font: inherit;
+  color: var(--color-text-h);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+/* The three sample students side by side — cards wrap on narrow
+ * widths like the editor's other lists. */
+.builder-samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-16);
+}
+
+.builder-sample {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8);
+}
+
+.builder-sample h3 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.builder-sample ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-sm);
+}
+
+.builder-sample-data {
+  color: var(--color-text-muted);
+  font-size: var(--size-xs);
+  margin: 0 0 var(--space-8);
+}
+
+.builder-fallback {
+  color: var(--color-support-weak);
+  font-weight: normal;
 }

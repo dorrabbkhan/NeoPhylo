@@ -14,7 +14,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorHistory } from "../../editor/history";
 import type { EditorModel } from "../../editor/model";
@@ -23,6 +23,10 @@ import type { Tree } from "../../engine/generated/Tree";
 
 import { EditorPanel } from "./EditorPanel";
 
+// v1.5 Task 7: the panel autosaves drafts to localStorage — without a
+// clean slate each test, a previous test's draft would restore over the
+// tree this one renders with.
+beforeEach(() => window.localStorage.clear());
 afterEach(cleanup);
 
 function parseTree(newick: string): Tree {

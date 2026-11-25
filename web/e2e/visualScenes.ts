@@ -599,6 +599,75 @@ export const SCENES: {
     },
   },
   {
+    // v1.5 Task 7 (spec §6): the assignment builder's pick-content
+    // state — the mode's third radio checked, the select awaiting a
+    // content choice, no tasks or samples yet.
+    name: "builder-start",
+    setup: async (page) => {
+      await page.goto("/?editor&assign");
+      await expect(
+        page.getByRole("radio", { name: "Assignment" }),
+      ).toBeChecked();
+      await expect(
+        page.getByRole("combobox", { name: "Assignment content" }),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
+    // v1.5 Task 7 (spec §6 + the PR #187 owner ruling): a built
+    // assignment — nj-basics content, two graded tasks, variation
+    // enabled so the prose-names warning and all three sample
+    // students are in frame. The seeded draft pins a fixed
+    // assignment id — variant seeds derive from it, so the sample
+    // cards' data lines are deterministic across runs.
+    name: "builder",
+    setup: async (page) => {
+      await page.addInitScript((json) => {
+        try {
+          window.localStorage.setItem("neophylo:draft:assignment", json);
+        } catch {
+          // storage can be blocked
+        }
+      }, JSON.stringify({
+        v: 1,
+        id: "a-visual01",
+        title: "Homework: NJ by hand",
+        instructions: "",
+        content: { kind: "builtin", id: "nj-basics" },
+        idLabel: "Student number (SIS ID)",
+        customLabel: "",
+        mode: "practice",
+        variation: true,
+        tasks: [
+          { task: { kind: "predict_pair", step: 1 }, points: 1 },
+          {
+            task: {
+              kind: "numeric",
+              step: 1,
+              quantity: "q_value",
+              role: "chosen",
+            },
+            points: 2,
+          },
+        ],
+      }));
+      await page.goto("/?editor&assign=nj-basics");
+      await expect(
+        page.getByRole("radio", { name: "Assignment" }),
+      ).toBeChecked();
+      // All three sample students and the prose-names warning are
+      // in frame — the rich end state, not the empty start.
+      await expect(page.locator(".builder-sample")).toHaveCount(3, {
+        timeout: 15_000,
+      });
+      await expect(
+        page.getByText(/notes name specific taxa/i),
+      ).toBeVisible();
+      await settleFrame(page);
+    },
+  },
+  {
     // v1.4 Task 12 pack 1 (spec §7): the lab page's print view — the
     // handout as it prints. emulateMedia(print) applies the print
     // stylesheet: controls and nav hide, and the colors come out light

@@ -21,19 +21,41 @@ const ReadingEditor = lazy(() =>
   })),
 );
 
+// v1.5 Task 7: the assignment builder is its own lazy chunk too —
+// the assess helpers, content registries and variant probes stay
+// out of the initial bundle for the same budget reason.
+const AssignmentBuilder = lazy(() =>
+  import("./assignment/AssignmentBuilder").then((m) => ({
+    default: m.AssignmentBuilder,
+  })),
+);
+
 /** The starter tree a new exercise begins with — the nj-basics example. */
 const STARTER_NEWICK = "((A:0.1,B:0.2):0.05,C:0.3,(D:0.1,E:0.15):0.1);";
 
-type EditorMode = "exercise" | "reading";
+type EditorMode = "exercise" | "reading" | "assignment";
 
 export function EditorPage() {
   const [model, setModel] = useState<EditorHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<EditorMode>("exercise");
+  // `?editor&assign[=<builtin-id>]` opens the Assignment mode — the
+  // library card's "Make an assignment" link lands here (spec §6). An
+  // empty value opens the builder with whatever draft it restored.
+  const [assignParam] = useState<string | null>(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.has("assign") ? (p.get("assign") ?? "") : null;
+  });
+  const [mode, setMode] = useState<EditorMode>(
+    assignParam !== null ? "assignment" : "exercise",
+  );
   // The reading editor mounts lazily on its first selection but then
   // stays MOUNTED — like the exercise editor it is only `hidden` when
-  // inactive, so toggling the mode never discards unsaved work.
+  // inactive, so toggling the mode never discards unsaved work. The
+  // same for the assignment builder (v1.5 Task 7).
   const [readingVisited, setReadingVisited] = useState(false);
+  const [assignmentVisited, setAssignmentVisited] = useState(
+    assignParam !== null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +125,18 @@ export function EditorPage() {
               />
               Tree reading set
             </label>
+            <label className="editor-mode-opt">
+              <input
+                type="radio"
+                name="editor-mode"
+                checked={mode === "assignment"}
+                onChange={() => {
+                  setMode("assignment");
+                  setAssignmentVisited(true);
+                }}
+              />
+              Assignment
+            </label>
           </fieldset>
           {/* The wrappers are styleless — `hidden` falls back to the UA
             `display: none`, so an inactive editor leaves no pixel trace
@@ -120,6 +154,25 @@ export function EditorPage() {
                 }
               >
                 <ReadingEditor model={model} />
+              </Suspense>
+            </div>
+          )}
+          {assignmentVisited && (
+            <div hidden={mode !== "assignment"}>
+              <Suspense
+                fallback={
+                  <p className="editor-loading">
+                    Loading the assignment builder…
+                  </p>
+                }
+              >
+                <AssignmentBuilder
+                  initialBuiltin={
+                    assignParam === null || assignParam === ""
+                      ? undefined
+                      : assignParam
+                  }
+                />
               </Suspense>
             </div>
           )}

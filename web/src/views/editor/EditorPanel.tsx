@@ -60,6 +60,8 @@ import { LabPickList } from "../labs/LabIndex";
 import { Icon } from "../nav/Icon";
 import { Sheet } from "../Sheet";
 
+import { autosave, exerciseDraftState } from "./autosave";
+import type { DraftKind } from "./autosave";
 import { BranchTable } from "./BranchTable";
 import { DrawCanvas } from "./DrawCanvas";
 import { detachedRoots, leafNames } from "./drawOps";
@@ -115,34 +117,83 @@ export function EditorPanel({ model }: EditorPanelProps) {
   // to the grid.
   if (!compact && sheet !== null) setSheet(null);
 
-  const [settings, setSettings] =
-    useState<EditorSettings>(DEFAULT_SETTINGS);
-  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  // The autosaved draft, if a reload left one (v1.5 Task 7, spec
+  // §9.1): rebuilt through the same save→load round-trip an import
+  // takes, then refused if it fails the conversion or the engine's
+  // editable-tree gate — the checks applyLoaded runs, computed up
+  // front so the restored work IS the initial state of everything
+  // below (no effect-restore; set-state-in-effect is lint-forbidden).
+  const [restore] = useState(() => {
+    const d = exerciseDraftState(
+      autosave.load("matrix") ?? autosave.load("exercise"),
+    );
+    if (d === null) return null;
+    const conv = settingsFromExercise(
+      d.state.exercise,
+      d.state.fileExtras,
+    );
+    if ("error" in conv) {
+      return { ok: false as const, error: conv.error };
+    }
+    // Precheck the gate model.replace applies — the effect below
+    // then can't leave restored settings over the mount tree.
+    const gate = engine.editValidate(d.tree);
+    if (!gate.ok) {
+      const m = errorMessage(gate.error);
+      return { ok: false as const, error: `${m.title}: ${m.body}` };
+    }
+    return { ok: true as const, draft: d, conv };
+  });
+  const restored = restore !== null && restore.ok ? restore : null;
+
+  const [settings, setSettings] = useState<EditorSettings>(
+    restored?.conv.settings ?? DEFAULT_SETTINGS,
+  );
+  const [prompts, setPrompts] = useState<Prompt[]>(
+    restored?.conv.prompts ?? [],
+  );
   const [fileExtras, setFileExtras] = useState<
     Record<string, unknown> | undefined
-  >(undefined);
+  >(restored?.draft.state.fileExtras);
   // Fields the form can't edit, carried from an imported file to the
   // saved one (fix round 1) — empty on a fresh draft.
-  const [preserved, setPreserved] =
-    useState<PreservedFields>(EMPTY_PRESERVED);
+  const [preserved, setPreserved] = useState<PreservedFields>(
+    restored?.conv.preserved ?? EMPTY_PRESERVED,
+  );
   const [importText, setImportText] = useState("");
   const [importFileName, setImportFileName] = useState<string | null>(
     null,
   );
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(
+    restore !== null && !restore.ok
+      ? { level: "error", text: `Not restored — ${restore.error}` }
+      : restored !== null
+        ? {
+            level: "status",
+            text: "Restored your unsaved draft — save or share to keep it.",
+          }
+        : null,
+  );
   // Task 11 (Review Focus 5): the "Labs" sheet and the lab
   // whose load is waiting on the unsaved-work question.
   const [labSheet, setLabSheet] = useState(false);
   const [pendingLab, setPendingLab] = useState<LabSummary | null>(null);
-  // The clean-draft baseline: mount state, updated after every
-  // accepted load and every successful save (see draftSnapshot).
+  // The storage flag is external mutable state — read it through a
+  // subscription (the model.subscribe pattern), not effect-set-state.
+  const draftBlocked = useSyncExternalStore(
+    autosave.subscribe,
+    () => autosave.blocked,
+  );
+  // The clean-draft baseline: mount state (or the restored draft's),
+  // updated after every accepted load and every successful save (see
+  // draftSnapshot).
   const baseline = useRef(
     draftSnapshot(
-      model.tree,
-      DEFAULT_SETTINGS,
-      [],
-      undefined,
-      EMPTY_PRESERVED,
+      restored?.draft.tree ?? model.tree,
+      restored?.conv.settings ?? DEFAULT_SETTINGS,
+      restored?.conv.prompts ?? [],
+      restored?.draft.state.fileExtras,
+      restored?.conv.preserved ?? EMPTY_PRESERVED,
     ),
   );
 
@@ -313,6 +364,31 @@ export function EditorPanel({ model }: EditorPanelProps) {
     setNotice({ level: "status", text: done });
     return true;
   };
+
+  // The restored draft's tree goes on the canvas once (v1.5 Task 7):
+  // a matrix-mode file does not carry it — it stays the matrix's
+  // derive source. The initializer's gate precheck guarantees the
+  // replace is accepted; everything else opened on the restored
+  // state already.
+  useEffect(() => {
+    if (restored !== null) void model.replace(restored.draft.tree);
+  }, [restored, model]);
+
+  // Autosave every change under the data route's key and clear the
+  // other — exactly one of `exercise`/`matrix` holds a live draft.
+  const draftKind: DraftKind =
+    settings.dataMode === "matrix" ? "matrix" : "exercise";
+  useEffect(() => {
+    autosave.save(draftKind, {
+      v: 1,
+      n: engine.writeNewick(tree),
+      s: settings,
+      p: prompts,
+      x: fileExtras ?? null,
+      r: preserved,
+    });
+    autosave.clear(draftKind === "matrix" ? "exercise" : "matrix");
+  }, [draftKind, tree, settings, prompts, fileExtras, preserved]);
 
   const onImport = (text: string) => {
     const r = importExercise(text);
@@ -504,6 +580,12 @@ export function EditorPanel({ model }: EditorPanelProps) {
             />
           )}
         </div>
+      )}
+      {draftBlocked && (
+        <p className="editor-warning">
+          Drafts won't be saved — this browser's storage is
+          unavailable.
+        </p>
       )}
       {detached > 0 && (
         <p className="editor-warning">
