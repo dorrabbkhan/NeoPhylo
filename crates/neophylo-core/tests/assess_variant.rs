@@ -73,6 +73,8 @@ fn assignment(content: Content, variation: bool) -> Assignment {
         title: "t".to_string(),
         instructions: None,
         content,
+        content_hash: None,
+        served_content_hash: None,
         id_prompt: IdPrompt {
             label: "Student ID".to_string(),
             rule: IdRule::TrimLower,
@@ -521,6 +523,82 @@ fn derived_matrix_variants_are_exactly_additive() {
                     "student-{k} branch {i}: {len} is not at the author's {d} decimals",
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn derived_matrix_variant_serves_author_decimals() {
+    // Owner decision 2026-11-25 (moved from Task 6): the variant
+    // matrix is `additive_matrix(&tree, Some(d))` — the author's
+    // decimals, so a path sum shows e.g. 0.3, not its binary tail.
+    // An authored matrix with two-decimal values (`d = 2`): every
+    // served `lower` value has at most 2 decimals and equals the
+    // exact decimal path sum of the variant's reference tree.
+    let ex = Exercise {
+        schema_version: 5,
+        id: "two-dec".to_string(),
+        title: "two-dec".to_string(),
+        alphabet: neophylo_core::Alphabet::Dna,
+        data: ExerciseData::Matrix {
+            names: vec!["a".into(), "b".into(), "c".into(), "d".into()],
+            // (b,a) (c,a) (c,b) (d,a) (d,b) (d,c) — all 2-decimal.
+            lower: vec![0.50, 1.25, 0.75, 2.20, 1.90, 1.10],
+            source: neophylo_core::exercise::Source {
+                citation: "c".into(),
+                license: "l".into(),
+                accessions: vec![],
+            },
+        },
+        reference: Some(neophylo_core::exercise::Reference {
+            newick: "((a:0.25,b:0.25):0.5,c:0.75,d:1.0);".to_string(),
+            kind: neophylo_core::exercise::ReferenceKind::True,
+        }),
+        analysis: neophylo_core::exercise::Analysis {
+            correction: neophylo_core::dist::DistModel::Supplied,
+            method: neophylo_core::algos::Method::Nj,
+            kappa: None,
+            site_filter: None,
+        },
+        locked: vec![],
+        prompts: vec![],
+        bootstrap: None,
+        meta: None,
+        premises: vec![],
+    };
+    // sanity: the authored values are really at d = 2
+    let base = Content::Exercise(ex.clone());
+    for k in 0..40 {
+        let seed = variant_seed("asst-1", &format!("student-{k}"));
+        let v = make_variant(&base, &[], seed, true)
+            .unwrap_or_else(|e| panic!("student-{k}: {e}"));
+        let Content::Exercise(vex) = &v.content else {
+            panic!("exercise")
+        };
+        let ExerciseData::Matrix { lower, .. } = &vex.data else {
+            panic!("matrix exercise")
+        };
+        let reference = vex
+            .reference
+            .as_ref()
+            .expect("a derived matrix variant keeps a true reference");
+        let tree = parse_newick(&reference.newick).unwrap();
+        let exact = additive_matrix(&tree, None).unwrap();
+        assert_eq!(lower.len(), exact.lower.len());
+        for (i, (&served, &raw)) in lower.iter().zip(&exact.lower).enumerate() {
+            // At most 2 decimals …
+            assert_eq!(
+                (served * 100.0).round() / 100.0,
+                served,
+                "student-{k} cell {i}: {served} has more than 2 decimals",
+            );
+            // … and equal to the exact decimal path sum — the binary
+            // path sum's `0.30000000000000004`-style noise is gone.
+            assert_eq!(
+                (raw * 100.0).round() / 100.0,
+                served,
+                "student-{k} cell {i}: {served} is not the rounded path sum of {raw}",
+            );
         }
     }
 }

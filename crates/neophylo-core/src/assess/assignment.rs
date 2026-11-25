@@ -113,6 +113,23 @@ pub struct Assignment {
     #[ts(optional)]
     pub instructions: Option<String>,
     pub content: Content,
+    /// The [`content_hash`](crate::assess::hash::content_hash) recorded
+    /// at authoring time when the content is a built-in reference
+    /// (v1.5 spec §5.7): the code fingerprint covers this hash instead
+    /// of the content itself, so a built-in file that changed since
+    /// authoring flags `ContentChanged` in grading rather than
+    /// `AssignmentMismatch`. `None` for embedded content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub content_hash: Option<String>,
+    /// The content hash of the file the running build actually serves
+    /// — set by the Task 6 assignment loader from the current file
+    /// bytes, never part of the wire shape. Grading flags
+    /// `ContentChanged` when both this and `content_hash` are `Some`
+    /// and differ.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub served_content_hash: Option<String>,
     pub id_prompt: IdPrompt,
     pub mode: Mode,
     /// Variation on/off (spec §4): off serves every student the base

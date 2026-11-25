@@ -215,10 +215,10 @@ fn transform_simulated(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
 
 /// A matrix exercise derived from a tree (§5.2): a seeded random
 /// binary tree on the exercise's own taxa with branch lengths rounded
-/// to the author's decimals, its *exact* path-length matrix — so the
-/// served matrix is additive and the lesson note "every distance is
-/// the exact path between two tips of that tree" stays true — and the
-/// generated tree as the new true reference.
+/// to the author's decimals, its path-length matrix at those same
+/// decimals — so the served matrix is additive and the lesson note
+/// "every distance is the exact path between two tips of that tree"
+/// stays true — and the generated tree as the new true reference.
 fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
     let ExerciseData::Matrix {
         names,
@@ -233,7 +233,11 @@ fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoErr
     };
     let d = author_decimals(lower);
     let tree = random_tree(names, sub_seed(seed, "tree"), d);
-    let input = additive_matrix(&tree, None)?;
+    // `Some(d)`: the branch lengths are already rounded to `d`, so the
+    // path sums are exact decimals at `d` places; rounding only strips
+    // the binary float noise of the additions (owner 2026-11-25 —
+    // e.g. 0.1 + 0.2 serving 0.3, not 0.30000000000000004).
+    let input = additive_matrix(&tree, Some(d))?;
     let mut out = ex.clone();
     out.data = ExerciseData::Matrix {
         names: input.names,
@@ -272,7 +276,8 @@ fn author_decimals(lower: &[f64]) -> u8 {
 /// `decimals` places and floored at `10^-decimals` so no length is
 /// zero. Rounded lengths make the tree's path-length matrix exactly
 /// additive at the author's decimals — the matrix is computed with
-/// `additive_matrix(&tree, None)`, never re-rounded. Draws are
+/// `additive_matrix(&tree, Some(decimals))`, which only strips the
+/// float noise of summing already-rounded lengths. Draws are
 /// consumed in a fixed order — a name shuffle, then per join the two
 /// members and their two lengths — so a seed always yields the same
 /// tree.
