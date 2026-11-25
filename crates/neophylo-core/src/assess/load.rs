@@ -39,6 +39,20 @@ fn invalid(field: impl Into<String>, msg: impl Into<String>) -> NeoError {
     }
 }
 
+/// A builtin's served `file` that fails its own loader refuses as
+/// `content.file` — the field the resolver injected — not the inner
+/// loader's own error kind, per this module's "every refusal is
+/// `InvalidAssignment` naming the field" contract (the `exercise`/
+/// `reading` branches wrap to `content.*` fields the same way).
+fn served_err(e: NeoError) -> NeoError {
+    match e {
+        NeoError::InvalidExercise { msg, .. } | NeoError::InvalidReading { msg, .. } => {
+            invalid("content.file", msg)
+        }
+        e => e,
+    }
+}
+
 // --- structural pre-scan --------------------------------------------------------
 
 /// Refuse `null` where the types do not allow it and wrong container
@@ -225,9 +239,9 @@ fn parse_content(v: &Value) -> Result<(Content, Option<String>, Option<String>),
             // other file goes through the exercise loader.
             let served: Value = serde_json::from_str(file).unwrap_or(Value::Null);
             let content = if served.get("kind").and_then(Value::as_str) == Some("reading") {
-                Content::Reading(load_reading_set(file)?)
+                Content::Reading(load_reading_set(file).map_err(served_err)?)
             } else {
-                Content::Exercise(load_exercise(file)?)
+                Content::Exercise(load_exercise(file).map_err(served_err)?)
             };
             let inner_id = match &content {
                 Content::Exercise(ex) => ex.id.as_str(),

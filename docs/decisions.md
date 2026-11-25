@@ -10496,6 +10496,11 @@ were regenerated in the pinned image — no other baseline changed.
   and the engine packs via `pack_answer` — packing never happens in
   TypeScript (spec §5.4). Length mismatch → `InvalidAssignment` naming
   `attempts`.
+- **Interface spellings vs the plan's:** the plan's `PRECISION`
+  constant is exposed as `engine.precision()` returning
+  `[Quantity, number][]` — a `const` cannot cross wasm-bindgen — and
+  `decodeAssignmentLink` is `async` because builtin content resolves
+  through lazy `?raw` globs.
 - **Files outside the Files block this round:**
   `crates/neophylo-core/src/assess/{load,prose}.rs` (new modules — the
   block lists `assignment.rs` only; `load_assignment` and
@@ -10505,8 +10510,14 @@ were regenerated in the pinned image — no other baseline changed.
   wasm bindings can cross them — all fields are JS-safe widths),
   `exercises/content-hashes.json` (the Step-3 artefact, 27 builtin
   ids), `web/src/views/{assignment/AssignmentStart,grade/GradePage}.tsx`
-  (the stub pages `Root.tsx` lazy-loads), and the regenerated
-  `generated/{Attempt,CodePayload,EncodeAttempt,PackedAnswer}.ts`.
+  (the stub pages `Root.tsx` lazy-loads), the regenerated
+  `generated/{Attempt,CodePayload,EncodeAttempt,PackedAnswer}.ts`, and
+  `web/src/assess/precision.test.ts` (new — pins the web formatter
+  against the engine `PRECISION` table). The fix round also touched
+  `web/src/test/setup.ts` and `web/src/engine/worker.ts` — every
+  engine wrapper now calls the raw `init()`/`initSync` exports
+  (`bindWasmExports` seeds them), so all wasm-bindgen param
+  marshalling glue is tree-shaken out of the initial bundle (§8.2).
   `content-hashes.json` also needed an exclusion in every enumerator
   that filters only `*schema.json` out of `exercises/*.json`:
   `tests/lesson_premises.rs`, `web/src/lessons/{schema,catalog,lessons,content}.test.ts`

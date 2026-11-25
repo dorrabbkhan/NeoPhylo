@@ -289,6 +289,22 @@ fn builtin_refusals_named() {
 }
 
 #[test]
+fn builtin_served_file_failure_is_content_file() {
+    // A `file` the inner loader refuses must still name a field per
+    // the module contract — `content.file`, wrapped as
+    // `InvalidAssignment`, not the raw `InvalidExercise`/
+    // `InvalidReading` the loader returned.
+    let mut v = builtin();
+    v["content"]["file"] = json!("this is not json at all");
+    assert_eq!(field(&load(&v).unwrap_err()), "content.file");
+
+    // Valid JSON that fails exercise validation wraps the same way.
+    let mut v = builtin();
+    v["content"]["file"] = json!("{ \"schema_version\": 1 }");
+    assert_eq!(field(&load(&v).unwrap_err()), "content.file");
+}
+
+#[test]
 fn id_prompt_rule_defaults_and_validates() {
     let mut v = base();
     v["id_prompt"].as_object_mut().unwrap().remove("rule");

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { initSync } from "../engine/pkg/neophylo_wasm.js";
+import { bindWasmExports } from "../engine/index";
 
 // Engine-dependent tests run against the real wasm module (plan M3 preamble).
 // initSync is used because Vitest runs in Node, where the default fetch-based
@@ -14,7 +15,9 @@ const wasmPath =
   wasmUrl.protocol === "file:"
     ? fileURLToPath(wasmUrl)
     : resolve("src/engine/pkg/neophylo_wasm_bg.wasm");
-initSync({ module: readFileSync(wasmPath) });
+// initSync's return feeds the assess wrappers' raw exports — the
+// initEngine path never runs under Vitest.
+bindWasmExports(initSync({ module: readFileSync(wasmPath) }));
 
 // jsdom has no ResizeObserver; a no-op stub lets components that measure
 // their panels mount in tests — they fall back to default geometry.
