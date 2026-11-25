@@ -10377,3 +10377,61 @@ were regenerated in the pinned image — no other baseline changed.
     `u64` mask/rank fields would emit `bigint`, which the no-bigint
     guard refuses — TS consumers see `TaskAnswer`, not the wire form.
   - `docs/decisions.md` — this entry.
+
+### v1.5 Task 5 fix round 1 (PR #188 review)
+
+- **Content-sized widths (review item 1):** the fixed 16-bit tip
+  index, 64-bit masks/ranks and 8-bit option indices are gone — a
+  70-tip clade could not encode at all and 15 `predict_pair` tasks
+  cost 411 chars. The header gains the name-table size `names`
+  (8 bits, 1..=`MAX_NAME_TABLE` = 200) right after `task_count`, and
+  `grade` scores `AssignmentMismatch` when it differs from the
+  rebuilt variant's table size. A tip index is `tip_bits(n) =
+  max(1, ⌈log₂N⌉)` bits; a tip set/clade mask is exactly `N` bits;
+  reading multi-picks self-delimit (`Choices`: 8-bit mask width `m`
+  + `m` mask bits; `Order`: 7-bit count `k` + `k` positions of
+  `idx_bits(k)` bits — the `u64` Lehmer rank is gone, so orders above
+  ~21 nodes encode); single picks and two-tier reasons carry the
+  index as `w−1` in 3 bits + `w` bits (`w = idx_bits(i+1)`, 1..=8).
+  `max_code_len` prices the content's own table and each item's
+  option/node counts (`content_name_table`, `index_domain`,
+  `trait_domain`), still an exact worst case. Numbers stay
+  `|n| ≤ 2³¹−1` — the quantity scale pins real answers to ±2·10⁹,
+  and a wider bound would only buy room no content can reach.
+  Layout stays `format = 1`, `generator = 1`: nothing is released,
+  so no version bump (the golden files' `generator` field is the
+  constant, and only `numeric-tasks.json` changed this round).
+- **Impossible ids refused at decode (item 2):** `id_len == 0` or
+  `> MAX_ID_BYTES` in the wire header is `InvalidCode "length"` — a
+  code no real finish flow can emit. `grade` maps a `normalise_id`
+  failure on the code's (decodable) id to `InvalidCode "malformed"`,
+  not `InvalidAssignment` — e.g. a 3-byte blank id.
+- **Numeric golden covers every quantity and role (item 3):** the
+  `numeric-tasks` assignment grew from 3 to 8 tasks —
+  `corrected_distance`/`q_value` × `chosen`/`closest_raw`,
+  `new_distance`/`closest_raw` at step 3 (a member stays active for
+  all five ids — steps 1–2 don't), and `branch_length` ×
+  `chosen_first_to_new`/`chosen_second_to_new`. Only
+  `numeric-tasks.json` regenerated; the other five golden files are
+  byte-identical (the packed-answer layout is not part of their
+  content, and `names`-aware packing doesn't change variant data).
+- **TwoTier cannot nest (item 4):** `read_answer`'s tag-9 recursion
+  had no depth limit — a crafted code with ~6,000 nested tags
+  overflowed a wasm-sized stack. The inner answer of a TwoTier may
+  not be `TwoTier` or `Skipped` (validated content never produces
+  either) — the decoder refuses at the inner tag with `"malformed"`,
+  and the encoder refuses to write one, keeping
+  `decode(encode)` an identity. A committed fuzz seed carries the
+  crafted code (`fuzz/seeds/code/nested_two_tier.txt`).
+- **Serde gap pins for `Assignment.content_hash` (item 6):**
+  `"content_hash": null` parses as `None` — serde's `Option` rules
+  make an explicit null the same as an absent key, and the builder
+  never writes it (`skip_serializing_if`) — while `[]`/`["x"]` fail
+  at parse (the key is typed). `"served_content_hash"` in input JSON
+  is ignored (`#[serde(skip)]`; the Task 6 loader sets it from file
+  bytes). Pinned in `tests/assess_code.rs`.
+- **Files outside the Files block this round:** none new — the
+  changes land in `assess/code.rs`/`grade.rs` and the
+  `tests/assess_{code,code_props,grade,golden}.rs` files the task
+  already touched, plus `fuzz/seeds/code/nested_two_tier.txt` and
+  `numeric-tasks.json` (the item-3 regeneration the notes approve).

@@ -158,6 +158,36 @@ fn cases() -> Vec<(&'static str, Assignment)> {
                         quantity: Quantity::CorrectedDistance,
                         role: PairRole::Chosen,
                     },
+                    // Every quantity and role appears: the roles'
+                    // valid steps were probed on all five ids —
+                    // `new_distance`/`closest_raw` needs a step where
+                    // a member stays active (3–4 on nj-basics),
+                    // `closest_raw` needs an unambiguous minimum.
+                    TaskRef::Numeric {
+                        step: 1,
+                        quantity: Quantity::CorrectedDistance,
+                        role: PairRole::ClosestRaw,
+                    },
+                    TaskRef::Numeric {
+                        step: 1,
+                        quantity: Quantity::QValue,
+                        role: PairRole::ClosestRaw,
+                    },
+                    TaskRef::Numeric {
+                        step: 3,
+                        quantity: Quantity::NewDistance,
+                        role: PairRole::ClosestRaw,
+                    },
+                    TaskRef::Numeric {
+                        step: 1,
+                        quantity: Quantity::BranchLength,
+                        role: PairRole::ChosenFirstToNew,
+                    },
+                    TaskRef::Numeric {
+                        step: 1,
+                        quantity: Quantity::BranchLength,
+                        role: PairRole::ChosenSecondToNew,
+                    },
                 ],
             ),
         ),

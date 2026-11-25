@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::assess::assignment::{Assignment, Content, Variant};
-use crate::assess::code::{answer_fits, decode_code, fingerprint, item_of, unpack_answer};
+use crate::assess::code::{
+    answer_fits, decode_code, fingerprint, item_of, name_table, unpack_answer,
+};
 use crate::assess::hash::normalise_id;
 use crate::assess::task::{check_task, TaskAnswer, TaskRef};
 use crate::error::NeoError;
@@ -149,8 +151,21 @@ pub fn grade(
     if payload.fingerprint != fingerprint(a) || payload.attempts.len() != a.tasks.len() {
         return Ok(mismatch(flags));
     }
-    let variant = a.variant_for(&payload.student_id)?;
-    if payload.retry != variant.retry {
+    let variant = a.variant_for(&payload.student_id).map_err(|e| match e {
+        // The code decodes but its id cannot be a real id (blank
+        // after normalisation): `decode_code` checks only the byte
+        // length, so the refusal lands here — as an `InvalidCode`,
+        // not an assignment error.
+        NeoError::InvalidAssignment { ref field, .. } if field == "student_id" => {
+            NeoError::InvalidCode {
+                reason: "malformed".to_string(),
+            }
+        }
+        e => e,
+    })?;
+    if payload.retry != variant.retry || usize::from(payload.names) != name_table(&variant)?.len() {
+        // A wrong retry or table size says the code was issued on a
+        // different generator or premise — score 0, never guess.
         return Ok(mismatch(flags));
     }
     let mut score = 0.0;

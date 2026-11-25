@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 
 use neophylo_core::assess::code::crc16;
 use neophylo_core::assess::{
-    decode_code, encode_code, fingerprint, max_code_len, name_table, pack_answer, unpack_answer,
-    Assignment, Attempt, CodePayload, Content, IdPrompt, IdRule, Mode, PackedAnswer, TaskAnswer,
-    TaskRef, Variant, GENERATOR_VERSION, MAX_ID_BYTES,
+    decode_code, encode_code, fingerprint, grade, max_code_len, name_table, pack_answer, task_key,
+    unpack_answer, AcceptedAnswer, Assignment, Attempt, CodePayload, Content, IdPrompt, IdRule,
+    Mode, PackedAnswer, Rule, TaskAnswer, TaskRef, Variant, GENERATOR_VERSION, MAX_ID_BYTES,
 };
 use neophylo_core::assess::{PairRole, Quantity};
 use neophylo_core::exercise::{load_exercise, Exercise};
@@ -57,6 +57,7 @@ fn payload(attempts: Vec<Attempt>) -> CodePayload {
         fingerprint: 0x12345,
         student_id: "ada".to_string(),
         retry: 3,
+        names: 8,
         attempts,
         finished_min: 123_456,
     }
@@ -119,6 +120,7 @@ fn a_fixed_payload_encodes_to_a_fixed_code() {
         fingerprint: 0x0A5A5,
         student_id: "s-001".to_string(),
         retry: 0,
+        names: 8,
         attempts: vec![Attempt {
             first: PackedAnswer::Pair(2, 7),
             last: None,
@@ -128,7 +130,7 @@ fn a_fixed_payload_encodes_to_a_fixed_code() {
     };
     let code = encode_code(&p).unwrap();
     assert_eq!(decode_code(&code).unwrap(), p);
-    assert_eq!(code, "NP1-208AB-98AWS-D60R3-20240-04007-1001Y-G00F7-0");
+    assert_eq!(code, "NP1-208AB-98AWS-D60R3-20220-NR800-FM39H-0");
 }
 
 #[test]
@@ -187,8 +189,8 @@ fn decode_reports_the_spec_reasons() {
     // symbols leave a padding width that can't be byte-aligned.
     assert_eq!(reason(decode_code("NP1-A")), "length");
     assert_eq!(reason(decode_code("NP1-ABC")), "length");
-    // Nonzero padding: this multi-task code pads its last symbol —
-    // flipping its lowest bit lands in the pad.
+    // Nonzero padding: this multi-task code pads its last symbol by
+    // 4 bits — setting a low pad bit reads "length".
     let padded = encode_code(&payload(vec![
         attempt(PackedAnswer::Pair(0, 5)),
         Attempt {
@@ -198,9 +200,11 @@ fn decode_reports_the_spec_reasons() {
         },
     ]))
     .unwrap();
+    let alpha = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     let mut chars: Vec<char> = padded.chars().collect();
     let last = chars.len() - 1;
-    chars[last] = if chars[last] == '0' { '1' } else { '0' };
+    let v = alpha.iter().position(|&x| x == chars[last] as u8).unwrap();
+    chars[last] = alpha[v | 1] as char;
     let flipped: String = chars.into_iter().collect();
     assert_eq!(reason(decode_code(&flipped)), "length");
     // Corrupt a payload symbol, keeping the count valid.
@@ -213,62 +217,138 @@ fn decode_reports_the_spec_reasons() {
     }
 }
 
+/// A hand-built wire for cases `encode_code` refuses (bad id_len,
+/// nested two-tier): `fields` are (value, width) pairs, the payload
+/// pads to a byte, CRC-16 is appended, then base32 symbols.
+fn wire(fields: &[(u64, usize)]) -> String {
+    let mut bits: Vec<bool> = Vec::new();
+    for &(v, n) in fields {
+        for i in (0..n).rev() {
+            // A field may exceed u64 for zero-padding runs.
+            bits.push(i < 64 && (v >> i) & 1 == 1);
+        }
+    }
+    while !bits.len().is_multiple_of(8) {
+        bits.push(false);
+    }
+    let mut bytes = vec![0u8; bits.len().div_ceil(8)];
+    for (i, &b) in bits.iter().enumerate() {
+        if b {
+            bytes[i / 8] |= 0x80 >> (i % 8);
+        }
+    }
+    let crc = crc16(&bytes);
+    for i in (0..16).rev() {
+        bits.push((u64::from(crc) >> i) & 1 == 1);
+    }
+    while !bits.len().is_multiple_of(5) {
+        bits.push(false);
+    }
+    let alpha = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+    let mut text = String::from("NP1-");
+    for (i, chunk) in bits.chunks(5).enumerate() {
+        if i > 0 && i % 5 == 0 {
+            text.push('-');
+        }
+        let v = chunk.iter().fold(0u8, |v, &b| (v << 1) | u8::from(b));
+        text.push(alpha[v as usize] as char);
+    }
+    text
+}
+
+/// The shared head of a minimal valid wire: format, generator,
+/// fingerprint, a one-byte id `'a'`, retry 0.
+const HEAD: &[(u64, usize)] = &[
+    (1, 4),
+    (GENERATOR_VERSION as u64, 8),
+    (0, 20),
+    (1, 7),
+    (b'a' as u64, 8),
+    (0, 6),
+];
+
 #[test]
 fn decode_rejects_unknown_versions() {
     // Same layout, format/generator fields nudged — the checksum is
-    // over the payload, so flip the field and fix the CRC by encoding
-    // a raw payload is not available; instead test that a payload
-    // encoded with bumped constants refuses: hand-build via bits is
-    // simplest — reuse encode with a tampered struct is refused, so
-    // craft the wire directly here.
-    fn wire(format: u8, generator: u8) -> String {
-        // Minimal payload: format, generator, fingerprint 0, empty id,
-        // retry 0, one skipped task, finished 0.
-        fn push(bits: &mut Vec<bool>, v: u64, n: usize) {
-            for i in (0..n).rev() {
-                bits.push((v >> i) & 1 == 1);
-            }
+    // over the payload, so craft the wire directly.
+    let version_wire = |format: u64, generator: u64| {
+        let mut f: Vec<(u64, usize)> = vec![(format, 4), (generator, 8)];
+        f.extend_from_slice(&HEAD[2..]);
+        f.extend_from_slice(&[
+            (1, 4),  // one task
+            (8, 8),  // names
+            (0, 4),  // skipped tag
+            (0, 1),  // has_last
+            (1, 4),  // attempts
+            (0, 24), // finished_min
+        ]);
+        wire(&f)
+    };
+    assert_eq!(reason(decode_code(&version_wire(2, 1))), "version");
+    assert_eq!(reason(decode_code(&version_wire(1, 9))), "version");
+    assert_eq!(reason(decode_code(&version_wire(0, 1))), "version");
+    assert!(
+        decode_code(&version_wire(1, u64::from(GENERATOR_VERSION))).is_ok(),
+        "a format-1 wire decodes"
+    );
+}
+
+#[test]
+fn decode_refuses_impossible_id_lengths() {
+    // A hand-built payload (valid CRC) whose id_len is 0 or above
+    // MAX_ID_BYTES — a code no real finish flow could emit.
+    let with_id_len = |id_len: u64| {
+        let mut f: Vec<(u64, usize)> = vec![(1, 4), (GENERATOR_VERSION as u64, 8), (0, 20)];
+        f.extend_from_slice(&[(id_len, 7), (0, 64)]);
+        wire(&f)
+    };
+    assert_eq!(reason(decode_code(&with_id_len(0))), "length");
+    assert_eq!(
+        reason(decode_code(&with_id_len(MAX_ID_BYTES as u64 + 1))),
+        "length"
+    );
+    // The cap itself still parses the length, then fails on the
+    // missing id bytes — also "length", but further in.
+    assert_eq!(
+        reason(decode_code(&with_id_len(MAX_ID_BYTES as u64))),
+        "length"
+    );
+}
+
+#[test]
+fn a_nested_two_tier_answer_is_malformed() {
+    // A TwoTier whose inner answer is itself TwoTier (or Skipped) can
+    // never come from validated content — the decoder refuses at the
+    // inner tag instead of recursing (the unbounded recursion it
+    // replaces could overflow a wasm-sized stack). Run on a 256 KiB
+    // stack, smaller than the wasm one.
+    let nested = |levels: usize, inner: u64| {
+        let mut f = HEAD.to_vec();
+        f.extend_from_slice(&[(1, 4), (8, 8), (9, 4)]);
+        for _ in 0..levels {
+            f.push((9, 4));
         }
-        let mut bits: Vec<bool> = Vec::new();
-        push(&mut bits, u64::from(format), 4);
-        push(&mut bits, u64::from(generator), 8);
-        push(&mut bits, 0, 20); // fingerprint
-        push(&mut bits, 0, 7); // id_len
-        push(&mut bits, 0, 6); // retry
-        push(&mut bits, 1, 4); // one task
-        push(&mut bits, 0, 4); // skipped tag
-        push(&mut bits, 0, 1); // has_last
-        push(&mut bits, 1, 4); // attempts
-        push(&mut bits, 0, 24); // finished_min
-        while !bits.len().is_multiple_of(8) {
-            bits.push(false);
-        }
-        let mut bytes = vec![0u8; bits.len().div_ceil(8)];
-        for (i, &b) in bits.iter().enumerate() {
-            if b {
-                bytes[i / 8] |= 0x80 >> (i % 8);
-            }
-        }
-        let crc = crc16(&bytes);
-        push(&mut bits, u64::from(crc), 16);
-        while !bits.len().is_multiple_of(5) {
-            bits.push(false);
-        }
-        let alpha = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        let mut text = String::from("NP1-");
-        for (i, chunk) in bits.chunks(5).enumerate() {
-            if i > 0 && i % 5 == 0 {
-                text.push('-');
-            }
-            let v = chunk.iter().fold(0u8, |v, &b| (v << 1) | u8::from(b));
-            text.push(alpha[v as usize] as char);
-        }
-        text
-    }
-    assert_eq!(reason(decode_code(&wire(2, 1))), "version");
-    assert_eq!(reason(decode_code(&wire(1, 9))), "version");
-    assert_eq!(reason(decode_code(&wire(0, 1))), "version");
-    assert!(decode_code(&wire(1, 1)).is_ok(), "a format-1 wire decodes");
+        f.extend_from_slice(&[(inner, 4), (0, 80)]);
+        wire(&f)
+    };
+    let deep = nested(400, 5);
+    let two = nested(1, 5);
+    let skip = nested(0, 0);
+    let out = std::thread::Builder::new()
+        .stack_size(256 * 1024)
+        .spawn(move || {
+            (
+                reason(decode_code(&deep)),
+                reason(decode_code(&two)),
+                reason(decode_code(&skip)),
+            )
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert_eq!(out.0, "malformed", "400 nested two-tier tags");
+    assert_eq!(out.1, "malformed", "a two-tier inner two-tier");
+    assert_eq!(out.2, "malformed", "a two-tier inner skipped");
 }
 
 // --- limits --------------------------------------------------------------------------
@@ -327,7 +407,7 @@ fn encode_refuses_noncanonical_attempts() {
         },
         "malformed"
     );
-    // A packed index past the 64-bit mask.
+    // A packed index past the declared name table (names = 8).
     let p = payload(vec![attempt(PackedAnswer::Tips(vec![0, 70]))]);
     assert_eq!(
         match encode_code(&p) {
@@ -628,7 +708,12 @@ fn unpack_of_a_skipped_or_mismatched_answer_errors() {
     )
     .is_err());
     // An order answer without an order_nodes item.
-    assert!(unpack_answer(&v, &TaskRef::Reading { item: 6 }, &PackedAnswer::Order(0),).is_err());
+    assert!(unpack_answer(
+        &v,
+        &TaskRef::Reading { item: 6 },
+        &PackedAnswer::Order(vec![0]),
+    )
+    .is_err());
 }
 
 // --- fingerprint & bounds ------------------------------------------------------------------
@@ -684,50 +769,28 @@ fn fingerprint_is_20_bits_and_tracks_the_assignment() {
 fn max_code_len_bounds_real_codes() {
     // The tightness property test lives in assess_code_props.rs; here:
     // the reported numbers the PR body quotes.
-    let mut tasks = vec![];
-    for step in 1..=15u32 {
-        tasks.push(neophylo_core::assess::GradedTask {
-            task: TaskRef::PredictPair { step },
-            points: 1.0,
-        });
-    }
-    let a = assignment(Content::Exercise(lesson("nj-basics")), tasks);
-    let pair_len = max_code_len(&a);
-    // 15 numeric tasks.
-    let a_num = assignment(
-        Content::Exercise(lesson("nj-basics")),
+    let graded = |task| neophylo_core::assess::GradedTask { task, points: 1.0 };
+    // 15 predict_pair on nj-by-hand (5 taxa) — item 1(a): the content-
+    // sized tip index (3 bits here) keeps 15 pair tasks inside 250.
+    let a = assignment(
+        Content::Exercise(lesson("nj-by-hand")),
         (1..=15u32)
-            .map(|step| neophylo_core::assess::GradedTask {
-                task: TaskRef::Numeric {
-                    step,
-                    quantity: Quantity::CorrectedDistance,
-                    role: PairRole::Chosen,
-                },
-                points: 1.0,
-            })
+            .map(|step| graded(TaskRef::PredictPair { step }))
             .collect(),
     );
-    let num_len = max_code_len(&a_num);
-    // 15 single-choice reading tasks — small kinds fit the budget.
-    let a_read = assignment(
-        mini_choice_set(15),
-        (0..15)
-            .map(|item| neophylo_core::assess::GradedTask {
-                task: TaskRef::Reading { item },
-                points: 1.0,
-            })
-            .collect(),
+    let pair_len = max_code_len(&a);
+    assert!(
+        pair_len <= 250,
+        "15 pair tasks on a 5-taxon table fit 250: {pair_len}"
     );
-    let read_len = max_code_len(&a_read);
-    eprintln!("max_code_len: 15×predict_pair={pair_len} 15×numeric={num_len} 15×choice={read_len}");
-    assert!(read_len <= 250, "small tasks fit the budget: {read_len}");
-    // A constructed worst payload reaches the bound within a group.
+    // … and a worst payload encodes within it.
     let worst = CodePayload {
         student_id: "x".repeat(MAX_ID_BYTES),
+        names: 5,
         attempts: (0..15)
             .map(|_| Attempt {
                 first: PackedAnswer::Pair(0, 1),
-                last: Some(PackedAnswer::Pair(2, 3)),
+                last: Some(PackedAnswer::Pair(3, 4)),
                 attempts: 15,
             })
             .collect(),
@@ -739,4 +802,220 @@ fn max_code_len_bounds_real_codes() {
         "worst-case code {} vs bound {pair_len}",
         code.len()
     );
+    // 15 numeric tasks.
+    let a_num = assignment(
+        Content::Exercise(lesson("nj-basics")),
+        (1..=15u32)
+            .map(|step| {
+                graded(TaskRef::Numeric {
+                    step,
+                    quantity: Quantity::CorrectedDistance,
+                    role: PairRole::Chosen,
+                })
+            })
+            .collect(),
+    );
+    let num_len = max_code_len(&a_num);
+    // 15 single-choice reading tasks — small kinds fit the budget.
+    let a_read = assignment(
+        mini_choice_set(15),
+        (0..15)
+            .map(|item| graded(TaskRef::Reading { item }))
+            .collect(),
+    );
+    let read_len = max_code_len(&a_read);
+    assert!(read_len <= 250, "small tasks fit the budget: {read_len}");
+    // 15 pair tasks on a 27-taxon lab — may exceed 250; the number is
+    // reported, the builder refuses what doesn't fit.
+    let a_lab = assignment(
+        Content::Exercise(lesson("labs/mega-bootstrap-100")),
+        (1..=15u32)
+            .map(|step| graded(TaskRef::PredictPair { step }))
+            .collect(),
+    );
+    let lab_len = max_code_len(&a_lab);
+    eprintln!(
+        "max_code_len: 15×predict_pair(nj-by-hand,N=5)={pair_len} 15×numeric={num_len} 15×choice={read_len} 15×predict_pair(27-taxa lab)={lab_len}"
+    );
+}
+
+/// Member sets of every internal clade of a balanced binary tree
+/// over `idx` except the root — the splits a block alignment pins at
+/// ~1.0 support (cherries are in-scope for NJ: split.rs counts k ≥ 2).
+fn balanced_clades(idx: &[usize]) -> Vec<std::collections::BTreeSet<usize>> {
+    fn go(idx: &[usize], top: bool, out: &mut Vec<std::collections::BTreeSet<usize>>) {
+        if idx.len() <= 1 {
+            return;
+        }
+        let mid = idx.len() / 2;
+        go(&idx[..mid], false, out);
+        go(&idx[mid..], false, out);
+        if !top {
+            out.push(idx.iter().copied().collect());
+        }
+    }
+    let mut out = Vec::new();
+    go(idx, true, &mut out);
+    out
+}
+
+#[test]
+fn a_100_taxon_branch_answer_packs_encodes_decodes_and_grades() {
+    // Item 1(b): a tip set over a >64-taxon table must encode at all —
+    // the old fixed 64-bit mask could not carry it, so a student could
+    // never finish a big editor exercise. An embedded 100-taxon
+    // alignment where every internal branch of a balanced tree is
+    // pinned by 40 consistent two-state columns — except the BIG|SMALL
+    // split, which a single column leaves near 0.75 support: the
+    // unique weakest branch. Its canonical side is the 70 names not
+    // containing taxon 0 (splits canonicalize to the side without
+    // index 0, bootstrap/split.rs).
+    let names: Vec<String> = (1..=100).map(|i| format!("t{i:03}")).collect();
+    let (small, big): (Vec<usize>, Vec<usize>) = ((0..30).collect(), (30..100).collect());
+    let mut rows = vec![String::new(); names.len()];
+    let mut cols = |members: &std::collections::BTreeSet<usize>, count: usize| {
+        for _ in 0..count {
+            for (i, r) in rows.iter_mut().enumerate() {
+                r.push(if members.contains(&i) { 'G' } else { 'A' });
+            }
+        }
+    };
+    for m in balanced_clades(&small)
+        .into_iter()
+        .chain(balanced_clades(&big))
+    {
+        cols(&m, 40);
+    }
+    cols(&big.iter().copied().collect(), 1);
+    let fasta: String = names
+        .iter()
+        .zip(&rows)
+        .map(|(n, s)| format!(">{n}\n{s}\n"))
+        .collect();
+    let ex = Exercise {
+        schema_version: 5,
+        id: "hundred".to_string(),
+        title: "hundred".to_string(),
+        alphabet: neophylo_core::Alphabet::Dna,
+        data: neophylo_core::exercise::ExerciseData::Embedded {
+            fasta,
+            source: neophylo_core::exercise::Source {
+                citation: "test".to_string(),
+                license: "test".to_string(),
+                accessions: vec![],
+            },
+        },
+        reference: None,
+        analysis: neophylo_core::exercise::Analysis {
+            correction: neophylo_core::dist::DistModel::P,
+            method: neophylo_core::algos::Method::Nj,
+            kappa: None,
+            site_filter: None,
+        },
+        locked: vec![],
+        prompts: vec![],
+        bootstrap: Some(neophylo_core::exercise::ExerciseBootstrap {
+            replicates: 50,
+            seed: 7,
+        }),
+        meta: None,
+        premises: vec![],
+    };
+    let a = assignment(
+        Content::Exercise(ex),
+        vec![neophylo_core::assess::GradedTask {
+            task: TaskRef::PredictBranch,
+            points: 1.0,
+        }],
+    );
+    let v = a.variant_for("ada").unwrap();
+    let table = name_table(&v).unwrap();
+    assert_eq!(table.len(), 100);
+    // The engine's weakest grouping is the designed 70-side — at
+    // least 65 names whatever the relabel transform does to them.
+    let AcceptedAnswer::Branch(clade) = task_key(&v, &TaskRef::PredictBranch).unwrap() else {
+        panic!("a branch key")
+    };
+    assert!(clade.len() >= 65, "the weakest key is the big side");
+    let packed = pack_answer(
+        &v,
+        &TaskRef::PredictBranch,
+        &TaskAnswer::Branch(clade.clone()),
+    )
+    .expect("a 70-tip clade packs");
+    let PackedAnswer::Tips(ix) = &packed else {
+        panic!("a clade packs to tips")
+    };
+    assert!(ix.iter().any(|&i| i >= 64), "index range past 64");
+    // Encode/decode round trip in a real code, then grade correct.
+    let p = CodePayload {
+        format: 1,
+        generator: GENERATOR_VERSION,
+        fingerprint: fingerprint(&a),
+        student_id: "ada".to_string(),
+        retry: v.retry,
+        names: table.len() as u8,
+        attempts: vec![attempt(packed)],
+        finished_min: 1000,
+    };
+    let code = encode_code(&p).unwrap();
+    assert_eq!(decode_code(&code).unwrap(), p);
+    let out = grade(&a, None, &code, Rule::First).unwrap();
+    assert!(
+        out.tasks[0].first_ok,
+        "the weakest-grouping pick grades correct: {out:?}"
+    );
+    assert_eq!(out.score, out.max);
+}
+
+// --- the serde gap pins (item 6) --------------------------------------------------
+
+/// The assignment JSON with one extra top-level key injected — a
+/// serialized real assignment, so the pin tests serde's handling of
+/// exactly the key under test.
+fn assignment_json(key: &str, value: serde_json::Value) -> serde_json::Value {
+    let a = assignment(
+        Content::Exercise(lesson("nj-basics")),
+        vec![neophylo_core::assess::GradedTask {
+            task: TaskRef::PredictPair { step: 1 },
+            points: 1.0,
+        }],
+    );
+    let mut v = serde_json::to_value(&a).unwrap();
+    v.as_object_mut().unwrap().insert(key.to_string(), value);
+    v
+}
+
+#[test]
+fn content_hash_serde_gap_pins() {
+    // `content_hash` is `Option<String>` — serde's Option rules make
+    // JSON `null` the same as an absent key (the builder never writes
+    // it; `skip_serializing_if` keeps it out of the wire shape), so a
+    // recorded null is simply "no hash recorded".
+    let a: Assignment =
+        serde_json::from_value(assignment_json("content_hash", serde_json::Value::Null)).unwrap();
+    assert_eq!(a.content_hash, None);
+    // A non-string value is refused at parse — the key is typed.
+    for bad in [serde_json::json!([]), serde_json::json!(["x"])] {
+        assert!(
+            serde_json::from_value::<Assignment>(assignment_json("content_hash", bad.clone()))
+                .is_err(),
+            "{bad} refuses"
+        );
+    }
+    // A recorded string parses.
+    let a: Assignment = serde_json::from_value(assignment_json(
+        "content_hash",
+        serde_json::json!("0123456789abcdef"),
+    ))
+    .unwrap();
+    assert_eq!(a.content_hash.as_deref(), Some("0123456789abcdef"));
+    // `served_content_hash` is `#[serde(skip)]` — input JSON carrying
+    // it is ignored; the loader sets it from file bytes, never wire.
+    let a: Assignment = serde_json::from_value(assignment_json(
+        "served_content_hash",
+        serde_json::json!("fedcba"),
+    ))
+    .unwrap();
+    assert_eq!(a.served_content_hash, None);
 }

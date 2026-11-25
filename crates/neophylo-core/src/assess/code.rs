@@ -22,37 +22,61 @@
 //! | format | 4 | [`FORMAT_VERSION`] |
 //! | generator | 8 | [`GENERATOR_VERSION`] |
 //! | fingerprint | 20 | low 20 bits, [`fingerprint`] |
-//! | id_len | 7 | id byte length (≤ [`MAX_ID_BYTES`] on encode) |
+//! | id_len | 7 | id byte length; 1..=[`MAX_ID_BYTES`] both ways |
 //! | id | 8·id_len | normalised student id, UTF-8 |
 //! | retry | 6 | variant retry index, 0..=[`MAX_RETRIES`] |
 //! | task_count | 4 | 1..=[`MAX_TASKS`] |
+//! | names | 8 | name-table size `N`, 1..=[`MAX_NAME_TABLE`] |
 //! | per task | 9+2w | tag 4 · first w · has_last 1 · last w (iff set) · attempts 4 |
 //! | finished_min | 24 | minutes since 2026-01-01 UTC |
 //! | crc | 16 | CRC-16/CCITT-FALSE of the payload bytes |
 //!
 //! `last` reuses the task's kind tag — both answers to one task are
 //! the same kind — and a `Skipped` first never carries a `last`.
-//! Answer payload widths `w`:
+//! `N` is the variant's [`name_table`] size; a tip index is `t` bits
+//! where `t = max(1, ⌈log₂N⌉)`, so a 5-taxon table costs 3 bits per
+//! index and a >64-taxon table still encodes.
+//!
+//! Answer payload widths `w` (fix round 1: content-sized fields
+//! instead of fixed 16/64-bit masks — the old widths priced 15
+//! `predict_pair` tasks at 411 chars and could not encode a tip set
+//! on a >64-taxon exercise at all):
 //!
 //! | tag | [`PackedAnswer`] | bits |
 //! |---|---|---|
 //! | 0 | `Skipped` (no answer given) | 0 |
-//! | 1 | `Pair(a, b)` two tip indices, canonical a<b | 16+16 |
-//! | 2 | `Tips` sorted index list → bitmask | 64 |
-//! | 3 | `Letter` point-letter byte − 'A' | 8 |
-//! | 4 | `Order` Lehmer permutation code | 64 |
-//! | 5 | `Choice` option index | 8 |
-//! | 6 | `Choices` sorted index list → bitmask | 64 |
+//! | 1 | `Pair(a, b)` two tip indices, canonical a<b | t + t |
+//! | 2 | `Tips` sorted index list → bitmask | N |
+//! | 3 | `Letter` point-letter byte − 'A' | 6 (index ≤ 62) |
+//! | 4 | `Order` permutation positions over the item's `nodes` list | k·7 + k·⌈log₂k⌉ |
+//! | 5 | `Choice` option index | w'·3 + i·w (w = 1..=8 → index ≤ 255) |
+//! | 6 | `Choices` sorted index list → bitmask | m·8 + m (m = 1 + max index, ≤ 255) |
 //! | 7 | `Number` reading count answer | 32 |
 //! | 8 | `Pairwise` B=0 / C=1 / Equal=2 | 2 |
-//! | 9 | `TwoTier` inner tag+payload, then reason index | 4+inner+8 |
+//! | 9 | `TwoTier` inner tag+payload, then reason index | 4+inner + w'·3 + r·w |
 //! | 10 | `Numeric` signed scaled integer | 32 |
+//!
+//! The variable fields are self-delimiting: `Order` writes the count
+//! `k` then `k` positions each `⌈log₂k⌉` bits (a permutation needs no
+//! rank and never overflows — the old 64-bit Lehmer rank refused
+//! `order_nodes` items past 20 nodes at Finish); `Choice` and the
+//! `TwoTier` reason write `w−1` in 3 bits then the index in `w` bits;
+//! `Choices` writes the mask width `m` (one past the highest selected
+//! index, 0 when empty) then `m` mask bits. `Letter` stays a fixed
+//! 6-bit field — point letters are a single ASCII char ≥ 'A', so the
+//! index is at most 62.
+//!
+//! A `TwoTier` inner answer may be any answer tag except `TwoTier`
+//! (validated content never nests two-tier questions — the tag-9
+//! inner tag is what made `decode_code` recurse without a depth
+//! bound) or `Skipped` (a two-tier response always has both parts);
+//! `decode_code` refuses both with `"malformed"` and `encode_code`
+//! never writes them.
 //!
 //! Answers pack in index form (owner 2026-11-25): the code cannot
 //! carry taxon names (the 250-char budget) and `decode_code` has no
 //! assignment to resolve them against, so every name is an index into
-//! the variant's [`name_table`]. An order answer is a permutation rank
-//! — the Lehmer code over the item's node list.
+//! the variant's [`name_table`].
 //!
 //! [`MAX_RETRIES`]: crate::assess::variant::MAX_RETRIES
 
@@ -84,6 +108,16 @@ const ATTEMPTS_CAP: u8 = 15;
 /// `finished_min` is 24 bits: minutes since 2026-01-01 UTC, good
 /// through mid-2057.
 pub const MAX_FINISHED_MIN: u32 = (1 << 24) - 1;
+/// The largest name table a code can index (the `names` header, fix
+/// round 1): 200, the engine's own taxon cap
+/// ([`crate::seq::MAX_TAXA`]). A variant whose table is bigger cannot
+/// be issued a code — the builder refuses such an assignment, the
+/// same way it refuses one whose bound exceeds 250 chars.
+pub const MAX_NAME_TABLE: usize = 200;
+/// An `order_nodes` answer packs at most 127 positions (the 7-bit
+/// `k` field); node letters live on a ≤ 40-tip tree, so the engine's
+/// real bound is 79.
+const MAX_ORDER_NODES: usize = 127;
 /// A numeric task's scaled answer must fit the code's signed 32-bit
 /// field: `|n| ≤ 2^31 − 1`. `encode_code` and `pack_answer` refuse
 /// wider with `InvalidCode { reason: "malformed" }`.
@@ -110,9 +144,9 @@ fn bad_answer(msg: impl Into<String>) -> NeoError {
 /// taxon names, no letters as strings — every reference is an index
 /// into the variant's [`name_table`] or the item's own option/node
 /// list. `Tips`/`Choices` carry a sorted index list (encoded as a
-/// 64-bit bitmask; the table is capped at 64 entries). `Order` is the
-/// permutation's Lehmer code (≤ 20 nodes). `Skipped` scores wrong and
-/// is never an error.
+/// bitmask over the table's `N` entries / `m` mask bits). `Order` is
+/// the permutation itself as positions over the item's `nodes` list.
+/// `Skipped` scores wrong and is never an error.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PackedAnswer {
     /// The student never answered this task.
@@ -124,8 +158,10 @@ pub enum PackedAnswer {
     Tips(Vec<u8>),
     /// A point letter's index — `A` is 0.
     Letter(u8),
-    /// An `order_nodes` answer: the permutation's Lehmer code.
-    Order(u64),
+    /// An `order_nodes` answer: the answer's letters as positions in
+    /// the item's `nodes` list — a permutation, never a rank, so any
+    /// node count encodes.
+    Order(Vec<u8>),
     /// A single-option reading pick.
     Choice(u8),
     /// A multi-option reading pick: sorted option indices.
@@ -196,6 +232,11 @@ pub struct CodePayload {
     pub student_id: String,
     /// The variant retry index the code was issued on.
     pub retry: u8,
+    /// The name-table size `N` the answers index into — the
+    /// variant's [`name_table`] length (1..=[`MAX_NAME_TABLE`]).
+    /// `grade` scores 0 with `AssignmentMismatch` when it differs
+    /// from the rebuilt variant's table.
+    pub names: u8,
     pub attempts: Vec<Attempt>,
     /// Minutes since 2026-01-01 UTC.
     pub finished_min: u32,
@@ -217,6 +258,19 @@ fn bytes_of(bits: &[bool]) -> Vec<u8> {
         }
     }
     out
+}
+
+/// Bits to hold an index into a table of `domain` entries:
+/// `bit length(domain − 1)`, so `idx_bits(2) = 1`, `idx_bits(5) = 3`.
+/// `domain ≤ 1` answers 0 — a one-entry table's index is always 0.
+fn idx_bits(domain: usize) -> usize {
+    usize::BITS as usize - domain.saturating_sub(1).leading_zeros() as usize
+}
+
+/// Bits a tip index into a table of `n` names takes — at least 1, so
+/// a tip index is never a zero-width field.
+fn tip_bits(n: usize) -> usize {
+    idx_bits(n).max(1)
 }
 
 struct BitReader<'a> {
@@ -274,9 +328,9 @@ fn b32_val(c: u8) -> Option<u8> {
 // --- encode ----------------------------------------------------------------------
 
 /// Serialise `p` to its `NP1-…` text. Refuses non-format-1 payloads
-/// (`"version"`), an over-long id (`"length"`) and values that do not
-/// fit their fields (`"malformed"`); `attempts` counts clamp to 15
-/// and `last == first` normalises to absent.
+/// (`"version"`), an empty or over-long id (`"length"`) and values
+/// that do not fit their fields (`"malformed"`); `attempts` counts
+/// clamp to 15 and `last == first` normalises to absent.
 pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
     if p.format != FORMAT_VERSION || p.generator != GENERATOR_VERSION {
         return Err(bad_code("version"));
@@ -285,8 +339,12 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
         return Err(bad_code("malformed"));
     }
     let id = p.student_id.as_bytes();
-    if id.len() > MAX_ID_BYTES {
+    if id.is_empty() || id.len() > MAX_ID_BYTES {
         return Err(bad_code("length"));
+    }
+    let n = usize::from(p.names);
+    if !(1..=MAX_NAME_TABLE).contains(&n) {
+        return Err(bad_code("malformed"));
     }
     if p.retry > MAX_RETRIES
         || p.attempts.is_empty()
@@ -305,6 +363,7 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
     }
     push(&mut bits, u64::from(p.retry), 6);
     push(&mut bits, p.attempts.len() as u64, 4);
+    push(&mut bits, u64::from(p.names), 8);
     for a in &p.attempts {
         let last = a.last.as_ref().filter(|l| *l != &a.first);
         if let Some(l) = last {
@@ -313,10 +372,10 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
             }
         }
         push(&mut bits, u64::from(tag_of(&a.first)), 4);
-        write_answer(&mut bits, &a.first)?;
+        write_answer(&mut bits, &a.first, n)?;
         push(&mut bits, u64::from(last.is_some()), 1);
         if let Some(l) = last {
-            write_answer(&mut bits, l)?;
+            write_answer(&mut bits, l, n)?;
         }
         push(&mut bits, u64::from(a.attempts.min(ATTEMPTS_CAP)), 4);
     }
@@ -343,34 +402,70 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
 }
 
 /// An answer's body bits — the kind tag is written once per task by
-/// the caller (`TwoTier`'s inner answer keeps its own tag).
-fn write_answer(bits: &mut Vec<bool>, a: &PackedAnswer) -> Result<(), NeoError> {
-    let mask = |ix: &[u8]| -> Result<u64, NeoError> {
-        let mut m = 0u64;
+/// the caller (`TwoTier`'s inner answer keeps its own tag). `n` is
+/// the code's name-table size: tip indices must fit it.
+fn write_answer(bits: &mut Vec<bool>, a: &PackedAnswer, n: usize) -> Result<(), NeoError> {
+    // A single index as `w−1` in 3 bits then `w` bits — w = 1..=8
+    // covers every index the engine's small option/reason lists can
+    // produce (≤ 255).
+    let index = |bits: &mut Vec<bool>, i: u8| {
+        let w = idx_bits(usize::from(i) + 1).max(1);
+        push(bits, (w - 1) as u64, 3);
+        push(bits, u64::from(i), w);
+    };
+    // The `m`-bit mask of a sorted index list: `width` bits with bit
+    // `i` set for each listed `i`; every index must be < `domain`.
+    let mask_of = |ix: &[u8], domain: usize| -> Result<Vec<bool>, NeoError> {
+        let width = ix.iter().max().map_or(0, |&i| usize::from(i) + 1);
+        let mut m = vec![false; domain.max(width)];
         for &i in ix {
-            if i > 63 {
+            if usize::from(i) >= domain {
                 return Err(bad_code("malformed"));
             }
-            m |= 1u64 << i;
+            m[usize::from(i)] = true;
         }
+        m.truncate(width);
         Ok(m)
     };
     match a {
         PackedAnswer::Skipped => {}
         PackedAnswer::Pair(x, y) => {
-            push(bits, u64::from(*x), 16);
-            push(bits, u64::from(*y), 16);
+            if usize::from(*x) >= n || usize::from(*y) >= n {
+                return Err(bad_code("malformed"));
+            }
+            let t = tip_bits(n);
+            push(bits, u64::from(*x), t);
+            push(bits, u64::from(*y), t);
         }
-        PackedAnswer::Tips(ix) => push(bits, mask(ix)?, 64),
+        PackedAnswer::Tips(ix) => {
+            let mut m = mask_of(ix, n)?;
+            m.resize(n, false);
+            bits.extend(m);
+        }
         PackedAnswer::Letter(i) => {
             if *i > 62 {
                 return Err(bad_code("malformed"));
             }
-            push(bits, u64::from(*i), 8);
+            push(bits, u64::from(*i), 6);
         }
-        PackedAnswer::Order(v) => push(bits, *v, 64),
-        PackedAnswer::Choice(i) => push(bits, u64::from(*i), 8),
-        PackedAnswer::Choices(ix) => push(bits, mask(ix)?, 64),
+        PackedAnswer::Order(pos) => {
+            if pos.len() > MAX_ORDER_NODES || pos.iter().any(|&i| usize::from(i) >= pos.len()) {
+                return Err(bad_code("malformed"));
+            }
+            push(bits, pos.len() as u64, 7);
+            let w = idx_bits(pos.len());
+            for &i in pos {
+                push(bits, u64::from(i), w);
+            }
+        }
+        PackedAnswer::Choice(i) => index(bits, *i),
+        PackedAnswer::Choices(ix) => {
+            // The mask covers the option domain up to the highest
+            // selected index — `m` in 8 bits (≤ 255).
+            let m = mask_of(ix, 255)?;
+            push(bits, m.len() as u64, 8);
+            bits.extend(m);
+        }
         PackedAnswer::Number(v) => push(bits, u64::from(*v), 32),
         PackedAnswer::Pairwise(v) => {
             if *v > 2 {
@@ -379,9 +474,18 @@ fn write_answer(bits: &mut Vec<bool>, a: &PackedAnswer) -> Result<(), NeoError> 
             push(bits, u64::from(*v), 2);
         }
         PackedAnswer::TwoTier { first, reason } => {
+            // Validated content never nests two-tier or skips one
+            // half — the decoder refuses both, so refuse to write
+            // them (keeps decode(encode) an identity).
+            if matches!(
+                **first,
+                PackedAnswer::Skipped | PackedAnswer::TwoTier { .. }
+            ) {
+                return Err(bad_code("malformed"));
+            }
             push(bits, u64::from(tag_of(first)), 4);
-            write_answer(bits, first)?;
-            push(bits, u64::from(*reason), 8);
+            write_answer(bits, first, n)?;
+            index(bits, *reason);
         }
         PackedAnswer::Numeric(v) => {
             if *v == i32::MIN {
@@ -464,7 +568,13 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
     }
     let fingerprint = get(&mut r, 20)? as u32;
     let id_len = get(&mut r, 7)? as usize;
-    let mut id = Vec::with_capacity(id_len.min(4096));
+    // A code that could never have been issued: ids are nonempty and
+    // capped at MAX_ID_BYTES both ways (Task 8 refuses longer at
+    // entry; `encode_code` writes the same bounds).
+    if id_len == 0 || id_len > MAX_ID_BYTES {
+        return Err(bad_code("length"));
+    }
+    let mut id = Vec::with_capacity(id_len);
     for _ in 0..id_len {
         id.push(get(&mut r, 8)? as u8);
     }
@@ -477,16 +587,21 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
     if n_tasks == 0 {
         return Err(bad_code("malformed"));
     }
+    let names = get(&mut r, 8)? as u8;
+    let n = usize::from(names);
+    if !(1..=MAX_NAME_TABLE).contains(&n) {
+        return Err(bad_code("malformed"));
+    }
     let mut attempts = Vec::with_capacity(n_tasks);
     for _ in 0..n_tasks {
         let tag = get(&mut r, 4)? as u8;
-        let first = read_answer(&mut r, tag)?;
+        let first = read_answer(&mut r, tag, n)?;
         let has_last = get(&mut r, 1)? == 1;
         if first == PackedAnswer::Skipped && has_last {
             return Err(bad_code("malformed"));
         }
         let last = if has_last {
-            Some(read_answer(&mut r, tag)?)
+            Some(read_answer(&mut r, tag, n)?)
         } else {
             None
         };
@@ -512,35 +627,72 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
         fingerprint,
         student_id,
         retry,
+        names,
         attempts,
         finished_min,
     })
 }
 
 /// An answer body of kind `tag` — the tag is read once per task by
-/// the caller (`TwoTier`'s inner answer reads its own tag).
-fn read_answer(r: &mut BitReader, tag: u8) -> Result<PackedAnswer, NeoError> {
+/// the caller (`TwoTier`'s inner answer reads its own tag). `n` is
+/// the code's declared name-table size. A `TwoTier` inner may not be
+/// `TwoTier` (no recursion — validated content never nests) nor
+/// `Skipped` (a two-tier response always has both halves).
+fn read_answer(r: &mut BitReader, tag: u8, n: usize) -> Result<PackedAnswer, NeoError> {
     let get = |r: &mut BitReader, n: usize| r.read(n).ok_or_else(|| bad_code("length"));
-    let list = |m: u64| -> Vec<u8> {
-        (0..64)
-            .filter(|&i| m >> i & 1 == 1)
-            .map(|i| i as u8)
-            .collect()
-    };
     Ok(match tag {
         0 => PackedAnswer::Skipped,
-        1 => PackedAnswer::Pair(get(r, 16)? as u16, get(r, 16)? as u16),
-        2 => PackedAnswer::Tips(list(get(r, 64)?)),
+        1 => {
+            let t = tip_bits(n);
+            let (x, y) = (get(r, t)?, get(r, t)?);
+            if x >= n as u64 || y >= n as u64 {
+                return Err(bad_code("malformed"));
+            }
+            PackedAnswer::Pair(x as u16, y as u16)
+        }
+        2 => {
+            let mut ix = Vec::new();
+            for i in 0..n {
+                if get(r, 1)? == 1 {
+                    ix.push(i as u8);
+                }
+            }
+            PackedAnswer::Tips(ix)
+        }
         3 => {
-            let i = get(r, 8)? as u8;
+            let i = get(r, 6)? as u8;
             if i > 62 {
                 return Err(bad_code("malformed"));
             }
             PackedAnswer::Letter(i)
         }
-        4 => PackedAnswer::Order(get(r, 64)?),
-        5 => PackedAnswer::Choice(get(r, 8)? as u8),
-        6 => PackedAnswer::Choices(list(get(r, 64)?)),
+        4 => {
+            let k = get(r, 7)? as usize;
+            let w = idx_bits(k);
+            let mut pos = Vec::with_capacity(k.min(MAX_ORDER_NODES));
+            for _ in 0..k {
+                let i = get(r, w)? as usize;
+                if i >= k {
+                    return Err(bad_code("malformed"));
+                }
+                pos.push(i as u8);
+            }
+            PackedAnswer::Order(pos)
+        }
+        5 => {
+            let w = get(r, 3)? as usize + 1;
+            PackedAnswer::Choice(get(r, w)? as u8)
+        }
+        6 => {
+            let m = get(r, 8)? as usize;
+            let mut ix = Vec::new();
+            for i in 0..m {
+                if get(r, 1)? == 1 {
+                    ix.push(i as u8);
+                }
+            }
+            PackedAnswer::Choices(ix)
+        }
         7 => PackedAnswer::Number(get(r, 32)? as u32),
         8 => match get(r, 2)? {
             v @ 0..=2 => PackedAnswer::Pairwise(v as u8),
@@ -548,9 +700,14 @@ fn read_answer(r: &mut BitReader, tag: u8) -> Result<PackedAnswer, NeoError> {
         },
         9 => {
             let inner = get(r, 4)? as u8;
+            if inner == 0 || inner == 9 {
+                return Err(bad_code("malformed"));
+            }
+            let first = read_answer(r, inner, n)?;
+            let w = get(r, 3)? as usize + 1;
             PackedAnswer::TwoTier {
-                first: Box::new(read_answer(r, inner)?),
-                reason: get(r, 8)? as u8,
+                first: Box::new(first),
+                reason: get(r, w)? as u8,
             }
         }
         10 => {
@@ -571,7 +728,13 @@ fn read_answer(r: &mut BitReader, tag: u8) -> Result<PackedAnswer, NeoError> {
 /// order `predict_pair` tip indices count in — and a reading set uses
 /// the sorted unique labels over all its trees.
 pub fn name_table(variant: &Variant) -> Result<Vec<String>, NeoError> {
-    match &variant.content {
+    content_name_table(&variant.content)
+}
+
+/// `name_table` on bare content — `max_code_len` prices an
+/// assignment before any variant exists.
+pub(crate) fn content_name_table(content: &Content) -> Result<Vec<String>, NeoError> {
+    match content {
         Content::Exercise(ex) => Ok(exercise_distance_matrix(ex)?.labels),
         Content::Reading(set) => {
             let mut all = BTreeSet::new();
@@ -596,8 +759,8 @@ fn mask(table: &[String], names: &[String]) -> Result<Vec<u8>, NeoError> {
             .ok_or_else(|| bad_answer(format!("'{n}' is not in the variant's name table")))?;
         let i = u8::try_from(i)
             .ok()
-            .filter(|&i| i <= 63)
-            .ok_or_else(|| bad_answer("the name table does not fit a 64-bit mask"))?;
+            .filter(|&i| usize::from(i) < MAX_NAME_TABLE)
+            .ok_or_else(|| bad_answer("a table index is past the code's name-table cap"))?;
         out.push(i);
     }
     out.sort_unstable();
@@ -632,6 +795,10 @@ pub fn pack_answer(
 ) -> Result<PackedAnswer, NeoError> {
     match (task, answer) {
         (TaskRef::PredictPair { .. }, TaskAnswer::Pair(a, b)) => {
+            let n = name_table(variant)?.len();
+            if usize::from(*a) >= n || usize::from(*b) >= n {
+                return Err(bad_answer("a pair index is past the name table"));
+            }
             Ok(PackedAnswer::Pair((*a).min(*b), (*a).max(*b)))
         }
         (TaskRef::PredictBranch, TaskAnswer::Branch(clade)) => {
@@ -865,10 +1032,11 @@ fn pack_response(q: &Question, r: &Response, table: &[String]) -> Result<PackedA
         Response::Choices { indices } if want.contains(&PackedKind::Choices) => {
             let mut ix = Vec::with_capacity(indices.len());
             for &i in indices {
+                // The mask writes `m` = 1 + max index in 8 bits.
                 ix.push(
                     u8::try_from(i)
                         .ok()
-                        .filter(|&i| i <= 63)
+                        .filter(|&i| i <= 254)
                         .ok_or_else(|| bad_answer("option index out of range"))?,
                 );
             }
@@ -889,7 +1057,29 @@ fn pack_response(q: &Question, r: &Response, table: &[String]) -> Result<PackedA
             let Question::OrderNodes { nodes } = q else {
                 return Err(bad());
             };
-            Ok(PackedAnswer::Order(lehmer_rank(nodes, letters)?))
+            if nodes.len() > MAX_ORDER_NODES {
+                return Err(bad_answer("an order question packs at most 127 nodes"));
+            }
+            let mut sorted_l = letters.clone();
+            let mut sorted_n = nodes.clone();
+            sorted_l.sort();
+            sorted_n.sort();
+            if sorted_l != sorted_n {
+                return Err(bad_answer(
+                    "the order is not a permutation of the listed nodes",
+                ));
+            }
+            let mut pos = Vec::with_capacity(letters.len());
+            for l in letters {
+                pos.push(
+                    nodes
+                        .iter()
+                        .position(|x| x == l)
+                        .ok_or_else(|| bad_answer("the order names an unknown node"))?
+                        as u8,
+                );
+            }
+            Ok(PackedAnswer::Order(pos))
         }
         Response::Number { value } if want.contains(&PackedKind::Number) => {
             Ok(PackedAnswer::Number(*value))
@@ -962,13 +1152,20 @@ fn unpack_response(
             }
             Ok(Response::Point { letter })
         }
-        PackedAnswer::Order(rank) => {
+        PackedAnswer::Order(pos) => {
             let Some(Question::OrderNodes { nodes }) = q else {
                 return Err(bad_answer("an order answer needs an order_nodes item"));
             };
-            Ok(Response::Order {
-                letters: lehmer_unrank(nodes, *rank),
-            })
+            let mut letters = Vec::with_capacity(pos.len());
+            for &i in pos {
+                letters.push(
+                    nodes
+                        .get(usize::from(i))
+                        .ok_or_else(|| bad_answer("an order index is past the node list"))?
+                        .clone(),
+                );
+            }
+            Ok(Response::Order { letters })
         }
         PackedAnswer::Number(v) => Ok(Response::Number { value: *v }),
         PackedAnswer::Pairwise(v) => Ok(Response::Pairwise {
@@ -995,52 +1192,6 @@ fn unpack_response(
     }
 }
 
-// --- Lehmer codes ---------------------------------------------------------------------
-
-/// The permutation rank of `letters` over `nodes` — `letters` must be
-/// a permutation of `nodes` (validated; also bounds the list at 20 so
-/// the rank fits u64).
-fn lehmer_rank(nodes: &[String], letters: &[String]) -> Result<u64, NeoError> {
-    let n = nodes.len();
-    if n > 20 {
-        return Err(bad_answer("an order question packs at most 20 nodes"));
-    }
-    let mut sorted_l = letters.to_vec();
-    let mut sorted_n = nodes.to_vec();
-    sorted_l.sort();
-    sorted_n.sort();
-    if sorted_l != sorted_n {
-        return Err(bad_answer(
-            "the order is not a permutation of the listed nodes",
-        ));
-    }
-    let mut remaining: Vec<&String> = nodes.iter().collect();
-    let mut rank = 0u64;
-    for (i, l) in letters.iter().enumerate() {
-        let j = remaining
-            .iter()
-            .position(|&x| x == l)
-            .ok_or_else(|| bad_answer("the order repeats a node"))?;
-        remaining.remove(j);
-        rank = rank * (n - i) as u64 + j as u64;
-    }
-    Ok(rank)
-}
-
-fn lehmer_unrank(nodes: &[String], mut rank: u64) -> Vec<String> {
-    // The inverse of `lehmer_rank`: position n−k's digit has radix k.
-    // Each digit is < k = the remaining length at that step, so any
-    // u64 unranks to a permutation of `nodes`.
-    let n = nodes.len();
-    let mut ls = vec![0u64; n];
-    for k in 1..=n {
-        ls[n - k] = rank % k as u64;
-        rank /= k as u64;
-    }
-    let mut remaining = nodes.to_vec();
-    ls.iter().map(|&j| remaining.remove(j as usize)).collect()
-}
-
 // --- fingerprint & size bounds -----------------------------------------------------
 
 /// The assignment fingerprint a code carries (spec §5.7): the low 20
@@ -1062,12 +1213,17 @@ pub fn fingerprint(a: &Assignment) -> u32 {
 
 /// The exact worst-case code length for assignment `a` (spec §5.4):
 /// every field at its widest — a [`MAX_ID_BYTES`]-byte id, `has_last`
-/// set on every task, each payload at the widest kind the task's
-/// widget can produce — plus `NP1-` and the group hyphens.
+/// set on every task, each payload at the widest the task's widget
+/// and this content can produce — plus `NP1-` and the group hyphens.
+/// The name-table size `N` is the content's own table; a content that
+/// cannot be priced (a broken reading set) prices `N` at the cap.
 pub fn max_code_len(a: &Assignment) -> usize {
-    let mut bits: usize = 4 + 8 + 20 + 7 + 8 * MAX_ID_BYTES + 6 + 4;
+    let n = content_name_table(&a.content)
+        .map(|t| t.len().clamp(1, MAX_NAME_TABLE))
+        .unwrap_or(MAX_NAME_TABLE);
+    let mut bits: usize = 4 + 8 + 20 + 7 + 8 * MAX_ID_BYTES + 6 + 4 + 8;
     for t in &a.tasks {
-        let w = task_width(a, &t.task);
+        let w = task_width(a, &t.task, n);
         bits += 4 + w + 1 + w + 4;
     }
     bits += 24;
@@ -1077,40 +1233,86 @@ pub fn max_code_len(a: &Assignment) -> usize {
     4 + symbols + (symbols - 1) / 5
 }
 
-/// The widest payload a task's answers can take, in bits.
-fn task_width(a: &Assignment, t: &TaskRef) -> usize {
+/// The widest payload a task's answers can take, in bits, on a
+/// `n`-name table.
+fn task_width(a: &Assignment, t: &TaskRef, n: usize) -> usize {
     match t {
-        TaskRef::PredictPair { .. } | TaskRef::Numeric { .. } => 32,
-        TaskRef::PredictBranch => 64,
+        TaskRef::PredictPair { .. } => 2 * tip_bits(n),
+        TaskRef::Numeric { .. } => 32,
+        TaskRef::PredictBranch => n,
         TaskRef::Reading { item } => {
             let Content::Reading(set) = &a.content else {
-                return 64;
+                return n;
             };
             set.items
                 .get(*item)
-                .map(|it| question_width(&it.question))
-                .unwrap_or(64)
+                .map(|it| question_width(set, it, &it.question, n))
+                .unwrap_or(n)
         }
     }
 }
 
-fn kind_width(k: PackedKind) -> usize {
+/// Bits the widest answer of kind `k` takes on question `q` — the
+/// content's own option/node counts, so the bound stays tight.
+fn kind_width(set: &ReadingSet, item: &Item, q: &Question, k: PackedKind, n: usize) -> usize {
     match k {
-        PackedKind::Tips | PackedKind::Order | PackedKind::Choices => 64,
+        PackedKind::Tips => n,
+        PackedKind::Order => {
+            let Question::OrderNodes { nodes } = q else {
+                return n;
+            };
+            7 + nodes.len() * idx_bits(nodes.len())
+        }
+        PackedKind::Choices => 8 + index_domain(set, item, q),
         PackedKind::Number => 32,
-        PackedKind::Letter | PackedKind::Choice => 8,
+        PackedKind::Letter => 6,
+        PackedKind::Choice => 3 + idx_bits(index_domain(set, item, q)).max(1),
         PackedKind::Pairwise => 2,
         PackedKind::TwoTier => 0,
     }
 }
 
-fn question_width(q: &Question) -> usize {
-    if let Question::TwoTier { first, .. } = q {
-        return 4 + question_width(first) + 8;
+/// The size of the table a single index picks from (a `Choices` mask
+/// covers the same domain) — the item's real option counts.
+fn index_domain(set: &ReadingSet, item: &Item, q: &Question) -> usize {
+    match q {
+        Question::WhichDiffers { .. } => item.trees.len() + 1,
+        Question::WhichFits { .. } => item.trees.len().max(1),
+        Question::IsClade { by_trait } => 2 + usize::from(by_trait.is_some()),
+        Question::Concept { options, .. } => options.len(),
+        Question::SelectTrue { statements } => statements.len(),
+        Question::OrderNodes { nodes } => nodes.len(),
+        Question::Trait {
+            ask: TraitAsk::Profile { .. },
+        } => trait_domain(set, item),
+        Question::Trait { .. } => 2,
+        Question::TwoTier { first, .. } => index_domain(set, item, first),
+        _ => 2,
+    }
+}
+
+/// The trait-name count a `profile` question's picks index into:
+/// `rt.traits` plus any mark-only names — mirrors `resolve`'s
+/// `trait_names`.
+fn trait_domain(set: &ReadingSet, item: &Item) -> usize {
+    let Some(rt) = item.trees.first().and_then(|n| set.trees.get(n)) else {
+        return 1;
+    };
+    let mut names: BTreeSet<&str> = rt.traits.iter().map(|t| t.name.as_str()).collect();
+    for m in &rt.marks {
+        names.insert(m.trait_name.as_str());
+    }
+    names.len().max(1)
+}
+
+fn question_width(set: &ReadingSet, item: &Item, q: &Question, n: usize) -> usize {
+    if let Question::TwoTier { first, reasons, .. } = q {
+        let reason = 3 + idx_bits(reasons.len()).max(1);
+        return 4 + question_width(set, item, first, n) + reason;
     }
     response_kinds(q)
         .iter()
-        .map(|&k| kind_width(k))
+        .map(|&k| kind_width(set, item, q, k, n))
         .max()
         .unwrap_or(0)
 }

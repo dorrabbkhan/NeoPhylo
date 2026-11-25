@@ -8,9 +8,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use neophylo_core::assess::{
-    decode_code, encode_code, fingerprint, grade, normalise_id, pack_answer, AcceptedAnswer,
-    Assignment, Attempt, CodePayload, Content, Flag, GradedTask, IdPrompt, IdRule, Mode,
-    PackedAnswer, Rule, TaskAnswer, TaskRef, Variant,
+    decode_code, encode_code, fingerprint, grade, name_table, normalise_id, pack_answer,
+    AcceptedAnswer, Assignment, Attempt, CodePayload, Content, Flag, GradedTask, IdPrompt, IdRule,
+    Mode, PackedAnswer, Rule, TaskAnswer, TaskRef, Variant,
 };
 use neophylo_core::assess::{task_key, PairRole, Quantity};
 use neophylo_core::exercise::{load_exercise, Exercise};
@@ -162,12 +162,14 @@ fn attempts(
 }
 
 fn attempts_code(a: &Assignment, nid: &str, retry: u8, attempts: &[Attempt]) -> String {
+    let variant = a.variant_for(nid).unwrap();
     encode_code(&CodePayload {
         format: 1,
         generator: 1,
         fingerprint: fingerprint(a),
         student_id: nid.to_string(),
         retry,
+        names: name_table(&variant).unwrap().len() as u8,
         attempts: attempts.to_vec(),
         finished_min: 42_000,
     })
@@ -183,6 +185,37 @@ fn exercise_tasks() -> Vec<TaskRef> {
             role: PairRole::Chosen,
         },
     ]
+}
+
+#[test]
+fn a_code_with_an_unnormalisable_id_is_malformed() {
+    // `decode_code` checks the id's byte length only — an id of
+    // blanks passes it, then fails `normalise_id` when grade builds
+    // the variant: an `InvalidCode`, not an assignment error.
+    let a = exercise_assignment(exercise_tasks());
+    let v = a.variant_for(STUDENT).unwrap();
+    let code = encode_code(&CodePayload {
+        format: 1,
+        generator: 1,
+        fingerprint: fingerprint(&a),
+        student_id: "   ".to_string(),
+        retry: v.retry,
+        names: name_table(&v).unwrap().len() as u8,
+        attempts: vec![
+            Attempt {
+                first: PackedAnswer::Skipped,
+                last: None,
+                attempts: 1,
+            };
+            a.tasks.len()
+        ],
+        finished_min: 1,
+    })
+    .unwrap();
+    match grade(&a, None, &code, Rule::First) {
+        Err(NeoError::InvalidCode { reason }) => assert_eq!(reason, "malformed"),
+        other => panic!("expected InvalidCode malformed, got {other:?}"),
+    }
 }
 
 // --- scores and rules ---------------------------------------------------------------
