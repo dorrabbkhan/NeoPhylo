@@ -29,6 +29,7 @@ fn spec(model: SimModel, length: u32, seed: u64) -> SimSpec {
         model,
         length,
         seed,
+        tip_order: None,
     }
 }
 

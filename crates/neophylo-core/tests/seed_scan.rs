@@ -63,6 +63,7 @@ fn seed_scan() {
             model: SimModel::Jc69,
             length: 300,
             seed: sim_seed,
+            tip_order: None,
         };
         let aln300 = neophylo_core::simulate(&truth, &spec300).expect("sim 300");
         let nj300 = build_tree(
@@ -79,6 +80,7 @@ fn seed_scan() {
             model: SimModel::Jc69,
             length: 3000,
             seed: sim_seed,
+            tip_order: None,
         };
         let aln3000 = neophylo_core::simulate(&truth, &spec3000).expect("sim 3000");
         let nj3000 = build_tree(
@@ -172,6 +174,7 @@ fn close_pair_scan() {
             model: SimModel::Jc69,
             length: 300,
             seed: SIM,
+            tip_order: None,
         },
     )
     .unwrap();
@@ -223,6 +226,7 @@ fn e2e_seed_values() {
             model: SimModel::Jc69,
             length: 300,
             seed: 7,
+            tip_order: None,
         },
     )
     .unwrap();

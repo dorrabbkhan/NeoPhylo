@@ -106,7 +106,157 @@
       "seed": "8328769798618020",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "1d0273d01c14f3f3",
+      "data_digest": "1948a52dad8ddf68",
+      "excerpt": {
+        "taxa": [
+          "D",
+          "C",
+          "A",
+          "B",
+          "E",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                4
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                0,
+                3
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "819477139609520",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "1e2061d1b60f7ec2",
+      "excerpt": {
+        "taxa": [
+          "C",
+          "F",
+          "D",
+          "A",
+          "B",
+          "E"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                0,
+                4
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                2,
+                3
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "119344304193144",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "f0f50b1de969be22",
+      "excerpt": {
+        "taxa": [
+          "E",
+          "C",
+          "D",
+          "B",
+          "A",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                2,
+                5
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                0,
+                3
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "4437491792256496",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "b53e6f8d0a22faa8",
       "excerpt": {
         "taxa": [
           "F",
@@ -127,8 +277,8 @@
             "kind": "pairs",
             "value": [
               [
-                2,
-                3
+                1,
+                5
               ]
             ]
           }
@@ -142,158 +292,8 @@
             "kind": "pairs",
             "value": [
               [
-                4,
-                5
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": " Ana.Lopez@Uni.edu ",
-      "normalised": "ana.lopez@uni.edu",
-      "seed": "819477139609520",
-      "retry": 0,
-      "fell_back": false,
-      "data_digest": "dacce8bb7c41766f",
-      "excerpt": {
-        "taxa": [
-          "E",
-          "F",
-          "B",
-          "C",
-          "D",
-          "A"
-        ]
-      },
-      "answers": [
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 1
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                2,
-                3
-              ]
-            ]
-          }
-        },
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 2
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                4,
-                5
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "josé",
-      "normalised": "josé",
-      "seed": "119344304193144",
-      "retry": 0,
-      "fell_back": false,
-      "data_digest": "4eca0b817f5a16c7",
-      "excerpt": {
-        "taxa": [
-          "C",
-          "A",
-          "D",
-          "F",
-          "B",
-          "E"
-        ]
-      },
-      "answers": [
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 1
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                2,
-                3
-              ]
-            ]
-          }
-        },
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 2
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                4,
-                5
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "student-42",
-      "normalised": "student-42",
-      "seed": "4437491792256496",
-      "retry": 0,
-      "fell_back": false,
-      "data_digest": "9bcd21854a17ee83",
-      "excerpt": {
-        "taxa": [
-          "E",
-          "F",
-          "B",
-          "A",
-          "C",
-          "D"
-        ]
-      },
-      "answers": [
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 1
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                2,
-                3
-              ]
-            ]
-          }
-        },
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 2
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                4,
-                5
+                3,
+                4
               ]
             ]
           }
@@ -306,15 +306,15 @@
       "seed": "7463647338946082",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "8a2e506def4d1dd3",
+      "data_digest": "efb16a6d08614138",
       "excerpt": {
         "taxa": [
-          "F",
+          "E",
           "B",
           "D",
-          "E",
           "C",
-          "A"
+          "A",
+          "F"
         ]
       },
       "answers": [
@@ -327,8 +327,8 @@
             "kind": "pairs",
             "value": [
               [
-                2,
-                3
+                0,
+                2
               ]
             ]
           }
@@ -342,8 +342,8 @@
             "kind": "pairs",
             "value": [
               [
-                0,
-                1
+                1,
+                5
               ]
             ]
           }

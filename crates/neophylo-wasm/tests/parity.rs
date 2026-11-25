@@ -100,6 +100,7 @@ fn golden_hashes_match_native() {
             model,
             length: case.length,
             seed: case.seed,
+            tip_order: None,
         };
         let aln: Alignment = ok_value(neophylo_wasm::simulate(to_js(&tree), to_js(&spec)));
         assert_eq!(

@@ -7,12 +7,16 @@
 //! Per content kind:
 //! - `Simulated` — `sim.seed` comes from the variant seed; the true
 //!   tree's tips are relabelled by a seeded permutation of the
-//!   exercise's own taxon names and the tree is rotated.
+//!   exercise's own taxon names, the tree is rotated, and the served
+//!   alignment's row order is a seeded shuffle of the variant tree's
+//!   leaf labels (`sim.tip_order`, owner decision 2026-11-25) so a
+//!   join's matrix positions differ across students.
 //! - `Matrix` with `reference.kind == "true"` — *derived*: a seeded
 //!   random tree on the same taxa whose branch lengths are rounded to
 //!   the author's decimals (see [`author_decimals`]); the variant's
-//!   matrix is that tree's exact path-length matrix and the generated
-//!   tree becomes the true reference.
+//!   matrix is that tree's exact path-length matrix served in a
+//!   seeded row order (same decision) and the generated tree becomes
+//!   the true reference.
 //! - `Matrix` without a true reference, `Embedded` data and labs —
 //!   *fixed*: data is unchanged; only the bootstrap seed comes from
 //!   the variant.
@@ -170,7 +174,9 @@ fn transform_exercise(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
 /// A simulated exercise (§5.2): the seed drives `sim`; the true tree
 /// is rotated and its tips relabelled by a permutation of the
 /// exercise's own taxon names — applied consistently to the reference
-/// tree and every `reveal_pair` prompt pair.
+/// tree and every `reveal_pair` prompt pair — and `sim.tip_order`
+/// shuffles the served alignment's row order (owner decision
+/// 2026-11-25).
 fn transform_simulated(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
     let ExerciseData::Simulated { true_tree, sim } = &ex.data else {
         return Err(NeoError::InvalidAssignment {
@@ -186,12 +192,25 @@ fn transform_simulated(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
     rotate_tree(&mut tree, sub_seed(seed, "rotate"));
     relabel_tree(&mut tree, &map);
 
+    // Owner decision 2026-11-25 (option A): the served alignment's
+    // row order is a seeded shuffle of the variant tree's leaf labels.
+    // Rotation alone cannot move a cherry's matrix positions (the
+    // middle cherry of `nj-basics` was at positions 2–3 for every
+    // student), so `tip_order` shuffles the rows themselves. The app
+    // and the grader both read `data.sim`, so both see this order.
+    let mut tip_order = tree.leaf_labels();
+    shuffle(
+        &mut tip_order,
+        &mut ChaCha8Rng::seed_from_u64(sub_seed(seed, "order")),
+    );
+
     let mut out = ex.clone();
     out.data = ExerciseData::Simulated {
         true_tree: write_newick(&tree),
         sim: crate::sim::SimSpec {
             seed: seed & MAX_SEED,
-            ..*sim
+            tip_order: Some(tip_order),
+            ..sim.clone()
         },
     };
     if let Some(r) = &mut out.reference {
@@ -216,9 +235,11 @@ fn transform_simulated(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
 /// A matrix exercise derived from a tree (§5.2): a seeded random
 /// binary tree on the exercise's own taxa with branch lengths rounded
 /// to the author's decimals, its path-length matrix at those same
-/// decimals — so the served matrix is additive and the lesson note
-/// "every distance is the exact path between two tips of that tree"
-/// stays true — and the generated tree as the new true reference.
+/// decimals served in a seeded row order (`permute_matrix`, owner
+/// decision 2026-11-25) — so the served matrix is additive and the
+/// lesson note "every distance is the exact path between two tips of
+/// that tree" stays true — and the generated tree as the new true
+/// reference.
 fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoError> {
     let ExerciseData::Matrix {
         names,
@@ -238,10 +259,14 @@ fn transform_derived_matrix(ex: &Exercise, seed: u64) -> Result<Exercise, NeoErr
     // the binary float noise of the additions (owner 2026-11-25 —
     // e.g. 0.1 + 0.2 serving 0.3, not 0.30000000000000004).
     let input = additive_matrix(&tree, Some(d))?;
+    // Same owner decision as `tip_order`: serve the rows in a seeded
+    // shuffle so a join's matrix positions vary across students. The
+    // reference tree is unchanged — only `names`/`lower` move.
+    let (names, lower) = permute_matrix(&input.names, &input.lower, sub_seed(seed, "order"));
     let mut out = ex.clone();
     out.data = ExerciseData::Matrix {
-        names: input.names,
-        lower: input.lower,
+        names,
+        lower,
         source: source.clone(),
     };
     out.reference = Some(Reference {
@@ -271,6 +296,34 @@ fn author_decimals(lower: &[f64]) -> u8 {
     6
 }
 
+/// Fisher–Yates over `v` consuming `v.len()-1` draws — the same
+/// shuffle `reading::variant` uses.
+fn shuffle<T>(v: &mut [T], rng: &mut ChaCha8Rng) {
+    for i in (1..v.len()).rev() {
+        let j = (rng.next_u64() % (i as u64 + 1)) as usize;
+        v.swap(i, j);
+    }
+}
+
+/// `names`/`lower` re-served under a seeded permutation of the row
+/// order (owner decision 2026-11-25): `new_names[k] = names[perm[k]]`
+/// and `new_lower` carries the same cells reindexed — the matrix
+/// itself is unchanged, only the positions of each taxon move.
+fn permute_matrix(names: &[String], lower: &[f64], seed: u64) -> (Vec<String>, Vec<f64>) {
+    let n = names.len();
+    let mut perm: Vec<usize> = (0..n).collect();
+    shuffle(&mut perm, &mut ChaCha8Rng::seed_from_u64(seed));
+    let new_names: Vec<String> = perm.iter().map(|&i| names[i].clone()).collect();
+    let mut new_lower = vec![0.0; lower.len()];
+    for j in 1..n {
+        for i in 0..j {
+            let (a, b) = (perm[i].min(perm[j]), perm[i].max(perm[j]));
+            new_lower[j * (j - 1) / 2 + i] = lower[b * (b - 1) / 2 + a];
+        }
+    }
+    (new_names, new_lower)
+}
+
 /// A seeded random rooted binary tree over `names` (permuted onto the
 /// leaves) with branch lengths uniform in `[1, 10)`, each rounded to
 /// `decimals` places and floored at `10^-decimals` so no length is
@@ -284,10 +337,7 @@ fn author_decimals(lower: &[f64]) -> u8 {
 fn random_tree(names: &[String], seed: u64, decimals: u8) -> Tree {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let mut perm = names.to_vec();
-    for i in (1..perm.len()).rev() {
-        let j = (rng.next_u64() % (i as u64 + 1)) as usize;
-        perm.swap(i, j);
-    }
+    shuffle(&mut perm, &mut rng);
     let mut tree = Tree::new();
     let mut active: Vec<NodeId> = perm
         .iter()
@@ -325,10 +375,7 @@ fn random_tree(names: &[String], seed: u64, decimals: u8) -> Tree {
 fn permutation_map(labels: &[String], seed: u64) -> BTreeMap<String, String> {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let mut perm = labels.to_vec();
-    for i in (1..perm.len()).rev() {
-        let j = (rng.next_u64() % (i as u64 + 1)) as usize;
-        perm.swap(i, j);
-    }
+    shuffle(&mut perm, &mut rng);
     labels
         .iter()
         .cloned()

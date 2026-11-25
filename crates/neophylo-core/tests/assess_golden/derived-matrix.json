@@ -129,138 +129,22 @@
       "seed": "324593247515402",
       "retry": 1,
       "fell_back": false,
-      "data_digest": "5e441c7eee8f4bce",
+      "data_digest": "c3afe56a93ee2170",
       "excerpt": {
         "taxa": [
-          "d",
-          "e",
           "c",
+          "a",
+          "d",
           "f",
-          "b",
-          "a"
+          "e",
+          "b"
         ],
         "first_row": [
           0.0,
           17.0,
           14.0,
-          37.0,
-          34.0,
-          25.0
-        ]
-      },
-      "answers": [
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 1
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                3,
-                4
-              ]
-            ]
-          }
-        },
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 2
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                3,
-                5
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": " Ana.Lopez@Uni.edu ",
-      "normalised": "ana.lopez@uni.edu",
-      "seed": "483784623175432",
-      "retry": 1,
-      "fell_back": false,
-      "data_digest": "e500b03e4db1a8d9",
-      "excerpt": {
-        "taxa": [
-          "d",
-          "e",
-          "f",
-          "a",
-          "c",
-          "b"
-        ],
-        "first_row": [
-          0.0,
-          31.0,
-          35.0,
-          31.0,
-          18.0,
-          19.0
-        ]
-      },
-      "answers": [
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 1
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                0,
-                5
-              ]
-            ]
-          }
-        },
-        {
-          "task": {
-            "kind": "predict_pair",
-            "step": 2
-          },
-          "accepted": {
-            "kind": "pairs",
-            "value": [
-              [
-                0,
-                4
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "josé",
-      "normalised": "josé",
-      "seed": "4665193455397702",
-      "retry": 1,
-      "fell_back": false,
-      "data_digest": "bc6adbb87697e2a3",
-      "excerpt": {
-        "taxa": [
-          "f",
-          "d",
-          "e",
-          "c",
-          "b",
-          "a"
-        ],
-        "first_row": [
-          0.0,
+          29.0,
           15.0,
-          21.0,
-          36.0,
-          37.0,
           26.0
         ]
       },
@@ -274,8 +158,8 @@
             "kind": "pairs",
             "value": [
               [
-                0,
-                1
+                3,
+                5
               ]
             ]
           }
@@ -289,8 +173,8 @@
             "kind": "pairs",
             "value": [
               [
-                3,
-                4
+                1,
+                3
               ]
             ]
           }
@@ -298,28 +182,28 @@
       ]
     },
     {
-      "id": "student-42",
-      "normalised": "student-42",
-      "seed": "5367717516941177",
-      "retry": 0,
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "483784623175432",
+      "retry": 1,
       "fell_back": false,
-      "data_digest": "cd92157c4bbc7151",
+      "data_digest": "9f5fef41e0abb225",
       "excerpt": {
         "taxa": [
-          "f",
-          "a",
-          "c",
           "e",
           "b",
-          "d"
+          "d",
+          "f",
+          "c",
+          "a"
         ],
         "first_row": [
           0.0,
-          26.0,
-          27.0,
-          15.0,
-          18.0,
-          20.0
+          42.0,
+          31.0,
+          22.0,
+          25.0,
+          18.0
         ]
       },
       "answers": [
@@ -348,7 +232,7 @@
             "value": [
               [
                 1,
-                3
+                4
               ]
             ]
           }
@@ -356,28 +240,28 @@
       ]
     },
     {
-      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      "seed": "237824204182399",
-      "retry": 0,
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "4665193455397702",
+      "retry": 1,
       "fell_back": false,
-      "data_digest": "6ac56eb21de69180",
+      "data_digest": "46e4d33ebb18c52f",
       "excerpt": {
         "taxa": [
-          "f",
-          "a",
-          "d",
           "e",
+          "b",
           "c",
-          "b"
+          "d",
+          "f",
+          "a"
         ],
         "first_row": [
           0.0,
-          13.0,
-          12.0,
+          22.0,
           21.0,
-          24.0,
-          28.0
+          18.0,
+          21.0,
+          11.0
         ]
       },
       "answers": [
@@ -390,8 +274,8 @@
             "kind": "pairs",
             "value": [
               [
-                4,
-                5
+                3,
+                4
               ]
             ]
           }
@@ -405,8 +289,124 @@
             "kind": "pairs",
             "value": [
               [
+                1,
+                2
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "5367717516941177",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "9d9cbc3c6d3c8fed",
+      "excerpt": {
+        "taxa": [
+          "d",
+          "c",
+          "f",
+          "a",
+          "e",
+          "b"
+        ],
+        "first_row": [
+          0.0,
+          27.0,
+          20.0,
+          26.0,
+          15.0,
+          14.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                3
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                4
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "237824204182399",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "297dcd8f2720a220",
+      "excerpt": {
+        "taxa": [
+          "e",
+          "a",
+          "f",
+          "b",
+          "c",
+          "d"
+        ],
+        "first_row": [
+          0.0,
+          28.0,
+          21.0,
+          25.0,
+          21.0,
+          27.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
                 3,
                 4
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                0,
+                3
               ]
             ]
           }

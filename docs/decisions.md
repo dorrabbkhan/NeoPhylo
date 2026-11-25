@@ -10435,3 +10435,40 @@ were regenerated in the pinned image — no other baseline changed.
   `tests/assess_{code,code_props,grade,golden}.rs` files the task
   already touched, plus `fuzz/seeds/code/nested_two_tier.txt` and
   `numeric-tasks.json` (the item-3 regeneration the notes approve).
+
+### v1.5 Task 5 fix round 2 (PR #188 status comment)
+
+- **Per-student tip (row) order — owner decision 2026-11-25, option
+  A:** rotation alone kept every cherry at fixed matrix positions
+  (in `nj-basics`, step 1's pair sat at positions (2,3) for all five
+  golden ids), so students could share "join rows 3 and 4". Variants
+  now also shuffle the tip order. `SimSpec` gains
+  `tip_order: Option<Vec<String>>` — a permutation of the variant
+  tree's leaf labels that `simulate` applies after drawing rows, so
+  the per-taxon sequences (and RNG draw order) are unchanged, only
+  the emitted row order differs. `transform_simulated` fills it with
+  a Fisher–Yates shuffle seeded by `sub_seed(seed, "order")`, and
+  `transform_derived_matrix` permutes `names`/`lower` the same way
+  after `additive_matrix` (reference tree unchanged, `Some(d)`
+  rounding kept). `None` keeps the old preorder emission, so every
+  authored file, parity test, sim golden hash and fixture stays
+  byte-identical. The modal step-1 index-pair share over 200 ids
+  dropped to 10 % (`nj-basics`) and 9.5 % (`upgma-vs-nj-matrix`);
+  the 1,000-id sweep still has 0 fallbacks on all 14 exercises.
+- **`tip_order` file format:** `sim.tip_order` is a v5-only key on
+  the `sim` object — a JSON array of unique strings, validated at
+  load as a permutation of the tree's leaf labels (`InvalidExercise`,
+  never a panic); `null`, non-arrays, non-string members, duplicates
+  and missing/extra names are refused. In-file it is presence-aware
+  (`Option<Option<Value>>`, same serde gap as `site_filter`): absent
+  → `None`; explicit `null` → refused (`"sim.tip_order"`), since the
+  engine's own `SimSpec` would read a served `null` as absent.
+- **Files outside the Files block this round:** `sim.rs` (the field,
+  `check_tip_order`, the reorder in `simulate`), `exercise.rs`
+  (`SimFile.tip_order`), `exercises/schema.json` (the v5 key +
+  v2–4 refusal), regenerated `web/src/engine/generated/SimSpec.ts`,
+  and the `SimSpec` literal updates in `tests/sim*.rs`,
+  `tests/seed_scan.rs` and `neophylo-wasm/tests/parity.rs`.
+  Regenerated golden files: `simulated-lesson`, `derived-matrix`,
+  `numeric-tasks`, `bootstrap-predict-branch`; `fixed-data-lab` and
+  `reading-set` are byte-identical (verified by two golden runs).

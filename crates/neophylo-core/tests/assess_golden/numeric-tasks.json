@@ -164,15 +164,15 @@
       "seed": "2950631860394365",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "3cab98c4ae64f9ef",
+      "data_digest": "0928612cc5e69e48",
       "excerpt": {
         "taxa": [
-          "A",
-          "B",
-          "C",
+          "E",
           "D",
+          "B",
           "F",
-          "E"
+          "C",
+          "A"
         ]
       },
       "answers": [
@@ -257,7 +257,7 @@
           },
           "accepted": {
             "kind": "number",
-            "value": 100
+            "value": 93
           }
         },
         {
@@ -269,7 +269,7 @@
           },
           "accepted": {
             "kind": "number",
-            "value": 93
+            "value": 100
           }
         }
       ]
@@ -280,15 +280,15 @@
       "seed": "1002022320279357",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "65927fdda2240347",
+      "data_digest": "cc44f988202b80d8",
       "excerpt": {
         "taxa": [
+          "A",
           "B",
-          "C",
           "E",
-          "F",
+          "C",
           "D",
-          "A"
+          "F"
         ]
       },
       "answers": [
@@ -396,15 +396,15 @@
       "seed": "3594835222488225",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "1ff3a0c01844fb3b",
+      "data_digest": "fa791ccb08debf70",
       "excerpt": {
         "taxa": [
-          "E",
-          "D",
           "C",
-          "A",
           "B",
-          "F"
+          "F",
+          "D",
+          "A",
+          "E"
         ]
       },
       "answers": [
@@ -512,15 +512,15 @@
       "seed": "3200372408807651",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "1a90e8ae62af4127",
+      "data_digest": "7da0e874a7cf5b10",
       "excerpt": {
         "taxa": [
           "E",
-          "C",
           "A",
+          "C",
           "B",
-          "F",
-          "D"
+          "D",
+          "F"
         ]
       },
       "answers": [
@@ -628,15 +628,15 @@
       "seed": "211971125286597",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "7dfbb3b4a4740ca9",
+      "data_digest": "e83080aa7c3a1d78",
       "excerpt": {
         "taxa": [
-          "C",
-          "F",
-          "E",
           "D",
-          "A",
-          "B"
+          "B",
+          "F",
+          "C",
+          "E",
+          "A"
         ]
       },
       "answers": [
@@ -721,7 +721,7 @@
           },
           "accepted": {
             "kind": "number",
-            "value": 133
+            "value": 83
           }
         },
         {
@@ -733,7 +733,7 @@
           },
           "accepted": {
             "kind": "number",
-            "value": 83
+            "value": 133
           }
         }
       ]

@@ -121,17 +121,17 @@
       "seed": "3262946769685316",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "8bfd7a85393baa50",
+      "data_digest": "7f8085b674a7aca2",
       "excerpt": {
         "taxa": [
-          "D",
-          "H",
-          "A",
           "G",
           "B",
-          "C",
+          "D",
+          "H",
+          "F",
+          "A",
           "E",
-          "F"
+          "C"
         ]
       },
       "answers": [
@@ -157,17 +157,17 @@
       "seed": "7874267909400976",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "61731f767b3b5e28",
+      "data_digest": "c199a857ab60a7f6",
       "excerpt": {
         "taxa": [
-          "B",
-          "G",
-          "A",
-          "H",
-          "D",
-          "C",
           "F",
-          "E"
+          "G",
+          "B",
+          "H",
+          "E",
+          "C",
+          "A",
+          "D"
         ]
       },
       "answers": [
@@ -193,17 +193,17 @@
       "seed": "2061752219399640",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "034c1b51173e6e7e",
+      "data_digest": "cb4a31e6518218d4",
       "excerpt": {
         "taxa": [
-          "G",
-          "A",
-          "E",
           "H",
-          "C",
+          "E",
           "B",
           "D",
-          "F"
+          "C",
+          "F",
+          "G",
+          "A"
         ]
       },
       "answers": [
@@ -214,10 +214,10 @@
           "accepted": {
             "kind": "branch",
             "value": [
-              "B",
-              "C",
-              "E",
-              "H"
+              "A",
+              "D",
+              "F",
+              "G"
             ]
           }
         }
@@ -229,17 +229,17 @@
       "seed": "2993873924739728",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "41bcc81c7b2ce216",
+      "data_digest": "42c4dd2a144839bc",
       "excerpt": {
         "taxa": [
+          "E",
           "D",
           "A",
-          "E",
-          "F",
           "C",
+          "G",
+          "F",
           "H",
-          "B",
-          "G"
+          "B"
         ]
       },
       "answers": [
@@ -265,17 +265,17 @@
       "seed": "3146259699462850",
       "retry": 0,
       "fell_back": false,
-      "data_digest": "365206de5685797c",
+      "data_digest": "e5deefa3ebead0e6",
       "excerpt": {
         "taxa": [
-          "A",
-          "F",
           "E",
           "B",
-          "D",
-          "C",
+          "H",
           "G",
-          "H"
+          "A",
+          "C",
+          "F",
+          "D"
         ]
       },
       "answers": [
