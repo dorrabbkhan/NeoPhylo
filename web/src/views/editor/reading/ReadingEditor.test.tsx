@@ -8,7 +8,7 @@
 // always the engine's, never recomputed here.
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorHistory } from "../../../editor/history";
 import { engine } from "../../../engine/index";
@@ -17,6 +17,10 @@ import { decodeReadingLink } from "../../../reading/url";
 
 import { ReadingEditor } from "./ReadingEditor";
 
+// v1.5 Task 7: the editor autosaves drafts to localStorage — without a
+// clean slate each test, a previous test's draft would restore over the
+// state this one renders with.
+beforeEach(() => window.localStorage.clear());
 afterEach(cleanup);
 
 function parse(newick: string): Tree {

@@ -10530,3 +10530,64 @@ were regenerated in the pinned image — no other baseline changed.
   rebuilt with `WASM_PACK_CACHE` pointed at a pre-seeded copy of the
   same cache. No repo files change — the env only redirects
   wasm-bindgen/wasm-opt lookup.
+
+### v1.5 Task 7 (assignment builder and editor autosave)
+
+- **`builtinText` is exported from `assess/url.ts`:** the plan's
+  Files block lists it as private, but the builder resolves
+  `builtin` content through the same lazy `?raw` glob the link
+  resolver uses — exporting the one function keeps a single stem
+  glob instead of a second copy (one-file-one-job; the id→text map
+  belongs to the URL module).
+- **`builder.ts` holds the builder's model:** the Files block names
+  three `.tsx` components; the pure helpers (content resolution,
+  the authored-file shape, refusal wording, task labels, the
+  draft's `validate`/`draftForParam`) live in a sibling module so
+  the components stay view-only and the helpers unit-test without
+  a DOM (same split `readingDraft.ts` uses for the reading editor).
+- **Autosave keys and payloads:** `neophylo:draft:exercise|matrix|
+  reading|assignment`, one object per kind. Exercise/matrix drafts
+  are the compact wire form (`{v,n,s,p,x,r}`) — the Newick and
+  file extras round-trip through the same conversion `applyLoaded`
+  already uses; the assignment draft is the builder's full
+  `BuilderDraft` including the generated `id` (variant seeds key
+  off it, so a restored draft must keep the id it was born with or
+  the sample students shift under the instructor's feet).
+- **One draft slot each for exercise and matrix:** the editor has
+  one live tree; a matrix-session save clears the exercise slot
+  and vice versa, so a restore never resurrects the *other* kind's
+  stale draft over the one the instructor was actually editing.
+- **The exercise restore is initialization, not an `applyLoaded`
+  call:** `react-hooks/set-state-in-effect` (eslint-plugin-
+  react-hooks 7) forbids the mount-time `applyLoaded` an effect
+  would need, so the draft is rebuilt in the `useState` initializer
+  and seeds `settings`/`prompts`/`fileExtras`/`preserved`/the dirty
+  baseline directly; the lone effect only puts the stored tree on
+  the canvas after an `editValidate` precheck. The blocked-storage
+  flag is read through `useSyncExternalStore(autosave.subscribe)`
+  for the same reason (the `NewickView` render-phase-adjustment
+  precedent).
+- **EditorPage keeps all three editors mounted after a visit:**
+  the Assignment mode follows the same `hidden`-div pattern the
+  exercise/reading switch already uses — toggling modes never
+  loses in-progress work (that invariant predates autosave; the
+  draft is a reload-backup, not the mode-switch mechanism).
+- **Files outside the Files block this round:** `assess/url.ts`
+  (the `builtinText` export, above), `index.css` (the builder's
+  `.builder-*` classes — the Files block names no stylesheet and
+  the builder's samples/tasks/prompt rows need real layout),
+  `EditorPanel.tsx` + `EditorPanel.test.tsx` (the exercise/matrix
+  autosave wiring and the `localStorage.clear()` the pre-autosave
+  tests now need for isolation — drafts persisted across tests
+  restored over each new render's tree), `reading/ReadingEditor.tsx`
+  + `reading/ReadingEditor.test.tsx` (same wiring, same isolation),
+  `reading/readingDraft.ts` (the `storedDraft` validator export —
+  the builder's reading-draft content path and the editor's own
+  restore share it), and `e2e/visualScenes.ts` (the two `builder-*`
+  scenes whose baselines the task creates).
+- **Full-suite timing:** `App.bootstrap.test.tsx`'s two 60-taxa
+  scenes and `EditorPage`'s mode-switch test are marginal against
+  vitest's default 5 s timeout under full parallel load (this box
+  runs >35 load-average during other sessions); all pass
+  standalone and in `--maxWorkers=4` runs. Unrelated to this diff —
+  noted so a red CI run isn't misread as this task's regression.

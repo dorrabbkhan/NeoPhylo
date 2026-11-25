@@ -80,8 +80,9 @@ const READING_FILES = import.meta.glob<string>(
 /** The served bytes of the built-in content `id` names, or `null`
  *  when no lesson, lab or reading set carries that file stem. An id
  *  with path separators can never match — glob keys are fixed literal
- *  paths, so `..` just misses. */
-async function builtinText(id: string): Promise<string | null> {
+ *  paths, so `..` just misses. The Task-7 assignment builder resolves
+ *  its `builtin` content the same way (spec §6). */
+export async function builtinText(id: string): Promise<string | null> {
   const load =
     LESSON_FILES[`../../../exercises/${id}.json`] ??
     LAB_FILES[`../../../exercises/labs/${id}.json`] ??

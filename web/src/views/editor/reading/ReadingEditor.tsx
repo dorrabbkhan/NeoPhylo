@@ -15,6 +15,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -34,6 +35,7 @@ import {
 } from "../../../reading/url";
 
 import { DrawCanvas } from "../DrawCanvas";
+import { autosave } from "../autosave";
 
 import { ItemForm } from "./ItemForm";
 import { SetBasicsForm } from "./SetBasicsForm";
@@ -44,6 +46,7 @@ import {
   emptyDraft,
   emptyTreeDraft,
   resolveTreeView,
+  storedDraft,
   type ReadingDraft,
   type TreeDraft,
 } from "./readingDraft";
@@ -70,7 +73,18 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
   );
   const tree = useSyncExternalStore(subscribe, () => model.tree);
 
-  const [draft, setDraft] = useState<ReadingDraft>(emptyDraft);
+  // The draft restores from `neophylo:draft:reading` when a reload
+  // left one (v1.5 Task 7, spec §9.1) and saves back on every change —
+  // a blocked storage only raises the notice flag, never crashes.
+  const [draft, setDraft] = useState<ReadingDraft>(
+    () => storedDraft(autosave.load("reading")) ?? emptyDraft(),
+  );
+  // The storage flag is external mutable state — read it through a
+  // subscription (the model.subscribe pattern), not effect-set-state.
+  const draftBlocked = useSyncExternalStore(
+    autosave.subscribe,
+    () => autosave.blocked,
+  );
   // The extras form that owns canvas taps, plus the clade its last
   // tap (preview or canvas) armed. null = nothing armed.
   const [armed, setArmed] = useState<{
@@ -84,6 +98,10 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
     null,
   );
   const [notice, setNotice] = useState<Notice | null>(null);
+
+  useEffect(() => {
+    autosave.save("reading", draft);
+  }, [draft]);
 
   // Live validation — the engine is the only validator. The loaded
   // set feeds Share/Preview/Save and the per-item answer keys.
@@ -324,6 +342,12 @@ export function ReadingEditor({ model }: ReadingEditorProps) {
         and add items the same way. The engine checks the whole set as
         you work.
       </p>
+      {draftBlocked && (
+        <p className="editor-warning">
+          Drafts won't be saved — this browser's storage is
+          unavailable.
+        </p>
+      )}
       <SetBasicsForm
         draft={draft}
         onDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
