@@ -14,6 +14,7 @@
     "level": "intro",
     "prepares_for": []
   },
+  "premises": ["reading_valid"],
   "mode": "practice",
   "taxa_pool": {
     "vertebrates": ["cat", "chimp", "dog", "frog", "human", "salmon", "shark"]

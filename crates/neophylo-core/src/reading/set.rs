@@ -20,6 +20,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
 
+use crate::assess::premise::Premise;
 use crate::error::NeoError;
 use crate::exercise::ExerciseMeta;
 use crate::reading::query::CladeKey;
@@ -96,6 +97,14 @@ pub struct ReadingSet {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub meta: Option<ExerciseMeta>,
+    /// v1.5 spec §5.2: machine-checkable premises an assignment
+    /// variant must satisfy (`reading_valid` for built-in sets).
+    /// Optional; absent means `[]`, and the empty list is omitted
+    /// from the wire shape so files that never declared it serialize
+    /// unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Premise>>", optional)]
+    pub premises: Vec<crate::assess::premise::Premise>,
     #[serde(default)]
     pub mode: ReadingMode,
     #[serde(default)]

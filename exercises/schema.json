@@ -65,6 +65,20 @@
       },
       "description": "v1.4c spec 4.2: optional lesson metadata, valid only with schema_version 5."
     },
+    "premises": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "tie_free",
+          "closest_pair_not_first",
+          "upgma_differs_from_nj",
+          "nj_recovers_true_tree",
+          "reading_valid"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "v1.5 spec 5.2: machine-checkable premises an assignment variant must satisfy before it is served; engine-computed, never hand-copied numbers. Valid only with schema_version 5."
+    },
     "locked": {
       "type": "array",
       "items": { "type": "string" },
@@ -332,7 +346,7 @@
       }
     },
     "v5Identifiers": {
-      "description": "v1.4c spec 4: the v5 identifiers exist only in schema_version 5 files. In a v2, v3 or v4 file a data.kind of \"matrix\" and a meta key (even a null one) are invalid.",
+      "description": "v1.4c spec 4: the v5 identifiers exist only in schema_version 5 files. In a v2, v3 or v4 file a data.kind of \"matrix\" and a meta or premises key (even a null one) are invalid.",
       "if": {
         "properties": { "schema_version": { "enum": [2, 3, 4] } },
         "required": ["schema_version"]
@@ -345,7 +359,10 @@
             }
           }
         },
-        "not": { "required": ["meta"] }
+        "allOf": [
+          { "not": { "required": ["meta"] } },
+          { "not": { "required": ["premises"] } }
+        ]
       }
     },
     "matrixRules": {

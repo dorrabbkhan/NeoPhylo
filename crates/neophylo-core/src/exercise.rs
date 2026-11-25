@@ -33,6 +33,7 @@ use ts_rs::TS;
 
 use crate::algos::Method;
 use crate::alphabet::{with_alphabet, Alphabet};
+use crate::assess::premise::Premise;
 use crate::dist::DistModel;
 use crate::error::NeoError;
 use crate::matrix_input::{validate_input, DistanceInput};
@@ -75,6 +76,14 @@ pub struct Exercise {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub meta: Option<ExerciseMeta>,
+    /// v1.5 spec §5.2: machine-checkable premises an assignment
+    /// variant must satisfy (e.g. `tie_free`). Optional; absent means
+    /// `[]`, and the empty list is omitted from the wire shape so
+    /// files that never declared it serialize unchanged. Schema 5
+    /// only, presence-aware like `meta`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Premise>>", optional)]
+    pub premises: Vec<Premise>,
 }
 
 /// An exercise file's `bootstrap` block (v1.2 spec §7.1): the panel's
@@ -309,6 +318,9 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
     if f.meta.is_some() {
         return Err(bad("meta", "meta requires schema_version 5"));
     }
+    if f.premises.is_some() {
+        return Err(bad("premises", "premises requires schema_version 5"));
+    }
     let true_tree = f
         .true_tree
         .ok_or_else(|| bad("true_tree", "required for schema_version 1"))?;
@@ -356,6 +368,7 @@ fn load_v1(f: ExerciseFile) -> Result<Exercise, NeoError> {
         prompts,
         bootstrap,
         meta: None,
+        premises: Vec::new(),
     })
 }
 
@@ -397,6 +410,9 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
     if f.meta.is_some() && v < 5 {
         return Err(bad("meta", "meta requires schema_version 5"));
     }
+    if f.premises.is_some() && v < 5 {
+        return Err(bad("premises", "premises requires schema_version 5"));
+    }
     let analysis = if is_matrix {
         matrix_analysis(&f.analysis)?
     } else {
@@ -406,6 +422,11 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
         None => None,
         Some(None) => return Err(bad("meta", "meta must be an object, not null")),
         Some(Some(raw)) => Some(meta_file(raw)?),
+    };
+    let premises = match &f.premises {
+        None => Vec::new(),
+        Some(None) => return Err(bad("premises", "premises must be an array, not null")),
+        Some(Some(raw)) => premises_file(raw)?,
     };
 
     // Per-kind validation; `labels` are the alignment's leaf labels,
@@ -529,6 +550,7 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
         prompts,
         bootstrap,
         meta,
+        premises,
     })
 }
 
@@ -787,6 +809,40 @@ fn meta_file(raw: &serde_json::Value) -> Result<ExerciseMeta, NeoError> {
         prepares_for,
         hand_steps,
     })
+}
+
+/// Convert a raw `premises` value to `Vec<Premise>` (v1.5 spec §5.2):
+/// an array of unique premise names. Hand-validated like `meta` so
+/// each bad piece names `premises`; serde's `Option<Vec<Premise>>`
+/// path is not used because its errors would lose the field name on
+/// a non-string element or misread a non-array as a type error
+/// without the v5 context.
+fn premises_file(
+    raw: &serde_json::Value,
+) -> Result<Vec<crate::assess::premise::Premise>, NeoError> {
+    use crate::assess::premise::Premise;
+    let Some(arr) = raw.as_array() else {
+        return Err(bad("premises", "premises must be an array"));
+    };
+    let mut out = Vec::with_capacity(arr.len());
+    for v in arr {
+        let Some(name) = v.as_str() else {
+            return Err(bad("premises", "premises element must be a string"));
+        };
+        let p = match name {
+            "tie_free" => Premise::TieFree,
+            "closest_pair_not_first" => Premise::ClosestPairNotFirst,
+            "upgma_differs_from_nj" => Premise::UpgmaDiffersFromNj,
+            "nj_recovers_true_tree" => Premise::NjRecoversTrueTree,
+            "reading_valid" => Premise::ReadingValid,
+            _ => return Err(bad("premises", &format!("unknown premise '{name}'"))),
+        };
+        if out.contains(&p) {
+            return Err(bad("premises", &format!("duplicate premise '{name}'")));
+        }
+        out.push(p);
+    }
+    Ok(out)
 }
 
 /// A JSON array of strings → `Vec<String>`; anything else names
@@ -1180,6 +1236,12 @@ struct ExerciseFile {
     /// refused rather than read as absent.
     #[serde(default, deserialize_with = "present")]
     meta: Option<Option<serde_json::Value>>,
+    /// v1.5 spec §5.2: optional premise declarations; v5-only and
+    /// presence-aware like `meta` — a present `null` in an older file
+    /// is the version error, and a null or non-array in a v5 file is
+    /// refused rather than read as absent.
+    #[serde(default, deserialize_with = "present")]
+    premises: Option<Option<serde_json::Value>>,
 }
 
 #[derive(Deserialize)]

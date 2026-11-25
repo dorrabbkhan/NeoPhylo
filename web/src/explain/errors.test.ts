@@ -30,6 +30,8 @@ const VARIANTS: NeoError[] = [
   { kind: "NoSitesKept", filter: "complete" },
   { kind: "InvalidMatrix", row: "c", col: "a", msg: "distance must be finite" },
   { kind: "MatrixAmbiguous", question: "DecimalComma" },
+  { kind: "InvalidAssignment", field: "task", msg: "no unique closest pair" },
+  { kind: "InvalidCode", reason: "bad checksum" },
 ];
 
 const TITLES: Record<NeoError["kind"], string> = {
@@ -49,6 +51,8 @@ const TITLES: Record<NeoError["kind"], string> = {
   NoSitesKept: "The gap filter removed every site",
   InvalidMatrix: "This distance matrix has a problem",
   MatrixAmbiguous: "This distance matrix needs a choice",
+  InvalidAssignment: "This task can't be built for that variant",
+  InvalidCode: "That completion code isn't valid",
 };
 
 describe("errorMessage", () => {

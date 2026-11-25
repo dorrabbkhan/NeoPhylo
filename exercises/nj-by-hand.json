@@ -13,6 +13,7 @@
     "level": "intro",
     "prepares_for": ["nj-basics", "dnadist-neighbor"]
   },
+  "premises": ["tie_free", "closest_pair_not_first"],
   "alphabet": "dna",
   "data": {
     "kind": "matrix",

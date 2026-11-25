@@ -123,6 +123,19 @@ pub enum NeoError {
         field: String,
         msg: String,
     },
+    /// An assignment, variant or gradable task failed validation
+    /// (v1.5 spec §5.2–5.3): an unsatisfiable or inapplicable premise,
+    /// a task that cannot apply to the content, or a bad student id.
+    /// `field` names the field at fault.
+    InvalidAssignment {
+        field: String,
+        msg: String,
+    },
+    /// A submitted completion code cannot be decoded or graded (v1.5
+    /// spec §5.4–5.5). Carries the reason, not the offending bytes.
+    InvalidCode {
+        reason: String,
+    },
 }
 
 impl fmt::Display for NeoError {
@@ -208,6 +221,10 @@ impl fmt::Display for NeoError {
                     write!(f, "reading set item {item}, {field}: {msg}")
                 }
             }
+            Self::InvalidAssignment { field, msg } => {
+                write!(f, "invalid assignment field '{field}': {msg}")
+            }
+            Self::InvalidCode { reason } => write!(f, "invalid completion code: {reason}"),
         }
     }
 }
