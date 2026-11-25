@@ -241,7 +241,7 @@ impl BitReader<'_> {
 
 /// CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF, no reflection,
 /// xorout 0). Known answer: `b"123456789"` → `0x29B1`.
-fn crc16(data: &[u8]) -> u16 {
+pub fn crc16(data: &[u8]) -> u16 {
     let mut crc: u16 = 0xFFFF;
     for &b in data {
         crc ^= u16::from(b) << 8;
@@ -309,6 +309,7 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
                 return Err(bad_code("malformed"));
             }
         }
+        push(&mut bits, u64::from(tag_of(&a.first)), 4);
         write_answer(&mut bits, &a.first)?;
         push(&mut bits, u64::from(last.is_some()), 1);
         if let Some(l) = last {
@@ -317,9 +318,12 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
         push(&mut bits, u64::from(a.attempts.min(ATTEMPTS_CAP)), 4);
     }
     push(&mut bits, u64::from(p.finished_min), 24);
+    // The payload pads to a whole byte before the CRC starts.
+    while bits.len() % 8 != 0 {
+        bits.push(false);
+    }
     let payload = bytes_of(&bits);
-    let crc = crc16(&payload);
-    push(&mut bits, u64::from(crc), 16);
+    push(&mut bits, u64::from(crc16(&payload)), 16);
     // Pad to a whole symbol; the decoder recovers the pad width.
     while bits.len() % 5 != 0 {
         bits.push(false);
@@ -337,8 +341,9 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
     Ok(text)
 }
 
+/// An answer's body bits — the kind tag is written once per task by
+/// the caller (`TwoTier`'s inner answer keeps its own tag).
 fn write_answer(bits: &mut Vec<bool>, a: &PackedAnswer) -> Result<(), NeoError> {
-    push(bits, u64::from(tag_of(a)), 4);
     let mask = |ix: &[u8]| -> Result<u64, NeoError> {
         let mut m = 0u64;
         for &i in ix {
@@ -373,6 +378,7 @@ fn write_answer(bits: &mut Vec<bool>, a: &PackedAnswer) -> Result<(), NeoError> 
             push(bits, u64::from(*v), 2);
         }
         PackedAnswer::TwoTier { first, reason } => {
+            push(bits, u64::from(tag_of(first)), 4);
             write_answer(bits, first)?;
             push(bits, u64::from(*reason), 8);
         }
@@ -469,13 +475,14 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
     }
     let mut attempts = Vec::with_capacity(n_tasks);
     for _ in 0..n_tasks {
-        let first = read_answer(&mut r)?;
+        let tag = get(&mut r, 4)? as u8;
+        let first = read_answer(&mut r, tag)?;
         let has_last = get(&mut r, 1)? == 1;
         if first == PackedAnswer::Skipped && has_last {
             return Err(bad_code("malformed"));
         }
         let last = if has_last {
-            Some(read_answer(&mut r)?)
+            Some(read_answer(&mut r, tag)?)
         } else {
             None
         };
@@ -506,12 +513,14 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
     })
 }
 
-fn read_answer(r: &mut BitReader) -> Result<PackedAnswer, NeoError> {
+/// An answer body of kind `tag` — the tag is read once per task by
+/// the caller (`TwoTier`'s inner answer reads its own tag).
+fn read_answer(r: &mut BitReader, tag: u8) -> Result<PackedAnswer, NeoError> {
     let get = |r: &mut BitReader, n: usize| r.read(n).ok_or_else(|| bad_code("length"));
     let list = |m: u64| -> Vec<u8> {
         (0..64).filter(|&i| m >> i & 1 == 1).map(|i| i as u8).collect()
     };
-    Ok(match get(r, 4)? {
+    Ok(match tag {
         0 => PackedAnswer::Skipped,
         1 => PackedAnswer::Pair(get(r, 16)? as u16, get(r, 16)? as u16),
         2 => PackedAnswer::Tips(list(get(r, 64)?)),
@@ -530,10 +539,13 @@ fn read_answer(r: &mut BitReader) -> Result<PackedAnswer, NeoError> {
             v @ 0..=2 => PackedAnswer::Pairwise(v as u8),
             _ => return Err(bad_code("malformed")),
         },
-        9 => PackedAnswer::TwoTier {
-            first: Box::new(read_answer(r)?),
-            reason: get(r, 8)? as u8,
-        },
+        9 => {
+            let inner = get(r, 4)? as u8;
+            PackedAnswer::TwoTier {
+                first: Box::new(read_answer(r, inner)?),
+                reason: get(r, 8)? as u8,
+            }
+        }
         10 => {
             let v = get(r, 32)? as u32 as i32;
             if v == i32::MIN {
@@ -1002,14 +1014,15 @@ fn lehmer_rank(nodes: &[String], letters: &[String]) -> Result<u64, NeoError> {
 }
 
 fn lehmer_unrank(nodes: &[String], mut rank: u64) -> Vec<String> {
+    // The inverse of `lehmer_rank`: position n−k's digit has radix k.
+    // Each digit is < k = the remaining length at that step, so any
+    // u64 unranks to a permutation of `nodes`.
     let n = nodes.len();
     let mut ls = vec![0u64; n];
-    for i in (1..=n).rev() {
-        ls[i - 1] = rank % i as u64;
-        rank /= i as u64;
+    for k in 1..=n {
+        ls[n - k] = rank % k as u64;
+        rank /= k as u64;
     }
-    // ls[i-1] < i always, so every index fits the shrinking list —
-    // any u64 unranks to a permutation of `nodes`.
     let mut remaining = nodes.to_vec();
     ls.iter().map(|&j| remaining.remove(j as usize)).collect()
 }
