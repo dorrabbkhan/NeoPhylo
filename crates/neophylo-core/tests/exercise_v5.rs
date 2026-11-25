@@ -559,6 +559,96 @@ fn meta_missing_required_keys_name_the_key() {
     }
 }
 
+// --- sim.tip_order (v1.5 owner decision 2026-11-25) -------------------
+
+/// A simulated `data` object carrying `sim.tip_order`: `{0}` the raw
+/// value (JSON text — `null`, a non-array or an array). SIM_DATA's
+/// tree leaves are A, B, C.
+fn sim_with_tip_order(tip_order: &str) -> String {
+    format!(
+        r#"{{ "kind": "simulated",
+             "true_tree": "((A:0.1,B:0.2):0.05,C:0.3);",
+             "sim": {{ "model": "JC69", "length": 100, "seed": 7,
+                      "tip_order": {tip_order} }} }}"#
+    )
+}
+
+#[test]
+fn tip_order_loads_on_v5_and_round_trips() {
+    let json = v5(&sim_with_tip_order(r#"["C","A","B"]"#), NJ_JC69, "[]", "");
+    let ex = load_exercise(&json).unwrap();
+    let ExerciseData::Simulated { sim, .. } = &ex.data else {
+        panic!("simulated data")
+    };
+    assert_eq!(
+        sim.tip_order,
+        Some(vec!["C".to_string(), "A".to_string(), "B".to_string()])
+    );
+    // The engine wire shape carries it too (a served variant is an
+    // `Exercise`, not a file), and `None` stays absent.
+    let s = serde_json::to_string(&ex).unwrap();
+    assert!(s.contains(r#""tip_order":["C","A","B"]"#), "{s}");
+    let back: Exercise = serde_json::from_str(&s).unwrap();
+    assert_eq!(ex, back);
+    let plain = v5(SIM_DATA, NJ_JC69, "[]", "");
+    let ex = load_exercise(&plain).unwrap();
+    let s = serde_json::to_string(&ex).unwrap();
+    assert!(!s.contains("tip_order"), "None must stay absent: {s}");
+}
+
+#[test]
+fn tip_order_refusals_name_sim_tip_order() {
+    // Presence-aware like the other gated keys (the serde gap): a
+    // present null, a non-array, a non-string element, a duplicate,
+    // a missing name and an extra name are each refused at
+    // `sim.tip_order`.
+    for (case, want) in [
+        ("null", "must be an array of taxon names, not null"),
+        ("\"C\"", "must be an array of taxon names"),
+        (r#"["C","A",5]"#, "every tip_order name must be a string"),
+        (r#"["C","A","A"]"#, "names 'A' twice"),
+        // Missing name (B absent) and an extra name (Z) are the same
+        // refusal: not a permutation of A, B, C.
+        (r#"["C","A"]"#, "must be a permutation"),
+        (r#"["C","A","Z"]"#, "must be a permutation"),
+        (r#"["C","A","B","Z"]"#, "must be a permutation"),
+    ] {
+        let json = v5(&sim_with_tip_order(case), NJ_JC69, "[]", "");
+        match load_exercise(&json) {
+            Err(NeoError::InvalidExercise { field, msg }) => {
+                assert_eq!(field, "sim.tip_order", "{case}: wrong field");
+                assert!(msg.contains(want), "{case}: '{want}' not in '{msg}'");
+            }
+            other => panic!("{case}: expected InvalidExercise, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn tip_order_requires_schema_version_5() {
+    // A tip_order key (even a null one) in an older file is the
+    // version error, like `premises`.
+    let json = v5(&sim_with_tip_order(r#"["C","A","B"]"#), NJ_JC69, "[]", "");
+    for v in [2, 3, 4] {
+        match load_exercise(&as_version(&json, v)) {
+            Err(NeoError::InvalidExercise { field, msg }) => {
+                assert_eq!(field, "sim.tip_order", "v{v}: wrong field");
+                assert!(msg.contains("schema_version 5"), "v{v}: {msg}");
+            }
+            other => panic!("v{v}: expected the v5-only error, got {other:?}"),
+        }
+    }
+    // And the same for a present `null` in a v4 file.
+    let null_case = v5(&sim_with_tip_order("null"), NJ_JC69, "[]", "");
+    match load_exercise(&as_version(&null_case, 4)) {
+        Err(NeoError::InvalidExercise { field, msg }) => {
+            assert_eq!(field, "sim.tip_order");
+            assert!(msg.contains("schema_version 5"), "{msg}");
+        }
+        other => panic!("v4 null: expected the v5-only error, got {other:?}"),
+    }
+}
+
 // --- versions and round trips --------------------------------------------
 
 #[test]

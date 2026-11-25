@@ -69,3 +69,9 @@ name = "reading_set"
 path = "fuzz_targets/reading_set.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "code"
+path = "fuzz_targets/code.rs"
+test = false
+doc = false

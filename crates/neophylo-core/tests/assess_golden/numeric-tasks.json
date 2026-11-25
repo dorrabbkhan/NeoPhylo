@@ -1,0 +1,742 @@
+{
+  "generator": 1,
+  "assignment": {
+    "content": {
+      "kind": "exercise",
+      "value": {
+        "alphabet": "dna",
+        "analysis": {
+          "correction": "Jc69",
+          "method": "Nj"
+        },
+        "bootstrap": null,
+        "data": {
+          "kind": "simulated",
+          "sim": {
+            "length": 1000,
+            "model": "Jc69",
+            "seed": 42
+          },
+          "true_tree": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);"
+        },
+        "id": "nj-basics",
+        "locked": [
+          "sim.model",
+          "analysis.correction",
+          "analysis.method"
+        ],
+        "meta": {
+          "level": "intro",
+          "minutes": 20,
+          "objectives": [
+            "Predict which pair Neighbor-Joining joins at each step",
+            "Explain how the Q score can beat the smallest distance",
+            "Read a finished NJ tree against its true tree"
+          ],
+          "prepares_for": [
+            "dnadist-neighbor"
+          ]
+        },
+        "prompts": [
+          {
+            "after": null,
+            "at_step": 1,
+            "concept": "Neighbor-Joining starts from the distance matrix. Which two taxa join first? Pick a cell in the matrix, or click two leaves in a tree.",
+            "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. Use the Distance/Q switch to see Q directly — the smallest off-diagonal value wins.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "predict_pair"
+          },
+          {
+            "after": null,
+            "at_step": 3,
+            "concept": "Four clusters remain: u1, u2, E and F. Which pair joins next? The tempting answer is the closest pair — is it?",
+            "math": "Q(i,j) = (n−2)·d(i,j) − R_i − R_j subtracts each cluster's average divergence. A pair close to each other can still lose to a pair whose members are far from everything else.",
+            "reveal": "u1 and u2 are closest, but NJ joins E and F: they are close relative to how far each is from everything else.",
+            "reveal_pair": null,
+            "type": "predict_pair"
+          },
+          {
+            "after": null,
+            "at_step": 5,
+            "concept": "The tree is complete: RF = 0, so every grouping in the true tree was recovered.",
+            "math": "RF counts splits present in one tree but not the other. Two unrooted 6-taxon trees can differ on at most 2·(6−3) = 6 splits.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          }
+        ],
+        "reference": {
+          "kind": "true",
+          "newick": "((A:0.1,B:0.15):0.1,(C:0.12,D:0.08):0.15,(E:0.1,F:0.2):0.05);"
+        },
+        "schema_version": 5,
+        "title": "How Neighbor-Joining works"
+      }
+    },
+    "id": "golden-numeric",
+    "id_prompt": {
+      "label": "Student ID",
+      "rule": "trim_lower"
+    },
+    "mode": "practice",
+    "tasks": [
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "corrected_distance",
+          "role": "chosen",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "q_value",
+          "role": "chosen",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "corrected_distance",
+          "role": "chosen",
+          "step": 2
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "corrected_distance",
+          "role": "closest_raw",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "q_value",
+          "role": "closest_raw",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "new_distance",
+          "role": "closest_raw",
+          "step": 3
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "branch_length",
+          "role": "chosen_first_to_new",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "numeric",
+          "quantity": "branch_length",
+          "role": "chosen_second_to_new",
+          "step": 1
+        }
+      }
+    ],
+    "title": "golden-numeric",
+    "variation": true
+  },
+  "ids": [
+    {
+      "id": "ada",
+      "normalised": "ada",
+      "seed": "2950631860394365",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "0928612cc5e69e48",
+      "excerpt": {
+        "taxa": [
+          "E",
+          "D",
+          "B",
+          "F",
+          "C",
+          "A"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 193
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3510
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 2,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 259
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 193
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3510
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 3,
+            "quantity": "new_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 173
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_first_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 93
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_second_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "1002022320279357",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "cc44f988202b80d8",
+      "excerpt": {
+        "taxa": [
+          "A",
+          "B",
+          "E",
+          "C",
+          "D",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 181
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3165
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 2,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 244
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 181
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3165
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 3,
+            "quantity": "new_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 151
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_first_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 109
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_second_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 72
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "3594835222488225",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "fa791ccb08debf70",
+      "excerpt": {
+        "taxa": [
+          "C",
+          "B",
+          "F",
+          "D",
+          "A",
+          "E"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 199
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3297
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 2,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 251
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 199
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3297
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 3,
+            "quantity": "new_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 186
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_first_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 87
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_second_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 113
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "3200372408807651",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "7da0e874a7cf5b10",
+      "excerpt": {
+        "taxa": [
+          "E",
+          "A",
+          "C",
+          "B",
+          "D",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 185
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3224
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 2,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 272
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 185
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3224
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 3,
+            "quantity": "new_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 182
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_first_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 65
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_second_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 121
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "211971125286597",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "e83080aa7c3a1d78",
+      "excerpt": {
+        "taxa": [
+          "D",
+          "B",
+          "F",
+          "C",
+          "E",
+          "A"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 216
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3233
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 2,
+            "quantity": "corrected_distance",
+            "role": "chosen"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 222
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "corrected_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 216
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "q_value",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": -3233
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 3,
+            "quantity": "new_distance",
+            "role": "closest_raw"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 137
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_first_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 83
+          }
+        },
+        {
+          "task": {
+            "kind": "numeric",
+            "step": 1,
+            "quantity": "branch_length",
+            "role": "chosen_second_to_new"
+          },
+          "accepted": {
+            "kind": "number",
+            "value": 133
+          }
+        }
+      ]
+    }
+  ]
+}

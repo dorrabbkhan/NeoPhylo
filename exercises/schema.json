@@ -203,6 +203,12 @@
         "model": { "enum": ["JC69", "K80", "JTT", "F84"] },
         "kappa": { "type": "number" },
         "base_freqs": { "$ref": "#/$defs/baseFreqs" },
+        "tip_order": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "v1.5 (schema_version 5 only): the alignment's served row order — a permutation of the true tree's leaf labels; set by a variant so students' matrix positions differ (owner decision 2026-11-25). The permutation check itself is semantic — the engine performs it."
+        },
         "length": { "type": "integer", "minimum": 10, "maximum": 10000 },
         "seed": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
       },
@@ -346,7 +352,7 @@
       }
     },
     "v5Identifiers": {
-      "description": "v1.4c spec 4: the v5 identifiers exist only in schema_version 5 files. In a v2, v3 or v4 file a data.kind of \"matrix\" and a meta or premises key (even a null one) are invalid.",
+      "description": "v1.4c spec 4 and v1.5: the v5 identifiers exist only in schema_version 5 files. In a v2, v3 or v4 file a data.kind of \"matrix\", a meta or premises key, and a sim.tip_order key (even a null one) are invalid.",
       "if": {
         "properties": { "schema_version": { "enum": [2, 3, 4] } },
         "required": ["schema_version"]
@@ -355,7 +361,8 @@
         "properties": {
           "data": {
             "properties": {
-              "kind": { "not": { "const": "matrix" } }
+              "kind": { "not": { "const": "matrix" } },
+              "sim": { "not": { "required": ["tip_order"] } }
             }
           }
         },

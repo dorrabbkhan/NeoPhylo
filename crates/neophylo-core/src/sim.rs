@@ -60,14 +60,27 @@ pub enum SimModel {
     F84 { kappa: f64, base_freqs: [f64; 4] },
 }
 
-/// What to simulate: model, site count and the RNG seed.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+/// What to simulate: model, site count and the RNG seed. `tip_order`,
+/// when set, is the row order the emitted alignment takes — a
+/// permutation of the tree's leaf labels, set by a variant so the
+/// matrix positions of a join differ across students (owner decision
+/// 2026-11-25, PR #188 fix round 2). `None` emits rows in
+/// `tree.leaf_labels()` (preorder) order, so files that never declare
+/// it are byte-identical to before.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct SimSpec {
     pub model: SimModel,
     pub length: u32,
     #[ts(type = "number")]
     pub seed: u64,
+    /// `Option<Vec>` keeps absent/`null`/a list distinct at the file
+    /// layer (`load_exercise` refuses a present `null`); on the wire
+    /// `None` is omitted. The serde gap applies inside a served
+    /// `SimSpec` itself: a `null` there reads as absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub tip_order: Option<Vec<String>>,
 }
 
 /// Engine-level `SimSpec` validation (spec §4.2). `length` must be in
@@ -157,8 +170,34 @@ pub(crate) fn check_branch_lengths(tree: &Tree) -> Result<(), NeoError> {
     Ok(())
 }
 
+/// `tip_order`, when set, must be a permutation of the tree's leaf
+/// labels — `simulate` emits its rows in that order and a bad list is
+/// `InvalidExercise { field: "sim.tip_order" }`, never a panic or a
+/// silently mislabelled row. `simulate` runs this itself (it is the
+/// single place the order is applied), and `load_exercise` runs it
+/// too so a file's bad list is refused at load with the same field.
+pub(crate) fn check_tip_order(spec: &SimSpec, leaf_labels: &[String]) -> Result<(), NeoError> {
+    let Some(order) = &spec.tip_order else {
+        return Ok(());
+    };
+    let mut sorted = order.clone();
+    sorted.sort();
+    let mut want = leaf_labels.to_vec();
+    want.sort();
+    if sorted != want {
+        return Err(NeoError::InvalidExercise {
+            field: "sim.tip_order".to_string(),
+            msg: format!(
+                "tip_order must be a permutation of the {} leaf labels",
+                leaf_labels.len()
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// Evolve `spec.length` sites along `tree`, returning the tip sequences
-/// in `tree.leaf_labels()` order.
+/// in `spec.tip_order` when set, else `tree.leaf_labels()` order.
 pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
     check_spec(spec)?;
     check_branch_lengths(tree)?;
@@ -170,6 +209,7 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
             msg: "tree is empty".to_string(),
         });
     }
+    check_tip_order(spec, &tree.leaf_labels())?;
 
     let mut rng = ChaCha8Rng::seed_from_u64(spec.seed);
     let len = spec.length as usize;
@@ -211,14 +251,19 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
         seqs[id.0 as usize] = evolve(&src, len_edge, spec.model, &mut rng);
     }
 
-    let mut labels = Vec::new();
-    let mut out = Vec::new();
+    let mut rows: Vec<(String, Vec<u8>)> = Vec::new();
     for &id in &order {
         if tree.is_leaf(id) {
-            labels.push(tree.nodes[id.0 as usize].label.clone().unwrap_or_default());
-            out.push(std::mem::take(&mut seqs[id.0 as usize]));
+            rows.push((
+                tree.nodes[id.0 as usize].label.clone().unwrap_or_default(),
+                std::mem::take(&mut seqs[id.0 as usize]),
+            ));
         }
     }
+    if let Some(want) = &spec.tip_order {
+        rows = order_rows(rows, want)?;
+    }
+    let (labels, out): (Vec<String>, Vec<Vec<u8>>) = rows.into_iter().unzip();
     Ok(Alignment {
         labels,
         seqs: out,
@@ -227,6 +272,33 @@ pub fn simulate(tree: &Tree, spec: &SimSpec) -> Result<Alignment, NeoError> {
             _ => Alphabet::Dna,
         },
     })
+}
+
+/// Emit `rows` in `want`'s order: each wanted name claims the first
+/// still-untaken row with that label, so duplicate leaf labels keep
+/// their preorder pairing. `check_tip_order` has already proved
+/// `want` a permutation, so a missing row is an
+/// `InvalidExercise`, not a panic.
+fn order_rows(
+    mut rows: Vec<(String, Vec<u8>)>,
+    want: &[String],
+) -> Result<Vec<(String, Vec<u8>)>, NeoError> {
+    let mut taken = vec![false; rows.len()];
+    let mut out = Vec::with_capacity(rows.len());
+    for name in want {
+        let i = rows
+            .iter()
+            .enumerate()
+            .find(|(i, (label, _))| !taken[*i] && label == name)
+            .map(|(i, _)| i)
+            .ok_or_else(|| NeoError::InvalidExercise {
+                field: "sim.tip_order".to_string(),
+                msg: format!("tip_order name '{name}' has no matching leaf row"),
+            })?;
+        taken[i] = true;
+        out.push(std::mem::take(&mut rows[i]));
+    }
+    Ok(out)
 }
 
 /// One uniform draw on [0, 1): `next_u64 / 2^64`.

@@ -3,18 +3,20 @@
 //! `fell_back`, and the `premises` key wiring on exercise and reading
 //! files (presence-aware like `meta`, v5-only on exercises).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use neophylo_core::assess::{
-    make_variant, normalise_id, premises_hold, variant_seed, Assignment, Content, IdPrompt, IdRule,
-    Mode, Premise, Variant,
+    make_variant, name_table, normalise_id, premises_hold, task_key, variant_seed, AcceptedAnswer,
+    Assignment, Content, IdPrompt, IdRule, Mode, Premise, TaskRef, Variant,
 };
 use neophylo_core::exercise::{load_exercise, Exercise, ExerciseBootstrap, ExerciseData};
 use neophylo_core::matrix_input::additive_matrix;
 use neophylo_core::newick::parse_newick;
 use neophylo_core::reading::load_reading_set;
-use neophylo_core::sim::MAX_SEED;
+use neophylo_core::seq::Alignment;
+use neophylo_core::sim::{simulate, MAX_SEED};
 use neophylo_core::NeoError;
 
 fn exercises_dir() -> PathBuf {
@@ -73,6 +75,8 @@ fn assignment(content: Content, variation: bool) -> Assignment {
         title: "t".to_string(),
         instructions: None,
         content,
+        content_hash: None,
+        served_content_hash: None,
         id_prompt: IdPrompt {
             label: "Student ID".to_string(),
             rule: IdRule::TrimLower,
@@ -494,7 +498,7 @@ fn derived_matrix_variants_are_exactly_additive() {
         let Content::Exercise(ex) = &v.content else {
             panic!("exercise")
         };
-        let ExerciseData::Matrix { lower, .. } = &ex.data else {
+        let ExerciseData::Matrix { names, lower, .. } = &ex.data else {
             panic!("matrix exercise")
         };
         let reference = ex
@@ -504,10 +508,23 @@ fn derived_matrix_variants_are_exactly_additive() {
         let tree = parse_newick(&reference.newick).unwrap();
         // Exact additivity: the stored matrix IS the reference tree's
         // path-length matrix — `additive_matrix(_, None)` computed
-        // over the serialised reference, compared with `==`.
+        // over the serialised reference, compared with `==`. The
+        // served rows sit in the seeded `names` order (owner decision
+        // 2026-11-25), so `exact` is reindexed onto it first.
         let exact = additive_matrix(&tree, None).unwrap();
+        let pos: Vec<usize> = names
+            .iter()
+            .map(|n| exact.names.iter().position(|e| e == n).unwrap())
+            .collect();
+        let mut want = Vec::with_capacity(lower.len());
+        for j in 1..names.len() {
+            for i in 0..j {
+                let (a, b) = (pos[i].min(pos[j]), pos[i].max(pos[j]));
+                want.push(exact.lower[b * (b - 1) / 2 + a]);
+            }
+        }
         assert_eq!(
-            *lower, exact.lower,
+            *lower, want,
             "student-{k}: the matrix must equal the reference's exact path lengths",
         );
         // Every branch length is at the author's decimals — here d ==
@@ -523,6 +540,185 @@ fn derived_matrix_variants_are_exactly_additive() {
             }
         }
     }
+}
+
+#[test]
+fn derived_matrix_variant_serves_author_decimals() {
+    // Owner decision 2026-11-25 (moved from Task 6): the variant
+    // matrix is `additive_matrix(&tree, Some(d))` — the author's
+    // decimals, so a path sum shows e.g. 0.3, not its binary tail.
+    // An authored matrix with two-decimal values (`d = 2`): every
+    // served `lower` value has at most 2 decimals and equals the
+    // exact decimal path sum of the variant's reference tree.
+    let ex = Exercise {
+        schema_version: 5,
+        id: "two-dec".to_string(),
+        title: "two-dec".to_string(),
+        alphabet: neophylo_core::Alphabet::Dna,
+        data: ExerciseData::Matrix {
+            names: vec!["a".into(), "b".into(), "c".into(), "d".into()],
+            // (b,a) (c,a) (c,b) (d,a) (d,b) (d,c) — all 2-decimal.
+            lower: vec![0.50, 1.25, 0.75, 2.20, 1.90, 1.10],
+            source: neophylo_core::exercise::Source {
+                citation: "c".into(),
+                license: "l".into(),
+                accessions: vec![],
+            },
+        },
+        reference: Some(neophylo_core::exercise::Reference {
+            newick: "((a:0.25,b:0.25):0.5,c:0.75,d:1.0);".to_string(),
+            kind: neophylo_core::exercise::ReferenceKind::True,
+        }),
+        analysis: neophylo_core::exercise::Analysis {
+            correction: neophylo_core::dist::DistModel::Supplied,
+            method: neophylo_core::algos::Method::Nj,
+            kappa: None,
+            site_filter: None,
+        },
+        locked: vec![],
+        prompts: vec![],
+        bootstrap: None,
+        meta: None,
+        premises: vec![],
+    };
+    // sanity: the authored values are really at d = 2
+    let base = Content::Exercise(ex.clone());
+    for k in 0..40 {
+        let seed = variant_seed("asst-1", &format!("student-{k}"));
+        let v = make_variant(&base, &[], seed, true).unwrap_or_else(|e| panic!("student-{k}: {e}"));
+        let Content::Exercise(vex) = &v.content else {
+            panic!("exercise")
+        };
+        let ExerciseData::Matrix { names, lower, .. } = &vex.data else {
+            panic!("matrix exercise")
+        };
+        let reference = vex
+            .reference
+            .as_ref()
+            .expect("a derived matrix variant keeps a true reference");
+        let tree = parse_newick(&reference.newick).unwrap();
+        // `exact` is the reference's path matrix in the tree's leaf
+        // order; the served `lower` sits in the seeded `names` order
+        // (owner decision 2026-11-25), so reindex before comparing.
+        let exact = additive_matrix(&tree, None).unwrap();
+        let pos: Vec<usize> = names
+            .iter()
+            .map(|n| exact.names.iter().position(|e| e == n).unwrap())
+            .collect();
+        let mut exact_in_served_order = Vec::with_capacity(lower.len());
+        for j in 1..names.len() {
+            for i in 0..j {
+                let (a, b) = (pos[i].min(pos[j]), pos[i].max(pos[j]));
+                exact_in_served_order.push(exact.lower[b * (b - 1) / 2 + a]);
+            }
+        }
+        assert_eq!(lower.len(), exact_in_served_order.len());
+        for (i, (&served, &raw)) in lower.iter().zip(&exact_in_served_order).enumerate() {
+            // At most 2 decimals …
+            assert_eq!(
+                (served * 100.0).round() / 100.0,
+                served,
+                "student-{k} cell {i}: {served} has more than 2 decimals",
+            );
+            // … and equal to the exact decimal path sum — the binary
+            // path sum's `0.30000000000000004`-style noise is gone.
+            assert_eq!(
+                (raw * 100.0).round() / 100.0,
+                served,
+                "student-{k} cell {i}: {served} is not the rounded path sum of {raw}",
+            );
+        }
+    }
+}
+
+// --- served row order is shuffled (owner decision 2026-11-25, option A) --------
+
+#[test]
+fn step1_pair_positions_vary_across_students() {
+    // The bug this round fixes: `rotate` alone left the pair joined
+    // at step 1 at the same matrix positions for nearly every id —
+    // `nj-basics`' true tree `((A,B),(C,D),(E,F))` keeps the middle
+    // cherry at positions (2,3) under any child reversal, so
+    // students could share "join rows 3 and 4". The served row order
+    // is now a seeded shuffle — `sim.tip_order` for simulated data,
+    // a permuted `names`/`lower` for a derived matrix — so the modal
+    // index pair may cover at most 40 % of 200 generated ids.
+    for id in ["nj-basics", "upgma-vs-nj-matrix"] {
+        let a = assignment(lesson_content(id), true);
+        let mut counts: BTreeMap<(u16, u16), usize> = BTreeMap::new();
+        for k in 0..200 {
+            let v = a
+                .variant_for(&format!("student-{k}"))
+                .unwrap_or_else(|e| panic!("{id} student-{k}: {e}"));
+            let AcceptedAnswer::Pairs(pairs) = task_key(&v, &TaskRef::PredictPair { step: 1 })
+                .unwrap_or_else(|e| panic!("{id} student-{k}: {e}"))
+            else {
+                panic!("predict_pair yields pairs")
+            };
+            let first = *pairs.first().expect("a step-1 accepted pair");
+            *counts.entry(first).or_default() += 1;
+        }
+        let (pair, share) = counts
+            .iter()
+            .max_by_key(|(_, c)| *c)
+            .map(|(p, c)| (*p, *c))
+            .unwrap();
+        eprintln!("{id}: step-1 modal index pair {pair:?} covers {share}/200 ids");
+        assert!(
+            share <= 80,
+            "{id}: the step-1 pair sits at {pair:?} for {share}/200 ids (> 40%) — \
+             the row order is not shuffling",
+        );
+    }
+}
+
+#[test]
+fn tip_order_reorders_rows_only() {
+    // A simulated variant carries `sim.tip_order` — a permutation of
+    // the variant tree's leaf labels — and the served alignment is
+    // the unshuffled simulation's rows in exactly that order: the
+    // (name, sequence) multiset is unchanged, the RNG stream is
+    // untouched. `simulate` applies the order; the grader's name
+    // table (the served matrix's label order) follows it.
+    let a = assignment(lesson_content("nj-basics"), true);
+    let v = a.variant_for("student-7").unwrap();
+    let Content::Exercise(ex) = &v.content else {
+        panic!("exercise")
+    };
+    let ExerciseData::Simulated { true_tree, sim } = &ex.data else {
+        panic!("simulated")
+    };
+    let order = sim
+        .tip_order
+        .as_ref()
+        .expect("a simulated variant carries tip_order");
+    let tree = parse_newick(true_tree).unwrap();
+    let mut sorted = order.clone();
+    sorted.sort();
+    let mut want = tree.leaf_labels();
+    want.sort();
+    assert_eq!(sorted, want, "tip_order must permute the leaf labels");
+
+    let shuffled = simulate(&tree, sim).unwrap();
+    let mut plain_spec = sim.clone();
+    plain_spec.tip_order = None;
+    let plain = simulate(&tree, &plain_spec).unwrap();
+    assert_eq!(shuffled.labels, *order, "rows come out in tip_order");
+    let keyed = |aln: &Alignment| {
+        aln.labels
+            .iter()
+            .cloned()
+            .zip(aln.seqs.iter().cloned())
+            .collect::<Vec<_>>()
+    };
+    let mut a = keyed(&shuffled);
+    let mut b = keyed(&plain);
+    a.sort();
+    b.sort();
+    assert_eq!(a, b, "the same (name, sequence) rows, reordered");
+    // The grader's view — the distance-matrix label order the code
+    // packs against — is the same shuffled order.
+    assert_eq!(name_table(&v).unwrap(), shuffled.labels);
 }
 
 // --- the per-student bootstrap block --------------------------------------------

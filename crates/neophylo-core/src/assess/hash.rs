@@ -73,6 +73,17 @@ pub fn variant_seed(assignment_id: &str, normalised_id: &str) -> u64 {
     fnv1a64(&bytes)
 }
 
+/// The 16-hex-digit digest a built-in reference carries (v1.5 spec
+/// §5.7, plan's Decided block): `fnv1a64` of the content file's exact
+/// bytes. An assignment can point at a built-in by hash instead of
+/// embedding the content; the completion-code fingerprint then covers
+/// the hash, so a changed file grades as `ContentChanged`, not
+/// `AssignmentMismatch`. Pinned by the known answers in
+/// `tests/assess_hash.rs`.
+pub fn content_hash(bytes: &[u8]) -> String {
+    format!("{:016x}", fnv1a64(bytes))
+}
+
 /// The seed of retry attempt `k` (plan's Decided block): attempt 0 is
 /// `seed` itself; `k = 1..=50` hashes
 /// `le_bytes(seed) ++ le_bytes(k as u64)` — the counter is a full

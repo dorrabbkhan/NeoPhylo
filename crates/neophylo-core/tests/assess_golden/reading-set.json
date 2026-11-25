@@ -1,0 +1,1480 @@
+{
+  "generator": 1,
+  "assignment": {
+    "content": {
+      "kind": "reading",
+      "value": {
+        "id": "trees-demo",
+        "items": [
+          {
+            "id": "q-differs",
+            "question": {
+              "type": "which_differs"
+            },
+            "rotate_tool": true,
+            "text": "One of these trees shows different relationships from the others. Which one?",
+            "tips": [],
+            "trees": [
+              "mammals",
+              "mammals-rot",
+              "mammals-diff"
+            ]
+          },
+          {
+            "id": "q-same",
+            "question": {
+              "type": "which_differs"
+            },
+            "rotate_tool": true,
+            "style": {
+              "per_tree": [
+                {
+                  "per_tree": [],
+                  "shape": "rectangular",
+                  "tips": "right"
+                },
+                {
+                  "per_tree": [],
+                  "shape": "circular",
+                  "tips": "right"
+                }
+              ],
+              "shape": "rectangular",
+              "tips": "right"
+            },
+            "text": "These two trees are drawn differently. Which one shows different relationships?",
+            "tips": [],
+            "trees": [
+              "mammals",
+              "mammals-rot"
+            ]
+          },
+          {
+            "id": "q-fits",
+            "question": {
+              "small": [
+                "small-1",
+                "small-2"
+              ],
+              "type": "which_fits"
+            },
+            "rotate_tool": true,
+            "text": "Which large tree agrees with both small trees?",
+            "tips": [],
+            "trees": [
+              "big-a",
+              "big-b"
+            ]
+          },
+          {
+            "id": "q-mrca",
+            "note_after": "Everything that descends from that node — not only the named tips — shares that ancestor.",
+            "question": {
+              "type": "mrca"
+            },
+            "rotate_tool": true,
+            "text": "Tap the most recent common ancestor of {set}.",
+            "tips": [
+              "gorilla",
+              "human"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-mrca-points",
+            "question": {
+              "options": [
+                "W",
+                "X"
+              ],
+              "type": "mrca"
+            },
+            "rotate_tool": true,
+            "text": "Which lettered point is the most recent common ancestor of {set}?",
+            "tips": [
+              "chimp",
+              "human"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-place",
+            "question": {
+              "name": "otter",
+              "sister": [
+                "bear",
+                "seal"
+              ],
+              "type": "place_taxon"
+            },
+            "rotate_tool": true,
+            "text": "An otter is the closest relative of the {set} clade. Tap the lettered point where it attaches.",
+            "tips": [
+              "bear",
+              "seal"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-clade",
+            "question": {
+              "type": "is_clade"
+            },
+            "rotate_tool": true,
+            "text": "Do {set} form a clade?",
+            "tips": [
+              "gibbon",
+              "gorilla"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-smallest",
+            "question": {
+              "type": "smallest_clade"
+            },
+            "rotate_tool": true,
+            "text": "Tap the smallest clade that contains {set}.",
+            "tips": [
+              "gorilla",
+              "human"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "a": "human",
+            "id": "q-closest",
+            "question": {
+              "form": "closest",
+              "type": "closest_relative"
+            },
+            "rotate_tool": true,
+            "text": "Tap {a}'s closest relative.",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "a": "human",
+            "id": "q-distant",
+            "question": {
+              "form": "most_distant",
+              "type": "closest_relative"
+            },
+            "rotate_tool": true,
+            "text": "Tap the tip most distant from {a} — everything outside {a}'s lineage.",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "a": "human",
+            "b": "chimp",
+            "c": "gorilla",
+            "id": "q-pair",
+            "question": {
+              "form": "pairwise",
+              "type": "closest_relative"
+            },
+            "rotate_tool": true,
+            "text": "Is {a} more closely related to {b} or to {c}?",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-count",
+            "note_after": "Every internal node — including the root — names one clade.",
+            "question": {
+              "type": "count_clades"
+            },
+            "rotate_tool": false,
+            "text": "How many clades does this tree show?",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-order",
+            "question": {
+              "nodes": [
+                "P",
+                "Q",
+                "R"
+              ],
+              "type": "order_nodes"
+            },
+            "rotate_tool": true,
+            "text": "Tap the lettered nodes in order, oldest first, or arrange the list.",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-select",
+            "question": {
+              "statements": [
+                {
+                  "kind": "closer_than",
+                  "text": "human and chimp share a more recent common ancestor than human and gorilla.",
+                  "x": "human",
+                  "y": "chimp",
+                  "z": "gorilla"
+                },
+                {
+                  "kind": "is_clade",
+                  "text": "cat and dog form a clade in the first tree.",
+                  "tips": [
+                    "cat",
+                    "dog"
+                  ]
+                },
+                {
+                  "kind": "is_clade",
+                  "text": "cat and human form a clade in the first tree.",
+                  "tips": [
+                    "cat",
+                    "human"
+                  ]
+                },
+                {
+                  "kind": "same_relationships",
+                  "text": "The first and second trees show the same relationships.",
+                  "tree_i": 0,
+                  "tree_j": 1
+                },
+                {
+                  "kind": "same_relationships",
+                  "text": "The first and third trees show the same relationships.",
+                  "tree_i": 0,
+                  "tree_j": 2
+                }
+              ],
+              "type": "select_true"
+            },
+            "rotate_tool": true,
+            "text": "Select every true statement.",
+            "tips": [],
+            "trees": [
+              "mammals",
+              "mammals-rot",
+              "mammals-diff"
+            ]
+          },
+          {
+            "id": "q-trait-have",
+            "question": {
+              "ask": {
+                "kind": "which_have",
+                "trait_name": "hair"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Tap every tip that has hair.",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "id": "q-trait-shared",
+            "question": {
+              "ask": {
+                "kind": "which_shared",
+                "tips": [
+                  "bat",
+                  "cat",
+                  "dog"
+                ]
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Which trait is shared by exactly {set}?",
+            "tips": [
+              "bat",
+              "cat",
+              "dog"
+            ],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "id": "q-trait-changes",
+            "question": {
+              "ask": {
+                "kind": "how_many_changes",
+                "trait_name": "fur"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "How many times did fur change on this tree?",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "a": "cat",
+            "id": "q-trait-profile",
+            "question": {
+              "ask": {
+                "kind": "profile",
+                "tip": "cat"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Which derived states does {a} show? Select all that apply.",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "a": "worm",
+            "id": "q-trait-ancder",
+            "question": {
+              "ask": {
+                "kind": "ancestral_or_derived",
+                "tip": "worm",
+                "trait_name": "hair"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Is hair ancestral or derived in {a}?",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "id": "q-trait-hasnot",
+            "question": {
+              "ask": {
+                "has": "hair",
+                "kind": "has_not",
+                "lacks": "fur"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Tap every tip that has hair but lacks fur.",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "a": "bat",
+            "b": "fish",
+            "id": "q-trait-homo",
+            "question": {
+              "ask": {
+                "kind": "homologous",
+                "trait_name": "wings",
+                "x": "bat",
+                "y": "fish"
+              },
+              "type": "trait"
+            },
+            "rotate_tool": true,
+            "text": "Are the wings of {a} and {b} homologous — inherited from one shared origin?",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "id": "q-clade-trait",
+            "question": {
+              "by_trait": "fur",
+              "type": "is_clade"
+            },
+            "rotate_tool": true,
+            "text": "Are the taxa with fur monophyletic, paraphyletic or polyphyletic?",
+            "tips": [],
+            "trees": [
+              "traits"
+            ]
+          },
+          {
+            "id": "q-concept",
+            "question": {
+              "correct": [
+                1
+              ],
+              "options": [
+                "A single living species",
+                "A hypothetical common ancestor",
+                "A mutation"
+              ],
+              "type": "concept"
+            },
+            "rotate_tool": true,
+            "text": "What does an internal node on this tree represent?",
+            "tips": [],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-two",
+            "question": {
+              "correct_reason": 0,
+              "first": {
+                "type": "is_clade"
+              },
+              "reasons": [
+                "Gibbon and gorilla share a node that no other tip descends from.",
+                "They sit next to each other on the page."
+              ],
+              "type": "two_tier"
+            },
+            "rotate_tool": true,
+            "text": "Do {set} form a clade — and why?",
+            "tips": [
+              "gibbon",
+              "gorilla"
+            ],
+            "trees": [
+              "mammals"
+            ]
+          },
+          {
+            "id": "q-longnames",
+            "question": {
+              "type": "is_clade"
+            },
+            "rotate_tool": true,
+            "style": {
+              "per_tree": [],
+              "shape": "rectangular",
+              "tips": "up"
+            },
+            "text": "Do {set} form a clade?",
+            "tips": [
+              "Homo sapiens",
+              "Pan paniscus"
+            ],
+            "trees": [
+              "longnames"
+            ]
+          }
+        ],
+        "kind": "reading",
+        "meta": {
+          "level": "intro",
+          "minutes": 20,
+          "objectives": [
+            "Read clades, common ancestors and relatedness on real trees",
+            "See every question type the reading area can ask"
+          ],
+          "prepares_for": []
+        },
+        "mode": "practice",
+        "premises": [
+          "reading_valid"
+        ],
+        "schema_version": 1,
+        "summary": "A demonstration set that covers every question type on a handful of small trees. Shipped for development and end-to-end tests; not listed in the library.",
+        "taxa_pool": {},
+        "title": "Reading trees — question showcase",
+        "trees": {
+          "big-a": {
+            "marks": [],
+            "newick": "((human,(chimp,gorilla)),(cat,(dog,seal)));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "big-b": {
+            "marks": [],
+            "newick": "(((human,chimp),gorilla),(cat,(dog,seal)));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "longnames": {
+            "marks": [],
+            "newick": "((('Homo sapiens','Pan paniscus'),('Gorilla gorilla','Pongo abelii'),'Hylobates lar'),(('Macaca mulatta','Papio anubis'),('Chlorocebus pygerythrus','Colobus guereza'),('Symphalangus syndactylus','Pseudosuperlongname-taxonomica')),'Watson''s leaf-nosed bat');",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "mammals": {
+            "marks": [],
+            "newick": "(((human,chimp),(gorilla,gibbon)),((cat,dog),(bear,seal)));",
+            "node_letters": [
+              {
+                "letter": "P",
+                "on": [
+                  "chimp",
+                  "gibbon",
+                  "gorilla",
+                  "human"
+                ]
+              },
+              {
+                "letter": "Q",
+                "on": [
+                  "bear",
+                  "cat",
+                  "dog",
+                  "seal"
+                ]
+              },
+              {
+                "letter": "R",
+                "on": [
+                  "bear",
+                  "cat",
+                  "chimp",
+                  "dog",
+                  "gibbon",
+                  "gorilla",
+                  "human",
+                  "seal"
+                ]
+              }
+            ],
+            "points": [
+              {
+                "at": "node",
+                "letter": "W",
+                "on": [
+                  "chimp",
+                  "human"
+                ]
+              },
+              {
+                "at": "node",
+                "letter": "X",
+                "on": [
+                  "gibbon",
+                  "gorilla"
+                ]
+              },
+              {
+                "at": "branch",
+                "letter": "Y",
+                "on": [
+                  "bear",
+                  "seal"
+                ]
+              },
+              {
+                "at": "branch",
+                "letter": "Z",
+                "on": [
+                  "cat",
+                  "dog"
+                ]
+              }
+            ],
+            "traits": []
+          },
+          "mammals-diff": {
+            "marks": [],
+            "newick": "(((human,cat),(chimp,dog)),((gorilla,bear),(gibbon,seal)));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "mammals-rot": {
+            "marks": [],
+            "newick": "(((bear,seal),(cat,dog)),((gorilla,gibbon),(human,chimp)));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "small-1": {
+            "marks": [],
+            "newick": "(human,(chimp,gorilla));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "small-2": {
+            "marks": [],
+            "newick": "(cat,(dog,seal));",
+            "node_letters": [],
+            "points": [],
+            "traits": []
+          },
+          "traits": {
+            "marks": [
+              {
+                "change": "gain",
+                "on": [
+                  "bat",
+                  "cat",
+                  "dog"
+                ],
+                "trait": "hair"
+              },
+              {
+                "change": "gain",
+                "on": [
+                  "bat",
+                  "cat",
+                  "dog"
+                ],
+                "trait": "fur"
+              },
+              {
+                "change": "loss",
+                "on": [
+                  "cat"
+                ],
+                "trait": "fur"
+              },
+              {
+                "change": "gain",
+                "on": [
+                  "bat"
+                ],
+                "trait": "wings"
+              },
+              {
+                "change": "gain",
+                "on": [
+                  "fish"
+                ],
+                "trait": "wings"
+              },
+              {
+                "change": "gain",
+                "on": [
+                  "bat",
+                  "cat"
+                ],
+                "trait": "nails"
+              }
+            ],
+            "newick": "(((bat,cat),dog),(fish,worm));",
+            "node_letters": [],
+            "points": [],
+            "traits": [
+              {
+                "ancestral": "bare",
+                "derived": "hairy",
+                "name": "hair"
+              },
+              {
+                "ancestral": "no wings",
+                "derived": "winged",
+                "name": "wings"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "id": "golden-reading",
+    "id_prompt": {
+      "label": "Student ID",
+      "rule": "trim_lower"
+    },
+    "mode": "practice",
+    "tasks": [
+      {
+        "points": 1.0,
+        "task": {
+          "item": 3,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 4,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 6,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 10,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 11,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 22,
+          "kind": "reading"
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "item": 23,
+          "kind": "reading"
+        }
+      }
+    ],
+    "title": "golden-reading",
+    "variation": true
+  },
+  "ids": [
+    {
+      "id": "ada",
+      "normalised": "ada",
+      "seed": "4964694892442786",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "b19a88d1e9ef15c1",
+      "excerpt": {
+        "taxa": [
+          "Chlorocebus pygerythrus",
+          "Colobus guereza",
+          "Gorilla gorilla",
+          "Homo sapiens",
+          "Hylobates lar",
+          "Macaca mulatta",
+          "Pan paniscus",
+          "Papio anubis",
+          "Pongo abelii",
+          "Pseudosuperlongname-taxonomica",
+          "Symphalangus syndactylus",
+          "Watson's leaf-nosed bat",
+          "bat",
+          "bear",
+          "cat",
+          "chimp",
+          "dog",
+          "fish",
+          "gibbon",
+          "gorilla",
+          "human",
+          "seal",
+          "worm"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "reading",
+            "item": 3
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "clade",
+              "value": [
+                "chimp",
+                "gibbon",
+                "gorilla",
+                "human"
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 4
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "point",
+              "value": "W"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 6
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                0
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 10
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "pairwise",
+              "value": "B"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 11
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "number",
+              "value": 7
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 22
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                1
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 23
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "two_tier",
+              "value": {
+                "first": {
+                  "kind": "choices",
+                  "value": [
+                    0
+                  ]
+                },
+                "reason": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "3444576250506694",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "b316246ad16c8413",
+      "excerpt": {
+        "taxa": [
+          "Chlorocebus pygerythrus",
+          "Colobus guereza",
+          "Gorilla gorilla",
+          "Homo sapiens",
+          "Hylobates lar",
+          "Macaca mulatta",
+          "Pan paniscus",
+          "Papio anubis",
+          "Pongo abelii",
+          "Pseudosuperlongname-taxonomica",
+          "Symphalangus syndactylus",
+          "Watson's leaf-nosed bat",
+          "bat",
+          "bear",
+          "cat",
+          "chimp",
+          "dog",
+          "fish",
+          "gibbon",
+          "gorilla",
+          "human",
+          "seal",
+          "worm"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "reading",
+            "item": 3
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "clade",
+              "value": [
+                "chimp",
+                "gibbon",
+                "gorilla",
+                "human"
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 4
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "point",
+              "value": "W"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 6
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                0
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 10
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "pairwise",
+              "value": "B"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 11
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "number",
+              "value": 7
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 22
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                1
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 23
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "two_tier",
+              "value": {
+                "first": {
+                  "kind": "choices",
+                  "value": [
+                    0
+                  ]
+                },
+                "reason": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "7167626602761582",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "297a4d9a1b7f3da3",
+      "excerpt": {
+        "taxa": [
+          "Chlorocebus pygerythrus",
+          "Colobus guereza",
+          "Gorilla gorilla",
+          "Homo sapiens",
+          "Hylobates lar",
+          "Macaca mulatta",
+          "Pan paniscus",
+          "Papio anubis",
+          "Pongo abelii",
+          "Pseudosuperlongname-taxonomica",
+          "Symphalangus syndactylus",
+          "Watson's leaf-nosed bat",
+          "bat",
+          "bear",
+          "cat",
+          "chimp",
+          "dog",
+          "fish",
+          "gibbon",
+          "gorilla",
+          "human",
+          "seal",
+          "worm"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "reading",
+            "item": 3
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "clade",
+              "value": [
+                "chimp",
+                "gibbon",
+                "gorilla",
+                "human"
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 4
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "point",
+              "value": "W"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 6
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                0
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 10
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "pairwise",
+              "value": "B"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 11
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "number",
+              "value": 7
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 22
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                1
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 23
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "two_tier",
+              "value": {
+                "first": {
+                  "kind": "choices",
+                  "value": [
+                    0
+                  ]
+                },
+                "reason": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "7259636070732646",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "f8f617f7a9ec6d2f",
+      "excerpt": {
+        "taxa": [
+          "Chlorocebus pygerythrus",
+          "Colobus guereza",
+          "Gorilla gorilla",
+          "Homo sapiens",
+          "Hylobates lar",
+          "Macaca mulatta",
+          "Pan paniscus",
+          "Papio anubis",
+          "Pongo abelii",
+          "Pseudosuperlongname-taxonomica",
+          "Symphalangus syndactylus",
+          "Watson's leaf-nosed bat",
+          "bat",
+          "bear",
+          "cat",
+          "chimp",
+          "dog",
+          "fish",
+          "gibbon",
+          "gorilla",
+          "human",
+          "seal",
+          "worm"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "reading",
+            "item": 3
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "clade",
+              "value": [
+                "chimp",
+                "gibbon",
+                "gorilla",
+                "human"
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 4
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "point",
+              "value": "W"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 6
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                0
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 10
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "pairwise",
+              "value": "B"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 11
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "number",
+              "value": 7
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 22
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                1
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 23
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "two_tier",
+              "value": {
+                "first": {
+                  "kind": "choices",
+                  "value": [
+                    0
+                  ]
+                },
+                "reason": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "5142829608854948",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "86c0bc12993a1f1f",
+      "excerpt": {
+        "taxa": [
+          "Chlorocebus pygerythrus",
+          "Colobus guereza",
+          "Gorilla gorilla",
+          "Homo sapiens",
+          "Hylobates lar",
+          "Macaca mulatta",
+          "Pan paniscus",
+          "Papio anubis",
+          "Pongo abelii",
+          "Pseudosuperlongname-taxonomica",
+          "Symphalangus syndactylus",
+          "Watson's leaf-nosed bat",
+          "bat",
+          "bear",
+          "cat",
+          "chimp",
+          "dog",
+          "fish",
+          "gibbon",
+          "gorilla",
+          "human",
+          "seal",
+          "worm"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "reading",
+            "item": 3
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "clade",
+              "value": [
+                "chimp",
+                "gibbon",
+                "gorilla",
+                "human"
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 4
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "point",
+              "value": "W"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 6
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                0
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 10
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "pairwise",
+              "value": "B"
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 11
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "number",
+              "value": 7
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 22
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "choices",
+              "value": [
+                1
+              ]
+            }
+          }
+        },
+        {
+          "task": {
+            "kind": "reading",
+            "item": 23
+          },
+          "accepted": {
+            "kind": "reading",
+            "value": {
+              "kind": "two_tier",
+              "value": {
+                "first": {
+                  "kind": "choices",
+                  "value": [
+                    0
+                  ]
+                },
+                "reason": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

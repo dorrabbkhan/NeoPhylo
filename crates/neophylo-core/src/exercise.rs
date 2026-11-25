@@ -23,9 +23,10 @@
 //! (v1.4b spec §4), and v5 adds `data.kind` `"matrix"` (a supplied
 //! distance matrix, which fixes `analysis.correction` to
 //! `DistModel::Supplied`) and the optional `meta` lesson-metadata
-//! block (v1.4c spec §4). Fields newer than the declared version are
-//! refused at their own path, presence-aware — a `"key": null` counts
-//! as present, never as absent.
+//! block (v1.4c spec §4); v1.5 adds `premises` (spec §5.2) and
+//! `sim.tip_order` (owner decision 2026-11-25), both v5-only. Fields
+//! newer than the declared version are refused at their own path,
+//! presence-aware — a `"key": null` counts as present, never as absent.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -39,7 +40,7 @@ use crate::error::NeoError;
 use crate::matrix_input::{validate_input, DistanceInput};
 use crate::newick::parse_newick;
 use crate::seq::{parse_fasta, MAX_TAXA};
-use crate::sim::{check_branch_lengths, check_spec, SimModel, SimSpec};
+use crate::sim::{check_branch_lengths, check_spec, check_tip_order, SimModel, SimSpec};
 use crate::site_filter::SiteFilter;
 
 /// Exercise-level site cap (spec §4.2): files allow `10..=10_000`.
@@ -446,6 +447,7 @@ fn load_v2(f: ExerciseFile, v: u32) -> Result<Exercise, NeoError> {
             }
             let tree = parse_newick(&true_tree).map_err(|e| bad("true_tree", &e.to_string()))?;
             check_branch_lengths(&tree)?;
+            check_tip_order(&sim, &tree.leaf_labels())?;
             (
                 ExerciseData::Simulated { true_tree, sim },
                 tree.leaf_labels(),
@@ -592,6 +594,27 @@ fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
         }
         Some(Some(raw)) => Some(base_freqs(raw)?),
     };
+    // `tip_order` keeps the same presence rule as `base_freqs`: v5-only,
+    // a present `null` or a non-array is refused at `sim.tip_order`,
+    // and each element must be a string. The permutation check against
+    // the true tree's leaf labels happens in `load_v2` once the tree
+    // is parsed (`check_tip_order`), and `simulate` re-checks it.
+    let tip_order = match &f.tip_order {
+        None => None,
+        Some(_) if v < 5 => {
+            return Err(bad(
+                "sim.tip_order",
+                "sim.tip_order requires schema_version 5",
+            ));
+        }
+        Some(None) => {
+            return Err(bad(
+                "sim.tip_order",
+                "tip_order must be an array of taxon names, not null",
+            ));
+        }
+        Some(Some(raw)) => Some(tip_order_file(raw)?),
+    };
     let model = match f.model.as_str() {
         "JC69" => SimModel::Jc69,
         "K80" => SimModel::K80 {
@@ -623,7 +646,42 @@ fn sim_spec(f: &SimFile, v: u32) -> Result<SimSpec, NeoError> {
         model,
         length,
         seed: f.seed,
+        tip_order,
     })
+}
+
+/// Convert a raw `sim.tip_order` value to `Vec<String>` (v1.5 owner
+/// decision 2026-11-25): an array of unique strings. Hand-validated
+/// like `site_filter` so a non-array or a non-string element names
+/// `sim.tip_order` rather than producing a bare serde error; a
+/// duplicate is refused here, where schema.json's `uniqueItems` says
+/// the same thing. Whether the list is a permutation of the true
+/// tree's leaf labels is `check_tip_order`'s call in `load_v2` and
+/// `simulate`.
+fn tip_order_file(raw: &serde_json::Value) -> Result<Vec<String>, NeoError> {
+    let Some(arr) = raw.as_array() else {
+        return Err(bad(
+            "sim.tip_order",
+            "tip_order must be an array of taxon names",
+        ));
+    };
+    let mut out = Vec::with_capacity(arr.len());
+    for v in arr {
+        let Some(name) = v.as_str() else {
+            return Err(bad(
+                "sim.tip_order",
+                "every tip_order name must be a string",
+            ));
+        };
+        if out.iter().any(|n| n == name) {
+            return Err(bad(
+                "sim.tip_order",
+                &format!("tip_order names '{name}' twice"),
+            ));
+        }
+        out.push(name.to_string());
+    }
+    Ok(out)
 }
 
 /// The serde mirror of the `analysis` object (v1.1 spec §3.6, v1.4
@@ -1291,6 +1349,13 @@ struct SimFile {
     /// report `field: "sim.length"` instead of a generic JSON error.
     length: i64,
     seed: u64,
+    /// v1.5 (owner decision 2026-11-25, PR #188 fix round 2): the
+    /// alignment's served row order — a permutation of the true tree's
+    /// leaf labels. v5-only and presence-aware like the other gated
+    /// keys: a present `null` or non-array is refused, never read as
+    /// absent.
+    #[serde(default, deserialize_with = "present")]
+    tip_order: Option<Option<serde_json::Value>>,
 }
 
 /// Convert a raw `sim.base_freqs` value to `[A, C, G, T]`. Only the

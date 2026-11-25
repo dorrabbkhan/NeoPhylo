@@ -21,6 +21,7 @@ fn spec(model: SimModel, length: u32, seed: u64) -> SimSpec {
         model,
         length,
         seed,
+        tip_order: None,
     }
 }
 
@@ -317,6 +318,58 @@ fn kappa_nonpositive() {
         ),
         "kappa 0 gave {err:?}"
     );
+}
+
+#[test]
+fn tip_order_sets_the_row_order_and_needs_a_permutation() {
+    // v1.5 owner decision 2026-11-25 (PR #188 fix round 2): `tip_order`
+    // is the served row order — a permutation of the leaf labels —
+    // applied by `simulate` alone, and a bad list is
+    // `InvalidExercise { field: "sim.tip_order" }`, never a panic.
+    let tree = parse_newick(NJ_BASICS_TREE).unwrap();
+    let labels = tree.leaf_labels();
+    let mut order = labels.clone();
+    order.reverse();
+    let aln = simulate(
+        &tree,
+        &SimSpec {
+            tip_order: Some(order.clone()),
+            ..spec(SimModel::Jc69, 20, 42)
+        },
+    )
+    .unwrap();
+    assert_eq!(aln.labels, order, "rows come out in tip_order");
+    // The same (name, sequence) rows the unordered run produced —
+    // the RNG stream is untouched by the reorder.
+    let plain = simulate(&tree, &spec(SimModel::Jc69, 20, 42)).unwrap();
+    for (label, seq) in aln.labels.iter().zip(&aln.seqs) {
+        let i = plain.labels.iter().position(|l| l == label).unwrap();
+        assert_eq!(*seq, plain.seqs[i], "{label}'s sequence moved with its row");
+    }
+    // Every non-permutation is refused at `sim.tip_order`: an unknown
+    // name, a missing name, a duplicate, an empty list, an extra name.
+    let mut dup = labels.clone();
+    dup[0] = dup[1].clone();
+    for bad in [
+        vec!["A".into(), "B".into(), "C".into(), "D".into(), "Z".into()],
+        labels[..labels.len() - 1].to_vec(),
+        dup,
+        Vec::new(),
+        [labels.clone(), vec!["X".into()]].concat(),
+    ] {
+        match simulate(
+            &tree,
+            &SimSpec {
+                tip_order: Some(bad),
+                ..spec(SimModel::Jc69, 20, 42)
+            },
+        ) {
+            Err(NeoError::InvalidExercise { field, .. }) => assert_eq!(field, "sim.tip_order"),
+            other => panic!("expected InvalidExercise, got {other:?}"),
+        }
+    }
+    // And the file path refuses the same way via `load_exercise`
+    // (covered in tests/exercise_v5.rs).
 }
 
 #[test]

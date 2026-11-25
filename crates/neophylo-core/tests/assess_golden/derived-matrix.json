@@ -1,0 +1,417 @@
+{
+  "generator": 1,
+  "assignment": {
+    "content": {
+      "kind": "exercise",
+      "value": {
+        "alphabet": "dna",
+        "analysis": {
+          "correction": "Supplied",
+          "method": "Nj"
+        },
+        "bootstrap": null,
+        "data": {
+          "kind": "matrix",
+          "lower": [
+            8.0,
+            10.0,
+            6.0,
+            22.0,
+            26.0,
+            28.0,
+            8.0,
+            12.0,
+            14.0,
+            20.0,
+            23.0,
+            27.0,
+            29.0,
+            17.0,
+            21.0
+          ],
+          "names": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f"
+          ],
+          "source": {
+            "accessions": [],
+            "citation": "Constructed for NeoPhylo: the path-length matrix of a small non-clock-like teaching tree — every distance is the exact path between two tips of the reference tree",
+            "license": "CC0 1.0"
+          }
+        },
+        "id": "upgma-vs-nj-matrix",
+        "locked": [],
+        "meta": {
+          "level": "intro",
+          "minutes": 20,
+          "objectives": [
+            "Compare Neighbor-Joining and UPGMA on the same distance matrix",
+            "Explain why UPGMA's clock assumption changes the tree it builds"
+          ],
+          "prepares_for": [
+            "mega-nj-vs-upgma"
+          ]
+        },
+        "premises": [
+          "nj_recovers_true_tree",
+          "upgma_differs_from_nj"
+        ],
+        "prompts": [
+          {
+            "after": null,
+            "at_step": 1,
+            "concept": "The reference panel shows the true tree this matrix came from: every distance in the cells is the exact path between two tips of that tree. A matrix like this is called additive — it holds the whole tree, if the method can find it. Start with Neighbor-Joining: build and step to the end.",
+            "math": "On an additive matrix, d(i,j) equals the total branch length on the path from i to j — building the tree is exactly the inverse problem of reading the matrix.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 5,
+            "concept": "If you are on Neighbor-Joining, the tree is now complete and the comparison shows no differences — every split of the true tree came back, because NJ is built to invert additive distances. Then switch the Method control to UPGMA and step through to the end: watch whether its tree still matches.",
+            "math": "NJ's Q score corrects for how far each cluster sits from all the others, so it copes with branches of very different lengths.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 6,
+            "concept": "With UPGMA, the comparison shows a difference: UPGMA joins the closest pair and halves the distance — exact only when every tip is the same distance from the root. This tree is not clock-like, so its cluster averages pull a wrong pair together.",
+            "math": "Cluster averaging keeps the matrix consistent only under a molecular clock; unequal branch lengths break it, and the wrong join order follows.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          }
+        ],
+        "reference": {
+          "kind": "true",
+          "newick": "(a:2,(b:2,c:4):4,(e:3,(d:8,f:9):9):3);"
+        },
+        "schema_version": 5,
+        "title": "UPGMA vs Neighbor-Joining, on a perfect matrix"
+      }
+    },
+    "id": "golden-derived",
+    "id_prompt": {
+      "label": "Student ID",
+      "rule": "trim_lower"
+    },
+    "mode": "practice",
+    "tasks": [
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "predict_pair",
+          "step": 1
+        }
+      },
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "predict_pair",
+          "step": 2
+        }
+      }
+    ],
+    "title": "golden-derived",
+    "variation": true
+  },
+  "ids": [
+    {
+      "id": "ada",
+      "normalised": "ada",
+      "seed": "324593247515402",
+      "retry": 1,
+      "fell_back": false,
+      "data_digest": "c3afe56a93ee2170",
+      "excerpt": {
+        "taxa": [
+          "c",
+          "a",
+          "d",
+          "f",
+          "e",
+          "b"
+        ],
+        "first_row": [
+          0.0,
+          17.0,
+          14.0,
+          29.0,
+          15.0,
+          26.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                3,
+                5
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                3
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "483784623175432",
+      "retry": 1,
+      "fell_back": false,
+      "data_digest": "9f5fef41e0abb225",
+      "excerpt": {
+        "taxa": [
+          "e",
+          "b",
+          "d",
+          "f",
+          "c",
+          "a"
+        ],
+        "first_row": [
+          0.0,
+          42.0,
+          31.0,
+          22.0,
+          25.0,
+          18.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                2
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                4
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "4665193455397702",
+      "retry": 1,
+      "fell_back": false,
+      "data_digest": "46e4d33ebb18c52f",
+      "excerpt": {
+        "taxa": [
+          "e",
+          "b",
+          "c",
+          "d",
+          "f",
+          "a"
+        ],
+        "first_row": [
+          0.0,
+          22.0,
+          21.0,
+          18.0,
+          21.0,
+          11.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                3,
+                4
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                2
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "5367717516941177",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "9d9cbc3c6d3c8fed",
+      "excerpt": {
+        "taxa": [
+          "d",
+          "c",
+          "f",
+          "a",
+          "e",
+          "b"
+        ],
+        "first_row": [
+          0.0,
+          27.0,
+          20.0,
+          26.0,
+          15.0,
+          14.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                3
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                1,
+                4
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "237824204182399",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "297dcd8f2720a220",
+      "excerpt": {
+        "taxa": [
+          "e",
+          "a",
+          "f",
+          "b",
+          "c",
+          "d"
+        ],
+        "first_row": [
+          0.0,
+          28.0,
+          21.0,
+          25.0,
+          21.0,
+          27.0
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                3,
+                4
+              ]
+            ]
+          }
+        },
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 2
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                0,
+                3
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

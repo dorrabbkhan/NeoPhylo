@@ -10283,3 +10283,192 @@ were regenerated in the pinned image — no other baseline changed.
   `vary_false_returns_base_with_seed` now compare served content to
   the base with the injected `bootstrap` stripped — a variant's
   content is "the base" apart from that block.
+
+## v1.5 Task 5: completion codes, grading, golden variants
+
+- **Spec:** `docs/superpowers/specs/2026-11-18-neophylo-v1.5-classroom-assessment-design.md`
+  §5.4, §5.5, §5.7, §5.8, §11; plan
+  `docs/superpowers/plans/2026-11-23-neophylo-v1.5-plan.md` Task 5;
+  conductor's calls in `docs/conductor/notes/v1.5/task5.md`
+  (authoritative where the plan file's text differs).
+- **Derived-matrix variants serve the author's decimals (owner call,
+  2026-11-25, done before any golden file):**
+  `transform_derived_matrix` builds the served matrix with
+  `additive_matrix(&tree, Some(d))` at the author's decimals `d`, not
+  `None` — the generated branch lengths are already rounded to `d`, so
+  this only strips binary float noise from the path sums (a served
+  cell is `0.3`, not `0.30000000000000004`). Supersedes the `None`
+  choice recorded under Task 4 fix round 1. The built-in known answers
+  (`d = 0`) are unchanged; `tests/assess_variant.rs` pins `d = 2`.
+- **Packed answers are index form, not `TaskAnswer` (deviation from
+  the plan's `Attempt { first: TaskAnswer }`, conductor-approved):**
+  `TaskAnswer::Branch` and reading `Response`s carry taxon names and
+  letters as strings, which cannot fit 250 chars, and `decode_code`
+  has no assignment to map names with. `PackedAnswer` carries tip and
+  letter indices, bitmask tip sets and a Lehmer-coded order over the
+  variant's **name table** (`name_table(variant)`: exercise → the
+  distance-matrix label order; reading set → sorted unique labels
+  across all its trees), plus `Skipped`. `pack_answer`/`unpack_answer`
+  convert via that table; `Attempt` stores `first`, an optional
+  `last` (omitted when equal) and `attempts`; `TaskResult.{first,last}`
+  are `Option<TaskAnswer>` — `None` on skip or unpack failure (wrong,
+  never a grading error).
+- **Limits** (conductor): `MAX_ID_BYTES = 64` on the *normalised* id —
+  `encode_code` refuses a longer one with `InvalidCode "length"` and
+  `normalise_id` itself is unchanged (Task 8 refuses long ids at
+  entry). Numeric answers must fit `i32` (`"malformed"` otherwise);
+  `attempts` clamps at 15 (4 bits, documented); `retry` 0..=50;
+  `finished_min` is 24 bits; `MAX_TASKS = 15`.
+- **Wire layout** (module doc in `code.rs`): `NP1-` + Crockford base32
+  in groups of 5 — format 1, generator 1 (`GENERATOR_VERSION`), 20-bit
+  fingerprint, length-prefixed UTF-8 id, retry, task count, per task
+  one kind tag + first body + has-last bit + last body + attempts,
+  `finished_min`, then CRC-16/CCITT-FALSE byte-aligned. The decoder is
+  lenient (case-insensitive, `i`/`l`→`1`, `o`→`0`, ignores separators,
+  finds `np1-` inside pasted text) and never panics; every rejection
+  is `InvalidCode` with one of the spec's five reasons.
+- **Fingerprint:** low 20 bits of `fnv1a64` over `serde_json::to_vec`
+  of the assignment **with `content` replaced by the recorded
+  `content_hash` string when one is recorded** (a built-in reference),
+  else the full assignment — so an edited embedded exercise grades
+  `AssignmentMismatch` while a changed built-in grades
+  `ContentChanged`.
+- **`Assignment` gained two fields** (conductor): `content_hash:
+  Option<String>` (recorded at authoring; `#[serde(default,
+  skip_serializing_if)]`, `#[ts(optional)]`) and `served_content_hash:
+  Option<String>` (`#[serde(skip)]`, `#[ts(skip)]`, set by Task 6's
+  loader); `grade` adds `ContentChanged` when both are `Some` and
+  differ. `content_hash(bytes)` in `assess/hash.rs` is the 16-hex
+  `fnv1a64` digest.
+- **Grading:** `decode_code` errors propagate as `Err(InvalidCode)`;
+  fingerprint, task-count or retry mismatch → `Ok` score 0, empty
+  `tasks`, `AssignmentMismatch` (never guess); `lms_id` is normalised
+  and compared → `IdMismatch` (an un-normalisable LMS id flags, never
+  errors). `Flag::{Checksum, Duplicate, Missing}` exist for Task 9's
+  class checks and are documented as such. `Rule::Weighted { partial }`
+  outside `0..=1` or non-finite → `InvalidAssignment { field: "rule" }`.
+- **Golden files** live in `crates/neophylo-core/tests/assess_golden/`
+  (6 assignments × 5 ids incl. `" Ana.Lopez@Uni.edu "`, `josé`, a
+  64-byte id), generated once by `#[ignore]`d `regen_assess_golden`
+  and verified by a second `golden_variants_recompute_exactly` run;
+  each records the assignment inline, `generator`, normalised id,
+  seed-as-string, `retry`, `fell_back`, the `content_hash` data digest,
+  a readable excerpt (taxon order, first matrix row) and every task's
+  accepted answer.
+- **Files outside the Files block:**
+  - `crates/neophylo-core/src/assess/mod.rs` — module wiring and
+    re-exports for `code`/`grade`/`content_hash`.
+  - `crates/neophylo-core/src/assess/assignment.rs` — the two
+    `Assignment` fields above (conductor-named).
+  - `crates/neophylo-core/src/assess/variant.rs` — the
+    `additive_matrix(&tree, Some(d))` owner decision.
+  - `crates/neophylo-core/src/assess/hash.rs` — `content_hash`
+    (conductor-named).
+  - `crates/neophylo-core/tests/assess_variant.rs` — the `d = 2`
+    derived-matrix test (owner-required).
+  - `crates/neophylo-core/fuzz/Cargo.toml` and `scripts/ci/fuzz.sh` —
+    `code` target registration (conductor: "registered wherever the
+    other targets are"; the nightly workflow enumerates none, so no
+    workflow file needed a change).
+  - `web/src/engine/generated/*.ts` — regenerated ts-rs output
+    (`Rule`, `Flag`, `TaskResult`, `GradeResult`, `content_hash?` on
+    `Assignment`; generated by the engine, not hand-edited).
+    `PackedAnswer`/`Attempt`/`CodePayload` stay engine-side: their
+    `u64` mask/rank fields would emit `bigint`, which the no-bigint
+    guard refuses — TS consumers see `TaskAnswer`, not the wire form.
+  - `docs/decisions.md` — this entry.
+
+### v1.5 Task 5 fix round 1 (PR #188 review)
+
+- **Content-sized widths (review item 1):** the fixed 16-bit tip
+  index, 64-bit masks/ranks and 8-bit option indices are gone — a
+  70-tip clade could not encode at all and 15 `predict_pair` tasks
+  cost 411 chars. The header gains the name-table size `names`
+  (8 bits, 1..=`MAX_NAME_TABLE` = 200) right after `task_count`, and
+  `grade` scores `AssignmentMismatch` when it differs from the
+  rebuilt variant's table size. A tip index is `tip_bits(n) =
+  max(1, ⌈log₂N⌉)` bits; a tip set/clade mask is exactly `N` bits;
+  reading multi-picks self-delimit (`Choices`: 8-bit mask width `m`
+  + `m` mask bits; `Order`: 7-bit count `k` + `k` positions of
+  `idx_bits(k)` bits — the `u64` Lehmer rank is gone, so orders above
+  ~21 nodes encode); single picks and two-tier reasons carry the
+  index as `w−1` in 3 bits + `w` bits (`w = idx_bits(i+1)`, 1..=8).
+  `max_code_len` prices the content's own table and each item's
+  option/node counts (`content_name_table`, `index_domain`,
+  `trait_domain`), still an exact worst case. Numbers stay
+  `|n| ≤ 2³¹−1` — the quantity scale pins real answers to ±2·10⁹,
+  and a wider bound would only buy room no content can reach.
+  Layout stays `format = 1`, `generator = 1`: nothing is released,
+  so no version bump (the golden files' `generator` field is the
+  constant, and only `numeric-tasks.json` changed this round).
+- **Impossible ids refused at decode (item 2):** `id_len == 0` or
+  `> MAX_ID_BYTES` in the wire header is `InvalidCode "length"` — a
+  code no real finish flow can emit. `grade` maps a `normalise_id`
+  failure on the code's (decodable) id to `InvalidCode "malformed"`,
+  not `InvalidAssignment` — e.g. a 3-byte blank id.
+- **Numeric golden covers every quantity and role (item 3):** the
+  `numeric-tasks` assignment grew from 3 to 8 tasks —
+  `corrected_distance`/`q_value` × `chosen`/`closest_raw`,
+  `new_distance`/`closest_raw` at step 3 (a member stays active for
+  all five ids — steps 1–2 don't), and `branch_length` ×
+  `chosen_first_to_new`/`chosen_second_to_new`. Only
+  `numeric-tasks.json` regenerated; the other five golden files are
+  byte-identical (the packed-answer layout is not part of their
+  content, and `names`-aware packing doesn't change variant data).
+- **TwoTier cannot nest (item 4):** `read_answer`'s tag-9 recursion
+  had no depth limit — a crafted code with ~6,000 nested tags
+  overflowed a wasm-sized stack. The inner answer of a TwoTier may
+  not be `TwoTier` or `Skipped` (validated content never produces
+  either) — the decoder refuses at the inner tag with `"malformed"`,
+  and the encoder refuses to write one, keeping
+  `decode(encode)` an identity. A committed fuzz seed carries the
+  crafted code (`fuzz/seeds/code/nested_two_tier.txt`).
+- **Serde gap pins for `Assignment.content_hash` (item 6):**
+  `"content_hash": null` parses as `None` — serde's `Option` rules
+  make an explicit null the same as an absent key, and the builder
+  never writes it (`skip_serializing_if`) — while `[]`/`["x"]` fail
+  at parse (the key is typed). `"served_content_hash"` in input JSON
+  is ignored (`#[serde(skip)]`; the Task 6 loader sets it from file
+  bytes). Pinned in `tests/assess_code.rs`.
+- **Files outside the Files block this round:** none new — the
+  changes land in `assess/code.rs`/`grade.rs` and the
+  `tests/assess_{code,code_props,grade,golden}.rs` files the task
+  already touched, plus `fuzz/seeds/code/nested_two_tier.txt` and
+  `numeric-tasks.json` (the item-3 regeneration the notes approve).
+
+### v1.5 Task 5 fix round 2 (PR #188 status comment)
+
+- **Per-student tip (row) order — owner decision 2026-11-25, option
+  A:** rotation alone kept every cherry at fixed matrix positions
+  (in `nj-basics`, step 1's pair sat at positions (2,3) for all five
+  golden ids), so students could share "join rows 3 and 4". Variants
+  now also shuffle the tip order. `SimSpec` gains
+  `tip_order: Option<Vec<String>>` — a permutation of the variant
+  tree's leaf labels that `simulate` applies after drawing rows, so
+  the per-taxon sequences (and RNG draw order) are unchanged, only
+  the emitted row order differs. `transform_simulated` fills it with
+  a Fisher–Yates shuffle seeded by `sub_seed(seed, "order")`, and
+  `transform_derived_matrix` permutes `names`/`lower` the same way
+  after `additive_matrix` (reference tree unchanged, `Some(d)`
+  rounding kept). `None` keeps the old preorder emission, so every
+  authored file, parity test, sim golden hash and fixture stays
+  byte-identical. The modal step-1 index-pair share over 200 ids
+  dropped to 10 % (`nj-basics`) and 9.5 % (`upgma-vs-nj-matrix`);
+  the 1,000-id sweep still has 0 fallbacks on all 14 exercises.
+- **`tip_order` file format:** `sim.tip_order` is a v5-only key on
+  the `sim` object — a JSON array of unique strings, validated at
+  load as a permutation of the tree's leaf labels (`InvalidExercise`,
+  never a panic); `null`, non-arrays, non-string members, duplicates
+  and missing/extra names are refused. In-file it is presence-aware
+  (`Option<Option<Value>>`, same serde gap as `site_filter`): absent
+  → `None`; explicit `null` → refused (`"sim.tip_order"`), since the
+  engine's own `SimSpec` would read a served `null` as absent.
+- **Files outside the Files block this round:** `sim.rs` (the field,
+  `check_tip_order`, the reorder in `simulate`), `exercise.rs`
+  (`SimFile.tip_order`), `exercises/schema.json` (the v5 key +
+  v2–4 refusal), regenerated `web/src/engine/generated/SimSpec.ts`,
+  and the `SimSpec` literal updates in `tests/sim*.rs`,
+  `tests/seed_scan.rs` and `neophylo-wasm/tests/parity.rs`.
+  Regenerated golden files: `simulated-lesson`, `derived-matrix`,
+  `numeric-tasks`, `bootstrap-predict-branch`; `fixed-data-lab` and
+  `reading-set` are byte-identical (verified by two golden runs).

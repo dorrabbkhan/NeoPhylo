@@ -1,0 +1,310 @@
+{
+  "generator": 1,
+  "assignment": {
+    "content": {
+      "kind": "exercise",
+      "value": {
+        "alphabet": "protein",
+        "analysis": {
+          "correction": "Jtt",
+          "method": "Nj"
+        },
+        "bootstrap": null,
+        "data": {
+          "fasta": ">human\n-------MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGIIWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE\n>horse\n-------MGDVEKGKKIFVQKCAQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGFTYTDANKNKGITWKEETLMEYLENPKKYIPGTKMIFAGIKKKTEREDLIAYLKKATNE\n>chicken\n-------MGDIEKGKKIFVQKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAEGFSYTDANKNKGITWGEDTLMEYLENPKKYIPGTKMIFAGIKKKSERVDLIAYLKDATSK\n>zebrafish\n-------MGDVEKGKKVFVQKCAQCHTVENGGKHKVGPNLWGLFGRKTGQAEGFSYTDANKSKGIVWGEDTLMEYLENPKKYIPGTKMIFAGIKKKGERADLIAYLKSATS-\n>drosophila\n---MGVPAGDVEKGKKLFVQRCAQCHTVEAGGKHKVGPNLHGLIGRKTGQAAGFAYTDANKAKGITWNEDTLFEYLENPKKYIPGTKMIFAGLKKPNERGDLIAYLKSATK-\n>wheat\nASFSEAPPGNPDAGAKIFKTKCAQCHTVDAGAGHKQGPNLHGLFGRQSGTTAGYSYSAANKNKAVEWEENTLYDYLLNPKKYIPGTKMVFPGLKKPQDRADLIAYLKKATSS\n>yeast\n--MTEFKAGSAKKGATLFKTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIKKNVLWDENNMSEYLTNPKKYIPGTKMAFGGLKKEKDRNDLITYLKKACE-\n>neurospora\n---MGFSAGDSKKGANLFKTRCAQCHTLEEGGGNKIGPALHGLFGRKTGSVDGYAYTDANKQKGITWDENTLFEYLENPKKYIPGTKMAFGGLKKDKDRNDIITFMKEATA-",
+          "kind": "embedded",
+          "source": {
+            "accessions": [
+              "P99999",
+              "P00004",
+              "P67881",
+              "Q6IQM2",
+              "P84029",
+              "P00068",
+              "P00044",
+              "P00048"
+            ],
+            "citation": "UniProt Consortium, UniProtKB (uniprot.org); aligned with MAFFT v7.525",
+            "license": "CC BY 4.0"
+          }
+        },
+        "id": "cytochrome-c",
+        "locked": [
+          "analysis.method"
+        ],
+        "meta": {
+          "level": "intermediate",
+          "minutes": 20,
+          "objectives": [
+            "Build a distance tree from real protein sequences",
+            "Distinguish a classification reference from a known true tree",
+            "Read an unrooted tree and the effect of rooting it"
+          ],
+          "prepares_for": [
+            "protdist-neighbor"
+          ]
+        },
+        "prompts": [
+          {
+            "after": null,
+            "at_step": 1,
+            "concept": "This is real data: cytochrome c, a ~110-site protein found in almost every eukaryote, from eight species spanning the deepest splits in the tree of life — human, horse, chicken, zebrafish, Drosophila, wheat, yeast and Neurospora. The sequences come from UniProt (CC BY 4.0) and were aligned with MAFFT; the reference panel shows the accepted classification, not a known true tree.",
+            "math": "Cytochrome c is small and ancient: even the deepest pair (wheat–Neurospora) carries a JTT distance of only ~0.64 substitutions per site — long, but well below the saturation ceiling.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 1,
+            "concept": "The matrix shows JTT-corrected distances. The smallest cell is horse–chicken at 0.119 — yet that pair will not join first, because NJ scores pairs by Q, which also counts how far each lineage is from everything else. Which two species join first?",
+            "math": "NJ joins the pair minimizing Q(i,j) = (n−2)·d(i,j) − R_i − R_j. The two fungi sit far from every animal and plant — their large row sums R pull their Q below every other pair's.",
+            "reveal": "The two fungi join first: yeast–Neurospora at 0.464 wins on Q even though it is nowhere near the smallest distance. The \"Show horse vs chicken\" button below opens \"How was this distance computed?\" for that pair: at 0.119 it is the matrix minimum, but each vertebrate stays close to all the others, so their pair scores worse on Q.",
+            "reveal_pair": [
+              "horse",
+              "chicken"
+            ],
+            "type": "predict_pair"
+          },
+          {
+            "after": null,
+            "at_step": 3,
+            "concept": "Two joins in, the deepest divide is drawn: the fungi paired, wheat attached to them, and the insect is about to join nearest that split on the animal side. Read it as an unrooted tree — the split it found is \"animals versus plants and fungi\". Root it on wheat, as the reference does, and the same split reads differently: plants out first, with fungi and animals as each other's closest relatives — the opisthokonts.",
+            "math": "A tree read as unrooted has no direction: the same bipartition supports \"plants + fungi\" versus \"animals\", and choosing where the root sits on it is what makes plants the outgroup and Opisthokonta a clade.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 5,
+            "concept": "The non-animal side is finished and the mammals have paired — only the vertebrates are left to order: human+horse, chicken and zebrafish. Look at the matrix corner they share: every distance among the four vertebrates is 0.10–0.18, a sliver next to the 0.45–0.64 crossing the deep divide. The last joins make the weakest decisions in the whole tree.",
+            "math": "Within-vertebrate distances run 0.10–0.18 against 0.45–0.64 across the deep divide. The tree has plenty of signal for the old splits and very little for the young ones.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 7,
+            "concept": "The tree is complete — and it matches the accepted classification in every clade. We draw it with the plant as the outgroup, as biologists usually do. NJ itself builds an unrooted tree, so where the root goes comes from outside knowledge, not from these sequences. Drawn that way, fungi and animals are closest relatives, and inside the animals the vertebrates and mammals group together. It still earned the vertebrates the hard way: the smallest distance in the whole matrix is horse–chicken at 0.119, even though horse is much closer to human — with a short, slowly evolving protein a handful of substitutions decides which pair looks closest. NJ recovers anyway because it joins by Q — relative closeness — not by raw distance.",
+            "math": "RF counts clades present in one tree but not the other: here every clade of the classification is present — nothing missing, nothing extra. The Q score is what rescued the vertebrates; the smallest distance was not the truest pair.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          }
+        ],
+        "reference": {
+          "kind": "classification",
+          "newick": "(wheat:1,((yeast:1,neurospora:1):1,(drosophila:1,(zebrafish:1,(chicken:1,(horse:1,human:1):1):1):1):1):1);"
+        },
+        "schema_version": 5,
+        "title": "Cytochrome c: a real protein tree"
+      }
+    },
+    "id": "golden-fixed-data",
+    "id_prompt": {
+      "label": "Student ID",
+      "rule": "trim_lower"
+    },
+    "mode": "practice",
+    "tasks": [
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "predict_pair",
+          "step": 1
+        }
+      }
+    ],
+    "title": "golden-fixed-data",
+    "variation": true
+  },
+  "ids": [
+    {
+      "id": "ada",
+      "normalised": "ada",
+      "seed": "8522744625863989",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "27d66b8c6bb7aaab",
+      "excerpt": {
+        "taxa": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                6,
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "7791265016985301",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "206a69e49f26c05d",
+      "excerpt": {
+        "taxa": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                6,
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "4442674412586377",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "5a1215f6211f9abf",
+      "excerpt": {
+        "taxa": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                6,
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "5773556016182539",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "61a0c47b77a51422",
+      "excerpt": {
+        "taxa": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                6,
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "6784521883430669",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "8db9fc216135d4ab",
+      "excerpt": {
+        "taxa": [
+          "human",
+          "horse",
+          "chicken",
+          "zebrafish",
+          "drosophila",
+          "wheat",
+          "yeast",
+          "neurospora"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_pair",
+            "step": 1
+          },
+          "accepted": {
+            "kind": "pairs",
+            "value": [
+              [
+                6,
+                7
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

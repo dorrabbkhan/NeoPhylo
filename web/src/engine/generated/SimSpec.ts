@@ -2,6 +2,19 @@
 import type { SimModel } from "./SimModel";
 
 /**
- * What to simulate: model, site count and the RNG seed.
+ * What to simulate: model, site count and the RNG seed. `tip_order`,
+ * when set, is the row order the emitted alignment takes — a
+ * permutation of the tree's leaf labels, set by a variant so the
+ * matrix positions of a join differ across students (owner decision
+ * 2026-11-25, PR #188 fix round 2). `None` emits rows in
+ * `tree.leaf_labels()` (preorder) order, so files that never declare
+ * it are byte-identical to before.
  */
-export type SimSpec = { model: SimModel, length: number, seed: number, };
+export type SimSpec = { model: SimModel, length: number, seed: number, 
+/**
+ * `Option<Vec>` keeps absent/`null`/a list distinct at the file
+ * layer (`load_exercise` refuses a present `null`); on the wire
+ * `None` is omitted. The serde gap applies inside a served
+ * `SimSpec` itself: a `null` there reads as absent.
+ */
+tip_order?: Array<string>, };
