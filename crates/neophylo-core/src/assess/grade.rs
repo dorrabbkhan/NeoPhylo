@@ -170,9 +170,7 @@ pub fn grade(
         // and the kind-fit check.
         let score_answer = |ta: &Option<TaskAnswer>| -> Result<bool, NeoError> {
             match ta {
-                Some(ta) if answer_fits(&gt.task, ta, item) => {
-                    check_task(&variant, &gt.task, ta)
-                }
+                Some(ta) if answer_fits(&gt.task, ta, item) => check_task(&variant, &gt.task, ta),
                 _ => Ok(false),
             }
         };
@@ -215,10 +213,14 @@ fn ensure_applicable(variant: &Variant, task: &TaskRef) -> Result<(), NeoError> 
         msg: msg.to_string(),
     };
     match (task, &variant.content) {
-        (TaskRef::PredictPair { .. } | TaskRef::PredictBranch | TaskRef::Numeric { .. },
-         Content::Exercise(_)) => Ok(()),
-        (TaskRef::PredictPair { .. } | TaskRef::PredictBranch | TaskRef::Numeric { .. },
-         Content::Reading(_)) => Err(invalid("an exercise task needs exercise content")),
+        (
+            TaskRef::PredictPair { .. } | TaskRef::PredictBranch | TaskRef::Numeric { .. },
+            Content::Exercise(_),
+        ) => Ok(()),
+        (
+            TaskRef::PredictPair { .. } | TaskRef::PredictBranch | TaskRef::Numeric { .. },
+            Content::Reading(_),
+        ) => Err(invalid("an exercise task needs exercise content")),
         (TaskRef::Reading { .. }, Content::Exercise(_)) => {
             Err(invalid("a reading task needs reading content"))
         }

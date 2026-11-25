@@ -15,9 +15,9 @@ pub mod variant;
 
 pub use assignment::{Assignment, Content, GradedTask, IdPrompt, Mode, Variant};
 pub use code::{
-    decode_code, encode_code, fingerprint, max_code_len, name_table, pack_answer,
-    unpack_answer, Attempt, CodePayload, PackedAnswer, FORMAT_VERSION, GENERATOR_VERSION,
-    MAX_FINISHED_MIN, MAX_ID_BYTES, MAX_TASKS,
+    decode_code, encode_code, fingerprint, max_code_len, name_table, pack_answer, unpack_answer,
+    Attempt, CodePayload, PackedAnswer, FORMAT_VERSION, GENERATOR_VERSION, MAX_FINISHED_MIN,
+    MAX_ID_BYTES, MAX_TASKS,
 };
 pub use grade::{grade, Flag, GradeResult, Rule, TaskResult};
 pub use hash::{content_hash, fnv1a64, normalise_id, retry_seed, variant_seed, IdRule};

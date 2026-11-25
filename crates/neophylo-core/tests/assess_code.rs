@@ -145,7 +145,11 @@ fn decoding_is_lenient_about_case_and_separators() {
     // Trailing text is not a separator — a stray ')' is a bad symbol.
     assert_eq!(reason(decode_code(&embedded)), "malformed");
     let prefixed = format!("submit {code}");
-    assert_eq!(decode_code(&prefixed).unwrap(), p, "the prefix is found in text");
+    assert_eq!(
+        decode_code(&prefixed).unwrap(),
+        p,
+        "the prefix is found in text"
+    );
 }
 
 #[test]
@@ -163,7 +167,7 @@ fn ambiguous_symbols_decode_as_digits() {
         })
         .collect();
     assert_eq!(decode_code(&swapped).unwrap(), p);
-    let swapped_l = format!("NP1-{}", &code[4..].replace('1', "l"));
+    let swapped_l = format!("NP1-{}", code[4..].replace('1', "l"));
     assert_eq!(decode_code(&swapped_l).unwrap(), p);
 }
 
@@ -236,7 +240,7 @@ fn decode_rejects_unknown_versions() {
         push(&mut bits, 0, 1); // has_last
         push(&mut bits, 1, 4); // attempts
         push(&mut bits, 0, 24); // finished_min
-        while bits.len() % 8 != 0 {
+        while !bits.len().is_multiple_of(8) {
             bits.push(false);
         }
         let mut bytes = vec![0u8; bits.len().div_ceil(8)];
@@ -247,7 +251,7 @@ fn decode_rejects_unknown_versions() {
         }
         let crc = crc16(&bytes);
         push(&mut bits, u64::from(crc), 16);
-        while bits.len() % 5 != 0 {
+        while !bits.len().is_multiple_of(5) {
             bits.push(false);
         }
         let alpha = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -416,7 +420,12 @@ fn name_table_orders_exercise_and_reading_tips() {
 fn pack_unpack_round_trip_exercise_answers() {
     let v = lesson_variant("nj-basics");
     let table = name_table(&v).unwrap();
-    let pair = pack_answer(&v, &TaskRef::PredictPair { step: 1 }, &TaskAnswer::Pair(2, 0)).unwrap();
+    let pair = pack_answer(
+        &v,
+        &TaskRef::PredictPair { step: 1 },
+        &TaskAnswer::Pair(2, 0),
+    )
+    .unwrap();
     assert_eq!(pair, PackedAnswer::Pair(0, 2), "canonical a<b");
     assert_eq!(
         unpack_answer(&v, &TaskRef::PredictPair { step: 1 }, &pair).unwrap(),
@@ -475,7 +484,9 @@ fn pack_unpack_round_trip_reading_answers() {
     // Tips must come from the item's own tree — the name table is the
     // union over all trees.
     let item_tips = |item: usize| -> Vec<String> {
-        let Content::Reading(set) = &v.content else { panic!() };
+        let Content::Reading(set) = &v.content else {
+            panic!()
+        };
         let it = &set.items[item];
         let rt = &set.trees[&it.trees[0]];
         let tree = neophylo_core::newick::parse_newick(&rt.newick).unwrap();
@@ -488,8 +499,8 @@ fn pack_unpack_round_trip_reading_answers() {
         let task = TaskRef::Reading { item };
         let packed = pack_answer(&v, &task, &TaskAnswer::Reading(r.clone()))
             .unwrap_or_else(|e| panic!("pack item {item}: {e}"));
-        let back = unpack_answer(&v, &task, &packed)
-            .unwrap_or_else(|e| panic!("unpack item {item}: {e}"));
+        let back =
+            unpack_answer(&v, &task, &packed).unwrap_or_else(|e| panic!("unpack item {item}: {e}"));
         let TaskAnswer::Reading(back) = back else {
             panic!("item {item}: not a reading answer")
         };
@@ -519,12 +530,7 @@ fn pack_unpack_round_trip_reading_answers() {
     assert!(matches!(back, Response::Node { .. }));
     let (p, back) = round(10, Response::Pairwise { answer: Closer::C });
     assert_eq!(p, PackedAnswer::Pairwise(1));
-    assert_eq!(
-        back,
-        Response::Pairwise {
-            answer: Closer::C
-        }
-    );
+    assert_eq!(back, Response::Pairwise { answer: Closer::C });
     let (p, back) = round(11, Response::Number { value: 4 });
     assert_eq!(p, PackedAnswer::Number(4));
     assert_eq!(back, Response::Number { value: 4 });
@@ -560,7 +566,9 @@ fn pack_unpack_round_trip_reading_answers() {
             tips: traits[..2].to_vec(),
         },
     );
-    let Response::Tips { tips } = back else { panic!() };
+    let Response::Tips { tips } = back else {
+        panic!()
+    };
     let mut tips = tips;
     tips.sort();
     let mut want = traits[..2].to_vec();
@@ -620,12 +628,7 @@ fn unpack_of_a_skipped_or_mismatched_answer_errors() {
     )
     .is_err());
     // An order answer without an order_nodes item.
-    assert!(unpack_answer(
-        &v,
-        &TaskRef::Reading { item: 6 },
-        &PackedAnswer::Order(0),
-    )
-    .is_err());
+    assert!(unpack_answer(&v, &TaskRef::Reading { item: 6 }, &PackedAnswer::Order(0),).is_err());
 }
 
 // --- fingerprint & bounds ------------------------------------------------------------------

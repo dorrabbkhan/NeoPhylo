@@ -1,0 +1,299 @@
+{
+  "generator": 1,
+  "assignment": {
+    "content": {
+      "kind": "exercise",
+      "value": {
+        "alphabet": "dna",
+        "analysis": {
+          "correction": "Jc69",
+          "method": "Nj"
+        },
+        "bootstrap": {
+          "replicates": 100,
+          "seed": 39
+        },
+        "data": {
+          "kind": "simulated",
+          "sim": {
+            "length": 300,
+            "model": "Jc69",
+            "seed": 7
+          },
+          "true_tree": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);"
+        },
+        "id": "bootstrap-basics",
+        "locked": [
+          "sim.model",
+          "sim.seed",
+          "analysis.correction",
+          "analysis.method"
+        ],
+        "meta": {
+          "level": "intermediate",
+          "minutes": 25,
+          "objectives": [
+            "Predict which grouping a resampling run supports least",
+            "Explain what a bootstrap support value counts",
+            "Judge how alignment length and seed change support"
+          ],
+          "prepares_for": [
+            "seqboot-consense",
+            "mega-bootstrap-100"
+          ]
+        },
+        "prompts": [
+          {
+            "after": null,
+            "at_step": 1,
+            "concept": "These eight sequences share a true tree, but the alignment is deliberately short. Build the NJ tree, then step to the end to ask: how sure are we that each grouping is real?",
+            "math": "A short internal branch leaves few sites where its grouping differs from the rest — exactly the sites a resample can miss.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": null,
+            "at_step": 7,
+            "concept": "Before you run, make a prediction: which internal branch of the inferred tree will the data support least? Click that branch — terminal branches don't count — then run the bootstrap.",
+            "math": "Each replicate resamples the 300 columns with replacement and rebuilds the tree; a grouping's support is the share of successful replicate trees that contain it.",
+            "reveal": "The weakest grouping is the one on the true tree's shortest internal branch. At 300 columns, only a handful of sites carry evidence for it, so many resampled datasets rebuild a different grouping there.",
+            "reveal_pair": null,
+            "type": "predict_branch"
+          },
+          {
+            "after": "first_run",
+            "at_step": 7,
+            "concept": "Support is an estimate too. Change the bootstrap Seed and run again: the numbers shift by a few points, because each run draws different resamples. (With 1,000 replicates instead of 100 they settle down — so don't read much into small differences like 52 versus 57.)",
+            "math": null,
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": "continue_or_second_run",
+            "at_step": 7,
+            "concept": "Now try more data. Raise Length to 3,000 — ten times as many columns — and run again. Watch what happens to that grouping's support.",
+            "math": "Signal scales with sites: the same tree under 10× the columns puts ~10× the expected substitutions on every branch, short ones included.",
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          },
+          {
+            "after": "longer_run",
+            "at_step": 7,
+            "concept": "Read the numbers carefully. When a grouping shows 87, it means 87 of 100 resampled datasets rebuilt it, not that it has an 87% chance of being true. Support measures how consistently the data points to a grouping. Low support means this dataset says little about that grouping, not that the grouping is wrong: here the weak grouping was real, and a longer alignment raised its support. Small differences between seeds or runs are noise; don't overinterpret them.",
+            "math": null,
+            "reveal": null,
+            "reveal_pair": null,
+            "type": "note"
+          }
+        ],
+        "reference": {
+          "kind": "true",
+          "newick": "((A:0.1,B:0.12):0.06,(C:0.1,D:0.11):0.06,((E:0.1,F:0.12):0.06,(G:0.1,H:0.11):0.06):0.005);"
+        },
+        "schema_version": 5,
+        "title": "Bootstrap: how sure is the tree?"
+      }
+    },
+    "id": "golden-bootstrap",
+    "id_prompt": {
+      "label": "Student ID",
+      "rule": "trim_lower"
+    },
+    "mode": "practice",
+    "tasks": [
+      {
+        "points": 1.0,
+        "task": {
+          "kind": "predict_branch"
+        }
+      }
+    ],
+    "title": "golden-bootstrap",
+    "variation": true
+  },
+  "ids": [
+    {
+      "id": "ada",
+      "normalised": "ada",
+      "seed": "3262946769685316",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "8bfd7a85393baa50",
+      "excerpt": {
+        "taxa": [
+          "D",
+          "H",
+          "A",
+          "G",
+          "B",
+          "C",
+          "E",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_branch"
+          },
+          "accepted": {
+            "kind": "branch",
+            "value": [
+              "B",
+              "C",
+              "E",
+              "F"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": " Ana.Lopez@Uni.edu ",
+      "normalised": "ana.lopez@uni.edu",
+      "seed": "7874267909400976",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "61731f767b3b5e28",
+      "excerpt": {
+        "taxa": [
+          "B",
+          "G",
+          "A",
+          "H",
+          "D",
+          "C",
+          "F",
+          "E"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_branch"
+          },
+          "accepted": {
+            "kind": "branch",
+            "value": [
+              "A",
+              "C",
+              "D",
+              "H"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "josé",
+      "normalised": "josé",
+      "seed": "2061752219399640",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "034c1b51173e6e7e",
+      "excerpt": {
+        "taxa": [
+          "G",
+          "A",
+          "E",
+          "H",
+          "C",
+          "B",
+          "D",
+          "F"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_branch"
+          },
+          "accepted": {
+            "kind": "branch",
+            "value": [
+              "B",
+              "C",
+              "E",
+              "H"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-42",
+      "normalised": "student-42",
+      "seed": "2993873924739728",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "41bcc81c7b2ce216",
+      "excerpt": {
+        "taxa": [
+          "D",
+          "A",
+          "E",
+          "F",
+          "C",
+          "H",
+          "B",
+          "G"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_branch"
+          },
+          "accepted": {
+            "kind": "branch",
+            "value": [
+              "B",
+              "C",
+              "G",
+              "H"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "normalised": "student-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "seed": "3146259699462850",
+      "retry": 0,
+      "fell_back": false,
+      "data_digest": "365206de5685797c",
+      "excerpt": {
+        "taxa": [
+          "A",
+          "F",
+          "E",
+          "B",
+          "D",
+          "C",
+          "G",
+          "H"
+        ]
+      },
+      "answers": [
+        {
+          "task": {
+            "kind": "predict_branch"
+          },
+          "accepted": {
+            "kind": "branch",
+            "value": [
+              "C",
+              "D",
+              "G",
+              "H"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,16 @@ import type { Mode } from "./Mode";
  * An assignment (spec §5.1): content, the id prompt, mode, whether
  * variation is on, and the graded tasks.
  */
-export type Assignment = { id: string, title: string, instructions?: string, content: Content, id_prompt: IdPrompt, mode: Mode, 
+export type Assignment = { id: string, title: string, instructions?: string, content: Content, 
+/**
+ * The [`content_hash`](crate::assess::hash::content_hash) recorded
+ * at authoring time when the content is a built-in reference
+ * (v1.5 spec §5.7): the code fingerprint covers this hash instead
+ * of the content itself, so a built-in file that changed since
+ * authoring flags `ContentChanged` in grading rather than
+ * `AssignmentMismatch`. `None` for embedded content.
+ */
+content_hash?: string, id_prompt: IdPrompt, mode: Mode, 
 /**
  * Variation on/off (spec §4): off serves every student the base
  * content — still seeded, so bootstrap tasks stay per-student.

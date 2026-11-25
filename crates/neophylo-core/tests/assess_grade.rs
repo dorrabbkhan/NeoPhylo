@@ -15,8 +15,8 @@ use neophylo_core::assess::{
 use neophylo_core::assess::{task_key, PairRole, Quantity};
 use neophylo_core::exercise::{load_exercise, Exercise};
 use neophylo_core::reading::load_reading_set;
-use neophylo_core::reading::{Closer, Question, Response};
 use neophylo_core::reading::Accepted;
+use neophylo_core::reading::{Closer, Question, Response};
 use neophylo_core::NeoError;
 
 fn exercises_dir() -> PathBuf {
@@ -61,7 +61,10 @@ fn reading_assignment(items: &[usize]) -> Assignment {
     let set = load_reading_set(&text).unwrap();
     assignment(
         Content::Reading(set),
-        items.iter().map(|&item| TaskRef::Reading { item }).collect(),
+        items
+            .iter()
+            .map(|&item| TaskRef::Reading { item })
+            .collect(),
     )
 }
 
@@ -86,13 +89,11 @@ fn response_for(q: &Question, acc: &Accepted) -> Option<Response> {
             },
         },
         Accepted::Clade(k) => Response::Node { clade: k.clone() },
-        Accepted::Point(l) => Response::Point {
-            letter: l.clone(),
-        },
+        Accepted::Point(l) => Response::Point { letter: l.clone() },
         Accepted::TipSet(k) | Accepted::AnyTipOf(k) => Response::Tips { tips: k.clone() },
         Accepted::Orders { .. } => return None,
         Accepted::Number(n) => Response::Number { value: *n },
-        Accepted::Pairwise(c) => Response::Pairwise { answer: c.clone() },
+        Accepted::Pairwise(c) => Response::Pairwise { answer: *c },
         Accepted::Statements(vals) => Response::Choices {
             indices: vals
                 .iter()
@@ -150,8 +151,7 @@ fn attempts(
         .iter()
         .enumerate()
         .map(|(i, first)| Attempt {
-            first: pack_answer(variant, &a.tasks[i].task, first)
-                .unwrap_or(PackedAnswer::Skipped),
+            first: pack_answer(variant, &a.tasks[i].task, first).unwrap_or(PackedAnswer::Skipped),
             last: lasts
                 .get(i)
                 .and_then(|l| l.as_ref())
@@ -230,10 +230,7 @@ fn first_final_and_weighted_rules() {
         &[Some(wrong0), Some(ok1.clone())],
     )
     .into_iter()
-    .map(|a| Attempt {
-        attempts: 2,
-        ..a
-    })
+    .map(|a| Attempt { attempts: 2, ..a })
     .collect::<Vec<_>>();
     let code = attempts_code(&a, &nid, v.retry, &at);
     let first = grade(&a, None, &code, Rule::First).unwrap();
@@ -246,7 +243,10 @@ fn first_final_and_weighted_rules() {
     assert_eq!(weighted.score, 1.5, "full first + half final");
     // TaskResult carries both submissions in app form.
     assert_eq!(weighted.tasks[0].first, Some(ok0));
-    assert!(matches!(weighted.tasks[1].last, Some(TaskAnswer::Number(_))));
+    assert!(matches!(
+        weighted.tasks[1].last,
+        Some(TaskAnswer::Number(_))
+    ));
 }
 
 #[test]
@@ -327,7 +327,11 @@ fn retry_mismatch_is_an_assignment_mismatch() {
     let a = exercise_assignment(exercise_tasks());
     let v = a.variant_for(STUDENT).unwrap();
     let answers: Vec<TaskAnswer> = a.tasks.iter().map(|t| correct(&v, &t.task)).collect();
-    let other_retry = if v.retry < 50 { v.retry + 1 } else { v.retry - 1 };
+    let other_retry = if v.retry < 50 {
+        v.retry + 1
+    } else {
+        v.retry - 1
+    };
     let nid = normalise_id(STUDENT, a.id_prompt.rule).unwrap();
     // A code that claims a different retry than the rebuilt variant
     // (the generator or a premise changed since it was issued).
@@ -419,10 +423,7 @@ fn pairwise_answers_pack_and_grade() {
     let ok = correct(&v, &a.tasks[0].task);
     let wrong = TaskAnswer::Reading(Response::Pairwise {
         answer: match &ok {
-            TaskAnswer::Reading(Response::Pairwise { answer }) => match answer {
-                Closer::B => Closer::C,
-                _ => Closer::B,
-            },
+            TaskAnswer::Reading(Response::Pairwise { answer: Closer::B }) => Closer::C,
             _ => Closer::B,
         },
     });

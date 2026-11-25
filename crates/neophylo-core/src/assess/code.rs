@@ -135,7 +135,10 @@ pub enum PackedAnswer {
     /// `closest_relative` in pairwise form: 0 = B, 1 = C, 2 = Equal.
     Pairwise(u8),
     /// `two_tier`: the packed first-tier answer plus the reason index.
-    TwoTier { first: Box<PackedAnswer>, reason: u8 },
+    TwoTier {
+        first: Box<PackedAnswer>,
+        reason: u8,
+    },
     /// A numeric task's answer, scaled and signed.
     Numeric(i32),
 }
@@ -333,9 +336,7 @@ pub fn encode_code(p: &CodePayload) -> Result<String, NeoError> {
         if i > 0 && i % 5 == 0 {
             text.push('-');
         }
-        let v = chunk
-            .iter()
-            .fold(0u8, |v, &b| (v << 1) | u8::from(b));
+        let v = chunk.iter().fold(0u8, |v, &b| (v << 1) | u8::from(b));
         text.push(B32[v as usize] as char);
     }
     Ok(text)
@@ -448,7 +449,10 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
     if crc16(payload) != want {
         return Err(bad_code("checksum"));
     }
-    let mut r = BitReader { data: payload, pos: 0 };
+    let mut r = BitReader {
+        data: payload,
+        pos: 0,
+    };
     let get = |r: &mut BitReader, n: usize| r.read(n).ok_or_else(|| bad_code("length"));
     let format = get(&mut r, 4)? as u8;
     if format != FORMAT_VERSION {
@@ -518,7 +522,10 @@ pub fn decode_code(text: &str) -> Result<CodePayload, NeoError> {
 fn read_answer(r: &mut BitReader, tag: u8) -> Result<PackedAnswer, NeoError> {
     let get = |r: &mut BitReader, n: usize| r.read(n).ok_or_else(|| bad_code("length"));
     let list = |m: u64| -> Vec<u8> {
-        (0..64).filter(|&i| m >> i & 1 == 1).map(|i| i as u8).collect()
+        (0..64)
+            .filter(|&i| m >> i & 1 == 1)
+            .map(|i| i as u8)
+            .collect()
     };
     Ok(match tag {
         0 => PackedAnswer::Skipped,
@@ -723,10 +730,13 @@ pub(crate) fn item_of<'v>(
     let Content::Reading(set) = &variant.content else {
         return Ok(None);
     };
-    let it = set.items.get(*item).ok_or_else(|| NeoError::InvalidAssignment {
-        field: "task".to_string(),
-        msg: format!("no reading item at index {item}"),
-    })?;
+    let it = set
+        .items
+        .get(*item)
+        .ok_or_else(|| NeoError::InvalidAssignment {
+            field: "task".to_string(),
+            msg: format!("no reading item at index {item}"),
+        })?;
     Ok(Some((set, it)))
 }
 
@@ -751,8 +761,12 @@ fn first_tree(set: &ReadingSet, item: &Item) -> Result<ItemTree, NeoError> {
         .trees
         .get(name)
         .ok_or_else(|| task_err(format!("item '{}' names unknown tree '{name}'", item.id)))?;
-    let tree = parse_newick(&rt.newick)
-        .map_err(|e| task_err(format!("item '{}' tree '{name}' does not parse: {e}", item.id)))?;
+    let tree = parse_newick(&rt.newick).map_err(|e| {
+        task_err(format!(
+            "item '{}' tree '{name}' does not parse: {e}",
+            item.id
+        ))
+    })?;
     Ok(ItemTree {
         tips: tree.leaf_labels().into_iter().collect(),
         points: rt.points.iter().map(|p| p.letter.clone()).collect(),
@@ -769,7 +783,9 @@ fn response_kinds(q: &Question) -> &'static [PackedKind] {
         }
         Question::Mrca { options: Some(_) } | Question::PlaceTaxon { .. } => &[Letter],
         Question::Mrca { options: None } | Question::SmallestClade => &[Tips],
-        Question::ClosestRelative { form: RelForm::Pairwise } => &[Pairwise],
+        Question::ClosestRelative {
+            form: RelForm::Pairwise,
+        } => &[Pairwise],
         Question::ClosestRelative { .. } => &[Tips],
         Question::CountClades => &[Number],
         Question::OrderNodes { .. } => &[Order],
@@ -821,7 +837,7 @@ pub(crate) fn answer_fits(task: &TaskRef, ta: &TaskAnswer, item: Option<&Item>) 
         (TaskRef::PredictBranch, TaskAnswer::Branch(..)) => true,
         (TaskRef::Numeric { .. }, TaskAnswer::Number(..)) => true,
         (TaskRef::Reading { .. }, TaskAnswer::Reading(r)) => {
-            item.map_or(true, |it| response_fits(&it.question, r))
+            item.is_none_or(|it| response_fits(&it.question, r))
         }
         _ => false,
     }
@@ -878,13 +894,13 @@ fn pack_response(q: &Question, r: &Response, table: &[String]) -> Result<PackedA
         Response::Number { value } if want.contains(&PackedKind::Number) => {
             Ok(PackedAnswer::Number(*value))
         }
-        Response::Pairwise { answer } if want.contains(&PackedKind::Pairwise) => Ok(
-            PackedAnswer::Pairwise(match answer {
+        Response::Pairwise { answer } if want.contains(&PackedKind::Pairwise) => {
+            Ok(PackedAnswer::Pairwise(match answer {
                 Closer::B => 0,
                 Closer::C => 1,
                 Closer::Equal => 2,
-            }),
-        ),
+            }))
+        }
         Response::TwoTier { first, reason } => {
             let Question::TwoTier { first: fq, .. } = q else {
                 return Err(bad());
@@ -931,9 +947,7 @@ fn unpack_response(
             if let Some(t0) = t0 {
                 for n in &tips {
                     if !t0.tips.contains(n) {
-                        return Err(bad_answer(format!(
-                            "'{n}' is not a tip of the item's tree"
-                        )));
+                        return Err(bad_answer(format!("'{n}' is not a tip of the item's tree")));
                     }
                 }
             }
@@ -967,9 +981,7 @@ fn unpack_response(
         PackedAnswer::TwoTier { first, reason } => {
             let inner_q = match q {
                 Some(Question::TwoTier { first: fq, .. }) => Some(&**fq),
-                Some(_) => {
-                    return Err(bad_answer("the packed answer does not fit the question"))
-                }
+                Some(_) => return Err(bad_answer("the packed answer does not fit the question")),
                 None => None,
             };
             Ok(Response::TwoTier {
@@ -998,7 +1010,9 @@ fn lehmer_rank(nodes: &[String], letters: &[String]) -> Result<u64, NeoError> {
     sorted_l.sort();
     sorted_n.sort();
     if sorted_l != sorted_n {
-        return Err(bad_answer("the order is not a permutation of the listed nodes"));
+        return Err(bad_answer(
+            "the order is not a permutation of the listed nodes",
+        ));
     }
     let mut remaining: Vec<&String> = nodes.iter().collect();
     let mut rank = 0u64;

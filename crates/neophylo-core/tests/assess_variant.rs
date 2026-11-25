@@ -570,8 +570,7 @@ fn derived_matrix_variant_serves_author_decimals() {
     let base = Content::Exercise(ex.clone());
     for k in 0..40 {
         let seed = variant_seed("asst-1", &format!("student-{k}"));
-        let v = make_variant(&base, &[], seed, true)
-            .unwrap_or_else(|e| panic!("student-{k}: {e}"));
+        let v = make_variant(&base, &[], seed, true).unwrap_or_else(|e| panic!("student-{k}: {e}"));
         let Content::Exercise(vex) = &v.content else {
             panic!("exercise")
         };

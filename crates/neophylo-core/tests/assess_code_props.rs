@@ -16,9 +16,9 @@ use neophylo_core::assess::{
 };
 use neophylo_core::assess::{PairRole, Quantity};
 use neophylo_core::exercise::{load_exercise, Exercise};
+use neophylo_core::newick::parse_newick;
 use neophylo_core::reading::load_reading_set;
 use neophylo_core::reading::{Item, Question, ReadingSet, RelForm, Response, TraitAsk};
-use neophylo_core::newick::parse_newick;
 
 const LESSON_FILES: [&str; 8] = [
     "bootstrap-basics",
@@ -54,8 +54,8 @@ fn lesson(id: &str) -> Exercise {
 }
 
 fn reading(file: &str) -> ReadingSet {
-    let text = fs::read_to_string(exercises_dir().join("reading").join(format!("{file}.json")))
-        .unwrap();
+    let text =
+        fs::read_to_string(exercises_dir().join("reading").join(format!("{file}.json"))).unwrap();
     load_reading_set(&text).unwrap()
 }
 
@@ -70,27 +70,23 @@ fn arb_packed() -> impl Strategy<Value = PackedAnswer> {
         (i32::MIN + 1..=i32::MAX).prop_map(PackedAnswer::Numeric),
     ];
     prop_oneof![
-        (any::<u16>(), any::<u16>())
-            .prop_map(|(a, b)| PackedAnswer::Pair(a.min(b), a.max(b))),
-        prop::collection::vec(0u8..64, 0..10)
-            .prop_map(|mut v| {
-                v.sort_unstable();
-                v.dedup();
-                PackedAnswer::Tips(v)
-            }),
+        (any::<u16>(), any::<u16>()).prop_map(|(a, b)| PackedAnswer::Pair(a.min(b), a.max(b))),
+        prop::collection::vec(0u8..64, 0..10).prop_map(|mut v| {
+            v.sort_unstable();
+            v.dedup();
+            PackedAnswer::Tips(v)
+        }),
         any::<u64>().prop_map(PackedAnswer::Order),
         small.clone(),
-        prop::collection::vec(0u8..64, 0..10)
-            .prop_map(|mut v| {
-                v.sort_unstable();
-                v.dedup();
-                PackedAnswer::Choices(v)
-            }),
-        (small, any::<u8>())
-            .prop_map(|(first, reason)| PackedAnswer::TwoTier {
-                first: Box::new(first),
-                reason,
-            }),
+        prop::collection::vec(0u8..64, 0..10).prop_map(|mut v| {
+            v.sort_unstable();
+            v.dedup();
+            PackedAnswer::Choices(v)
+        }),
+        (small, any::<u8>()).prop_map(|(first, reason)| PackedAnswer::TwoTier {
+            first: Box::new(first),
+            reason,
+        }),
     ]
 }
 
@@ -195,7 +191,9 @@ fn canonical_responses(set: &ReadingSet, item: &Item) -> Vec<Response> {
         Question::Mrca { options: None } | Question::SmallestClade => pick(2)
             .into_iter()
             .map(|r| {
-                let Response::Tips { tips } = r else { unreachable!() };
+                let Response::Tips { tips } = r else {
+                    unreachable!()
+                };
                 Response::Node { clade: tips }
             })
             .collect(),
@@ -217,10 +215,7 @@ fn canonical_responses(set: &ReadingSet, item: &Item) -> Vec<Response> {
                 answer: neophylo_core::reading::Closer::Equal,
             },
         ],
-        Question::ClosestRelative { .. } => pick(1)
-            .into_iter()
-            .chain(pick(3))
-            .collect(),
+        Question::ClosestRelative { .. } => pick(1).into_iter().chain(pick(3)).collect(),
         Question::CountClades => vec![Response::Number { value: 0 }, Response::Number { value: 5 }],
         Question::OrderNodes { nodes } => {
             let mut rev = nodes.clone();
@@ -240,9 +235,7 @@ fn canonical_responses(set: &ReadingSet, item: &Item) -> Vec<Response> {
             TraitAsk::HowManyChanges { .. } => vec![Response::Number { value: 1 }],
             TraitAsk::Profile { .. } => vec![Response::Choices { indices: vec![0] }],
         },
-        Question::TwoTier {
-            first, reasons, ..
-        } => {
+        Question::TwoTier { first, reasons, .. } => {
             let inner_item = Item {
                 question: (**first).clone(),
                 ..item.clone()
@@ -284,9 +277,7 @@ fn canon(r: &Response) -> Response {
                 v
             },
         },
-        Response::Tips { tips } => Response::Tips {
-            tips: sorted(tips),
-        },
+        Response::Tips { tips } => Response::Tips { tips: sorted(tips) },
         Response::Node { clade } => Response::Node {
             clade: sorted(clade),
         },
@@ -359,8 +350,8 @@ fn unpack_of_pack_is_the_answer_on_exercise_tasks() {
             ),
         ];
         for (task, a) in answers {
-            let packed = pack_answer(&v, &task, &a)
-                .unwrap_or_else(|e| panic!("{id} pack {a:?}: {e}"));
+            let packed =
+                pack_answer(&v, &task, &a).unwrap_or_else(|e| panic!("{id} pack {a:?}: {e}"));
             assert_eq!(
                 unpack_answer(&v, &task, &packed).unwrap(),
                 a,
@@ -385,13 +376,12 @@ fn a_code_of_packed_answers_decodes_back() {
     let mut attempts = Vec::new();
     for (i, item) in set.items.iter().enumerate().take(10) {
         let task = TaskRef::Reading { item: i };
-        for r in canonical_responses(&set, item).into_iter().take(1) {
+        if let Some(r) = canonical_responses(&set, item).into_iter().next() {
             attempts.push(Attempt {
                 first: pack_answer(&v, &task, &TaskAnswer::Reading(r)).unwrap(),
                 last: None,
                 attempts: 2,
             });
-            break;
         }
     }
     let p = CodePayload {
@@ -453,7 +443,7 @@ fn encoded_payloads_stay_under_the_bound() {
             tasks
                 .iter()
                 .map(|task| GradedTask {
-                    task: task.clone(),
+                    task: *task,
                     points: 1.0,
                 })
                 .collect(),
