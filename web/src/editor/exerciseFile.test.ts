@@ -33,7 +33,13 @@ const validate = new Ajv2020({ allErrors: true }).compile(schema);
 
 const exerciseFiles = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+    // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+    .filter(
+      (f) =>
+        f.endsWith(".json") &&
+        !f.endsWith("schema.json") &&
+        f !== "content-hashes.json",
+    )
     .sort();
 
 const exercisePaths = () => [

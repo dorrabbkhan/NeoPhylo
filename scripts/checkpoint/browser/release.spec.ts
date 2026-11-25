@@ -56,7 +56,13 @@ const LABS = readdirSync(`${REPO}exercises/labs`)
   .map((f) => readJson<LabFile>(`exercises/labs/${f}`).lab);
 
 const LESSONS = readdirSync(`${REPO}exercises`)
-  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+  // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+  .filter(
+    (f) =>
+      f.endsWith(".json") &&
+      !f.endsWith("schema.json") &&
+      f !== "content-hashes.json",
+  )
   .map((f) => f.replace(/\.json$/, ""));
 
 // The reading-set registries, read from the repo like the lesson list

@@ -8,8 +8,10 @@ pub mod assignment;
 pub mod code;
 pub mod grade;
 pub mod hash;
+pub mod load;
 pub mod precision;
 pub mod premise;
+pub mod prose;
 pub mod task;
 pub mod variant;
 
@@ -21,7 +23,9 @@ pub use code::{
 };
 pub use grade::{grade, Flag, GradeResult, Rule, TaskResult};
 pub use hash::{content_hash, fnv1a64, normalise_id, retry_seed, variant_seed, IdRule};
+pub use load::load_assignment;
 pub use precision::{decimals, scaled, scaled_quantity, PRECISION};
 pub use premise::{premises_hold, Premise};
+pub use prose::prose_names_taxa;
 pub use task::{check_task, task_key, AcceptedAnswer, PairRole, Quantity, TaskAnswer, TaskRef};
 pub use variant::{make_variant, MAX_RETRIES};

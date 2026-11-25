@@ -21,7 +21,13 @@ const EXERCISES = resolve("..", "exercises");
 
 const lessonFiles = () =>
   readdirSync(EXERCISES)
-    .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+    // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+    .filter(
+      (f) =>
+        f.endsWith(".json") &&
+        !f.endsWith("schema.json") &&
+        f !== "content-hashes.json",
+    )
     .sort();
 
 const load = (file: string): Exercise => {

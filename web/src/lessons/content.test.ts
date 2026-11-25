@@ -35,6 +35,8 @@ interface LessonText {
 // exercises/*.json is checked unless it is named here.
 const EXEMPT = new Set([
   "bootstrap-basics",
+  // Engine metadata, not a lesson (v1.5 Task 6).
+  "content-hashes",
   "cytochrome-c",
   "nj-basics",
   "protein-models",

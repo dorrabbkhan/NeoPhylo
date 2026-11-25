@@ -18,6 +18,10 @@ use wasm_bindgen::prelude::*;
 
 use neophylo_core::algos::{BuildOptions, Method};
 use neophylo_core::alphabet::Alphabet;
+use neophylo_core::assess::{
+    AcceptedAnswer, Assignment, Attempt, CodePayload, GradeResult, PackedAnswer, Quantity, Rule,
+    TaskAnswer, TaskRef, Variant, FORMAT_VERSION, GENERATOR_VERSION, PRECISION,
+};
 use neophylo_core::bootstrap::{BootstrapTally, ConsensusKind, DroppedGroup, ReplicateDetail};
 use neophylo_core::dist::{DistModel, DistanceMatrix};
 use neophylo_core::error::NeoError;
@@ -100,14 +104,14 @@ pub fn init_panic_hook() {
 
 /// Parse FASTA text into an `Alignment` (spec §4.1).
 #[wasm_bindgen]
-pub fn parse_fasta(text: &str) -> JsValue {
-    to_js(neophylo_core::parse_fasta(text))
+pub fn parse_fasta(text: JsValue) -> JsValue {
+    to_js(arg::<String>(text, "text").and_then(|t| neophylo_core::parse_fasta(&t)))
 }
 
 /// Parse Newick text into a `Tree` (spec §4.4).
 #[wasm_bindgen]
-pub fn parse_newick(text: &str) -> JsValue {
-    to_js(neophylo_core::parse_newick(text))
+pub fn parse_newick(text: JsValue) -> JsValue {
+    to_js(arg::<String>(text, "text").and_then(|t| neophylo_core::parse_newick(&t)))
 }
 
 /// Serialize a `Tree` back to Newick (spec §4.4).
@@ -129,8 +133,10 @@ pub fn write_newick_with_support(tree: JsValue) -> JsValue {
 /// ape/FigTree/iTOL mishandle quoted labels). `support` selects
 /// integer-percent internal labels.
 #[wasm_bindgen]
-pub fn write_newick_compatible(tree: JsValue, support: bool) -> JsValue {
-    to_js(arg::<Tree>(tree, "tree").map(|t| neophylo_core::write_newick_compatible(&t, support)))
+pub fn write_newick_compatible(tree: JsValue, support: JsValue) -> JsValue {
+    to_js(arg::<Tree>(tree, "tree").and_then(|t| {
+        arg::<bool>(support, "support").map(|s| neophylo_core::write_newick_compatible(&t, s))
+    }))
 }
 
 /// The `(original, exported)` renames a compatible Newick write
@@ -181,8 +187,8 @@ pub fn site_mask(aln: JsValue, filter: JsValue) -> JsValue {
 /// Parse `.meg` text into the alignment plus title and notices
 /// (v1.4b spec §3.4). Distance-matrix files are refused.
 #[wasm_bindgen]
-pub fn parse_meg(text: &str) -> JsValue {
-    to_js(neophylo_core::parse_meg(text))
+pub fn parse_meg(text: JsValue) -> JsValue {
+    to_js(arg::<String>(text, "text").and_then(|t| neophylo_core::parse_meg(&t)))
 }
 
 /// Serialize an `Alignment` as `.meg` text (v1.4b spec §3.4).
@@ -224,8 +230,8 @@ pub fn simulate(tree: JsValue, spec: JsValue) -> JsValue {
 
 /// Parse and validate a lesson JSON file (plan gap 3, v1.1 spec §3.6).
 #[wasm_bindgen]
-pub fn load_exercise(json: &str) -> JsValue {
-    to_js::<Exercise>(neophylo_core::load_exercise(json))
+pub fn load_exercise(json: JsValue) -> JsValue {
+    to_js::<Exercise>(arg::<String>(json, "json").and_then(|j| neophylo_core::load_exercise(&j)))
 }
 
 /// The `parse_phylip` result: the alignment plus the name mode Auto
@@ -240,11 +246,15 @@ pub struct PhylipParseResult {
 /// Parse PHYLIP text (sequential or interleaved) into an `Alignment`
 /// (v1.1 spec §3.2).
 #[wasm_bindgen]
-pub fn parse_phylip(text: &str, names: JsValue) -> JsValue {
-    to_js(arg::<NameMode>(names, "names").and_then(|names| {
-        neophylo_core::parse_phylip(text, names).map(|(alignment, names_used)| PhylipParseResult {
-            alignment,
-            names_used,
+pub fn parse_phylip(text: JsValue, names: JsValue) -> JsValue {
+    to_js(arg::<String>(text, "text").and_then(|t| {
+        arg::<NameMode>(names, "names").and_then(|names| {
+            neophylo_core::parse_phylip(&t, names).map(|(alignment, names_used)| {
+                PhylipParseResult {
+                    alignment,
+                    names_used,
+                }
+            })
         })
     }))
 }
@@ -597,33 +607,37 @@ pub fn validate_matrix(input: JsValue) -> JsValue {
 /// Which matrix file format the text looks like (`"Phylip"`/`"Meg"`),
 /// or null.
 #[wasm_bindgen]
-pub fn detect_matrix_format(text: &str) -> JsValue {
-    to_js::<Option<MatrixFormat>>(Ok(neophylo_core::detect_matrix_format(text)))
+pub fn detect_matrix_format(text: JsValue) -> JsValue {
+    to_js::<Option<MatrixFormat>>(
+        arg::<String>(text, "text").map(|t| neophylo_core::detect_matrix_format(&t)),
+    )
 }
 
 /// Parse a PHYLIP distance file (`neighbor` layout); `opts` carries the
 /// name mode and the asymmetric-triangle choice.
 #[wasm_bindgen]
-pub fn parse_phylip_matrix(text: &str, opts: JsValue) -> JsValue {
-    to_js::<MatrixFile>(
+pub fn parse_phylip_matrix(text: JsValue, opts: JsValue) -> JsValue {
+    to_js::<MatrixFile>(arg::<String>(text, "text").and_then(|t| {
         arg::<PhylipMatrixOptions>(opts, "opts")
-            .and_then(|o| neophylo_core::parse_phylip_matrix(text, o)),
-    )
+            .and_then(|o| neophylo_core::parse_phylip_matrix(&t, o))
+    }))
 }
 
 /// Parse a `.meg` distance file (MEGA's `!Format DataType=Distance`).
 #[wasm_bindgen]
-pub fn parse_meg_matrix(text: &str) -> JsValue {
-    to_js::<MatrixFile>(neophylo_core::parse_meg_matrix(text))
+pub fn parse_meg_matrix(text: JsValue) -> JsValue {
+    to_js::<MatrixFile>(
+        arg::<String>(text, "text").and_then(|t| neophylo_core::parse_meg_matrix(&t)),
+    )
 }
 
 /// Parse a pasted table; `PasteOptions` fields left unset are asked as
 /// `MatrixAmbiguous` instead of guessed.
 #[wasm_bindgen]
-pub fn parse_pasted_matrix(text: &str, opts: JsValue) -> JsValue {
-    to_js::<MatrixFile>(
-        arg::<PasteOptions>(opts, "opts").and_then(|o| neophylo_core::parse_pasted_matrix(text, o)),
-    )
+pub fn parse_pasted_matrix(text: JsValue, opts: JsValue) -> JsValue {
+    to_js::<MatrixFile>(arg::<String>(text, "text").and_then(|t| {
+        arg::<PasteOptions>(opts, "opts").and_then(|o| neophylo_core::parse_pasted_matrix(&t, o))
+    }))
 }
 
 /// Serialize a supplied matrix as `.meg` distance text (lower-left).
@@ -663,8 +677,10 @@ pub fn worksheet_facts(matrix: JsValue, method: JsValue) -> JsValue {
 /// Parse and validate a reading-set JSON file (`kind: "reading"`).
 /// Every refusal is `InvalidReading` naming the item and the field.
 #[wasm_bindgen]
-pub fn load_reading_set(json: &str) -> JsValue {
-    to_js::<ReadingSet>(neophylo_core::reading::load_reading_set(json))
+pub fn load_reading_set(json: JsValue) -> JsValue {
+    to_js::<ReadingSet>(
+        arg::<String>(json, "json").and_then(|j| neophylo_core::reading::load_reading_set(&j)),
+    )
 }
 
 /// The engine answer key of the set's item `item` (spec §5.3).
@@ -719,16 +735,18 @@ pub fn reading_variant(set: JsValue, seed: JsValue, ops: JsValue) -> JsValue {
 /// an editor tap to the stable node identifier (spec §4.2). A tip set
 /// no node spans is `InvalidReading` with `field` "tips".
 #[wasm_bindgen]
-pub fn reading_clade_of(newick: &str, tips: JsValue) -> JsValue {
-    to_js::<CladeKey>(neophylo_core::parse_newick(newick).and_then(|t| {
-        arg::<Vec<String>>(tips, "tips").and_then(|tips| {
-            neophylo_core::reading::find_clade(&t, &tips)
-                .map(|n| neophylo_core::reading::clade_key(&t, n))
-                .ok_or_else(|| NeoError::InvalidReading {
-                    item: String::new(),
-                    field: "tips".to_string(),
-                    msg: format!("no node has exactly the tips {{{}}}", tips.join(", ")),
-                })
+pub fn reading_clade_of(newick: JsValue, tips: JsValue) -> JsValue {
+    to_js::<CladeKey>(arg::<String>(newick, "newick").and_then(|nw| {
+        neophylo_core::parse_newick(&nw).and_then(|t| {
+            arg::<Vec<String>>(tips, "tips").and_then(|tips| {
+                neophylo_core::reading::find_clade(&t, &tips)
+                    .map(|n| neophylo_core::reading::clade_key(&t, n))
+                    .ok_or_else(|| NeoError::InvalidReading {
+                        item: String::new(),
+                        field: "tips".to_string(),
+                        msg: format!("no node has exactly the tips {{{}}}", tips.join(", ")),
+                    })
+            })
         })
     }))
 }
@@ -873,4 +891,219 @@ fn tree_view(set: &ReadingSet, name: &str) -> Result<ReadingTreeView, NeoError> 
         times,
         unit,
     })
+}
+
+// --- v1.5 assess exports (v1.5 spec §4–§5, plan Task 6) ----------------
+//
+// Type conversion only — parsing, validation, variant seeding, task
+// scoring, code packing and grading all live in `neophylo_core::assess`.
+// Bindings that take an `assignment_json` expect the resolved file
+// shape: a `builtin` reference carries the `file` text its resolver
+// injected, so `served_content_hash` is set on every load and grading
+// can flag `ContentChanged` for a stale recorded `content_hash`.
+
+/// Parse and validate an assignment file (`kind: "assignment"`).
+/// Every refusal is `InvalidAssignment` naming the field.
+///
+/// The parameter is `JsValue` like every other v1.5 export: the web
+/// wrappers call the raw wasm export straight off `init()`'s return,
+/// so no per-binding marshal glue reaches the initial bundle (§8.2).
+#[wasm_bindgen]
+pub fn load_assignment(json: JsValue) -> JsValue {
+    to_js::<Assignment>(
+        arg::<String>(json, "json").and_then(|j| neophylo_core::assess::load_assignment(&j)),
+    )
+}
+
+/// The variant `student_id` works (spec §5.2): the resolved
+/// assignment file is loaded, then seeded per the id prompt's rule.
+#[wasm_bindgen]
+pub fn make_variant(assignment_json: JsValue, student_id: JsValue) -> JsValue {
+    to_js::<Variant>(
+        arg::<String>(assignment_json, "assignment_json").and_then(|j| {
+            arg::<String>(student_id, "student_id").and_then(|id| {
+                neophylo_core::assess::load_assignment(&j).and_then(|a| a.variant_for(&id))
+            })
+        }),
+    )
+}
+
+/// The accepted answer of `task` on `variant` (spec §5.3) —
+/// `InvalidAssignment` when the task cannot apply to the content.
+#[wasm_bindgen]
+pub fn task_key(variant: JsValue, task: JsValue) -> JsValue {
+    to_js::<AcceptedAnswer>(arg::<Variant>(variant, "variant").and_then(|v| {
+        arg::<TaskRef>(task, "task").and_then(|t| neophylo_core::assess::task_key(&v, &t))
+    }))
+}
+
+/// Check a student's `TaskAnswer` against the engine key (spec §5.3).
+#[wasm_bindgen]
+pub fn check_task(variant: JsValue, task: JsValue, answer: JsValue) -> JsValue {
+    to_js::<bool>(arg::<Variant>(variant, "variant").and_then(|v| {
+        arg::<TaskRef>(task, "task").and_then(|t| {
+            arg::<TaskAnswer>(answer, "answer")
+                .and_then(|a| neophylo_core::assess::check_task(&v, &t, &a))
+        })
+    }))
+}
+
+/// One graded task's Finish record: `first`/`last` are `TaskAnswer`s —
+/// `null` `first` is a skipped task, `null` `last` means the last
+/// submission did not differ — and `attempts` is the submit count
+/// (the code's 4-bit field clamps it to 15).
+#[derive(Debug, Clone, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
+pub struct EncodeAttempt {
+    pub first: Option<TaskAnswer>,
+    pub last: Option<TaskAnswer>,
+    pub attempts: u8,
+}
+
+/// The `NP1-…` completion code a student's Finish produces (spec
+/// §5.4): packs every `TaskAnswer` against `variant`'s name table,
+/// normalises `student_id` under the assignment's rule and stamps
+/// the fingerprint, retry and finish time — packing never happens in
+/// TypeScript.
+#[wasm_bindgen]
+pub fn encode_code(
+    assignment_json: JsValue,
+    variant: JsValue,
+    student_id: JsValue,
+    attempts: JsValue,
+    finished_min: u32,
+) -> JsValue {
+    to_js::<String>(
+        arg::<String>(assignment_json, "assignment_json").and_then(|j| {
+            arg::<String>(student_id, "student_id").and_then(|id| {
+                neophylo_core::assess::load_assignment(&j).and_then(|a| {
+                    arg::<Variant>(variant, "variant").and_then(|v| {
+                        arg::<Vec<EncodeAttempt>>(attempts, "attempts")
+                            .and_then(|ats| finish_code(&a, &v, &id, &ats, finished_min))
+                    })
+                })
+            })
+        }),
+    )
+}
+
+/// Assemble the `CodePayload` and encode — one entry per graded
+/// task, in the assignment's order.
+fn finish_code(
+    a: &Assignment,
+    v: &Variant,
+    student_id: &str,
+    attempts: &[EncodeAttempt],
+    finished_min: u32,
+) -> Result<String, NeoError> {
+    if attempts.len() != a.tasks.len() {
+        return Err(NeoError::InvalidAssignment {
+            field: "attempts".to_string(),
+            msg: format!(
+                "must carry one entry per graded task — {} expected, {} given",
+                a.tasks.len(),
+                attempts.len()
+            ),
+        });
+    }
+    let mut packed = Vec::with_capacity(attempts.len());
+    for (at, gt) in attempts.iter().zip(&a.tasks) {
+        let first = match &at.first {
+            Some(t) => neophylo_core::assess::pack_answer(v, &gt.task, t)?,
+            None => PackedAnswer::Skipped,
+        };
+        let last = at
+            .last
+            .as_ref()
+            .map(|t| neophylo_core::assess::pack_answer(v, &gt.task, t))
+            .transpose()?;
+        packed.push(Attempt {
+            first,
+            last,
+            attempts: at.attempts,
+        });
+    }
+    let names = u8::try_from(neophylo_core::assess::name_table(v)?.len()).map_err(|_| {
+        NeoError::InvalidAssignment {
+            field: "attempts".to_string(),
+            msg: "the variant's name table is past the code's cap".to_string(),
+        }
+    })?;
+    neophylo_core::assess::encode_code(&CodePayload {
+        format: FORMAT_VERSION,
+        generator: GENERATOR_VERSION,
+        fingerprint: neophylo_core::assess::fingerprint(a),
+        student_id: neophylo_core::assess::normalise_id(student_id, a.id_prompt.rule)?,
+        retry: v.retry,
+        names,
+        attempts: packed,
+        finished_min,
+    })
+}
+
+/// Decode a completion code — `InvalidCode` names the refusal
+/// (`"prefix"`, `"version"`, `"length"`, `"malformed"`, `"checksum"`).
+#[wasm_bindgen]
+pub fn decode_code(text: JsValue) -> JsValue {
+    to_js::<CodePayload>(
+        arg::<String>(text, "text").and_then(|t| neophylo_core::assess::decode_code(&t)),
+    )
+}
+
+/// Grade a code against a resolved assignment file (spec §5.5):
+/// rebuilds the variant from the id inside the code and flags
+/// `ContentChanged` when the recorded `content_hash` is stale.
+/// `lms_id` is the roster id or `null`; `rule` is `{"kind": "first" |
+/// "final" | "weighted", ...}`.
+#[wasm_bindgen]
+pub fn grade(assignment_json: JsValue, lms_id: JsValue, code: JsValue, rule: JsValue) -> JsValue {
+    to_js::<GradeResult>(
+        arg::<String>(assignment_json, "assignment_json").and_then(|j| {
+            arg::<String>(code, "code").and_then(|c| {
+                neophylo_core::assess::load_assignment(&j).and_then(|a| {
+                    arg::<Option<String>>(lms_id, "lms_id").and_then(|lms| {
+                        arg::<Rule>(rule, "rule")
+                            .and_then(|r| neophylo_core::assess::grade(&a, lms.as_deref(), &c, r))
+                    })
+                })
+            })
+        }),
+    )
+}
+
+/// The completion code's worst-case length for this assignment
+/// (spec §5.4) — the builder refuses anything past 250 chars.
+#[wasm_bindgen]
+pub fn max_code_len(assignment_json: JsValue) -> JsValue {
+    to_js::<usize>(
+        arg::<String>(assignment_json, "assignment_json")
+            .and_then(|j| neophylo_core::assess::load_assignment(&j))
+            .map(|a| neophylo_core::assess::max_code_len(&a)),
+    )
+}
+
+/// The engine's display-precision table (spec §5.3):
+/// `[quantity, decimals]` pairs the web formatters agree with.
+#[wasm_bindgen]
+pub fn precision() -> JsValue {
+    to_js::<Vec<(Quantity, u8)>>(Ok(PRECISION.to_vec()))
+}
+
+/// Per prompt index, the taxon names the exercise's student-facing
+/// text mentions (owner decision 2026-11-25) — the assignment
+/// builder's "names vary per student" warning source.
+#[wasm_bindgen]
+pub fn prose_names_taxa(exercise: JsValue) -> JsValue {
+    to_js::<Vec<(u32, Vec<String>)>>(
+        arg::<Exercise>(exercise, "exercise").map(|e| neophylo_core::assess::prose_names_taxa(&e)),
+    )
+}
+
+/// The `fnv1a64` content hash of a file's exact bytes (spec §5.7) —
+/// what a `builtin` reference records as `content_hash`.
+#[wasm_bindgen]
+pub fn content_hash(text: JsValue) -> JsValue {
+    to_js::<String>(
+        arg::<String>(text, "text").map(|t| neophylo_core::assess::content_hash(t.as_bytes())),
+    )
 }

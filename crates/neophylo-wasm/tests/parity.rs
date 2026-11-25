@@ -95,7 +95,8 @@ fn golden_hashes_match_native() {
             ("K80", Some(kappa)) => SimModel::K80 { kappa },
             (m, k) => panic!("bad golden case model {m} kappa {k:?}"),
         };
-        let tree: neophylo_core::tree::Tree = ok_value(neophylo_wasm::parse_newick(&case.tree));
+        let tree: neophylo_core::tree::Tree =
+            ok_value(neophylo_wasm::parse_newick(to_js(&case.tree)));
         let spec = SimSpec {
             model,
             length: case.length,
@@ -161,7 +162,7 @@ fn corpus_subset() {
     ];
     for (fixture_json, fasta) in pairs {
         let fx: RefFixture = serde_json::from_str(fixture_json).unwrap();
-        let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(fasta));
+        let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(to_js(&fasta)));
         let aln_js = to_js(&aln);
         for (model, want) in &fx.distances {
             let tag = format!("{}/{model}", fx.name);
@@ -185,7 +186,7 @@ fn corpus_subset() {
 /// `undefined`, matching the generated `string | null` type.
 #[wasm_bindgen_test]
 fn none_serializes_as_null() {
-    let res = neophylo_wasm::parse_newick("(a:1,b:1);");
+    let res = neophylo_wasm::parse_newick(to_js(&"(a:1,b:1);"));
     let value = js_sys::Reflect::get(&res, &JsValue::from_str("value")).unwrap();
     let nodes = js_sys::Reflect::get(&value, &JsValue::from_str("nodes")).unwrap();
     let n_nodes = js_sys::Reflect::get(&nodes, &JsValue::from_str("length"))
@@ -232,7 +233,7 @@ struct PhylipValue {
 #[wasm_bindgen_test]
 fn parse_phylip_reports_names_used() {
     let v: PhylipValue = ok_value(neophylo_wasm::parse_phylip(
-        PHYLIP_DOC,
+        to_js(&PHYLIP_DOC),
         to_js(&NameMode::Auto),
     ));
     assert_eq!(v.names_used, NameMode::Relaxed);
@@ -241,9 +242,9 @@ fn parse_phylip_reports_names_used() {
 
 #[wasm_bindgen_test]
 fn jtt_pair_detail_crosses() {
-    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(
-        ">a\nARNDCQEGHILK\n>b\nARNECQEGHILK\n",
-    ));
+    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(to_js(
+        &">a\nARNDCQEGHILK\n>b\nARNECQEGHILK\n",
+    )));
     let res = neophylo_wasm::jtt_pair_detail(to_js(&aln), 0, 1);
     // `d_hat` arrives as `number | null`, never `undefined`.
     let value = js_sys::Reflect::get(&res, &JsValue::from_str("value")).unwrap();
@@ -262,7 +263,7 @@ fn jtt_pair_detail_crosses() {
 
 #[wasm_bindgen_test]
 fn errors_are_values() {
-    let res: WasmResult<Alignment> = unpack(neophylo_wasm::parse_fasta("x"));
+    let res: WasmResult<Alignment> = unpack(neophylo_wasm::parse_fasta(to_js(&"x")));
     assert!(!res.ok, "expected ok:false for unparseable FASTA");
     let err = res.error.expect("ok:false must carry an error");
     match err {
@@ -291,9 +292,9 @@ struct TallyFixture {
 fn tally_fixture() -> (TallyFixture, Alignment) {
     let fx: TallyFixture =
         serde_json::from_str(include_str!("data/bootstrap_tally_jc6.json")).unwrap();
-    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(include_str!(
+    let aln: Alignment = ok_value(neophylo_wasm::parse_fasta(to_js(&include_str!(
         "../../../fixtures/inputs/jc6.fasta"
-    )));
+    ))));
     (fx, aln)
 }
 
@@ -458,9 +459,9 @@ fn bootstrap_exports_smoke() {
     );
 
     // reference_outgroup: smaller root-child subtree; (a,b) < (c,d,e).
-    let reference: Tree = ok_value(neophylo_wasm::parse_newick(
-        "((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
-    ));
+    let reference: Tree = ok_value(neophylo_wasm::parse_newick(to_js(
+        &"((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
+    )));
     let og: Vec<String> = ok_value(neophylo_wasm::reference_outgroup(to_js(&reference)));
     assert_eq!(og, vec!["a".to_string(), "b".to_string()]);
 
@@ -498,7 +499,7 @@ fn node_id(v: u32) -> JsValue {
 /// `InvalidExercise`, never a throw.
 #[wasm_bindgen_test]
 fn edit_exports_smoke() {
-    let tree: Tree = ok_value(neophylo_wasm::parse_newick("(a:0.1,b:0.2,c:0.3);"));
+    let tree: Tree = ok_value(neophylo_wasm::parse_newick(to_js(&"(a:0.1,b:0.2,c:0.3);")));
     let tree_js = to_js(&tree);
     let a = leaf_id(&tree, "a");
 
@@ -572,7 +573,9 @@ fn edit_exports_smoke() {
 
     // move_subtree: move leaf `a` onto the edge above `b` on a tree
     // where `a` hangs deeper than the target edge.
-    let tree2: Tree = ok_value(neophylo_wasm::parse_newick("(a:0.4,(b:0.2,c:0.3):0.4);"));
+    let tree2: Tree = ok_value(neophylo_wasm::parse_newick(to_js(
+        &"(a:0.4,(b:0.2,c:0.3):0.4);",
+    )));
     let (a2, b2) = (leaf_id(&tree2, "a"), leaf_id(&tree2, "b"));
     let moved: Tree = ok_value(neophylo_wasm::edit_move_subtree(
         to_js(&tree2),
@@ -641,9 +644,9 @@ fn matrix_and_worksheet_exports_parity() {
     }
 
     // detect_matrix_format: same answer on both sides.
-    let fmt: Option<MatrixFormat> = ok_value(neophylo_wasm::detect_matrix_format(
-        "3\na 0 1\nb 1 0\nc 2 3 0\n",
-    ));
+    let fmt: Option<MatrixFormat> = ok_value(neophylo_wasm::detect_matrix_format(to_js(
+        &"3\na 0 1\nb 1 0\nc 2 3 0\n",
+    )));
     assert_eq!(
         fmt,
         neophylo_core::detect_matrix_format("3\na 0 1\nb 1 0\nc 2 3 0\n")
@@ -651,7 +654,7 @@ fn matrix_and_worksheet_exports_parity() {
     assert_eq!(fmt, Some(MatrixFormat::Phylip));
     // An unrecognized text is `Ok(None)` — the value crosses as null.
     let none_res: WasmResult<MatrixFormat> =
-        unpack(neophylo_wasm::detect_matrix_format("not a matrix"));
+        unpack(neophylo_wasm::detect_matrix_format(to_js(&"not a matrix")));
     assert!(
         none_res.ok && none_res.value.is_none() && none_res.error.is_none(),
         "unrecognized text must be ok:true with a null value"
@@ -663,13 +666,16 @@ fn matrix_and_worksheet_exports_parity() {
         names: NameMode::Auto,
         use_lower_if_asymmetric: false,
     };
-    let pf_js: MatrixFile = ok_value(neophylo_wasm::parse_phylip_matrix(phy, to_js(&opts)));
+    let pf_js: MatrixFile = ok_value(neophylo_wasm::parse_phylip_matrix(
+        to_js(&phy),
+        to_js(&opts),
+    ));
     let pf_native = neophylo_core::parse_phylip_matrix(phy, opts).unwrap();
     assert_eq!(json(&pf_js), json(&pf_native));
 
     // parse_meg_matrix on the committed .meg fixture.
     let meg = include_str!("../../../fixtures/inputs/matrix/wiki5_square.meg");
-    let mf_js: MatrixFile = ok_value(neophylo_wasm::parse_meg_matrix(meg));
+    let mf_js: MatrixFile = ok_value(neophylo_wasm::parse_meg_matrix(to_js(&meg)));
     let mf_native = neophylo_core::parse_meg_matrix(meg).unwrap();
     assert_eq!(json(&mf_js), json(&mf_native));
 
@@ -681,7 +687,10 @@ fn matrix_and_worksheet_exports_parity() {
         header_row: Some(true),
         decimal_comma: Some(false),
     };
-    let pp_js: MatrixFile = ok_value(neophylo_wasm::parse_pasted_matrix(paste, to_js(&popts)));
+    let pp_js: MatrixFile = ok_value(neophylo_wasm::parse_pasted_matrix(
+        to_js(&paste),
+        to_js(&popts),
+    ));
     let pp_native = neophylo_core::parse_pasted_matrix(paste, popts).unwrap();
     assert_eq!(json(&pp_js), json(&pp_native));
     assert_eq!(pp_js.matrix.names, input.names);
@@ -689,7 +698,7 @@ fn matrix_and_worksheet_exports_parity() {
     // An all-numeric grid genuinely admits two readings — the parser
     // asks `MatrixAmbiguous` instead of guessing (spec §5.1).
     let amb: WasmResult<MatrixFile> = unpack(neophylo_wasm::parse_pasted_matrix(
-        "0\n1 0\n2 3 0\n",
+        to_js(&"0\n1 0\n2 3 0\n"),
         to_js(&PasteOptions {
             first_column_names: None,
             header_row: None,
@@ -711,9 +720,9 @@ fn matrix_and_worksheet_exports_parity() {
     assert_eq!(text_js, text_native);
 
     // additive_matrix on a parsed tree, with and without rounding.
-    let tree: Tree = ok_value(neophylo_wasm::parse_newick(
-        "((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
-    ));
+    let tree: Tree = ok_value(neophylo_wasm::parse_newick(to_js(
+        &"((a:1,b:1):1,(c:1,(d:1,e:1):1):1);",
+    )));
     let am_js: DistanceInput = ok_value(neophylo_wasm::additive_matrix(
         to_js(&tree),
         JsValue::from_f64(1.0),
@@ -764,11 +773,12 @@ fn reading_exports_parity() {
     use neophylo_wasm::{ReadingTimes, ReadingTreeView};
 
     // load_reading_set: a valid set deserializes to the native value.
-    let set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_POLY));
+    let set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(to_js(&READING_POLY)));
     let native = reading::load_reading_set(READING_POLY).unwrap();
     assert_eq!(json(&set), json(&native));
     // A refused set is an InvalidReading error value, never a throw.
-    let bad: WasmResult<ReadingSet> = unpack(neophylo_wasm::load_reading_set("{\"items\": null}"));
+    let bad: WasmResult<ReadingSet> =
+        unpack(neophylo_wasm::load_reading_set(to_js(&"{\"items\": null}")));
     assert!(!bad.ok, "a broken set must be an error value");
     match bad.error.unwrap() {
         NeoError::InvalidReading { .. } => {}
@@ -816,7 +826,7 @@ fn reading_exports_parity() {
 
     // reading_variant: ops apply in order — rotate, shuffle, relabel
     // equals the same sequential native calls for the same seed.
-    let pool: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_POOL));
+    let pool: ReadingSet = ok_value(neophylo_wasm::load_reading_set(to_js(&READING_POOL)));
     let pool_native = reading::load_reading_set(READING_POOL).unwrap();
     let mut want = reading::rotate(&pool_native, 7);
     want = reading::shuffle_tip_order(&want, 7);
@@ -842,14 +852,14 @@ fn reading_exports_parity() {
     // reading_clade_of: the canonical key of the node exactly spanning
     // the tips; a tip set no node spans is an InvalidReading value.
     let key: CladeKey = ok_value(neophylo_wasm::reading_clade_of(
-        "((a,b,c),d);",
+        to_js(&"((a,b,c),d);"),
         to_js(&vec!["c".to_string(), "a".to_string(), "b".to_string()]),
     ));
     let tree = neophylo_core::parse_newick("((a,b,c),d);").unwrap();
     let node = reading::find_clade(&tree, &["a".into(), "b".into(), "c".into()]).unwrap();
     assert_eq!(key, reading::clade_key(&tree, node));
     let no_node: WasmResult<CladeKey> = unpack(neophylo_wasm::reading_clade_of(
-        "((a,b,c),d);",
+        to_js(&"((a,b,c),d);"),
         to_js(&vec!["a".to_string(), "d".to_string()]),
     ));
     assert!(!no_node.ok, "a non-clade tip set must be an error value");
@@ -861,7 +871,7 @@ fn reading_exports_parity() {
     // reading_tree: every node's clade equals the native clade_key;
     // letters and ages land on the right nodes; times mode and unit
     // carry over; points/marks/traits pass through.
-    let times_set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(READING_TIMES));
+    let times_set: ReadingSet = ok_value(neophylo_wasm::load_reading_set(to_js(&READING_TIMES)));
     let times_native = reading::load_reading_set(READING_TIMES).unwrap();
     let view: ReadingTreeView = ok_value(neophylo_wasm::reading_tree(
         to_js(&times_set),

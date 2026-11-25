@@ -26,7 +26,13 @@ import { waitForApp } from "./helpers";
 const EXERCISES = fileURLToPath(new URL("../../exercises", import.meta.url));
 
 const LESSON_IDS = readdirSync(EXERCISES)
-  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+  // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+  .filter(
+    (f) =>
+      f.endsWith(".json") &&
+      !f.endsWith("schema.json") &&
+      f !== "content-hashes.json",
+  )
   .map((f) => f.replace(/\.json$/, ""));
 const LAB_IDS = readdirSync(`${EXERCISES}/labs`)
   .filter((f) => f.endsWith(".json"))

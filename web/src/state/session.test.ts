@@ -825,7 +825,13 @@ describe("lesson load resets state (checkpoint 13)", () => {
   it("every ordered pair of built-in lessons loads the file's own settings", () => {
     const dir = resolve("..", "exercises");
     const files = readdirSync(dir)
-      .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+      // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+      .filter(
+        (f) =>
+          f.endsWith(".json") &&
+          !f.endsWith("schema.json") &&
+          f !== "content-hashes.json",
+      )
       .sort();
     const loaded = (f: string) =>
       exercise(readFileSync(resolve(dir, f), "utf8"));

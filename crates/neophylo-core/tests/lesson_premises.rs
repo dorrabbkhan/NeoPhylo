@@ -226,12 +226,11 @@ fn every_prepares_for_id_exists() {
     for dir in [exercises_dir(), exercises_dir().join("labs")] {
         for entry in fs::read_dir(&dir).unwrap() {
             let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
             if path.extension().and_then(|e| e.to_str()) != Some("json")
-                || path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .ends_with("schema.json")
+                || name.ends_with("schema.json")
+                || name == "content-hashes.json"
             {
                 continue;
             }

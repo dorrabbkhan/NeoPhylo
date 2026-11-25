@@ -19,7 +19,7 @@ import type {
   WorkerToPage,
   WorkerToPageJob,
 } from "./bootstrapProtocol";
-import { engine } from "./index";
+import { bindWasmExports, engine } from "./index";
 
 /** Target duration of one replicate batch (spec §5: ~100 ms). */
 export const BATCH_MS = 100;
@@ -438,7 +438,12 @@ if (isDedicatedWorker) {
   };
 
   let initPromise: Promise<unknown> | null = null;
-  const ready = () => (initPromise ??= init());
+  // The worker owns a second wasm instance: seed `engine`'s raw
+  // exports from it so the job handlers' calls work here.
+  const ready = () =>
+    (initPromise ??= init().then((o) => {
+      bindWasmExports(o);
+    }));
   const handler = installWorkerScope((m) => scope.postMessage(m), ready);
   scope.onmessage = handler.onmessage;
 }

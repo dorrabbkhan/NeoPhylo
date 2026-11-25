@@ -28,7 +28,13 @@ const GAP_INPUT = fileURLToPath(
 );
 
 const LESSON_IDS = readdirSync(EXERCISES)
-  .filter((f) => f.endsWith(".json") && !f.endsWith("schema.json"))
+  // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+  .filter(
+    (f) =>
+      f.endsWith(".json") &&
+      !f.endsWith("schema.json") &&
+      f !== "content-hashes.json",
+  )
   .map((f) => f.slice(0, -".json".length))
   .sort();
 const LAB_IDS = readdirSync(new URL("../../exercises/labs/", import.meta.url))

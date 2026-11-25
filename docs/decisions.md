@@ -10472,3 +10472,61 @@ were regenerated in the pinned image — no other baseline changed.
   Regenerated golden files: `simulated-lesson`, `derived-matrix`,
   `numeric-tasks`, `bootstrap-predict-branch`; `fixed-data-lab` and
   `reading-set` are byte-identical (verified by two golden runs).
+
+### v1.5 Task 6 (assignment format, bindings and `#a=` links)
+
+- **Link refusals are `NeoError` values, not a new `LinkError` type:**
+  the plan's `decodeAssignmentLink(hash): Assignment | LinkError` is
+  realized as the repo's `Result<Assignment>` envelope — a pre-engine
+  refusal is `InvalidAssignment { field: "link" }` so the page renders
+  link and load failures identically. `#a=zzz` reports "the assignment
+  could not be decompressed", never the engine's load message
+  (checkpoint §21(h)).
+- **`builtin` wire shape:** the authored file carries
+  `content: { builtin, content_hash }`; the resolver (`assess/url.ts`)
+  injects the served text as `content.file` before `loadAssignment`
+  runs, so `Assignment.served_content_hash` is set on every load and
+  grading flags `ContentChanged` for a stale recorded hash. The file
+  bytes never ride in the link — that is what makes the staleness flag
+  possible. Builtin resolution globs `exercises/*.json`, `labs/*.json`,
+  `reading/**/*.json` by stem (lazy `?raw`, like the lab/reading
+  registries); an id with path separators can never match a glob key.
+- **`EncodeAttempt` wasm-side struct:** `encodeCode` takes one record
+  per graded task (`first`/`last` as `TaskAnswer | null`, `attempts`)
+  and the engine packs via `pack_answer` — packing never happens in
+  TypeScript (spec §5.4). Length mismatch → `InvalidAssignment` naming
+  `attempts`.
+- **Interface spellings vs the plan's:** the plan's `PRECISION`
+  constant is exposed as `engine.precision()` returning
+  `[Quantity, number][]` — a `const` cannot cross wasm-bindgen — and
+  `decodeAssignmentLink` is `async` because builtin content resolves
+  through lazy `?raw` globs.
+- **Files outside the Files block this round:**
+  `crates/neophylo-core/src/assess/{load,prose}.rs` (new modules — the
+  block lists `assignment.rs` only; `load_assignment` and
+  `prose_names_taxa` live in their own files per the one-file-one-job
+  rule), `assess/mod.rs` (wiring), `assess/code.rs` (`Serialize +
+  Deserialize + TS` on `PackedAnswer`/`Attempt`/`CodePayload` so the
+  wasm bindings can cross them — all fields are JS-safe widths),
+  `exercises/content-hashes.json` (the Step-3 artefact, 27 builtin
+  ids), `web/src/views/{assignment/AssignmentStart,grade/GradePage}.tsx`
+  (the stub pages `Root.tsx` lazy-loads), the regenerated
+  `generated/{Attempt,CodePayload,EncodeAttempt,PackedAnswer}.ts`, and
+  `web/src/assess/precision.test.ts` (new — pins the web formatter
+  against the engine `PRECISION` table). The fix round also touched
+  `web/src/test/setup.ts` and `web/src/engine/worker.ts` — every
+  engine wrapper now calls the raw `init()`/`initSync` exports
+  (`bindWasmExports` seeds them), so all wasm-bindgen param
+  marshalling glue is tree-shaken out of the initial bundle (§8.2).
+  `content-hashes.json` also needed an exclusion in every enumerator
+  that filters only `*schema.json` out of `exercises/*.json`:
+  `tests/lesson_premises.rs`, `web/src/lessons/{schema,catalog,lessons,content}.test.ts`
+  (content's `EXEMPT`), `web/src/editor/{draft,exerciseFile}.test.ts`,
+  `web/src/state/session.test.ts`, `web/src/views/Controls.test.tsx`,
+  `web/src/worksheets/build.test.ts`, `web/e2e/{library-page,worksheets}.spec.ts`
+  and `scripts/checkpoint/browser/release.spec.ts`.
+- **Sandbox note:** `wasm-pack` could not write its
+  `~/.cache/.wasm-pack` temp dir in this environment; the pkg was
+  rebuilt with `WASM_PACK_CACHE` pointed at a pre-seeded copy of the
+  same cache. No repo files change — the env only redirects
+  wasm-bindgen/wasm-opt lookup.
