@@ -8,10 +8,13 @@ import init, {
   bootstrap_batch,
   bootstrap_batch_filtered,
   build_tree,
+  check_task,
   compare,
   compatible_names,
   consensus,
   consensus_dropped,
+  content_hash,
+  decode_code,
   detect_alphabet,
   detect_matrix_format,
   distances,
@@ -23,12 +26,17 @@ import init, {
   edit_rename_leaf,
   edit_set_length,
   edit_validate,
+  encode_code,
+  grade,
   jtt_pair_detail,
   jtt_pair_detail_filtered,
   labels_need_quotes,
+  load_assignment,
   load_exercise,
   load_reading_set,
+  make_variant,
   matrix_to_distances,
+  max_code_len,
   merge_tallies,
   parse_fasta,
   parse_meg,
@@ -37,6 +45,8 @@ import init, {
   parse_pasted_matrix,
   parse_phylip,
   parse_phylip_matrix,
+  precision,
+  prose_names_taxa,
   reading_answer,
   reading_check,
   reading_clade_of,
@@ -49,6 +59,7 @@ import init, {
   simulate,
   site_mask,
   support_on_tree,
+  task_key,
   validate_matrix,
   with_alphabet,
   worksheet_facts,
@@ -60,18 +71,23 @@ import init, {
   write_phylip_matrix,
 } from "./pkg/neophylo_wasm.js";
 
+import type { AcceptedAnswer } from "./generated/AcceptedAnswer";
 import type { Alignment } from "./generated/Alignment";
 import type { Alphabet } from "./generated/Alphabet";
 import type { AnswerKey } from "./generated/AnswerKey";
+import type { Assignment } from "./generated/Assignment";
 import type { BootstrapTally } from "./generated/BootstrapTally";
 import type { BuildOptions } from "./generated/BuildOptions";
 import type { BuildResult } from "./generated/BuildResult";
+import type { CodePayload } from "./generated/CodePayload";
 import type { ConsensusKind } from "./generated/ConsensusKind";
 import type { DistanceInput } from "./generated/DistanceInput";
 import type { DistanceMatrix } from "./generated/DistanceMatrix";
 import type { DistModel } from "./generated/DistModel";
 import type { DroppedGroup } from "./generated/DroppedGroup";
+import type { EncodeAttempt } from "./generated/EncodeAttempt";
 import type { Exercise } from "./generated/Exercise";
+import type { GradeResult } from "./generated/GradeResult";
 import type { JoinFacts } from "./generated/JoinFacts";
 import type { MatrixFile } from "./generated/MatrixFile";
 import type { MatrixFormat } from "./generated/MatrixFormat";
@@ -84,16 +100,21 @@ import type { PairDetail } from "./generated/PairDetail";
 import type { PasteOptions } from "./generated/PasteOptions";
 import type { PhylipMatrixOptions } from "./generated/PhylipMatrixOptions";
 import type { PhylipParseResult } from "./generated/PhylipParseResult";
+import type { Quantity } from "./generated/Quantity";
 import type { ReadingSet } from "./generated/ReadingSet";
 import type { ReadingTreeView } from "./generated/ReadingTreeView";
 import type { ReplicateDetail } from "./generated/ReplicateDetail";
 import type { Response } from "./generated/Response";
 import type { RerootResult } from "./generated/RerootResult";
 import type { RfResult } from "./generated/RfResult";
+import type { Rule } from "./generated/Rule";
 import type { SimSpec } from "./generated/SimSpec";
 import type { SiteFilter } from "./generated/SiteFilter";
 import type { SiteMask } from "./generated/SiteMask";
+import type { TaskAnswer } from "./generated/TaskAnswer";
+import type { TaskRef } from "./generated/TaskRef";
 import type { Tree } from "./generated/Tree";
+import type { Variant } from "./generated/Variant";
 import type { Verdict } from "./generated/Verdict";
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: NeoError };
@@ -456,5 +477,82 @@ export const engine = {
    * `readingLayout` call (plan Tasks 5–6). */
   readingTree(set: ReadingSet, name: string): Result<ReadingTreeView> {
     return reading_tree(set, name);
+  },
+  // --- v1.5 assess wrappers (v1.5 spec §4–§5, plan Task 6) ------------
+  //
+  // `assignmentJson` is the resolved `.neophylo-assignment.json`
+  // shape — a `builtin` reference carries the `file` text its
+  // resolver injected — so `served_content_hash` is set on every
+  // load and grading can flag `ContentChanged`.
+  /** Parse and validate an assignment file; every refusal is an
+   * `InvalidAssignment` naming the field. */
+  loadAssignment(json: string): Result<Assignment> {
+    return load_assignment(json);
+  },
+  /** The variant `studentId` works (spec §5.2). */
+  makeVariant(assignmentJson: string, studentId: string): Result<Variant> {
+    return make_variant(assignmentJson, studentId);
+  },
+  /** The accepted answer of `task` on `variant` (spec §5.3). */
+  taskKey(variant: Variant, task: TaskRef): Result<AcceptedAnswer> {
+    return task_key(variant, task);
+  },
+  /** Check a student answer against the engine key (spec §5.3). */
+  checkTask(
+    variant: Variant,
+    task: TaskRef,
+    answer: TaskAnswer,
+  ): Result<boolean> {
+    return check_task(variant, task, answer);
+  },
+  /** The `NP1-…` completion code Finish produces (spec §5.4): the
+   * engine packs the TaskAnswers, normalises the id and stamps the
+   * fingerprint — `attempts` is one entry per graded task in order. */
+  encodeCode(
+    assignmentJson: string,
+    variant: Variant,
+    studentId: string,
+    attempts: EncodeAttempt[],
+    finishedMin: number,
+  ): Result<string> {
+    return encode_code(
+      assignmentJson,
+      variant,
+      studentId,
+      attempts,
+      finishedMin,
+    );
+  },
+  /** Decode a completion code — `InvalidCode` names the refusal. */
+  decodeCode(text: string): Result<CodePayload> {
+    return decode_code(text);
+  },
+  /** Grade a code against the resolved assignment (spec §5.5). */
+  grade(
+    assignmentJson: string,
+    lmsId: string | null,
+    code: string,
+    rule: Rule,
+  ): Result<GradeResult> {
+    return grade(assignmentJson, lmsId, code, rule);
+  },
+  /** The code's worst-case length (spec §5.4) — the builder refuses
+   * anything past 250 chars. */
+  maxCodeLen(assignmentJson: string): Result<number> {
+    return max_code_len(assignmentJson);
+  },
+  /** The engine's display-precision table (spec §5.3):
+   * `[quantity, decimals]` pairs the web formatters agree with. */
+  precision(): Result<[Quantity, number][]> {
+    return precision();
+  },
+  /** Per prompt index, the taxon names the exercise's student-facing
+   * text mentions (owner decision 2026-11-25). */
+  proseNamesTaxa(exercise: Exercise): Result<[number, string[]][]> {
+    return prose_names_taxa(exercise);
+  },
+  /** The `fnv1a64` content hash of a file's exact bytes (spec §5.7). */
+  contentHash(text: string): Result<string> {
+    return content_hash(text);
   },
 };

@@ -56,7 +56,9 @@ function loadExercise(text: string): Exercise {
 function allExercises(): { id: string; src: Exercise | LabExercise }[] {
   const out: { id: string; src: Exercise | LabExercise }[] = [];
   for (const [path, text] of Object.entries(LESSON_FILES)) {
-    if (path.endsWith("schema.json")) continue;
+    // content-hashes.json is engine metadata (v1.5 Task 6), not a lesson.
+    if (path.endsWith("schema.json") || path.endsWith("content-hashes.json"))
+      continue;
     out.push({ id: path, src: loadExercise(text) });
   }
   for (const lab of listLabs()) {

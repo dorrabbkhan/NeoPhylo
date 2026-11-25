@@ -82,6 +82,9 @@
 
 use std::collections::BTreeSet;
 
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::assess::assignment::{Assignment, Content, Variant};
 use crate::assess::hash::fnv1a64;
 use crate::assess::task::{TaskAnswer, TaskRef};
@@ -147,7 +150,15 @@ fn bad_answer(msg: impl Into<String>) -> NeoError {
 /// bitmask over the table's `N` entries / `m` mask bits). `Order` is
 /// the permutation itself as positions over the item's `nodes` list.
 /// `Skipped` scores wrong and is never an error.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+#[ts(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    export,
+    export_to = "../../../web/src/engine/generated/"
+)]
 pub enum PackedAnswer {
     /// The student never answered this task.
     Skipped,
@@ -211,7 +222,8 @@ fn tag_of(a: &PackedAnswer) -> u8 {
 
 /// One task's recorded answers: the first submission, the last when
 /// it differs, and how many times the task was submitted.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct Attempt {
     pub first: PackedAnswer,
     /// Only present when it differs from `first`; `encode_code`
@@ -222,7 +234,8 @@ pub struct Attempt {
 }
 
 /// A decoded completion code (spec §5.4).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../web/src/engine/generated/")]
 pub struct CodePayload {
     pub format: u8,
     pub generator: u8,

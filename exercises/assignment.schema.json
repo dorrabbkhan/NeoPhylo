@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NeoPhylo assignment file",
+  "description": "Assignment format, schema_version 1 (v1.5 design spec section 4). This schema mirrors the structural checks in crates/neophylo-core/src/assess/load.rs: field types, the one-content-source rule, tasks 1–15 and points ≥ 0 are what `load_assignment` validates; whether a task can apply to the content, whether a builtin resolves, and whether its recorded `content_hash` is current are semantic checks the engine performs. `content.builtin` names a built-in lesson, lab or reading set by its file id; `file` (the served bytes) is injected by the link resolver and is not part of this authored format.",
+  "type": "object",
+  "required": ["schema_version", "kind", "id", "title", "content", "id_prompt", "mode", "variation", "tasks"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": { "const": "assignment" },
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "instructions": { "type": "string" },
+    "content": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["exercise"],
+          "properties": { "exercise": { "type": "object" } },
+          "additionalProperties": false,
+          "description": "An exercise file object, embedded (schema_version 1–5)."
+        },
+        {
+          "required": ["reading"],
+          "properties": { "reading": { "type": "object" } },
+          "additionalProperties": false,
+          "description": "A reading-set file object, embedded (kind: \"reading\")."
+        },
+        {
+          "required": ["builtin", "content_hash"],
+          "properties": {
+            "builtin": { "type": "string", "minLength": 1 },
+            "content_hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$",
+              "description": "The `fnv1a64` content hash of the referenced file as served at authoring time; grading flags ContentChanged when it no longer matches."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "id_prompt": {
+      "type": "object",
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "rule": { "enum": ["trim_lower"], "default": "trim_lower" }
+      },
+      "additionalProperties": false
+    },
+    "mode": { "enum": ["practice", "test"] },
+    "variation": { "type": "boolean" },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["kind", "step"],
+                "properties": {
+                  "kind": { "const": "predict_pair" },
+                  "step": { "type": "integer", "minimum": 1 }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": { "kind": { "const": "predict_branch" } },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind", "step", "quantity", "role"],
+                "properties": {
+                  "kind": { "const": "numeric" },
+                  "step": { "type": "integer", "minimum": 1 },
+                  "quantity": {
+                    "enum": ["q_value", "branch_length", "new_distance", "corrected_distance"]
+                  },
+                  "role": {
+                    "enum": ["chosen", "closest_raw", "chosen_first_to_new", "chosen_second_to_new"]
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind", "item"],
+                "properties": {
+                  "kind": { "const": "reading" },
+                  "item": { "type": "integer", "minimum": 0 }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "points": { "type": "number", "minimum": 0, "default": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
