@@ -10591,3 +10591,15 @@ were regenerated in the pinned image — no other baseline changed.
   runs >35 load-average during other sessions); all pass
   standalone and in `--maxWorkers=4` runs. Unrelated to this diff —
   noted so a red CI run isn't misread as this task's regression.
+- **Fix round 1, more files outside the Files block:**
+  `e2e/library-page.spec.ts` (the card-kind "Make an assignment"
+  link touch test the review asked for — the Files block names
+  `builder.spec.ts` but not this spec), `index.css` again (the
+  `.editor-panel select` coarse floor and the `.editor-mode` radio
+  floor — the page-level "What are you making?" fieldset sits
+  outside `.editor-panel`, which the earlier rule didn't reach),
+  and the regenerated `editor-default-*`/`library-labs-*`
+  baselines (the Assignment radio and the lab-card link both hid
+  under the 0.001 pixel ratio — regenerated with
+  `--update-snapshots=all`, which rewrites passing snapshots too;
+  the default `changed` mode had silently kept them stale).

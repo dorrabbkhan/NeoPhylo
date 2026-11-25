@@ -247,6 +247,101 @@ test("a worst-case completion code over 250 characters is refused with the reaso
   ).toBeDisabled();
 });
 
+// The Global Constraint's ≥40×40 touch floor, measured — not
+// inherited: under a coarse pointer every interactive element of the
+// populated builder (the fieldset's Assignment radio included — the
+// editor page's chrome is in scope here) is ≥40×40.
+test("under (pointer: coarse) every builder control is ≥40×40", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:4173",
+    viewport: { width: 1366, height: 900 },
+    hasTouch: true,
+    serviceWorkers: "block",
+  });
+  // A populated draft: nj-basics content with a prompt task and a
+  // numeric task — the task rows carry Points inputs and Remove
+  // buttons.
+  await context.addInitScript((json) => {
+    try {
+      window.localStorage.setItem("neophylo.tourSeen", "1");
+      window.localStorage.setItem("neophylo:draft:assignment", json);
+    } catch {
+      // storage can be blocked; the app tolerates it
+    }
+  }, JSON.stringify({
+    v: 1,
+    id: "a-touch01",
+    title: "Seeded homework",
+    instructions: "Do the joins.",
+    content: { kind: "builtin", id: "nj-basics" },
+    idLabel: "custom",
+    customLabel: "Registration number",
+    mode: "practice",
+    variation: null,
+    tasks: [
+      { task: { kind: "predict_pair", step: 1 }, points: 1 },
+      {
+        task: {
+          kind: "numeric",
+          step: 1,
+          quantity: "q_value",
+          role: "chosen",
+        },
+        points: 2,
+      },
+    ],
+  }));
+  const page = await context.newPage();
+  await page.goto("/?editor&assign=nj-basics");
+  await expect(
+    page.getByRole("radio", { name: "Assignment" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Predict the pair joined at step 1",
+    }),
+  ).toBeVisible({ timeout: 15_000 });
+  expect(
+    await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+    "the emulation presents a coarse pointer",
+  ).toBe(true);
+  // The read-only link field renders once Copy link has run — the
+  // seeded draft is complete, so the button is enabled.
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Assignment link" }),
+  ).toBeVisible();
+
+  const targets = page.locator(
+    "a, button, input, select, textarea, summary, [role=radio]",
+  );
+  const count = await targets.count();
+  expect(count, "the populated builder has controls").toBeGreaterThan(10);
+  for (let i = 0; i < count; i += 1) {
+    const target = targets.nth(i);
+    if (!(await target.isVisible())) continue;
+    const box = await target.boundingBox();
+    if (box === null) continue;
+    const label =
+      (await target.getAttribute("aria-label")) ??
+      (await target.innerText().catch(() => "")).slice(0, 40) ??
+      `target ${i}`;
+    // The same 0.05 unit-conversion tolerance labs.spec.ts uses —
+    // Gecko reports a 40 px box as 39.99998.
+    expect(
+      box.width,
+      `builder: "${label}" ≥40 px wide (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+    expect(
+      box.height,
+      `builder: "${label}" ≥40 px tall (${box.width}×${box.height})`,
+    ).toBeGreaterThanOrEqual(39.95);
+  }
+  await context.close();
+});
+
 test("reloading mid-build restores the draft (spec §9.1)", async ({
   page,
 }) => {

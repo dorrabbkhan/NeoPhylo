@@ -2558,11 +2558,19 @@ button,
 }
 
 /* Touch targets ≥ 40×40 under (pointer: coarse) (v1.3 Global
- * Constraints): the editor's text fields and its "Back to NeoPhylo"
- * link get the same floor as its buttons. */
+ * Constraints): the editor's text fields, selects and its "Back to
+ * NeoPhylo" link get the same floor as its buttons; the "What are you
+ * making?" fieldset sits above .editor-panel so its radios get their
+ * own rule. */
 @media (pointer: coarse) {
   .editor-panel input,
+  .editor-panel select,
   .editor-panel textarea {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .editor-mode input[type="radio"] {
     min-height: 40px;
     min-width: 40px;
   }
