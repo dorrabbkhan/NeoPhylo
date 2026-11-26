@@ -45,6 +45,10 @@ export interface PromptCardProps {
    *  task that asks for it, so "the answer is X and Y", the named
    *  weakest group and the reveal text all stay hidden. */
   sealed?: boolean;
+  /** Test-mode assignments (v1.5 spec §5.6/§7.2): no right/wrong mark
+   *  before Finish — a pick feeds this prompt's verdict too, so the
+   *  card renders no verdict element at all, for any prompt type. */
+  hideVerdicts?: boolean;
   /** Sequenced notes only (bootstrap-basics round 3): the note offers
    * "Continue" to unlock the next stage; unset means no button — the
    * stage was already continued or its successor unlocked by a run. */
@@ -63,6 +67,7 @@ export function PromptCard({
   branch,
   onShowPair,
   sealed = false,
+  hideVerdicts = false,
   onContinue,
 }: PromptCardProps) {
   const predicting =
@@ -77,7 +82,7 @@ export function PromptCard({
 
   return (
     <div className="prompt-card" aria-live="polite">
-      {answered && (
+      {answered && !hideVerdicts && (
         <p
           className={
             samePair(picked, answer)
@@ -92,7 +97,7 @@ export function PromptCard({
               : `Not quite: the answer is ${answer[0]} and ${answer[1]}.`}
         </p>
       )}
-      {verdict !== null && (
+      {verdict !== null && !hideVerdicts && (
         <p
           className={
             verdict.correct ? "prompt-verdict correct" : "prompt-verdict wrong"

@@ -56,7 +56,7 @@ export function CopyLmsText({
     <div className="lib-copy">
       <button
         type="button"
-        className="lib-copy-toggle"
+        className="lib-copy-toggle btn btn-ghost"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
@@ -69,7 +69,7 @@ export function CopyLmsText({
             <button
               key={k}
               type="button"
-              className="lib-copy-choice"
+              className="lib-copy-choice btn btn-secondary"
               onClick={() => void copy(k)}
             >
               {LMS_LABEL[k]}

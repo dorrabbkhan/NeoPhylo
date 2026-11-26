@@ -10666,3 +10666,37 @@ were regenerated in the pinned image — no other baseline changed.
   `--update-snapshots` but an `origin/main` worktree produced the
   same pixels — pre-existing font drift on this host, not this PR —
   so those files were restored and are reported, not committed.
+- **Fix round 1 (PR #191 review):** `.assess-page` is now
+  viewport-locked (`height:100dvh; overflow:hidden` with
+  `.assess-page > .app { flex:1; min-height:0 }`) — `min-height:100vh`
+  had left `.app { height:100% }` resolving against an indefinite
+  height, so the whole page scrolled, the stepper footer sat below
+  the fold at 1024×768/768×1024, and the lazy ExportMenuBody chunk
+  resolving moved the footer under real clicks (the
+  `assignment_resume.spec.ts` wait for it is removed; it had only
+  hidden the layout bug). The library copy controls ride the button
+  system (`lib-copy-toggle` = `btn btn-ghost`,
+  `lib-copy-choice` = `btn btn-secondary`; `polish.spec.ts`'s
+  library sweep now also runs once with a copy panel open).
+  `AssignmentAppSession` gained `hideVerdicts` (test mode only,
+  threaded to `PromptCard`): §5.6/§7.2 shows no right/wrong mark
+  before Finish, and the pick feeding a lesson prompt's verdict
+  would otherwise leak retries the grader never sees — practice
+  keeps the sealed verdicts. The `.lib-copy-choice` Firefox flake
+  was a race with `paperFlags()` adding every card's "Paper
+  worksheet"/"Answer key" links in one late update — the reflow
+  moved the toggle under the click; the tests now wait on the first
+  card's "Answer key" link (exists only once `paper` resolved).
+- **`scaleNumericInput` (`flow.ts`)** does exact string scaling of
+  the student's typed input only (multiply-by-10^decimals in string
+  form); the comparison itself stays in the engine's `checkTask`.
+- **Files outside the Files block, this round:**
+  `web/e2e/builder.spec.ts` (its tail asserted the Task-6 stub —
+  required fix, now asserts the real start page),
+  `web/e2e/polish.spec.ts` (the copy-panel-open sweep above),
+  `web/src/index.css` (the `.app` shell rows pinned by name —
+  embed mode removes `.app-header` and auto placement was putting
+  `.app-grid` in the content-sized `auto` row and `.app-footer` in
+  the squashed `1fr` row; part of the same footer-pinning fix),
+  `web/src/views/PromptCard.test.tsx` (the `hideVerdicts` unit pins;
+  the component was already outside the block).

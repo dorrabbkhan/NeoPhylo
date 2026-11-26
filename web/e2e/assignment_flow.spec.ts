@@ -240,6 +240,20 @@ test("test mode: no right/wrong marks before Finish, a summary after", async ({
   await expect(gate).toContainText("Your answer:");
   await expect(page.locator(".assess-verdict-good")).toHaveCount(0);
   await expect(page.locator(".assess-verdict-bad")).toHaveCount(0);
+  // §7.2: the pick also feeds the lesson's own prompt at this step —
+  // in test mode even that card renders no verdict element at all:
+  // no class, no text, nothing announced through an aria-live region.
+  // ("Correct" is word-bounded — the Controls' "Correction" distance
+  // model is real text that stays on the page.)
+  await expect(page.locator(".prompt-verdict")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(
+    /\bcorrect\b|\bnot quite\b/i,
+  );
+  await expect(
+    page.locator("[aria-live]", {
+      hasText: /\bcorrect\b|\bnot quite\b/i,
+    }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Next step" }).click();
 
   const variant = makeVariantOrThrow(a, "sam");
@@ -438,6 +452,20 @@ test.describe("coarse-pointer touch targets", () => {
     const toggle = page.locator(".lib-copy-toggle").first();
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await expectBig(page, ".lib-copy-toggle");
+    // The paper-worksheet pass lands asynchronously and adds the
+    // "Paper worksheet"/"Answer key" links to every card's action row
+    // at once — the reflow moves the toggle under a real click (the
+    // Firefox flake at this line: the dispatched click missed, so no
+    // panel ever mounted). The "Answer key" link exists only once
+    // `paper` has resolved — wait for it, and for the fonts that
+    // settle the same text metrics.
+    await expect(
+      page
+        .locator(".lib-card")
+        .first()
+        .getByRole("link", { name: "Answer key" }),
+    ).toBeVisible({ timeout: 30_000 });
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await toggle.click();
     const choices = page.locator(".lib-copy-choice");
     // The panel mounts on the toggle's React update — wait for the
@@ -458,4 +486,57 @@ test.describe("coarse-pointer touch targets", () => {
       ).toBeGreaterThanOrEqual(39.95);
     }
   });
+});
+
+// The working view is viewport-locked like the plain lesson view
+// (fix round 1, spec §6.1/§7.4): the stepper footer pins to the
+// viewport bottom instead of sitting below the fold of a scrolling
+// page — checked framed and unframed at the two fold-prone sizes.
+test.describe("the stepper footer pins inside the viewport", () => {
+  for (const embed of [false, true] as const) {
+    for (const vp of [
+      { width: 1024, height: 768 },
+      { width: 768, height: 1024 },
+    ]) {
+      test(`${vp.width}×${vp.height}${embed ? " (embed)" : ""}`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(vp);
+        const a = flowAssignment("practice");
+        const link = assignmentLink(a);
+        await page.goto(
+          embed ? `${link}`.replace("/#", "/?embed#") : link,
+        );
+        await page.getByLabel(/university email/i).fill("sara");
+        await page.getByRole("button", { name: "Start" }).click();
+        await waitForApp(page);
+
+        const next = page.getByRole("button", { name: "Next step" });
+        const box = await next.boundingBox();
+        expect(box, "the Next step button renders").not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(
+          box!.x + box!.width,
+          "Next step's right edge inside the viewport",
+        ).toBeLessThanOrEqual(vp.width);
+        expect(
+          box!.y + box!.height,
+          "Next step's bottom edge inside the viewport",
+        ).toBeLessThanOrEqual(vp.height);
+
+        // No page scrolling: the document is viewport-locked — it
+        // neither overflows nor can it be scrolled.
+        const metrics = await page.evaluate(() => ({
+          y: window.scrollY,
+          scrollHeight: document.documentElement.scrollHeight,
+        }));
+        expect(metrics.y, "the document is not scrolled").toBe(0);
+        expect(
+          metrics.scrollHeight,
+          `the document fits ${vp.height}px (got ${metrics.scrollHeight})`,
+        ).toBeLessThanOrEqual(vp.height);
+      });
+    }
+  }
 });

@@ -134,22 +134,12 @@
 }
 
 /* "Copy assignment text" (v1.5 spec §7.5): a toggle-button
- * disclosure under the card actions with one choice per LMS shape. */
+ * disclosure under the card actions with one choice per LMS shape.
+ * Both controls ride the button system (btn + one variant, §16.4):
+ * the toggle is the quiet ghost affordance, the choices bordered
+ * secondary chips — these rules only keep the compact card sizing. */
 .lib-copy-toggle {
-  color: var(--color-accent-contrast);
-  cursor: pointer;
   font-size: var(--size-sm);
-  font-family: inherit;
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.lib-copy-toggle:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 1px;
 }
 
 .lib-copy-panel {
@@ -161,14 +151,8 @@
 }
 
 .lib-copy-choice {
-  font: inherit;
   font-size: var(--size-sm);
   padding: var(--space-4) var(--space-8);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
 }
 
 .lib-copy-status {

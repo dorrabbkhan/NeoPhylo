@@ -87,6 +87,63 @@ test("a cross-origin frame turns embed mode on without ?embed", async ({
   await expect(frame.locator("header.app-header")).toHaveCount(0);
 });
 
+test("inside a real frame the stepper footer pins to the viewport (1024×768 and 768×1024)", async ({
+  page,
+}) => {
+  for (const vp of [
+    { width: 1024, height: 768 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(vp);
+    // A distinct assignment id per size — the storage key names the
+    // assignment, so the second frame can't auto-resume the first
+    // iteration's session past the start page.
+    const a = {
+      ...ASSIGNMENT,
+      id: `${ASSIGNMENT.id}-pins-${vp.width}x${vp.height}`,
+    };
+    await page.setContent(
+      `<iframe src="http://localhost:4173${assignmentLink(a)}" ` +
+        `style="width: 100%; height: 100vh; border: 0"></iframe>`,
+    );
+    const frame = page.frameLocator("iframe");
+    await expect(frame.getByLabel(/university email/i)).toBeVisible({
+      timeout: 30_000,
+    });
+    await frame.getByLabel(/university email/i).fill("sara");
+    await frame.getByRole("button", { name: "Start" }).click();
+    await expect(frame.locator(".app")).toBeVisible({ timeout: 30_000 });
+
+    const box = await frame
+      .getByRole("button", { name: "Next step" })
+      .boundingBox();
+    expect(box, `Next step renders at ${vp.width}×${vp.height}`).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(
+      box!.x + box!.width,
+      "Next step's right edge inside the frame's viewport",
+    ).toBeLessThanOrEqual(vp.width);
+    expect(
+      box!.y + box!.height,
+      "Next step's bottom edge inside the frame's viewport",
+    ).toBeLessThanOrEqual(vp.height);
+
+    const inner = page
+      .frames()
+      .find((f) => f !== page.mainFrame());
+    const metrics = await inner!.evaluate(() => ({
+      y: window.scrollY,
+      scrollHeight: document.documentElement.scrollHeight,
+    }));
+    expect(metrics.y, "the framed document is not scrolled").toBe(0);
+    expect(
+      metrics.scrollHeight,
+      `the framed document fits ${vp.height}px (got ${metrics.scrollHeight})`,
+    ).toBeLessThanOrEqual(vp.height);
+  }
+});
+
 test("storage blocked: the student still finishes and the page says so (Review Focus 5)", async ({
   context,
   page,

@@ -74,13 +74,9 @@ test("a mid-assignment reload restores the stored progress", async ({
     "1 of 2 graded tasks answered",
     { timeout: 30_000 },
   );
-  // The export menu's lazy panel chunk resolves a beat after mount and
-  // reflows the controls column — a stepper click that lands in that
-  // window can miss the button entirely (hit-test vs dispatch race).
-  // Wait for the lazy body the way settleFrame does before clicking.
-  await page.waitForSelector(".export-menu .export-buttons", {
-    state: "attached",
-  });
+  // The page is viewport-locked (the stepper's footer pins to the
+  // viewport bottom), so the export menu's lazy panel chunk resolving
+  // can't move the button under this click.
   await page.getByRole("button", { name: "Previous step" }).click();
   await expect(page.locator(".assess-gate")).toContainText(
     "Answer locked in.",

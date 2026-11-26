@@ -4,10 +4,38 @@
  * tokens so the coarse-pointer rule only adjusts in the media
  * block at the end. */
 
+/* The working view is viewport-locked like the normal lesson view:
+ * the page itself is the viewport (the assess bar keeps its natural
+ * height, the embedded .app flexes into what is left, and the
+ * stepper's .app-footer row stays pinned to the bottom). The old
+ * min-height: 100vh left .app's height: 100% resolving against an
+ * indefinite height — the whole page scrolled and the footer sat
+ * below the fold at 1024×768 and 768×1024, which also let a lazy
+ * chunk's reflow move the footer under a real click. */
 .assess-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.assess-bar,
+.assess-storage-note {
+  flex: none;
+}
+
+.assess-page > .app {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The finish and reading surfaces keep their .lab-page look but
+ * scroll inside the locked page, not the document. */
+.assess-page > .lab-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* The app's skip-link parks 64 px above its header — on this page the

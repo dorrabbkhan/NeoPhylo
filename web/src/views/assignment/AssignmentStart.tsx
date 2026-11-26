@@ -602,6 +602,10 @@ export function AssignmentStart({ embed }: { embed: boolean }) {
         ...LOCKED_ALWAYS,
         ...(branch !== null ? LOCKED_BRANCH : []),
       ],
+      // §5.6/§7.2: a test-mode pick feeds both the graded draft and
+      // the lesson prompt — the prompt renders no verdict element at
+      // all, so retries stay invisible until Finish.
+      hideVerdicts: assignment.mode === "test",
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [work, flow, drafts, draftText, verdicts, leafArm, assignment, decimals]);

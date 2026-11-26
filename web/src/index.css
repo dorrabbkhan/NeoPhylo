@@ -70,6 +70,21 @@ p {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* The shell rows are pinned by name, not by document order: embed
+ * mode (spec §7.4) removes .app-header from the DOM, and auto
+ * placement would then put .app-grid in the first `auto` row
+ * (content-sized) and .app-footer in the squashed `1fr` row —
+ * the stepper overflowed the box below the fold. */
+.app-header {
+  grid-row: 1;
+}
+.app-grid {
+  grid-row: 2;
+}
+.app-footer {
+  grid-row: 3;
+}
+
 .app-loading {
   padding: 32px;
 }

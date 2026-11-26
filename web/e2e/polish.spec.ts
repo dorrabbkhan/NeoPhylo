@@ -272,6 +272,21 @@ test("sweep: library, labs index, a lab handout and the guide", async ({
   await expect(page.locator(".library-page")).toBeVisible();
   await expectSweep(page, "?library", 0);
 
+  // The copy disclosure's LMS choices are buttons too — open a card's
+  // panel so they land in the swept set (v1.5 Task 8 fix round 1). The
+  // paper pass lands asynchronously and adds each card's worksheet/key
+  // links in one update, which reflows the toggles — "Answer key" only
+  // exists once `paper` resolved, so wait for it before clicking.
+  await expect(
+    page
+      .locator(".lib-card")
+      .first()
+      .getByRole("link", { name: "Answer key" }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.locator(".lib-copy-toggle").first().click();
+  await expect(page.locator(".lib-copy-choice").first()).toBeVisible();
+  await expectSweep(page, "?library (copy panel open)", 0);
+
   await page.goto("/?labs");
   await expect(page.locator(".library-page")).toBeVisible();
   await expectSweep(page, "?labs", 0);

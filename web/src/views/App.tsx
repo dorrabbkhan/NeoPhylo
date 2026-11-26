@@ -242,6 +242,11 @@ export interface AssignmentAppSession {
   initialStep: number;
   /** Extra field paths the Controls/BootstrapPanel lock. */
   locked: string[];
+  /** Test mode (spec §5.6/§7.2): lesson prompts render no right/wrong
+   *  mark before Finish — the pick feeding a prompt's verdict also
+   *  drafts the graded answer, so the verdict would leak retries the
+   *  grader never sees. */
+  hideVerdicts: boolean;
 }
 
 export function App({
@@ -1279,8 +1284,10 @@ export function App({
                   }
                   // §7.2: inside an assignment a prompt's verdict
                   // never names its answer — a graded task can sit
-                  // at the same step asking for it.
+                  // at the same step asking for it. Test mode goes
+                  // further: no verdict at all before Finish.
                   sealed={assignment !== undefined}
+                  hideVerdicts={assignment?.hideVerdicts ?? false}
                   onShowPair={assignment === undefined ? setPair : undefined}
                   onContinue={
                     p.type === "note"

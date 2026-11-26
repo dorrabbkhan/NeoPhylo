@@ -194,7 +194,14 @@ describe("test mode", () => {
     const { key } = await variantAndKey("sara", PAIR1);
     if (key.kind !== "pairs") throw new Error("expected pairs");
     clickCell(key.value[0][0], key.value[0][1]);
-    expect(screen.queryByText("Correct.")).toBeNull();
+    // §7.2: no right/wrong mark anywhere — the graded gate stays
+    // silent AND the lesson prompt's own verdict renders no element
+    // (the prompt's real class and text, not a gate-only string).
+    expect(document.querySelector(".prompt-verdict")).toBeNull();
+    expect(document.querySelector(".assess-verdict-good")).toBeNull();
+    expect(document.querySelector(".assess-verdict-bad")).toBeNull();
+    expect(screen.queryByText("Correct")).toBeNull();
+    expect(screen.queryByText(/not quite/i)).toBeNull();
     fireEvent.click(nextButton());
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     await screen.findByText(/NP1-/);
