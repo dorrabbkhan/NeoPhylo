@@ -10,7 +10,14 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { color } from "../design/tokens";
 import { engine } from "../engine/index";
@@ -21,6 +28,28 @@ import type { Tree } from "../engine/generated/Tree";
 import { stubFontFetch } from "../test/fontFetch";
 
 import { ExportMenu } from "./ExportMenu";
+
+// The panel body is a lazy chunk (v1.5 Task 8): resolve it once
+// before the specs so every later render mounts it synchronously
+// and the sync getByRole queries below keep working.
+beforeAll(async () => {
+  render(
+    <ExportMenu
+      tree={null}
+      alignment={null}
+      correction="Jc69"
+      method="Nj"
+      clampNegative={false}
+      matrix={null}
+      theme="light"
+      treeView={{ kind: "plain" }}
+      consensusTree={null}
+      bootstrap={null}
+    />,
+  );
+  await screen.findByRole("button", { name: "Newick" });
+  cleanup();
+});
 
 afterEach(() => {
   cleanup();

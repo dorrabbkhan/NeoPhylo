@@ -10603,3 +10603,117 @@ were regenerated in the pinned image — no other baseline changed.
   under the 0.001 pixel ratio — regenerated with
   `--update-snapshots=all`, which rewrites passing snapshots too;
   the default `changed` mode had silently kept them stale).
+
+## v1.5 Task 8 — Student flow and embed mode
+
+- **Files outside the Files block:** `web/src/assess/url.ts` (added
+  `resolveAssignmentLink` — the student flow needs the resolved file
+  text for `makeVariant`/`encodeCode`, not just the validated
+  `Assignment`; `decodeAssignmentLink` stays for the Task-6 callers),
+  `web/src/views/App.tsx` + `PromptCard.tsx` (the "lesson stepper
+  entry point accepts an assignment context" wording covers App;
+  PromptCard gets `sealed` because §7.2 forbids naming answers —
+  a lesson prompt can sit at the same step as the graded task that
+  asks for it), `web/src/views/library/{LibraryPage,library.css}` +
+  `CopyLmsText.tsx` (§7.5's "copy assignment text" card control —
+  the Files block names no library files), `web/e2e/assess.ts`
+  (shared e2e helper: `#a=` link building via the same wasm path the
+  builder uses, code decoding for the Finish-code assertions),
+  `web/e2e/visualScenes.ts` (the `assignment-start-*`,
+  `assignment-finish-*`, `embed-*` scenes conductor note 3 requires),
+  `web/src/views/assignment/{AssignmentReading,assignment.css}`
+  (reading-set assignments need the same graded-item wiring;
+  the stylesheet carries the embed-chrome and coarse-pointer rules),
+  `web/src/views/ExportMenuBody.tsx` (new — the export panel body
+  as a lazy chunk, the owner decision below; `ExportMenu.tsx` keeps
+  the section shell, heading and prop contract).
+- **Session-hook shape (conductor note 1):** the App-side wiring is
+  `assignment?: AssignmentAppSession` — App forwards `view(k)` flags
+  (open/blocked/gates), `picks(k, ctx)` handlers (the session
+  composes task drafts with the prompt gate's own handlers) and
+  `stepGate(k, to)` (commit-or-clamp on forward travel). All state,
+  verdicts and wasm calls stay in the lazy `views/assignment` chunk.
+- **Initial-JS budget (STOP resolved, owner decision 2026-11-26):**
+  after the student-flow lazy split the entry chunk still exceeded
+  `JS_LIMIT=120168` gz (main 119,599 → ≈120,289). The owner chose
+  option 1 on the #190 escalation: keep the limit unchanged and make
+  the ExportMenu panel body a lazy chunk (`React.lazy` + `Suspense`)
+  — "v1.5 Task 8: ExportMenu panel lazy-loaded to keep the
+  initial-JS budget, owner 2026-11-26". The section (`<section
+  class="export-menu">` + `<h2>Export</h2>`) stays eager, so the
+  menu keeps the same position, focus order and ARIA; the body is
+  fetched on first render like every lazy sheet/panel in App.tsx.
+- **Visual-sweep findings (fix round):** `AssignmentStart` now also
+  imports `../labs/labs.css` — its start/finish/error screens are
+  `.lab-page` surfaces but never loaded the lab chrome's padding,
+  so they rendered flush to the viewport edges (the new baselines
+  caught it). `assignment.css` additionally parks the app's
+  `.skip-link` fully offscreen while unfocused on this page
+  (`translateY(-100%)` + `pointer-events:none`, both undone on
+  `:focus-visible`) — `.app` sits under the assess bar here, so the
+  link's `top:-64px` parking spot lands ON the bar: its bottom edge
+  painted over the bar and swallowed clicks (the Finish button at
+  ≤768 px). `e2e/assignment_resume.spec.ts` waits for the
+  lazy export body before the post-reload stepper click — the
+  ExportMenuBody chunk resolving mid-click reflowed the controls
+  column and the dispatched click missed the button (hit-test vs
+  dispatch race, ~1 in 6 runs under parallel load).
+- **Regenerated baselines:** `assignment-start-*`,
+  `assignment-finish-*`, `embed-working-*` are new;
+  `library-*`/`library-labs-*` regrew with the card "Copy
+  assignment text" control (this PR's change). `matrix-session-*`
+  and `pair-panel-removed-*` also regenerated differently under
+  `--update-snapshots` but an `origin/main` worktree produced the
+  same pixels — pre-existing font drift on this host, not this PR —
+  so those files were restored and are reported, not committed.
+- **Fix round 1 (PR #191 review):** `.assess-page` is now
+  viewport-locked (`height:100dvh; overflow:hidden` with
+  `.assess-page > .app { flex:1; min-height:0 }`) — `min-height:100vh`
+  had left `.app { height:100% }` resolving against an indefinite
+  height, so the whole page scrolled, the stepper footer sat below
+  the fold at 1024×768/768×1024, and the lazy ExportMenuBody chunk
+  resolving moved the footer under real clicks (the
+  `assignment_resume.spec.ts` wait for it is removed; it had only
+  hidden the layout bug). The library copy controls ride the button
+  system (`lib-copy-toggle` = `btn btn-ghost`,
+  `lib-copy-choice` = `btn btn-secondary`; `polish.spec.ts`'s
+  library sweep now also runs once with a copy panel open).
+  `AssignmentAppSession` gained `hideVerdicts` (test mode only,
+  threaded to `PromptCard`): §5.6/§7.2 shows no right/wrong mark
+  before Finish, and the pick feeding a lesson prompt's verdict
+  would otherwise leak retries the grader never sees — practice
+  keeps the sealed verdicts. The `.lib-copy-choice` Firefox flake
+  was a race with `paperFlags()` adding every card's "Paper
+  worksheet"/"Answer key" links in one late update — the reflow
+  moved the toggle under the click; the tests now wait on the first
+  card's "Answer key" link (exists only once `paper` resolved).
+- **`scaleNumericInput` (`flow.ts`)** does exact string scaling of
+  the student's typed input only (multiply-by-10^decimals in string
+  form); the comparison itself stays in the engine's `checkTask`.
+- **Files outside the Files block, this round:**
+  `web/e2e/builder.spec.ts` (its tail asserted the Task-6 stub —
+  required fix, now asserts the real start page),
+  `web/e2e/polish.spec.ts` (the copy-panel-open sweep above),
+  `web/src/index.css` (the `.app` shell rows pinned by name —
+  embed mode removes `.app-header` and auto placement was putting
+  `.app-grid` in the content-sized `auto` row and `.app-footer` in
+  the squashed `1fr` row; part of the same footer-pinning fix),
+  `web/src/views/PromptCard.test.tsx` (the `hideVerdicts` unit pins;
+  the component was already outside the block).
+- Embed auto-detect (`window.top !== window.self`) applies on the
+  assignment route only (`#a=`/`?embed`); a plainly framed
+  `?lesson=`/`?read=` link keeps full chrome — owner, 2026-11-26
+  (#191).
+- **Fix round 3 (PR #191, owner 2026-11-26):** the plain-LMS paste
+  line now reads "…paste it where your instructor collects
+  answers." — the preposition moved into `PASTE_SPOT` so the other
+  three variants stay byte-identical; `lmsText.test.ts` asserts each
+  variant's full sentence verbatim in both shapes. The library copy
+  toggle's label aligns with the card's link row via
+  `margin-inline-start: calc(-1 * var(--space-12) - 1px)` — it
+  tracks the ghost button's own inline padding plus its literal 1 px
+  border, so it holds at every scale.
+  Files outside the Files block, this round:
+  `web/e2e/library-page.spec.ts` (the left-edge alignment
+  assertion). `library-*`/`library-labs-*` regenerated (12 frames),
+  the pixel diff confined to the toggle.

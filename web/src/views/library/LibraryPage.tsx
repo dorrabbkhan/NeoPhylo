@@ -33,6 +33,7 @@ import { exerciseLink } from "../worksheets/load";
 import { paperSheet } from "../../worksheets/build";
 import { Wordmark } from "../Wordmark";
 import { LabPrintStyles } from "../labs/LabPrintStyles";
+import { CopyLmsText } from "./CopyLmsText";
 
 import "../labs/labs.css";
 import "./library.css";
@@ -237,6 +238,9 @@ function Card({
         ))}
         <a href={assignHref}>Make an assignment</a>
       </p>
+      {actions[0] !== undefined && (
+        <CopyLmsText title={item.title} href={actions[0].href} />
+      )}
     </li>
   );
 }

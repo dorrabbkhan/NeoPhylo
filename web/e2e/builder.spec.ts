@@ -133,7 +133,10 @@ test("from a library card, build a 3-task assignment, preview three students and
     await expect(s.getByText(/Answer:/).first()).toBeVisible();
   }
 
-  // Copy link → a `#a=` URL → the student start page opens it.
+  // Copy link → a `#a=` URL → the student start page opens it. The
+  // page carries the assignment's title (seeded from the content's
+  // own) and the id input under its prompt label (fix round 1: this
+  // used to assert the Task-6 stub's coming-soon text).
   await page.getByRole("button", { name: "Copy link" }).click();
   const linkField = page.getByRole("textbox", {
     name: "Assignment link",
@@ -142,10 +145,10 @@ test("from a library card, build a 3-task assignment, preview three students and
   expect(link).toContain("#a=");
   await page.goto(link);
   await expect(
-    page.getByRole("heading", { name: "Assignment" }),
-  ).toBeVisible();
+    page.getByRole("heading", { name: "How Neighbor-Joining works" }),
+  ).toBeVisible({ timeout: 30_000 });
   await expect(
-    page.getByText("Student assignments arrive in the next release."),
+    page.getByLabel("Student number (SIS ID)"),
   ).toBeVisible();
 });
 

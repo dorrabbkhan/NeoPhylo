@@ -133,6 +133,41 @@
   margin-bottom: 0;
 }
 
+/* "Copy assignment text" (v1.5 spec §7.5): a toggle-button
+ * disclosure under the card actions with one choice per LMS shape.
+ * Both controls ride the button system (btn + one variant, §16.4):
+ * the toggle is the quiet ghost affordance, the choices bordered
+ * secondary chips — these rules only keep the compact card sizing.
+ * The ghost's inline padding would sit the label right of the link
+ * row above it; the negative inline-start margin (owner 2026-11-26)
+ * pulls the label back to the row's left edge — it tracks the
+ * button's own padding token plus its literal 1 px border, so the
+ * alignment holds at every scale the tokens take. */
+.lib-copy-toggle {
+  font-size: var(--size-sm);
+  margin-inline-start: calc(-1 * var(--space-12) - 1px);
+}
+
+.lib-copy-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  align-items: center;
+}
+
+.lib-copy-choice {
+  font-size: var(--size-sm);
+  padding: var(--space-4) var(--space-8);
+}
+
+.lib-copy-status {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
 /* Touch targets ≥ 40×40 under (pointer: coarse): the filter
  * checkboxes and select, and the inline prepares/follows links, join
  * the floors labs.css already gives the nav and card actions. */
@@ -153,6 +188,22 @@
   /* The settings summary joins the same ≥40×40 touch floor. */
   .lib-settings-details > summary {
     align-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  /* The copy control's toggle and each LMS choice too (spec §7.5,
+   * conductor note 4). */
+  .lib-copy-toggle {
+    align-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .lib-copy-choice {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
     min-height: 40px;
     min-width: 40px;
   }

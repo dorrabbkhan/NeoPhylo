@@ -6,8 +6,10 @@
 
 /
   Cache-Control: no-cache
+  Content-Security-Policy: frame-ancestors *
 /index.html
   Cache-Control: no-cache
+  Content-Security-Policy: frame-ancestors *
 /sw.js
   Cache-Control: no-cache
 /manifest.webmanifest

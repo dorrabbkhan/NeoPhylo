@@ -152,6 +152,39 @@ describe("PromptCard", () => {
     );
     expect(onShowPair).toHaveBeenCalledWith(["horse", "chicken"]);
   });
+
+  it("hideVerdicts (test mode) renders no verdict element after a pick", () => {
+    // §5.6/§7.2: right or wrong, the card shows no mark at all —
+    // not the element, the class or the text.
+    const { container } = render(
+      <PromptCard
+        prompt={PREDICT}
+        mode="concept"
+        picked={["A", "B"]}
+        answer={["A", "B"]}
+        sealed
+        hideVerdicts
+      />,
+    );
+    expect(container.querySelector(".prompt-verdict")).toBeNull();
+    expect(screen.queryByText("Correct")).toBeNull();
+    expect(screen.queryByText(/not quite/i)).toBeNull();
+  });
+
+  it("hideVerdicts (test mode) renders no verdict on a wrong pick either", () => {
+    const { container } = render(
+      <PromptCard
+        prompt={PREDICT}
+        mode="concept"
+        picked={["A", "C"]}
+        answer={["A", "B"]}
+        sealed
+        hideVerdicts
+      />,
+    );
+    expect(container.querySelector(".prompt-verdict")).toBeNull();
+    expect(screen.queryByText(/correct|not quite/i)).toBeNull();
+  });
 });
 
 // --- v1.2 spec §7.1: predict_branch ------------------------------------
@@ -259,5 +292,29 @@ describe("PromptCard predict_branch (v1.2 spec §7.1)", () => {
     // The generic hint is replaced, and the prompt stays unanswered.
     expect(screen.queryByText(/Click an internal branch/)).toBeNull();
     expect(screen.queryByText(/Not quite/)).toBeNull();
+  });
+
+  it("hideVerdicts (test mode) renders no verdict after the run lands", () => {
+    const { container } = render(
+      <PromptCard
+        prompt={BRANCH}
+        mode="concept"
+        picked={null}
+        answer={null}
+        branch={{
+          picked: "A|B",
+          verdict: {
+            correct: false,
+            weakest: ["E", "F", "G", "H"],
+            supportPct: 41,
+          },
+        }}
+        sealed
+        hideVerdicts
+      />,
+    );
+    expect(container.querySelector(".prompt-verdict")).toBeNull();
+    expect(screen.queryByText(/your prediction/i)).toBeNull();
+    expect(screen.queryByText(/correct|not quite/i)).toBeNull();
   });
 });

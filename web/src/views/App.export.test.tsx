@@ -106,9 +106,10 @@ function stubDownloads() {
   return { names, texts: () => Promise.all(blobs.map((b) => b.text())) };
 }
 
-/** The SVG item of the export menu currently mounted. */
+/** The SVG item of the export menu currently mounted — a lazy
+ * chunk's button (v1.5 Task 8), so the query waits. */
 function svgExportButton(menu: HTMLElement) {
-  return within(menu).getByRole("button", { name: /^SVG/ });
+  return within(menu).findByRole("button", { name: /^SVG/ });
 }
 
 describe("export path under presenter mode", () => {
@@ -127,7 +128,7 @@ describe("export path under presenter mode", () => {
     // export menu sits in the controls column).
     const columnMenu = document.querySelector<HTMLElement>(".export-menu");
     expect(columnMenu).not.toBeNull();
-    fireEvent.click(svgExportButton(columnMenu!));
+    fireEvent.click(await svgExportButton(columnMenu!));
     // The SVG writer is a lazy chunk (v1.3 Task 14): the download
     // resolves asynchronously.
     await waitFor(() => expect(dl.names).toEqual(["neophylo-tree.svg"]));
@@ -146,7 +147,7 @@ describe("export path under presenter mode", () => {
     const drawer = await screen.findByRole("dialog", { name: "Settings" });
     const drawerMenu = drawer.querySelector<HTMLElement>(".export-menu");
     expect(drawerMenu).not.toBeNull();
-    fireEvent.click(svgExportButton(drawerMenu!));
+    fireEvent.click(await svgExportButton(drawerMenu!));
     await waitFor(() =>
       expect(dl.names).toEqual(["neophylo-tree.svg", "neophylo-tree.svg"]),
     );

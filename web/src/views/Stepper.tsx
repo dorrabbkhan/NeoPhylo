@@ -7,6 +7,12 @@
 // every stepping input is disabled — prev/next buttons, the slider, ←/→
 // keys and play — so the student picks before the join is revealed.
 //
+// `gatedForward` (v1.5 Task 8, spec §5.6): an assignment's unanswered
+// graded task blocks only FORWARD travel — Next, play, → and the
+// forward path the session's stepGate clamps — while Previous, ← and
+// backward slider drags stay live so the student can re-read earlier
+// steps and their locked-in answers.
+//
 // Keyboard events are ignored when focus is inside a form control (so the
 // slider's own arrow handling and Space on buttons keep their native
 // behavior) and when a component already handled the event
@@ -43,6 +49,9 @@ export interface StepperProps {
   onPlayToggle: () => void;
   /** True while an unanswered predict_pair prompt blocks stepping. */
   gated?: boolean;
+  /** True while an unanswered graded task blocks forward travel only
+   *  (v1.5 Task 8) — Previous and ← stay live. */
+  gatedForward?: boolean;
 }
 
 export function Stepper({
@@ -56,19 +65,20 @@ export function Stepper({
   onStep,
   onPlayToggle,
   gated = false,
+  gatedForward = false,
   rfZero = false,
 }: StepperProps) {
   // Play: advance every 800 ms and pause automatically at the last step.
   // A prompt gate freezes playback mid-run.
   useEffect(() => {
-    if (!playing || gated) return;
+    if (!playing || gated || gatedForward) return;
     if (step >= max) {
       onPlayToggle();
       return;
     }
     const id = setInterval(() => onStep(step + 1), 800);
     return () => clearInterval(id);
-  }, [playing, gated, step, max, onStep, onPlayToggle]);
+  }, [playing, gated, gatedForward, step, max, onStep, onPlayToggle]);
 
   // Global keys: ←/→ step, Space toggles play.
   useEffect(() => {
@@ -85,6 +95,9 @@ export function Stepper({
         return;
       }
       if (gated) return;
+      // Forward-only gate: → and play are forward travel; ← stays
+      // live so earlier (already committed) steps stay reachable.
+      if (gatedForward && e.key !== "ArrowLeft") return;
       if (e.key === "ArrowLeft") {
         onStep(step - 1);
       } else if (e.key === "ArrowRight") {
@@ -98,7 +111,7 @@ export function Stepper({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [step, onStep, onPlayToggle, gated]);
+  }, [step, onStep, onPlayToggle, gated, gatedForward]);
 
   const onSliderKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     // Arrow keys on the focused slider change it natively; stop them from
@@ -123,7 +136,7 @@ export function Stepper({
         type="button"
         className="btn btn-primary"
         aria-label={playing ? "Pause" : "Play"}
-        disabled={gated}
+        disabled={gated || gatedForward}
         onClick={onPlayToggle}
       >
         <Icon name={playing ? "pause" : "play"} />
@@ -133,7 +146,7 @@ export function Stepper({
         type="button"
         className="btn btn-secondary"
         aria-label="Next step"
-        disabled={step >= max || gated}
+        disabled={step >= max || gated || gatedForward}
         onClick={() => onStep(step + 1)}
       >
         Next
