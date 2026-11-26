@@ -13,14 +13,15 @@ import { describe, expect, it } from "vitest";
 
 import { cssVariables, presenterCssVariables } from "./tokens";
 
-/** Stylesheets v1.5 Task 3 writes or touches. Paths are repo-relative to
- * web/src/ so the scan runs under vitest's jsdom cwd. */
+/** Stylesheets v1.5 Tasks 3 and 8 write or touch. Paths are
+ * repo-relative to web/src/ so the scan runs under vitest's jsdom cwd. */
 const CSS_FILES = [
   "design/buttons.css",
   "index.css",
   "views/labs/labs.css",
   "views/library/library.css",
   "views/guide/guide.css",
+  "views/assignment/assignment.css",
 ];
 
 /** Custom properties legitimately defined outside tokens.ts — scoped to

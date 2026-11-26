@@ -133,6 +133,51 @@
   margin-bottom: 0;
 }
 
+/* "Copy assignment text" (v1.5 spec §7.5): a toggle-button
+ * disclosure under the card actions with one choice per LMS shape. */
+.lib-copy-toggle {
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+  font-size: var(--size-sm);
+  font-family: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lib-copy-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.lib-copy-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  align-items: center;
+}
+
+.lib-copy-choice {
+  font: inherit;
+  font-size: var(--size-sm);
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.lib-copy-status {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--color-text-muted);
+}
+
 /* Touch targets ≥ 40×40 under (pointer: coarse): the filter
  * checkboxes and select, and the inline prepares/follows links, join
  * the floors labs.css already gives the nav and card actions. */
@@ -153,6 +198,22 @@
   /* The settings summary joins the same ≥40×40 touch floor. */
   .lib-settings-details > summary {
     align-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  /* The copy control's toggle and each LMS choice too (spec §7.5,
+   * conductor note 4). */
+  .lib-copy-toggle {
+    align-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .lib-copy-choice {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
     min-height: 40px;
     min-width: 40px;
   }

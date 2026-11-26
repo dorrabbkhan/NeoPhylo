@@ -77,10 +77,9 @@ const ReadingPage = lazy(() =>
   })),
 );
 
-// v1.5 Task 6: `#a=` assignment links, `?embed` and `?grade` mount
-// lazy placeholders — Tasks 8 and 9 replace them with the student
-// flow and the Grade page, so their chunks never reach the initial
-// bundle either (§8.2).
+// v1.5 Task 8: `#a=` assignment links and `?embed` mount the student
+// flow and `?grade` mounts the Grade page — all lazy chunks, so
+// none reaches the initial bundle either (§8.2).
 const AssignmentStart = lazy(() =>
   import("./views/assignment/AssignmentStart").then((m) => ({
     default: m.AssignmentStart,
@@ -102,6 +101,9 @@ const readHash = window.location.hash;
 const worksheetRoute = params.get("worksheet");
 const keyRoute = params.get("key");
 const gradeRoute = params.has("grade");
+// `?embed` routes to the student page; the frame auto-detect lives
+// inside the lazy AssignmentStart (spec §7.4) so the try/catch never
+// reaches the initial bundle.
 const embedRoute = params.has("embed");
 
 const LOADING = (
@@ -176,15 +178,14 @@ export function Root() {
       </Suspense>
     );
   }
-  // v1.5 Task 6 stubs (Tasks 8/9 replace them): `#a=` wins like
-  // `#r=` — a shared-assignment link always carries its own file,
-  // even when a stale query param rides along; `?embed` frames that
-  // same student page without chrome; `?grade` is the offline Grade
-  // page.
+  // `#a=` wins like `#r=`: a shared-assignment link always carries
+  // its own file, even when a stale query param rides along;
+  // `?embed` (or a detected frame) mounts the same student page
+  // without chrome (spec §7.4); `?grade` is the offline Grade page.
   if (readHash.includes("#a=") || embedRoute) {
     return (
       <Suspense fallback={LOADING}>
-        <AssignmentStart />
+        <AssignmentStart embed={embedRoute} />
       </Suspense>
     );
   }

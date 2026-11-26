@@ -53,7 +53,7 @@ export interface AssignmentFile {
 
 /** A pre-engine refusal, shaped like the engine's error so the page
  *  renders link failures and load failures identically. */
-function linkError(msg: string): Result<Assignment> {
+function linkError<T>(msg: string): Result<T> {
   const error: NeoError = {
     kind: "InvalidAssignment",
     field: "link",
@@ -105,17 +105,27 @@ export function encodeAssignmentLink(a: AssignmentFile): string {
   );
 }
 
+/** The decoded assignment plus the resolved file text — what
+ * `makeVariant`, `checkTask`, `encodeCode` and `grade` consume
+ * (`builtin` references carry the injected `file` text, so the
+ * served content hash is set on every engine load). */
+export interface ResolvedAssignment {
+  assignment: Assignment;
+  json: string;
+}
+
 /**
  * Decode an `#a=` fragment (or a whole href containing one) back to
- * the loaded `Assignment`. Failures are `NeoError` values: a
- * malformed fragment reports what failed — "the assignment could not
- * be decompressed" for `#a=zzz`, never the engine-load message
- * (checkpoint §21(h)) — a well-formed fragment carrying a bad file
- * reports the engine's `InvalidAssignment`.
+ * the loaded `Assignment` and the resolved file text it was loaded
+ * from. Failures are `NeoError` values: a malformed fragment
+ * reports what failed — "the assignment could not be decompressed"
+ * for `#a=zzz`, never the engine-load message (checkpoint §21(h))
+ * — a well-formed fragment carrying a bad file reports the
+ * engine's `InvalidAssignment`.
  */
-export async function decodeAssignmentLink(
+export async function resolveAssignmentLink(
   href: string,
-): Promise<Result<Assignment>> {
+): Promise<Result<ResolvedAssignment>> {
   const start = href.indexOf("#a=");
   if (start < 0) {
     return linkError("this link carries no assignment");
@@ -162,5 +172,22 @@ export async function decodeAssignmentLink(
     }
     (content as { file?: string }).file = text;
   }
-  return engine.loadAssignment(JSON.stringify(assignment));
+  const resolved = JSON.stringify(assignment);
+  const r = engine.loadAssignment(resolved);
+  return r.ok
+    ? { ok: true, value: { assignment: r.value, json: resolved } }
+    : r;
+}
+
+/**
+ * Decode an `#a=` fragment back to the loaded `Assignment`, dropping
+ * the resolved file text — the link-resolution half of
+ * `resolveAssignmentLink` for callers that only need the
+ * validated shape.
+ */
+export async function decodeAssignmentLink(
+  href: string,
+): Promise<Result<Assignment>> {
+  const r = await resolveAssignmentLink(href);
+  return r.ok ? { ok: true, value: r.value.assignment } : r;
 }

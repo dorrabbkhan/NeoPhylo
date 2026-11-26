@@ -1,0 +1,244 @@
+/* Student assignment flow (v1.5 plan Task 8, spec §5.6/§7). The
+ * page reuses the lab-page tokens; the bar and the graded-task
+ * cards follow the prompts-strip look. All spacing/sizing is
+ * tokens so the coarse-pointer rule only adjusts in the media
+ * block at the end. */
+
+.assess-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* The app's skip-link parks 64 px above its header — on this page the
+ * header sits under the assess bar, so the parked link's bottom edge
+ * paints over the bar and swallows clicks there (narrow widths put
+ * Finish under it). translateY(-100%) parks it fully offscreen; it
+ * only needs pointer events once focus slides it into view. */
+.assess-page .skip-link {
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+.assess-page .skip-link:focus-visible {
+  pointer-events: auto;
+  transform: none;
+}
+
+.assess-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.assess-bar-main {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+}
+
+.assess-bar h1 {
+  font-size: var(--size-lg);
+  margin: 0;
+}
+
+.assess-progress {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--size-sm);
+}
+
+.assess-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.assess-storage-note {
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-accent-bg);
+  border-bottom: 1px solid var(--color-accent-border);
+  color: var(--color-text);
+}
+
+.assess-start {
+  max-width: 40rem;
+}
+
+.assess-instructions {
+  white-space: pre-wrap;
+}
+
+.assess-id-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.assess-id-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-weight: 600;
+}
+
+.assess-id-input,
+.assess-gate-input {
+  font: inherit;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  min-height: 2.25rem;
+}
+
+.assess-gate {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8) var(--space-12);
+  margin-block-end: var(--space-8);
+  background: var(--color-surface);
+}
+
+.assess-gate-label {
+  margin: 0 0 var(--space-4);
+}
+
+.assess-gate-tag {
+  display: inline-block;
+  font-size: var(--size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-accent-contrast);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
+  margin-inline-end: var(--space-4);
+}
+
+.assess-gate[data-committed] .assess-gate-tag {
+  color: var(--color-text-muted);
+}
+
+.assess-gate-hint,
+.assess-gate-numeric {
+  margin: var(--space-4) 0;
+  color: var(--color-text-muted);
+}
+
+.assess-gate-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.assess-gate-input {
+  width: 9rem;
+}
+
+.assess-gate-answer {
+  margin: var(--space-4) 0;
+}
+
+.assess-gate-locked {
+  margin: var(--space-4) 0;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.assess-gate-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: var(--space-4) 0 0;
+}
+
+.assess-verdict-good {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.assess-verdict-bad {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.assess-graded-chip {
+  display: inline-block;
+  font-size: var(--size-sm);
+  font-weight: 700;
+  color: var(--color-accent-contrast);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.assess-finish {
+  max-width: 44rem;
+}
+
+.assess-code-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.assess-code {
+  font-family: var(--font-mono);
+  font-size: var(--size-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+  user-select: all;
+  word-break: break-all;
+}
+
+.assess-reading-page {
+  max-width: none;
+}
+
+/* Coarse-pointer minimums (conductor note 4): every new control
+ * reaches 40×40 px under a touch pointer. */
+@media (pointer: coarse) {
+  .assess-start-btn,
+  .assess-finish-btn,
+  .assess-switch-id,
+  .assess-copy,
+  .assess-check,
+  .assess-open-tab {
+    min-height: 40px;
+    min-width: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .assess-id-input,
+  .assess-gate-input {
+    min-height: 40px;
+  }
+}
+
+/* §7.2 integrity: the header's Lesson|Sandbox switch would run the
+ * student's answers on data the grader never sees — the mode row
+ * comes out of every assignment, embedded or not (the pill and the
+ * phone sheet's Mode row share .mode-switch). (In embed mode the
+ * header itself is not rendered — see App's `embed` prop — so this
+ * rule only bites on a full-window assignment.) */
+.assess-page .mode-switch {
+  display: none;
+}

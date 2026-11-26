@@ -40,6 +40,11 @@ export interface PromptCardProps {
   /** Opens the pair-detail dialog for the prompt's `reveal_pair`
    * (checkpoint 12); the card only shows the button when this is set. */
   onShowPair?: (pair: [string, string]) => void;
+  /** Assignment mode (v1.5 spec §7.2): verdicts never name the
+   *  answer — a lesson prompt can sit at the same step as the graded
+   *  task that asks for it, so "the answer is X and Y", the named
+   *  weakest group and the reveal text all stay hidden. */
+  sealed?: boolean;
   /** Sequenced notes only (bootstrap-basics round 3): the note offers
    * "Continue" to unlock the next stage; unset means no button — the
    * stage was already continued or its successor unlocked by a run. */
@@ -57,6 +62,7 @@ export function PromptCard({
   answer,
   branch,
   onShowPair,
+  sealed = false,
   onContinue,
 }: PromptCardProps) {
   const predicting =
@@ -81,7 +87,9 @@ export function PromptCard({
         >
           {samePair(picked, answer)
             ? "Correct"
-            : `Not quite: the answer is ${answer[0]} and ${answer[1]}.`}
+            : sealed
+              ? "Not quite."
+              : `Not quite: the answer is ${answer[0]} and ${answer[1]}.`}
         </p>
       )}
       {verdict !== null && (
@@ -92,14 +100,17 @@ export function PromptCard({
         >
           {verdict.correct
             ? "Your prediction: Correct"
-            : `Your prediction: Not quite — the weakest group was (${verdict.weakest.join(
-                ", ",
-              )}) at ${verdict.supportPct}%.`}
+            : sealed
+              ? "Your prediction: Not quite."
+              : `Your prediction: Not quite — the weakest group was (${verdict.weakest.join(
+                  ", ",
+                )}) at ${verdict.supportPct}%.`}
         </p>
       )}
       <p className="prompt-concept">{prompt.concept}</p>
-      {((answered && prompt.type === "predict_pair") ||
-        (verdict !== null && isBranch)) &&
+      {!sealed &&
+        ((answered && prompt.type === "predict_pair") ||
+          (verdict !== null && isBranch)) &&
         prompt.reveal !== null && (
           <p className="prompt-reveal">{prompt.reveal}</p>
         )}

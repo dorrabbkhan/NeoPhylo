@@ -36,6 +36,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 
 import { REPO_URL } from "../config";
 import { bootstrapClient } from "../engine/bootstrapClient";
@@ -47,6 +48,7 @@ import type { ReplicateDetail } from "../engine/generated/ReplicateDetail";
 import { errorMessage } from "../explain/errors";
 import { loadLesson } from "../lessons/loader";
 import { usePromptGate } from "../lessons/promptGate";
+import type { PromptGate } from "../lessons/promptGate";
 import { LONGER_RUN_SITES } from "../lessons/prompts";
 import type { Action, Session } from "../state/session";
 import {
@@ -181,7 +183,80 @@ const CONSENSUS_KIND: Record<"majority" | "extended" | "strict", ConsensusKind> 
   strict: "Strict",
 };
 
-export function App({ exercise }: { exercise?: Exercise }) {
+/** What the session needs to compose pick handlers at a step — the
+ *  step matrix (labels and the active list drive cell→pair answers),
+ *  the full matrix (its labels are the engine's tip order), the
+ *  nodes' leaf sets, and the lesson prompt gate itself so a graded
+ *  task and a lesson prompt at the same step both see the pick. */
+export interface AssignmentPickCtx {
+  sm: StepMatrix | null;
+  matrix: { labels: string[] } | null;
+  leafSets: ReadonlyMap<number, ReadonlySet<string>>;
+  prompt: PromptGate;
+  /** Branch picks are refused while a consensus view is shown. */
+  branchesPickable: boolean;
+}
+
+export interface AssignmentPicks {
+  cell?: (i: number, j: number) => void;
+  leaf?: (label: string) => void;
+  branch?: (splitKey: string) => void;
+  terminal?: () => void;
+}
+
+/** The thin hook the student-assignment flow plugs into the lesson
+ *  (v1.5 plan Task 8, spec §5.6): all state and wasm calls live in
+ *  the lazy assignment chunk; App only forwards its handlers, the
+ *  step clamp and the gating flags. Undefined outside an
+ *  assignment. */
+export interface AssignmentAppSession {
+  /** The assignment's presence at position k: `open` marks an
+   *  uncommitted stepper task there (matrix pinned, explanation
+   *  withheld), `blocked` adds that it is still unanswered (the
+   *  stepper clamps), `gates` carries the graded-task cards for the
+   *  prompts area — the task card at k (committed shows the locked
+   *  state) plus the predict_branch card while it is uncommitted. */
+  view(k: number): {
+    open: boolean;
+    blocked: boolean;
+    gates: ReactNode;
+  };
+  /** Forward-step gate k→to: passing an answered task commits it;
+   *  an unanswered one clamps the jump onto its own position. */
+  stepGate(k: number, to: number): number;
+  /** Pick handlers for position k — each composes the open task's
+   *  draft update with any lesson-prompt handler in ctx. */
+  picks(k: number, ctx: AssignmentPickCtx): AssignmentPicks;
+  /** The armed first leaf of a two-leaf pick, for highlighting. */
+  leafArm: string | null;
+  /** An uncommitted predict_branch task without a pick gates the
+   *  bootstrap Run. */
+  branchRunGated: boolean;
+  /** An uncommitted predict_branch task lifts the bootstrap panel
+   *  into the Controls column ahead of the final step — the graded
+   *  task's run lives there (spec §5.6). */
+  branchPanel: boolean;
+  /** The stepper position a resumed session lands on — the first
+   *  uncommitted stepper task's position (spec §7.3: a reload
+   *  restores the stored progress). Read once at mount. */
+  initialStep: number;
+  /** Extra field paths the Controls/BootstrapPanel lock. */
+  locked: string[];
+}
+
+export function App({
+  exercise,
+  assignment,
+  embed = false,
+}: {
+  exercise?: Exercise;
+  /** The assignment session's thin hook — undefined outside an
+   *  assignment. */
+  assignment?: AssignmentAppSession;
+  /** §7.4 embed mode: the header chrome is not rendered at all —
+   *  not merely hidden — inside a frame. */
+  embed?: boolean;
+}) {
   // The live breakpoint (v1.3 Task 9, spec §6.1) — exposed on .app so
   // the arrangement is observable (and testable) alongside the CSS.
   const breakpoint = useBreakpoint();
@@ -243,6 +318,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
     [],
   );
 
+  // A resumed assignment's landing position — captured once at mount:
+  // the session object refreshes with every answer, but the stored
+  // spot is read only when the session is first built (spec §7.3).
+  const initialStepRef = useRef(assignment?.initialStep ?? 0);
+
   // Restore from the URL once per exercise change (spec §6.4): the URL
   // may supply a custom exercise (`#x=`), a lesson id (`?lesson=`), or
   // nothing; a failed decode toasts and falls back to the default
@@ -273,6 +353,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
         source: "lesson",
       });
       if (r.fromUrl !== null) s = applyUrlState(s, r.fromUrl, r.dataset);
+      // §7.3: a mid-assignment reload resumes on the first uncommitted
+      // graded task's position, not the top of the trace.
+      if (initialStepRef.current > 0) {
+        s = reducer(s, { type: "step", to: initialStepRef.current });
+      }
       // First-visit tour (spec §6.7): once per device on a plain visit
       // — suppressed by a `lesson=` step link, any `#x=` state, a
       // prop-driven exercise (unit tests) or the tourSeen flag.
@@ -299,15 +384,18 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // write is a layout effect (v1.4c Task 14 fix round 1): the address
   // bar is the sandbox's share link, so it must carry the new state
   // before the new view paints — a passive effect could leave the
-  // previous link showing for a frame.
+  // previous link showing for a frame. Inside an assignment the URL
+  // is the `#a=` link — never rewritten (v1.5 §5.6).
   const urlText = useMemo(
     () => (session === null ? "" : encode(sessionUrlState(session, link))),
     [session, link],
   );
   useLayoutEffect(() => {
-    if (session === null || urlText === "") return;
+    if (session === null || urlText === "" || assignment !== undefined) {
+      return;
+    }
     history.replaceState(null, "", urlText);
-  }, [session, urlText]);
+  }, [session, urlText, assignment]);
 
   // Theme (v1.3 spec §3.3): <html data-theme> follows the session's
   // theme and the choice is stored device-locally — the index.html
@@ -432,8 +520,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
   useEffect(() => () => bootstrapClient.dispose(), []);
 
   const onStep = useCallback(
-    (to: number) => dispatch({ type: "step", to }),
-    [dispatch],
+    (to: number) => {
+      // An assignment's graded tasks gate forward travel (spec
+      // §5.6): passing an answered one commits it; an unanswered one
+      // clamps the jump onto its own position (the session's
+      // stepGate).
+      const target = assignment?.stepGate(session?.step ?? 0, to) ?? to;
+      dispatch({ type: "step", to: target });
+    },
+    [dispatch, assignment, session],
   );
   const onPlayToggle = useCallback(() => setPlaying((p) => !p), []);
   const onHoverCell = useCallback(
@@ -577,6 +672,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
       (session?.bootstrap.maxRunSites ?? 0) >= LONGER_RUN_SITES,
   });
 
+  // Assignment hook (v1.5 plan Task 8, spec §5.6): an uncommitted
+  // graded task at this position gates the stepper like an open
+  // predict_pair prompt — pair unmarked, distance view pinned,
+  // explanation withheld. The pick composition lives in the lazy
+  // session (`picks`, called below once consensusTree is known); App
+  // only forwards its handlers and the gating flags.
+  const av = assignment?.view(k) ?? null;
+  const gatedAny = promptGate.gating !== null || av?.open === true;
+
   // The active gap treatment (v1.4b spec §3.1): absent means pairwise.
   const siteFilter = useMemo(
     () =>
@@ -706,16 +810,15 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // roving cell — where the prompt asks the student to pick. A gated
   // initial position is left alone (body is a valid ring start) and
   // live focus elsewhere is never stolen.
-  const gatedNow = promptGate.gating !== null;
-  const wasGated = useRef(gatedNow);
+  const wasGated = useRef(gatedAny);
   useEffect(() => {
-    const justGated = gatedNow && !wasGated.current;
-    wasGated.current = gatedNow;
+    const justGated = gatedAny && !wasGated.current;
+    wasGated.current = gatedAny;
     if (!justGated || document.activeElement !== document.body) return;
     document
       .querySelector<SVGGElement>('[role="gridcell"][tabindex="0"]')
       ?.focus();
-  }, [gatedNow]);
+  }, [gatedAny]);
 
   if (session === null) {
     // §6.8: the exact loading line over skeleton panels — never a
@@ -854,12 +957,34 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // correct pair from the heatmap and the tree highlights.
   const { shown: shownPrompts, gating, answerPair } = promptGate;
 
-  // The shown matrix while a predict_pair prompt is open: the marked
-  // cell is cleared and the view is pinned to distances — the lowest Q
-  // value IS the answer, so the Q matrix would hand it to the student
-  // (checkpoint 12).
+  // Assignment picks (§5.6): the lazy session composes its draft
+  // updates with the prompt gate's handlers — a click can feed a
+  // lesson prompt and a graded task at once. Outside an assignment
+  // the fallback object is the prompt gate's own wiring.
+  const branchPicks =
+    promptGate.branchGating !== null && consensusTree === null;
+  const picks = assignment?.picks(k, {
+    sm,
+    matrix: session.matrix,
+    leafSets: inferSets,
+    prompt: promptGate,
+    branchesPickable: consensusTree === null,
+  }) ?? {
+    cell: gating !== null ? promptGate.onPickCell : undefined,
+    leaf: gating !== null ? promptGate.onPickLeaf : undefined,
+    branch: branchPicks ? promptGate.onPickBranch : undefined,
+    terminal: branchPicks ? promptGate.onPickTerminal : undefined,
+  };
+
+  // The shown matrix while a predict_pair prompt — or an uncommitted
+  // graded task (v1.5 §5.6) — is open: the marked cell is cleared and
+  // the view is pinned to distances — the lowest Q value IS the
+  // answer, so the Q matrix would hand it to the student (checkpoint
+  // 12). For a numeric task the pinned distance cells stay visible —
+  // they are the inputs the spec says stay on screen — while the
+  // unmarked pair keeps the answer cell unidentified.
   const smShown: StepMatrix | null =
-    gating === null
+    !gatedAny
       ? sm
       : (() => {
           const pinned = stepMatrix({
@@ -886,7 +1011,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
     matrix: session.matrix,
     cellHover: session.hover,
     hoverLeaf,
-    leafPick: promptGate.leafPick,
+    leafPick: promptGate.leafPick ?? assignment?.leafArm ?? null,
     rf: session.rf,
     taxa: session.alignment?.labels ?? null,
   });
@@ -897,8 +1022,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
   // An answered reveal_pair prompt leaves a "Revisit" link on the step
   // right after its own — the position where that join shows as
   // just-completed (checkpoint 12).
+  // Assignments never offer the reveal — an open graded task's answer
+  // must not sit behind a click (spec §7.2 "no answer-key links").
   const revisit =
-    session.source === "lesson"
+    session.source === "lesson" && av === null
       ? (session.exercise.prompts.find(
           (p) =>
             p.reveal_pair !== null &&
@@ -936,21 +1063,38 @@ export function App({ exercise }: { exercise?: Exercise }) {
         alphabet={session.alphabet}
         analysis={session.exercise.analysis}
         sandbox={session.source === "sandbox"}
-        locked={session.source === "sandbox" ? [] : session.exercise.locked}
+        locked={
+          session.source === "sandbox"
+            ? []
+            : session.exercise.locked.concat(assignment?.locked ?? [])
+        }
         matrixView={session.matrixView}
         qAvailable={isNj && trace !== null}
-        qGated={gating !== null}
+        qGated={gatedAny}
         alignmentOrigin={session.alignmentOrigin}
         dispatch={dispatch}
         bootstrapPanel={
-          atFinal && inferred !== null && aligned ? (
+          // An assignment's uncommitted predict_branch task lifts the
+          // panel ahead of the final step — its Replicates/Seed are the
+          // variant's locked values and Run stays gated until the pick
+          // (spec §5.6).
+          (atFinal || assignment?.branchPanel === true) &&
+          inferred !== null &&
+          aligned ? (
             <Suspense fallback={null}>
               <BootstrapPanel
                 session={session}
                 dispatch={dispatch}
-                runGated={promptGate.branchGating !== null}
+                runGated={
+                  promptGate.branchGating !== null ||
+                  (assignment?.branchRunGated ?? false)
+                }
                 locked={
-                  session.source === "sandbox" ? [] : session.exercise.locked
+                  session.source === "sandbox"
+                    ? []
+                    : session.exercise.locked.concat(
+                        assignment?.locked ?? [],
+                      )
                 }
               />
             </Suspense>
@@ -1030,25 +1174,30 @@ export function App({ exercise }: { exercise?: Exercise }) {
 
   return (
     <div className="app" data-breakpoint={breakpoint}>
-      <Header
-        title={session.exercise.title}
-        toast={toast}
-        source={session.source}
-        onSelectMode={onSelectMode}
-        currentLessonId={
-          link.kind === "lesson" ? session.exercise.id : null
-        }
-        onPickLesson={(id) => void onPickLesson(id)}
-        onOpenPhylipHelp={() => setGuide("phylip")}
-        onOpenMegaHelp={() => setGuide("mega")}
-        onOpenLibrary={onOpenLibrary}
-        onOpenReading={onOpenReading}
-        theme={session.theme}
-        presenter={session.presenter}
-        dispatch={dispatch}
-        breakpoint={breakpoint}
-        drawerOpen={session.drawerOpen}
-      />
+      {/* §7.4 embed: the header chrome is absent from the DOM inside
+          a frame — the assignment's own bar carries the title and the
+          new-tab affordance instead. */}
+      {embed !== true && (
+        <Header
+          title={session.exercise.title}
+          toast={toast}
+          source={session.source}
+          onSelectMode={onSelectMode}
+          currentLessonId={
+            link.kind === "lesson" ? session.exercise.id : null
+          }
+          onPickLesson={(id) => void onPickLesson(id)}
+          onOpenPhylipHelp={() => setGuide("phylip")}
+          onOpenMegaHelp={() => setGuide("mega")}
+          onOpenLibrary={onOpenLibrary}
+          onOpenReading={onOpenReading}
+          theme={session.theme}
+          presenter={session.presenter}
+          dispatch={dispatch}
+          breakpoint={breakpoint}
+          drawerOpen={session.drawerOpen}
+        />
+      )}
       <main className="app-grid" id="main-content" tabIndex={-1}>
         {/* The controls column renders only at the wide breakpoint;
             below it the same sections live in the Settings drawer
@@ -1078,8 +1227,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
             )}
             <TeachingNotices session={session} dispatch={dispatch} />
           </div>
-          {shownPrompts.length > 0 && (
+          {(shownPrompts.length > 0 || av?.gates != null) && (
             <div className="prompts">
+              {av?.gates}
               {shownPrompts.map((p, i) => (
                 <PromptCard
                   key={`${p.at_step}:${i}`}
@@ -1127,7 +1277,11 @@ export function App({ exercise }: { exercise?: Exercise }) {
                         }
                       : undefined
                   }
-                  onShowPair={setPair}
+                  // §7.2: inside an assignment a prompt's verdict
+                  // never names its answer — a graded task can sit
+                  // at the same step asking for it.
+                  sealed={assignment !== undefined}
+                  onShowPair={assignment === undefined ? setPair : undefined}
                   onContinue={
                     p.type === "note"
                       ? (promptGate.continueFor(p) ?? undefined)
@@ -1167,7 +1321,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
                 splitTaxa={splitTaxa}
                 splitRooted
                 onHoverLeaf={onHoverLeaf}
-                onPickLeaf={gating !== null ? promptGate.onPickLeaf : undefined}
+                onPickLeaf={picks.leaf}
               />
             )}
             {inferred !== null && drawnTree !== null && (
@@ -1199,21 +1353,9 @@ export function App({ exercise }: { exercise?: Exercise }) {
                       splitRooted={!isNj}
                       onPanelSize={setExportPanelW}
                       onHoverLeaf={onHoverLeaf}
-                      onPickLeaf={
-                        gating !== null ? promptGate.onPickLeaf : undefined
-                      }
-                      onPickBranch={
-                        promptGate.branchGating !== null &&
-                        consensusTree === null
-                          ? promptGate.onPickBranch
-                          : undefined
-                      }
-                      onPickTerminal={
-                        promptGate.branchGating !== null &&
-                        consensusTree === null
-                          ? promptGate.onPickTerminal
-                          : undefined
-                      }
+                      onPickLeaf={picks.leaf}
+                      onPickBranch={picks.branch}
+                      onPickTerminal={picks.terminal}
                     />
                   );
                   // Consensus tabs (spec §6.4): at the final position
@@ -1289,11 +1431,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
               hover={matrixHover}
               onHover={onHoverCell}
               onPick={
-                gating !== null
-                  ? promptGate.onPickCell
-                  : aligned && session.alphabet === "protein"
-                    ? onPickPairCell
-                    : undefined
+                picks.cell ??
+                (aligned && session.alphabet === "protein"
+                  ? onPickPairCell
+                  : undefined)
               }
             />
           )}
@@ -1305,7 +1446,7 @@ export function App({ exercise }: { exercise?: Exercise }) {
             labels={explainLabels}
             mode={session.mode}
             dispatch={dispatch}
-            gated={gating !== null}
+            gated={gatedAny}
             revisit={
               revisit !== null
                 ? { pair: revisit, onShow: () => setPair(revisit) }
@@ -1328,6 +1469,10 @@ export function App({ exercise }: { exercise?: Exercise }) {
             onStep={onStep}
             onPlayToggle={onPlayToggle}
             gated={gating !== null}
+            // The assignment's unanswered graded task gates forward
+            // travel only — the student can still step back to a
+            // locked-in answer (spec §5.6).
+            gatedForward={av?.blocked ?? false}
           />
         )}
         {tooManyForSteps && (

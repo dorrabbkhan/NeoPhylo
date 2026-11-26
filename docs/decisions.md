@@ -10603,3 +10603,66 @@ were regenerated in the pinned image — no other baseline changed.
   under the 0.001 pixel ratio — regenerated with
   `--update-snapshots=all`, which rewrites passing snapshots too;
   the default `changed` mode had silently kept them stale).
+
+## v1.5 Task 8 — Student flow and embed mode
+
+- **Files outside the Files block:** `web/src/assess/url.ts` (added
+  `resolveAssignmentLink` — the student flow needs the resolved file
+  text for `makeVariant`/`encodeCode`, not just the validated
+  `Assignment`; `decodeAssignmentLink` stays for the Task-6 callers),
+  `web/src/views/App.tsx` + `PromptCard.tsx` (the "lesson stepper
+  entry point accepts an assignment context" wording covers App;
+  PromptCard gets `sealed` because §7.2 forbids naming answers —
+  a lesson prompt can sit at the same step as the graded task that
+  asks for it), `web/src/views/library/{LibraryPage,library.css}` +
+  `CopyLmsText.tsx` (§7.5's "copy assignment text" card control —
+  the Files block names no library files), `web/e2e/assess.ts`
+  (shared e2e helper: `#a=` link building via the same wasm path the
+  builder uses, code decoding for the Finish-code assertions),
+  `web/e2e/visualScenes.ts` (the `assignment-start-*`,
+  `assignment-finish-*`, `embed-*` scenes conductor note 3 requires),
+  `web/src/views/assignment/{AssignmentReading,assignment.css}`
+  (reading-set assignments need the same graded-item wiring;
+  the stylesheet carries the embed-chrome and coarse-pointer rules),
+  `web/src/views/ExportMenuBody.tsx` (new — the export panel body
+  as a lazy chunk, the owner decision below; `ExportMenu.tsx` keeps
+  the section shell, heading and prop contract).
+- **Session-hook shape (conductor note 1):** the App-side wiring is
+  `assignment?: AssignmentAppSession` — App forwards `view(k)` flags
+  (open/blocked/gates), `picks(k, ctx)` handlers (the session
+  composes task drafts with the prompt gate's own handlers) and
+  `stepGate(k, to)` (commit-or-clamp on forward travel). All state,
+  verdicts and wasm calls stay in the lazy `views/assignment` chunk.
+- **Initial-JS budget (STOP resolved, owner decision 2026-11-26):**
+  after the student-flow lazy split the entry chunk still exceeded
+  `JS_LIMIT=120168` gz (main 119,599 → ≈120,289). The owner chose
+  option 1 on the #190 escalation: keep the limit unchanged and make
+  the ExportMenu panel body a lazy chunk (`React.lazy` + `Suspense`)
+  — "v1.5 Task 8: ExportMenu panel lazy-loaded to keep the
+  initial-JS budget, owner 2026-11-26". The section (`<section
+  class="export-menu">` + `<h2>Export</h2>`) stays eager, so the
+  menu keeps the same position, focus order and ARIA; the body is
+  fetched on first render like every lazy sheet/panel in App.tsx.
+- **Visual-sweep findings (fix round):** `AssignmentStart` now also
+  imports `../labs/labs.css` — its start/finish/error screens are
+  `.lab-page` surfaces but never loaded the lab chrome's padding,
+  so they rendered flush to the viewport edges (the new baselines
+  caught it). `assignment.css` additionally parks the app's
+  `.skip-link` fully offscreen while unfocused on this page
+  (`translateY(-100%)` + `pointer-events:none`, both undone on
+  `:focus-visible`) — `.app` sits under the assess bar here, so the
+  link's `top:-64px` parking spot lands ON the bar: its bottom edge
+  painted over the bar and swallowed clicks (the Finish button at
+  ≤768 px). `e2e/assignment_resume.spec.ts` waits for the
+  lazy export body before the post-reload stepper click — the
+  ExportMenuBody chunk resolving mid-click reflowed the controls
+  column and the dispatched click missed the button (hit-test vs
+  dispatch race, ~1 in 6 runs under parallel load).
+- **Regenerated baselines:** `assignment-start-*`,
+  `assignment-finish-*`, `embed-working-*` are new;
+  `library-*`/`library-labs-*` regrew with the card "Copy
+  assignment text" control (this PR's change). `matrix-session-*`
+  and `pair-panel-removed-*` also regenerated differently under
+  `--update-snapshots` but an `origin/main` worktree produced the
+  same pixels — pre-existing font drift on this host, not this PR —
+  so those files were restored and are reported, not committed.
