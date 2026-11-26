@@ -786,3 +786,45 @@ test("the header's Reading trees link asks over unsaved work like the menus; a c
     page.getByRole("region", { name: "Tree reading" }),
   ).toBeVisible();
 });
+
+// v1.5 Task 8 fix round 3 (owner 2026-11-26): the "Copy assignment
+// text" toggle's label lines up with the card's link row — the ghost
+// button's inline padding is undone by a negative inline-start
+// margin, so the label's left edge sits at the first link's left
+// edge (±1 px) at every viewport, on every card kind. The text
+// rect comes from a Range over the element's contents, not the
+// element box (the button's box includes the padding being undone).
+test("the copy toggle's label aligns with the card's first link at 1920 and 768", async ({
+  page,
+}) => {
+  const textLeft = (loc: import("@playwright/test").Locator) =>
+    loc.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().left;
+    });
+  for (const width of [1920, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?library");
+    await allCards(page);
+    for (const kind of [
+      "lessons",
+      "reading",
+      "phylip",
+      "mega",
+      "datasets",
+    ]) {
+      const card = cards(page, kind).first();
+      const linkLeft = await textLeft(
+        card.locator(".lab-card-actions a").first(),
+      );
+      const toggleLeft = await textLeft(
+        card.locator("button.lib-copy-toggle"),
+      );
+      expect(
+        Math.abs(toggleLeft - linkLeft),
+        `${width}px, ${kind}: toggle label x ${toggleLeft} vs first link x ${linkLeft}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+});

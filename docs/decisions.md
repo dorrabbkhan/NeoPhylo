@@ -10700,3 +10700,20 @@ were regenerated in the pinned image — no other baseline changed.
   the squashed `1fr` row; part of the same footer-pinning fix),
   `web/src/views/PromptCard.test.tsx` (the `hideVerdicts` unit pins;
   the component was already outside the block).
+- Embed auto-detect (`window.top !== window.self`) applies on the
+  assignment route only (`#a=`/`?embed`); a plainly framed
+  `?lesson=`/`?read=` link keeps full chrome — owner, 2026-11-26
+  (#191).
+- **Fix round 3 (PR #191, owner 2026-11-26):** the plain-LMS paste
+  line now reads "…paste it where your instructor collects
+  answers." — the preposition moved into `PASTE_SPOT` so the other
+  three variants stay byte-identical; `lmsText.test.ts` asserts each
+  variant's full sentence verbatim in both shapes. The library copy
+  toggle's label aligns with the card's link row via
+  `margin-inline-start: calc(-1 * var(--space-12) - 1px)` — it
+  tracks the ghost button's own inline padding plus its literal 1 px
+  border, so it holds at every scale.
+  Files outside the Files block, this round:
+  `web/e2e/library-page.spec.ts` (the left-edge alignment
+  assertion). `library-*`/`library-labs-*` regenerated (12 frames),
+  the pixel diff confined to the toggle.

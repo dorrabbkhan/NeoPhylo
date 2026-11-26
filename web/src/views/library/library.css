@@ -137,9 +137,15 @@
  * disclosure under the card actions with one choice per LMS shape.
  * Both controls ride the button system (btn + one variant, §16.4):
  * the toggle is the quiet ghost affordance, the choices bordered
- * secondary chips — these rules only keep the compact card sizing. */
+ * secondary chips — these rules only keep the compact card sizing.
+ * The ghost's inline padding would sit the label right of the link
+ * row above it; the negative inline-start margin (owner 2026-11-26)
+ * pulls the label back to the row's left edge — it tracks the
+ * button's own padding token plus its literal 1 px border, so the
+ * alignment holds at every scale the tokens take. */
 .lib-copy-toggle {
   font-size: var(--size-sm);
+  margin-inline-start: calc(-1 * var(--space-12) - 1px);
 }
 
 .lib-copy-panel {

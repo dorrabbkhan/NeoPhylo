@@ -36,9 +36,9 @@ export const LMS_LABEL: Record<LmsKind, string> = {
 };
 
 const PASTE_SPOT: Record<LmsKind, string> = {
-  canvas: "this Canvas assignment's text-entry box",
-  moodle: "the Moodle answer box for this assignment",
-  forms: "the form's answer field",
+  canvas: "into this Canvas assignment's text-entry box",
+  moodle: "into the Moodle answer box for this assignment",
+  forms: "into the form's answer field",
   plain: "where your instructor collects answers",
 };
 
@@ -53,7 +53,7 @@ export function lmsText(
       ? ""
       : ` When the page asks for an ID, type your ${a.idLabel}.`;
   const codeLine = a.code
-    ? ` When you finish, copy the completion code NeoPhylo shows and paste it into ${PASTE_SPOT[lms]}.`
+    ? ` When you finish, copy the completion code NeoPhylo shows and paste it ${PASTE_SPOT[lms]}.`
     : "";
   const plain = `${a.title} — open ${a.link} and work through it in NeoPhylo.${idLine}${codeLine}`;
   const html =
@@ -64,7 +64,7 @@ export function lmsText(
       ? ""
       : ` When the page asks for an ID, type your ${escapeHtml(a.idLabel)}.`) +
     (a.code
-      ? ` When you finish, copy the completion code NeoPhylo shows and paste it into ${escapeHtml(PASTE_SPOT[lms])}.`
+      ? ` When you finish, copy the completion code NeoPhylo shows and paste it ${escapeHtml(PASTE_SPOT[lms])}.`
       : "") +
     `</p>`;
   return { plain, html };

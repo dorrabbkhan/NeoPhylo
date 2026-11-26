@@ -28,11 +28,22 @@ describe("lmsText", () => {
     expect(t.html).toContain("student number");
   });
 
-  it("each variant names its own paste spot", () => {
-    expect(lmsText(A, "canvas").plain).toContain("Canvas");
-    expect(lmsText(A, "moodle").plain).toContain("Moodle");
-    expect(lmsText(A, "forms").plain).toContain("form");
-    expect(lmsText(A, "plain").plain).toContain("instructor");
+  it("each variant is the owner wording verbatim, in both shapes", () => {
+    const SPOT: Record<LmsKind, string> = {
+      canvas: "into this Canvas assignment's text-entry box",
+      moodle: "into the Moodle answer box for this assignment",
+      forms: "into the form's answer field",
+      plain: "where your instructor collects answers",
+    };
+    for (const k of LMS_KINDS) {
+      const t = lmsText(A, k);
+      expect(t.plain).toBe(
+        `Homework 3 — neighbour joining — open https://neophylo.example/app/#a=XYZ and work through it in NeoPhylo. When the page asks for an ID, type your student number. When you finish, copy the completion code NeoPhylo shows and paste it ${SPOT[k]}.`,
+      );
+      expect(t.html).toBe(
+        `<p>Homework 3 — neighbour joining — open <a href="https://neophylo.example/app/#a=XYZ">https://neophylo.example/app/#a=XYZ</a> and work through it in NeoPhylo. When the page asks for an ID, type your student number. When you finish, copy the completion code NeoPhylo shows and paste it ${SPOT[k]}.</p>`,
+      );
+    }
   });
 
   it("a plain-lesson source asks for no id and names no code", () => {
